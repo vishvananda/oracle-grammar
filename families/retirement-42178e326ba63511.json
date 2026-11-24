@@ -1,0 +1,1477 @@
+{
+  "family": "revealed-type-exile-receipt",
+  "cases": [
+    {
+      "name": "Portent of Calamity",
+      "text": "Reveal the top X cards of your library. For each card type, you may exile a card of that type from among them. Put the rest into your graveyard. You may cast a spell from among the exiled cards without paying its mana cost if you exiled four or more cards this way. Then put the rest of the exiled cards into your hand.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "AnnouncedX"
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "WithSelections",
+                            "args": {
+                              "steps": [
+                                {
+                                  "binding": 0,
+                                  "chooser": {
+                                    "Players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  },
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "count": "AnyNumber",
+                                  "constraints": [
+                                    {
+                                      "OneForEachCardType": "All"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "action": {
+                                "kind": "Move",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Prepared",
+                                    "args": 0
+                                  },
+                                  "destination": {
+                                    "Exile": {
+                                      "visibility": "FaceUp",
+                                      "arrival": {
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  },
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 0
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "destination": {
+                                "OwnersGraveyard": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 1,
+                                  "phase": "After"
+                                }
+                              },
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 4
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Optional",
+                          "args": {
+                            "decider": {
+                              "kind": "AbilityController"
+                            },
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 3,
+                                    "operation": {
+                                      "kind": "PlayCards",
+                                      "args": {
+                                        "actor": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "action": "CastSpell",
+                                        "cards": {
+                                          "kind": "Matching",
+                                          "args": {
+                                            "objects": {
+                                              "kind": "Transition",
+                                              "args": {
+                                                "result": 1,
+                                                "phase": "After"
+                                              }
+                                            },
+                                            "filter": {
+                                              "kind": "Any"
+                                            }
+                                          }
+                                        },
+                                        "count": {
+                                          "Exactly": {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          }
+                                        },
+                                        "cost": "Free",
+                                        "into_exile": false
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 4,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "InZone",
+                          "args": {
+                            "objects": {
+                              "kind": "Transition",
+                              "args": {
+                                "result": 1,
+                                "phase": "After"
+                              }
+                            },
+                            "zone": "Exile"
+                          }
+                        },
+                        "destination": {
+                          "OwnersHand": {
+                            "counters": [],
+                            "states": []
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Imaginary Adept",
+      "text": "Reveal the top X cards of your library. For each card type, you may exile a card of that type from among them. Put the rest into your graveyard. You may cast a spell from among the exiled cards without paying its mana cost if you exiled two or more cards this way. Then put the rest of the exiled cards into your hand.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "AnnouncedX"
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "WithSelections",
+                            "args": {
+                              "steps": [
+                                {
+                                  "binding": 0,
+                                  "chooser": {
+                                    "Players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  },
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "count": "AnyNumber",
+                                  "constraints": [
+                                    {
+                                      "OneForEachCardType": "All"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "action": {
+                                "kind": "Move",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Prepared",
+                                    "args": 0
+                                  },
+                                  "destination": {
+                                    "Exile": {
+                                      "visibility": "FaceUp",
+                                      "arrival": {
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  },
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 0
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "destination": {
+                                "OwnersGraveyard": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 1,
+                                  "phase": "After"
+                                }
+                              },
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 2
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Optional",
+                          "args": {
+                            "decider": {
+                              "kind": "AbilityController"
+                            },
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 3,
+                                    "operation": {
+                                      "kind": "PlayCards",
+                                      "args": {
+                                        "actor": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "action": "CastSpell",
+                                        "cards": {
+                                          "kind": "Matching",
+                                          "args": {
+                                            "objects": {
+                                              "kind": "Transition",
+                                              "args": {
+                                                "result": 1,
+                                                "phase": "After"
+                                              }
+                                            },
+                                            "filter": {
+                                              "kind": "Any"
+                                            }
+                                          }
+                                        },
+                                        "count": {
+                                          "Exactly": {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          }
+                                        },
+                                        "cost": "Free",
+                                        "into_exile": false
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 4,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "InZone",
+                          "args": {
+                            "objects": {
+                              "kind": "Transition",
+                              "args": {
+                                "result": 1,
+                                "phase": "After"
+                              }
+                            },
+                            "zone": "Exile"
+                          }
+                        },
+                        "destination": {
+                          "OwnersHand": {
+                            "counters": [],
+                            "states": []
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Imaginary Adept",
+      "text": "Reveal the top X cards of your library. For each card type, you may exile a card of that type from among them. Put the rest into your graveyard. You may cast a spell from among the exiled cards without paying its mana cost if you exiled five or more cards this way. Then put the rest of the exiled cards into your hand.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "AnnouncedX"
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "WithSelections",
+                            "args": {
+                              "steps": [
+                                {
+                                  "binding": 0,
+                                  "chooser": {
+                                    "Players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  },
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "count": "AnyNumber",
+                                  "constraints": [
+                                    {
+                                      "OneForEachCardType": "All"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "action": {
+                                "kind": "Move",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Prepared",
+                                    "args": 0
+                                  },
+                                  "destination": {
+                                    "Exile": {
+                                      "visibility": "FaceUp",
+                                      "arrival": {
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  },
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 0
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "destination": {
+                                "OwnersGraveyard": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 1,
+                                  "phase": "After"
+                                }
+                              },
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 5
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Optional",
+                          "args": {
+                            "decider": {
+                              "kind": "AbilityController"
+                            },
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 3,
+                                    "operation": {
+                                      "kind": "PlayCards",
+                                      "args": {
+                                        "actor": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "action": "CastSpell",
+                                        "cards": {
+                                          "kind": "Matching",
+                                          "args": {
+                                            "objects": {
+                                              "kind": "Transition",
+                                              "args": {
+                                                "result": 1,
+                                                "phase": "After"
+                                              }
+                                            },
+                                            "filter": {
+                                              "kind": "Any"
+                                            }
+                                          }
+                                        },
+                                        "count": {
+                                          "Exactly": {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          }
+                                        },
+                                        "cost": "Free",
+                                        "into_exile": false
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 4,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "InZone",
+                          "args": {
+                            "objects": {
+                              "kind": "Transition",
+                              "args": {
+                                "result": 1,
+                                "phase": "After"
+                              }
+                            },
+                            "zone": "Exile"
+                          }
+                        },
+                        "destination": {
+                          "OwnersHand": {
+                            "counters": [],
+                            "states": []
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Imaginary Adept",
+      "text": "Reveal the top X cards of your library. For each card type, you may exile a card of that type from among them. Put the rest into your graveyard. You may cast a spell from among the exiled cards without paying its mana cost if you milled four or more cards this way. Then put the rest of the exiled cards into your hand.",
+      "reject": true
+    },
+    {
+      "name": "Portent of Calamity",
+      "text": "Reveal the top X cards of your library. For each card type, you may exile a card of that type from among them. Put the rest into your graveyard. You may cast a spell from among the exiled cards without paying its mana cost if you exiled two or more cards this way. Then put the rest of the exiled cards into your hand.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          "X",
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "AnnouncedX"
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "WithSelections",
+                            "args": {
+                              "steps": [
+                                {
+                                  "binding": 0,
+                                  "chooser": {
+                                    "Players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  },
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "count": "AnyNumber",
+                                  "constraints": [
+                                    {
+                                      "OneForEachCardType": "All"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "action": {
+                                "kind": "Move",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Prepared",
+                                    "args": 0
+                                  },
+                                  "destination": {
+                                    "Exile": {
+                                      "visibility": "FaceUp",
+                                      "arrival": {
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  },
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 0
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "destination": {
+                                "OwnersGraveyard": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 1,
+                                  "phase": "After"
+                                }
+                              },
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 2
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Optional",
+                          "args": {
+                            "decider": {
+                              "kind": "AbilityController"
+                            },
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 3,
+                                    "operation": {
+                                      "kind": "PlayCards",
+                                      "args": {
+                                        "actor": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "action": "CastSpell",
+                                        "cards": {
+                                          "kind": "Matching",
+                                          "args": {
+                                            "objects": {
+                                              "kind": "Transition",
+                                              "args": {
+                                                "result": 1,
+                                                "phase": "After"
+                                              }
+                                            },
+                                            "filter": {
+                                              "kind": "Any"
+                                            }
+                                          }
+                                        },
+                                        "count": {
+                                          "Exactly": {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          }
+                                        },
+                                        "cost": "Free",
+                                        "into_exile": false
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 4,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "InZone",
+                          "args": {
+                            "objects": {
+                              "kind": "Transition",
+                              "args": {
+                                "result": 1,
+                                "phase": "After"
+                              }
+                            },
+                            "zone": "Exile"
+                          }
+                        },
+                        "destination": {
+                          "OwnersHand": {
+                            "counters": [],
+                            "states": []
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Portent of Calamity",
+      "text": "Reveal the top X cards of your library. For each card type, you may exile a card of that type from among them. Put the rest into your graveyard. You may cast a spell from among the exiled cards without paying its mana cost if you exiled five or more cards this way. Then put the rest of the exiled cards into your hand.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          "X",
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "AnnouncedX"
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "WithSelections",
+                            "args": {
+                              "steps": [
+                                {
+                                  "binding": 0,
+                                  "chooser": {
+                                    "Players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  },
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "count": "AnyNumber",
+                                  "constraints": [
+                                    {
+                                      "OneForEachCardType": "All"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "action": {
+                                "kind": "Move",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Prepared",
+                                    "args": 0
+                                  },
+                                  "destination": {
+                                    "Exile": {
+                                      "visibility": "FaceUp",
+                                      "arrival": {
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  },
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 0
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "destination": {
+                                "OwnersGraveyard": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 1,
+                                  "phase": "After"
+                                }
+                              },
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 5
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Optional",
+                          "args": {
+                            "decider": {
+                              "kind": "AbilityController"
+                            },
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 3,
+                                    "operation": {
+                                      "kind": "PlayCards",
+                                      "args": {
+                                        "actor": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "action": "CastSpell",
+                                        "cards": {
+                                          "kind": "Matching",
+                                          "args": {
+                                            "objects": {
+                                              "kind": "Transition",
+                                              "args": {
+                                                "result": 1,
+                                                "phase": "After"
+                                              }
+                                            },
+                                            "filter": {
+                                              "kind": "Any"
+                                            }
+                                          }
+                                        },
+                                        "count": {
+                                          "Exactly": {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          }
+                                        },
+                                        "cost": "Free",
+                                        "into_exile": false
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 4,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "InZone",
+                          "args": {
+                            "objects": {
+                              "kind": "Transition",
+                              "args": {
+                                "result": 1,
+                                "phase": "After"
+                              }
+                            },
+                            "zone": "Exile"
+                          }
+                        },
+                        "destination": {
+                          "OwnersHand": {
+                            "counters": [],
+                            "states": []
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

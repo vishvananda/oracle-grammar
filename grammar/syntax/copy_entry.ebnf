@@ -449,3 +449,14 @@ entry_copy_tapped_plain ::= "tapped" "as" "a" "copy" "of" entry_copy_battlefield
 
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_battlefield_explicit, exceptions:$copy_exceptions_sentence})}}, Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}] */
 entry_copy_tapped_except ::= "tapped" "as" "a" "copy" "of" entry_copy_battlefield_explicit "," "except" copy_exceptions_sentence
+
+/* This continuation is paired only with the two-card exile payment above.
+   Its two queries address the same performed payment, in complementary order. */
+/* @sem Vec<Instruction>::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}), exceptions:[]})}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:ObjectProperty{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:1}, property:Power, information:CurrentOrLastKnown}})}}] */
+entry_paid_pair_copy_counters ::= "it" "enters" "as" "a" "copy" "of" "one" "of" "those" "cards" "with" "a" "number" "of" "additional" counter_kind "counters" "on" "it" "equal" "to" "the" "power" "of" "the" "other" "card"
+
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$entry_exile_pair_payment, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$entry_paid_pair_copy_counters}, otherwise:Program{}}]} */
+entry_paid_pair_copy_program ::= "you" "may" entry_exile_pair_payment "." "if" "you" "do" "," entry_paid_pair_copy_counters
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_paid_pair_copy_program}) */
+entry_paid_pair_copy_ability ::= "as" object_ref "enters" "," entry_paid_pair_copy_program "."

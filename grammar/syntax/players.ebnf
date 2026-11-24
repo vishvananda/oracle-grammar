@@ -84,7 +84,7 @@ player_prohibition ::= player_prohibited_action
 /* @sem Change::[...$player_prohibition, ...$player_prohibitions] */
 player_prohibitions_more ::= player_prohibition ("or" | "and") player_prohibitions
 
-continuous_player_prohibition ::= continuous_repeated_controller_prohibitions | continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn | continuous_only_player_actions | continuous_player_prohibition_rest_game | continuous_target_repeated_prohibition
+continuous_player_prohibition ::= continuous_repeated_controller_prohibitions | continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn | continuous_only_player_actions | continuous_player_prohibition_rest_game | continuous_target_repeated_prohibition | continuous_event_value_prohibition
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_rule_subject), changes:$player_prohibitions, duration:$duration, evaluation:LiveObjects} */
 continuous_player_prohibition_last ::= player_rule_subject "can't" player_prohibitions duration
@@ -232,7 +232,7 @@ player_prohibit_counters ::= "get" "counters"
 /* @sem PlayerAction::CastSpell{filter:$prohibited_spell_qualifier} */
 player_prohibit_cast_qualified ::= "cast" "spells" prohibited_spell_qualifier
 
-prohibited_spell_qualifier ::= prohibited_battlefield_shared_name | prohibited_chosen_type | prohibited_shared_color | prohibited_printed_name
+prohibited_spell_qualifier ::= prohibited_event_spell_mana_value | prohibited_battlefield_shared_name | prohibited_chosen_type | prohibited_shared_color | prohibited_printed_name
 
 /* @sem ObjectFilter::Chosen(CardType) */
 prohibited_chosen_type ::= "of" "the" "chosen" "type"
@@ -762,3 +762,26 @@ target_repeated_first ::= target_repeated_cast_union | player_prohibition
 /* @prefer always */
 /* @sem Change::[PlayerRule(Prohibit(CastSpell{filter:$card_or}))] */
 target_repeated_cast_union ::= "cast" card_or "spells"
+
+/* The triggering spell supplies the reference for this player restriction. */
+/* @sem ObjectFilter::Shares{property:$event_spell_shared_property, with:EventSubject} */
+prohibited_event_spell_mana_value ::= event_spell_shared_property
+
+event_spell_shared_property ::= event_spell_same_mana_value | event_spell_same_color
+
+/* @sem DistinctProperty::ManaValues */
+event_spell_same_mana_value ::= "with" "the" "same" "mana" "value" "as" "that" "spell"
+
+/* @sem DistinctProperty::Colors */
+event_spell_same_color ::= "that" "share" "a" "color" "with" "that" "spell"
+
+/* This postposed comparison keeps its duration after the restriction. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($event_value_subject), changes:[PlayerRule(Prohibit(CastSpell{filter:$prohibited_event_spell_mana_value}))], duration:$duration, evaluation:LiveObjects} */
+/* @prefer always */
+continuous_event_value_prohibition ::= event_value_subject "can't" "cast" "spells" prohibited_event_spell_mana_value duration
+
+event_value_subject ::= event_value_opponents | player_rule_subject
+
+/* @sem PlayerSet::OpponentsOf(AbilityController) */
+/* @prefer always */
+event_value_opponents ::= "your" "opponents"

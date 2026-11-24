@@ -2156,3 +2156,22 @@ tn_lord_of_the_pit ::= "Lord" "of" "the" "Pit"
 
 /* @sem TokenRecipe::Named(Gingerbrute) */
 tn_gingerbrute ::= "Gingerbrute"
+
+/* The counter placement refers to the token produced by this creation, while
+   the quantity is the X announced for the spell in the enclosing cast event. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$create_one_defined}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@prior)), kind:$counter_kind, amount:CastX(EventSubject)}]}}]} */
+created_cast_x_counter_program ::= create_one_defined "," "then" "put" "X" counter_kind "counters" "on" "it"
+
+/* Both alternatives copy the same target; the conditional changes only the
+   number created when that target has the stated subtype. */
+/* @sem Program::Program{instructions:[If{condition:ObjectMatches{object:$copy_target_controlled_token, filter:$subtype_spelled}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$copy_token_plural_amount, words:CreatingEffect, recipe:Copy{object:$copy_target_controlled_token, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_copy_single, words:CreatingEffect, recipe:Copy{object:$copy_target_controlled_token, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}]} */
+conditional_controlled_token_copy_quantity ::= "create" token_copy_single copy_target_controlled_token "." "if" "that" "token" "is" "a" subtype_spelled "," "instead" "create" copy_token_plural_amount "tokens" "that" "are" "copies" "of" "it" "."
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:AllOf([Token, ControlledBy(One(AbilityController))])}), index:0} */
+copy_target_controlled_token ::= "target" "token" "you" "control"
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$conditional_controlled_token_copy_quantity} */
+triggered_conditional_token_copy_quantity ::= event_clause "," conditional_controlled_token_copy_quantity
+
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:$conditional_controlled_token_copy_quantity} */
+turn_conditional_token_copy_quantity ::= "at" turn_event "," conditional_controlled_token_copy_quantity
