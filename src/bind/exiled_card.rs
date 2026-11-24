@@ -37,8 +37,13 @@ impl Receipt {
         let Some(next) = self.instruction.checked_add(1) else {
             return false;
         };
+        let in_window = if self.until.is_some() {
+            matches!(path.get(self.sequence.len()), Some(Step::Index(index)) if *index >= next)
+        } else {
+            matches!(path.get(self.sequence.len()), Some(Step::Index(index)) if *index == next)
+        };
         path.starts_with(&self.sequence)
-            && matches!(path.get(self.sequence.len()), Some(Step::Index(index)) if *index == next)
+            && in_window
             && path[self.sequence.len() + 1..].windows(2).all(|pair| {
                 !matches!((&pair[0], &pair[1]), (Step::Key(key), Step::Index(index)) if key == "instructions" && *index != 0)
             })
@@ -189,7 +194,7 @@ fn until_exiled(
     let observed = &operation["args"]["objects"];
     (until["kind"] == "RevealUntil"
         && until["args"]["count"] == serde_json::json!({"kind":"Constant","args":1})
-        && until["args"]["library"]["kind"] == "AbilityController"
+        && until["args"]["library"].is_object()
         && operation["kind"] == "Move"
         && operation["args"]["destination"].get("Exile").is_some()
         && observed["kind"] == "Observed"

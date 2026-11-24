@@ -1349,6 +1349,10 @@ sacrifice_choice_matching_card_type_plural ::= "sacrifices" number "permanents" 
 /* @sem Instruction::[Effect{result:@next, operation:$deal_damage}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, DamagedBy(@prior)])}), changes:[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects}}] */
 instructions_damage_receipt_attack ::= deal_damage "." "each" filter_phrase "dealt" "damage" "this" "way" "attacks" this_duration "if" "able"
 
+/* Damage and the actor's combat requirement compose from the same source. */
+/* @sem Instruction::[Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:$recipients, amount:$number, preventable:true}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($damage_source_ref)), changes:[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects}}] */
+instructions_damage_and_attacks ::= damage_source_ref "deals" number "damage" "to" recipients "and" "attacks" this_duration "if" "able"
+
 /* The named player is both the optional payer and the actor of the fallback. */
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:$player_ref, cost:$cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:@apply(PlayerSet::One($player_ref), $verbs_third)}, otherwise:Program{}}] */
 clause_singular_unless_action ::= player_ref verbs_third "unless" "they" cost

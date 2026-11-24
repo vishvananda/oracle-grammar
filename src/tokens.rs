@@ -188,10 +188,91 @@ fn upper_first(word: &str) -> String {
     })
 }
 
-/// A card's own name takes no article and no `this`, so `a Wall` on `Wall of Junk` and
-/// `this Case` on `Case of the Lost Witness` are types.
-fn after_article(previous: Option<&Token>) -> bool {
-    matches!(previous, Some(Token::Word(word)) if matches!(word.as_str(), "a" | "an" | "another" | "this"))
+/// A card's own name takes no article (with optional color/type adjectives) and no `this`,
+/// so `a Wall` on `Wall of Junk`, `this Case` on `Case of the Lost Witness`, and
+/// `a colorless Noggle` on `Noggle the Mind` are types.
+fn after_article(before: &[Token]) -> bool {
+    let mut i = before.len();
+    while i > 0 {
+        let Token::Word(word) = &before[i - 1] else {
+            return false;
+        };
+        if matches!(word.as_str(), "a" | "an" | "another" | "this") {
+            return true;
+        }
+        if matches!(
+            word.as_str(),
+            "colorless"
+                | "white"
+                | "blue"
+                | "black"
+                | "red"
+                | "green"
+                | "artifact"
+                | "enchantment"
+                | "legendary"
+                | "snow"
+                | "basic"
+                | "nonland"
+        ) {
+            i -= 1;
+            continue;
+        }
+        return false;
+    }
+    false
+}
+
+/// A card's own name never acts as a subtype modifier directly before a type noun
+/// (e.g. `target Assembly-Worker creature` on `Assembly-Worker`), unless preceded by `named`
+/// (e.g. `a permanent named Deathpact Angel card`).
+fn modifies_type_noun(before: &[Token], text: &str, at: usize, length: usize) -> bool {
+    if matches!(before.last(), Some(Token::Word(word)) if word == "named") {
+        return false;
+    }
+    matches!(
+        text[at + length..].strip_prefix(' ').map(|rest| {
+            let end = rest.find(|d| !is_word_byte(d)).unwrap_or(rest.len());
+            &rest[..end]
+        }),
+        Some(
+            "creature"
+                | "creatures"
+                | "permanent"
+                | "permanents"
+                | "spell"
+                | "spells"
+                | "card"
+                | "cards"
+                | "token"
+                | "tokens"
+        )
+    )
+}
+
+/// A card's name appearing as the proper suffix of a longer card or token name after
+/// `named` (e.g. `named Keeper of Kookus`, `named Kobolds of Kher Keep`, `named Blowfly Infestation`)
+/// is part of that referenced name, not a self-reference. Bare `named <SelfName>` stays a self-name.
+fn proper_name_suffix(before: &[Token]) -> bool {
+    let mut i = before.len();
+    let mut seen_prefix = false;
+    while i > 0 {
+        match &before[i - 1] {
+            Token::Word(word) if word == "named" => return seen_prefix,
+            Token::Word(word)
+                if word.starts_with(char::is_uppercase)
+                    || matches!(
+                        word.as_str(),
+                        "of" | "the" | "and" | "in" | "to" | "from" | "for" | "on"
+                    ) =>
+            {
+                seen_prefix = true;
+                i -= 1;
+            }
+            _ => return false,
+        }
+    }
+    false
 }
 
 /// A shortened self-name is not a self-reference when it starts a longer proper name
@@ -308,6 +389,37 @@ pub fn tokenize(
     }
 }
 
+/// A card name ending in `!` or `?` absorbs a sentence-ending period in Oracle text
+/// (e.g. `Exile Blood for the Blood God!`).
+fn name_ends_sentence(names: &Names, index: u8) -> bool {
+    names
+        .names
+        .get(usize::from(index))
+        .is_some_and(|name| name.ends_with(['!', '?']))
+}
+
+/// Whether `after` begins a new sentence immediately following a `!`/`?`-ending self-name.
+fn self_name_ends_sentence(after: &str, before: &[Token], vocabulary: &HashSet<String>) -> bool {
+    if after.is_empty() || after.starts_with(['\n', ')']) {
+        return true;
+    }
+    if after.starts_with('"') && opens(before, '"') {
+        return true;
+    }
+    if let Some(rest) = after.strip_prefix(' ') {
+        let end = rest.find(|d| !is_word_byte(d)).unwrap_or(rest.len());
+        let word = &rest[..end];
+        if !word.is_empty() {
+            let lower = lower_first(word);
+            if word != lower {
+                crate::print_trace::vocabulary_query(&lower);
+                return vocabulary.contains(lower.as_str());
+            }
+        }
+    }
+    false
+}
+
 fn scan(text: &str, names: &Names, vocabulary: &HashSet<String>) -> Result<Vec<Token>, String> {
     let mut tokens = Vec::with_capacity(text.len() / 4);
     let mut at = 0;
@@ -316,8 +428,10 @@ fn scan(text: &str, names: &Names, vocabulary: &HashSet<String>) -> Result<Vec<T
         let c = rest.chars().next().ok_or("empty character")?;
         let word_start = at == 0 || !text[..at].ends_with(char::is_alphanumeric);
         if word_start
-            && !after_article(tokens.last())
+            && !after_article(&tokens)
+            && !proper_name_suffix(&tokens)
             && let Some((index, length)) = name_at(text, at, names)
+            && !modifies_type_noun(&tokens, text, at, length)
             && !(index > 0 && proper_name_prefix(text, at, length))
             && !keyword_line(text, at, length, index, vocabulary)
             && !imperative_verb(text, at, length, &tokens, vocabulary)
@@ -327,6 +441,10 @@ fn scan(text: &str, names: &Names, vocabulary: &HashSet<String>) -> Result<Vec<T
             if text[at..].starts_with(POSSESSIVE) {
                 tokens.push(Token::Word(POSSESSIVE.to_string()));
                 at += POSSESSIVE.len();
+            } else if name_ends_sentence(names, index)
+                && self_name_ends_sentence(&text[at..], &tokens, vocabulary)
+            {
+                tokens.push(Token::Mark('.'));
             }
             continue;
         }
@@ -442,6 +560,8 @@ pub fn detokenize(tokens: &[Token], names: &Names) -> String {
         }
         match token {
             Token::Mark(CAPITAL | LOWER) => {}
+            Token::Mark('.') if matches!(previous, Some(Token::SelfName(idx)) if name_ends_sentence(names, *idx)) =>
+                {}
             Token::Word(word)
                 if starts_sentence(&tokens[..index])
                     || matches!(previous, Some(Token::Mark(CAPITAL))) =>

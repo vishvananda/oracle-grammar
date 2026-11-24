@@ -31,6 +31,15 @@ pub(super) struct Role {
     literal: bool,
 }
 
+pub(super) fn preserve_same_object_owner(scope: &mut Scope, object: &ObjectRef) {
+    if let Some(role) = &mut scope.controller_role
+        && json!(&role.object) == json!(object)
+        && role.player_generation + 1 == scope.players.len()
+    {
+        role.player_generation = scope.players.len();
+    }
+}
+
 pub(super) fn introduce(scope: &mut Scope, reference: &Value, spec: &Value) -> Result<(), String> {
     let domain = &spec["kind"]["Object"];
     if domain["kind"] != "Permanent"

@@ -1,7 +1,7 @@
 /* Searching and inspecting a library. */
 
 /* What was found stays the referent of `it` until the search is over. */
-clause_search ::= clause_search_repeat_values | clause_search_player_margin_split | clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_pair_those | clause_search_reveal_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each | clause_search_conditional_additional | clause_search_exile_create_tokens | clause_search_keyword_graveyard | clause_search_five_choices | clause_search_then_operation | clause_search_if_found | clause_search_sacrificed_reveal | clause_random_search | clause_search_named_population | clause_search_attacking_where | clause_search_single_sentence_hand | clause_search_instead_reveal | clause_search_reveal_distinct_random | search_two_zones_exile_rest_reorder | clause_search_enchant_attached | clause_search_reveal_opponent_partition | clause_search_four_choices | clause_search_choices_reveal_hand | clause_search_more_players_split | clause_search_opponent_graveyard_hand
+clause_search ::= clause_search_repeat_values | clause_search_player_margin_split | clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_pair_those | clause_search_reveal_branch | clause_search_reveal_named_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each | clause_search_conditional_additional | clause_search_exile_create_tokens | clause_search_keyword_graveyard | clause_search_five_choices | clause_search_then_operation | clause_search_if_found | clause_search_sacrificed_reveal | clause_random_search | clause_search_named_population | clause_search_attacking_where | clause_search_single_sentence_hand | clause_search_instead_reveal | clause_search_reveal_distinct_random | search_two_zones_exile_rest_reorder | clause_search_enchant_attached | clause_search_reveal_opponent_partition | clause_search_four_choices | clause_search_choices_reveal_hand | clause_search_more_players_split | clause_search_opponent_graveyard_hand
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
 clause_search_general ::= search search_follow
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_plural}, ...$search_plural_follow] */
@@ -3003,6 +3003,16 @@ search_branch_tapped ::= "put" "it" "onto" "the" "battlefield" "tapped"
 
 /* @sem Operation::Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
 search_branch_hand ::= "put" "it" "into" "your" "hand"
+
+/* A revealed search choice may branch on the revealed card's name. */
+/* @sem Instruction::[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$search_selected_reveal}, If{condition:Compare{left:CountObjects(Matching{objects:Selected(@marked), filter:Name($referenced_card_name)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:$search_branch_untapped}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$search_branch_hand_card}]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+clause_search_reveal_named_branch ::= search "and" search_selected_reveal "." "if" "you" "reveal" "a" "card" "named" referenced_card_name "this" "way" "," search_branch_untapped "." "otherwise" "," search_branch_hand_card "." "then" "shuffle"
+
+/* @sem Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
+search_branch_untapped ::= "put" "it" "onto" "the" "battlefield"
+
+/* @sem Operation::Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+search_branch_hand_card ::= "put" "that" "card" "into" "your" "hand"
 
 /* This search choice is used only in the matching single-creature casting
    sacrifice scope; its query refers to that payment's input. */

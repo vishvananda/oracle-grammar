@@ -570,6 +570,10 @@ the IR path, the value it replaces and why.
 - `U0076` (normalization, #33): Inscribed Tablet, Kaervek's Purge, Kalitas and
   Saw in Half use the existing singleton receipt test only after their own
   at-most-one proof. Phases, IDs, negation and later effects are preserved.
+- `U0077` (correction): Lizard, Connors's Curse's "loses all abilities and
+  becomes a green Lizard creature with base power and toughness 4/4" replaces
+  card types with `SetCardTypes([Creature])` under CR 205.1a, matching Oko,
+  Thief of Crowns; the record used `AddCardType(Creature)`.
 
 These contracts and their scoped proofs are documented in
 [the 2026-11-16 issue audit](../../docs/reported-issues-20261116.md).

@@ -145,15 +145,55 @@ fn produced(
     })
 }
 
-/// A one-card payment "if you do" refers to: its inputs, before they moved.
-fn paid(conditional: &Value, instructions: &[Value], index: usize) -> Option<(Value, Producer)> {
+/// A one-card payment "if you do" refers to: its inputs, before they moved,
+/// or the single target card a player-action Move payment acted on.
+fn paid(
+    conditional: &Value,
+    instructions: &[Value],
+    index: usize,
+    introduced: &[references::TargetIntroduction],
+    base: usize,
+) -> Result<Option<(Value, Producer)>, String> {
     let payment = &conditional["args"]["condition"];
     if payment["kind"] != "PaymentChosen" {
-        return None;
+        return Ok(None);
     }
-    let result = payment["args"].as_u64()?;
-    let (id, operation) = effect(instructions.get(index.checked_sub(1)?)?)?;
-    let parts = operation["args"]["cost"]["parts"].as_array()?;
+    let Some(result) = payment["args"].as_u64() else {
+        return Ok(None);
+    };
+    let Some((id, operation)) = index
+        .checked_sub(1)
+        .and_then(|before| instructions.get(before))
+        .and_then(effect)
+    else {
+        return Ok(None);
+    };
+    if id != result || operation["kind"] != "PayCost" {
+        return Ok(None);
+    }
+    let Some(parts) = operation["args"]["cost"]["parts"].as_array() else {
+        return Ok(None);
+    };
+    if let [part] = parts.as_slice()
+        && let Some(action_instructions) = part
+            .pointer("/PlayerAction/body/instructions")
+            .and_then(Value::as_array)
+        && action_instructions.len() == 1
+        && let Some((_, inner)) = effect(&action_instructions[0])
+        && inner["kind"] == "Move"
+    {
+        let mut objects = &inner["args"]["objects"];
+        if symbol_name(objects) == Some("zone_members") {
+            objects = &objects["args"][0];
+        }
+        if objects["kind"] == "One" {
+            let moved = references::bound_reference(&objects["args"], introduced, base)?;
+            if moved["kind"] == "Target" && moved["args"]["slot"].is_u64() {
+                return Ok(Some((moved, Producer::Moved)));
+            }
+        }
+        return Ok(None);
+    }
     let producer = match parts.as_slice() {
         [part]
             if part
@@ -169,14 +209,12 @@ fn paid(conditional: &Value, instructions: &[Value], index: usize) -> Option<(Va
         {
             Producer::Revealed
         }
-        _ => return None,
+        _ => return Ok(None),
     };
-    (id == result && operation["kind"] == "PayCost").then(|| {
-        let inputs = json!({"kind":"CostObjects","args":{
-            "payment":{"Resolution":result},"component":[0],"view":"Inputs","phase":"Before"
-        }});
-        (query(inputs), producer)
-    })
+    let inputs = json!({"kind":"CostObjects","args":{
+        "payment":{"Resolution":result},"component":[0],"view":"Inputs","phase":"Before"
+    }});
+    Ok(Some((query(inputs), producer)))
 }
 
 /// The receipt of the one card the instruction before acted on, with its producer.
@@ -223,8 +261,14 @@ fn receipt(
             .and_then(Value::as_array)
             .ok_or("that card's branch sequence")?;
         if conditional["args"]["condition"]["kind"] == "PaymentChosen" {
-            return paid(conditional, outer_instructions, position)
-                .ok_or_else(|| "that card needs a one-card payment".into());
+            return paid(
+                conditional,
+                outer_instructions,
+                position,
+                introduced,
+                scope.target_base,
+            )?
+            .ok_or_else(|| "that card needs a one-card payment".into());
         }
         path = conditional_path;
     }

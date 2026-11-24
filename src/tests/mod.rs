@@ -964,3 +964,4 @@ mod resolving_untaps;
 mod characteristic_tail_replacements;
 mod discard_event_counts;
 mod print_speed;
+mod wave_c_contracts;

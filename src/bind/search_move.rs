@@ -192,6 +192,7 @@ pub(super) fn marker(
         instruction["kind"] == "Effect"
             && instruction["args"]["result"].as_u64() == Some(selected.0.into())
     });
+    let mut filter: Option<Value> = None;
     let scalar = match candidate {
         Some(instruction) => {
             let mut plain = super::references::bound_reference(
@@ -201,9 +202,30 @@ pub(super) fn marker(
             )?;
             super::filters::strip(&mut plain);
             if selection == Selection::Choice {
-                single_choice(&plain)
+                if single_choice(&plain) {
+                    if plain["args"]["objects"]["kind"] == "Zone" {
+                        filter = Some(plain["args"]["objects"]["args"]["filter"].clone());
+                    }
+                    true
+                } else {
+                    false
+                }
             } else {
-                serde_json::from_value(plain).is_ok_and(|operation| producer(operation, selection))
+                let op_filter = match selection {
+                    Selection::Search => {
+                        plain["args"]["choices"].get(0).map(|c| c["filter"].clone())
+                    }
+                    Selection::Seek => Some(plain["args"]["objects"]["args"]["filter"].clone()),
+                    Selection::Choice => None,
+                };
+                if serde_json::from_value(plain)
+                    .is_ok_and(|operation| producer(operation, selection))
+                {
+                    filter = op_filter;
+                    true
+                } else {
+                    false
+                }
             }
         }
         None => false,
@@ -225,7 +247,14 @@ pub(super) fn marker(
         let reference = json!({"kind":"Result","args":{
             "result":result,"phase":"After","index":0}});
         scope.objects.push(reference.clone());
-        scope.named_object = Some(reference);
+        scope.named_object = Some(reference.clone());
+        if let Some(filter) = filter {
+            let kind = match destination {
+                MovementDestination::Battlefield { .. } => ObjectKind::Permanent,
+                _ => ObjectKind::Card,
+            };
+            super::qualified::moved(scope, reference, kind, &filter)?;
+        }
         scope.others.clear();
         scope.pronoun = None;
     }

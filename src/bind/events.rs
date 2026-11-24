@@ -13,12 +13,17 @@ pub(super) fn inner(event: &Value) -> Option<&Value> {
         .find_map(|wrapper| event.get(wrapper).and_then(|v| v.get("event")))
 }
 
-/// The cost part a later `the sacrificed creature` points at.
+/// The cost part a later `the sacrificed creature` points at, when unique.
 fn named_cost_part(ability: &Value) -> Option<u64> {
     let parts = ability["args"]["cost"]["parts"].as_array()?;
-    let index = parts
+    let mut matches = parts
         .iter()
-        .position(|part| part.get("Sacrifice").is_some())?;
+        .enumerate()
+        .filter_map(|(index, part)| part.get("Sacrifice").map(|_| index));
+    let index = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
     u64::try_from(index).ok()
 }
 
@@ -98,7 +103,7 @@ fn event_has_amount(event: &Value) -> bool {
         || event["Batch"].is_object()
         || matches!(
             event["Player"]["event"].as_str(),
-            Some("GainsLife" | "LosesLife")
+            Some("GainsLife" | "LosesLife" | "GetsEnergy")
         )
 }
 

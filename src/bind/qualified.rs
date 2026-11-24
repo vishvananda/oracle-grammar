@@ -102,6 +102,15 @@ fn push(scope: &mut Scope, entry: Referent) -> Result<(), String> {
     Ok(())
 }
 
+pub(super) fn moved(
+    scope: &mut Scope,
+    reference: Value,
+    kind: ObjectKind,
+    filter: &Value,
+) -> Result<(), String> {
+    push(scope, described(reference, vec![kind], filter, true))
+}
+
 pub(super) fn target(scope: &mut Scope, reference: Value, spec: &Value) -> Result<(), String> {
     let Some(domain) = spec["kind"].get("Object") else {
         return Ok(());

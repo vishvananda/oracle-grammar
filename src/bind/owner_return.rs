@@ -36,7 +36,8 @@ pub(super) fn remember(
         Some(object) => {
             scope
                 .players
-                .push(json!(PlayerRef::OwnerOf(Box::new(object))));
+                .push(json!(PlayerRef::OwnerOf(Box::new(object.clone()))));
+            super::controller_role::preserve_same_object_owner(scope, &object);
             scope.ambiguous_owner = None;
         }
         None => scope.ambiguous_owner = Some(scope.players.len()),
