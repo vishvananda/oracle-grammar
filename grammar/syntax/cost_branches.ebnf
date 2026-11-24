@@ -593,3 +593,18 @@ kicker_replacement_sequence ::= "instead" shuffle_own_graveyard "," clause "," "
 /* @prefer always */
 /* @sem Program::Program{instructions:[If{condition:$condition, then:Program{instructions:$kicker_replacement_sequence}, otherwise:Program{instructions:$clause}}, ...$instructions]} */
 kicker_override_after_sequence ::= clause "." "if" condition "," kicker_replacement_sequence "." NEWLINE instructions "."
+
+/* A paid teamwork spell adds its conditional follow-up to the common program. */
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:Cost{parts:[Teamwork($number)]}, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$teamwork_followup]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}})} */
+spell_teamwork_also_branch ::= "teamwork" NUMBER NEWLINE instructions "." "also" teamwork_followup "if" "this" "spell" "was" "cast" "using" "teamwork" "."
+
+teamwork_followup ::= teamwork_named_counter_followup | clause
+
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($that_noun)), kind:$counter_kind, amount:$counter_amount}]}}] */
+teamwork_named_counter_followup ::= "put" counter_amount counter_kind "counter" "on" that_noun
+
+/* Both branches instantiate the same conditional control instruction in
+   separate spell scopes, preserving each branch's own target announcement. */
+/* @sem Ability::CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{body:_{instructions:$conditional_control_creature_2}, announcement:@announcement}), unpaid:@scope(Ability::Spell{body:_{instructions:$conditional_control_creature}, announcement:@announcement})} */
+spell_madness_control_stat_ceiling ::= "madness" keyword_payment NEWLINE "gain" "control" "of" "target" conditional_control_creature "." "if" "this" "spell's" "madness" "cost" "was" "paid" "," "instead" "gain" "control" "of" "that" conditional_control_creature "."

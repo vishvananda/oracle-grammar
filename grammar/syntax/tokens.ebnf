@@ -2513,3 +2513,23 @@ equipment_quoted_pump_attack_equip ::= '"' equipment_attached_pump "," '"' '"' e
 /* Copy tokens created by each opponent/player are goaded for the rest of the game. */
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:$players_singular, tokens:[TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@marked)), changes:[Rule(GoadedBy(AbilityController))], duration:Indefinite, evaluation:LiveObjects}}]} */
 program_each_copy_tokens_goaded_indefinite ::= players_singular "creates" "a" "token" "that's" "a" "copy" "of" object_ref "." "the" "tokens" "are" "goaded" "for" "the" "rest" "of" "the" "game"
+
+/* @sem Ability::@holder($token_ability_body) */
+token_single_quoted ::= "'" token_ability_body "'"
+
+/* The defined copy count and both followups share the token creation receipt. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$copy_cast_count, words:CreatingEffect, recipe:Copy{object:$target_another, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@marked)), changes:[GrantKeyword($keyword_name)], duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:$token_cleanup_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}]}}}]} */
+copy_cast_history_grant_cleanup ::= "create" "X" "tokens" "that" "are" "copies" "of" target_another "," "where" "X" "is" copy_cast_count "." "they" "gain" keyword_name "." "exile" "them" "at" token_cleanup_event "."
+
+/* @sem Expr::Add($number_words, EventHistory{event:Spell{event:Cast, players:One(AbilityController), spells:AnyOf([$spell_adjective, $spell_adjective_2])}, window:ThisTurn, measure:Occurrences}) */
+copy_cast_count ::= number_words "plus" "the" "number" "of" spell_adjective "and" spell_adjective "spells" "you've" "cast" "this" "turn"
+
+/* @sem Ability::[$token_quoted] */
+token_abilities_after_batch ::= "." "the" "tokens" "have" token_quoted
+
+/* The count and following intrinsic ability both describe the created batch. */
+/* @sem TokenSpec::TokenSpec{amount:$value, words:CreatingEffect, recipe:@token_abilities($token_recipe_base, $token_abilities_after_batch)} */
+token_defined_x_after ::= "X" token_recipe_base "," "where" "X" "is" value token_abilities_after_batch
+
+/* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[$token_defined_x_after], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+instructions_create_x_quoted ::= "create" token_defined_x_after

@@ -517,3 +517,16 @@ entry_copy_keyword_mechanic_actions ::= "a" "copy" "of" entry_copy_battlefield_e
    exceptions and the card itself. */
 /* @sem Ability::[@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_head, ObjectFilter::ControlledBy(One(AbilityController)))}, exceptions:[CopyException::AddAbilities([@scope($ability)]), CopyException::AddAbilities([@scope($keyword_ability)])]})}}]}}]}}), @scope($ability), @scope($keyword_ability)] */
 entry_copy_other_abilities ::= "you" "may" "have" self_explicit_ref "enter" "as" "a" "copy" "of" "another" filter_head "you" "control" "," "except" "it" "has" SELF_NAME "'s" "other" "abilities" "." NEWLINE ability NEWLINE keyword_ability
+
+/* The departure ability belongs to the newly created token. Its linked cards
+   are supplied by the creation's exile-payment receipt. */
+/* @sem CopyException::AddAbilities([@scope(Ability::Triggered{event:Object{event:LeavesBattlefield, objects:SameObject(Source)}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:Move{objects:CreationLinkedCards(Source), destination:OwnersGraveyard{}}}]}, announcement:@announcement})]) */
+copy_linked_departure_return ::= "it" "has" '"' "when" "this" "token" "leaves" "the" "battlefield" "," "return" "the" "exiled" "card" "to" "its" "owner's" "graveyard" "." '"'
+
+/* @sem Vec<CopyException>::[$copy_add_creature_type, $copy_linked_departure_return] */
+copy_type_and_linked_return ::= copy_add_creature_type "and" copy_linked_departure_return
+
+/* The payment and its consumer form one contract: the entry link is the
+   after-incarnation of this exact exile payment. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:_{parts:[Move{selections:[_{objects:One(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0})}], destination:Exile{visibility:FaceUp, arrival:_{}}}]}}}, If{condition:PaymentChosen(@marked), then:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:EventSubject, exceptions:$copy_type_and_linked_return}}], entry:_{states:[LinkExiledCards(InZone{objects:One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}), zone:Exile})]}}}]}, otherwise:_{}}]} */
+death_exile_linked_copy_program ::= "exile" "it" "." "if" "you" "do" "," "create" token_copy_quantity "that" "creature" "," "except" copy_type_and_linked_return

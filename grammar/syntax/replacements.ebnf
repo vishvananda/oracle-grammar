@@ -165,7 +165,7 @@ replacement_draw_empty_before ::= "if" draw_event "while" "your" "library" "has"
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= shield_next_prevent_tokens | redirect_unblocked_combat_timed | next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late | prevent_next_granting_spell | redirect_all_to_by_permanents | prevent_next_with_receipt_shared | prevent_next_defined_receipt | prevent_group_to_and_by | prevent_colored_sources_to_objects
+prevent_clause ::= shield_next_prevent_tokens | redirect_unblocked_combat_timed | next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late | prevent_next_granting_spell | redirect_all_to_by_permanents | prevent_next_with_receipt_shared | prevent_next_defined_receipt | prevent_group_to_and_by | prevent_colored_sources_to_objects | prevent_targeted_spell_caused_damage | prevent_all_with_receipt_to_by_sources | prevent_next_with_receipt_any_target
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -485,7 +485,7 @@ prevent_by_permanents ::= prevent_by_group | prevent_by_object | prevent_by_grou
 prevent_by_group ::= filter_plural
 /* @sem ObjectFilter::SameObject($object_ref) */
 prevent_by_object ::= object_ref
-prevent_by_sources ::= prevent_by_kind_sources | prevent_by_your_sources | prevent_by_chosen_color | prevent_by_chosen_name
+prevent_by_sources ::= prevent_by_kind_sources | prevent_by_other_sources | prevent_by_your_sources | prevent_by_chosen_color | prevent_by_chosen_name
 /* @sem ObjectFilter::$adjective */
 prevent_by_kind_sources ::= adjective "sources"
 /* @sem ObjectFilter::ControlledBy(One(AbilityController)) */
@@ -2519,7 +2519,7 @@ prevent_next_with_receipt_to ::= "prevent" "the" "next" number "damage" "that" "
 /* @sem DamageRecipients::ObjectsAndPlayers{objects:$filter_plural, players:One(AbilityController)} */
 prevent_to_you_and_or ::= "you" "and" "/" "or" filter_plural
 
-prevent_receipt_body ::= prevent_receipt_life | prevent_receipt_counters | prevent_receipt_tokens | prevent_receipt_damage
+prevent_receipt_body ::= prevent_receipt_split_source | prevent_receipt_life | prevent_receipt_counters | prevent_receipt_tokens | prevent_receipt_damage
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Performed(@prior)}}]} */
 prevent_receipt_life ::= "you" "gain" "life" "equal" "to" "the" "damage" "prevented" "this" "way"
@@ -4428,3 +4428,49 @@ replacement_draw_empty_required ::= "if" draw_event "while" condition_your_libra
 /* Replacing any one of Clue, Food, or Treasure creates the stated count of all three predefined tokens. */
 /* @sem Ability::Replacement{active:Battlefield, event:Tokens{tokens:AnyOf([Subtype(Clue), Subtype(Food), Subtype(Treasure)]), creators:One(AbilityController), each:true}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:0, tokens:[TokenSpec{amount:$number, words:Rules, recipe:$tn_clue}, TokenSpec{amount:$number, words:Rules, recipe:$tn_food}, TokenSpec{amount:$number, words:Rules, recipe:$tn_treasure}]}}}]}} */
 replacement_create_each_clue_food_treasure ::= "if" "you" "would" "create" "a" tn_clue "," tn_food "," "or" tn_treasure "token" "," "instead" "create" number "of" "each" "."
+
+/* The replacement and its follow-up are scoped together: "it" is the card
+   moved from the event subject's library, not an arbitrary prior result. */
+/* @sem Operation::CreateReplacement{event:Player{event:Draw, players:One(EventSubject)}, limit:NextOccurrence, duration:$this_turn, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(EventSubject)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:_{}}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(EventSubject)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:$exiled_play_action, filter:Any})], duration:$this_duration, evaluation:LiveObjects}}]}} */
+next_subject_draw_top_exile_permission ::= "the" "next" "time" "they" "would" "draw" "a" "card" this_turn "," "instead" "they" "exile" "the" "top" "card" "of" "their" "library" "." "they" "may" exiled_play_action "it" this_duration
+
+/* @sem Ability::Triggered{event:$subject_upkeep_event, limits:TriggerLimits{}, body:_{instructions:[Effect{result:@next, operation:$next_subject_draw_top_exile_permission}]}, announcement:@announcement} */
+triggered_subject_draw_top_exile_permission ::= subject_upkeep_event "," next_subject_draw_top_exile_permission "."
+
+/* @sem EventSpec::Turn{point:UpkeepBegins, players:$subject_upkeep_players} */
+subject_upkeep_event ::= "at" "the" "beginning" "of" subject_upkeep_players "upkeep"
+
+subject_upkeep_players ::= owner_opponent | owner_all | owner_others
+
+/* A temporary replacement retains its event and replacement program independently. */
+/* @sem Operation::CreateReplacement{event:$chosen_damage_recipient_event, limit:UntilExpired, duration:$this_duration, body:$prevent_damage_counter_body} */
+conditional_damage_counter_replacement ::= chosen_damage_recipient_event this_duration "," prevent_damage_counter_body
+
+/* Announce a target and identify it as the damage recipient. */
+/* @sem ReplacementEvent::Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($noun_creature, ObjectFilter::ControlledBy(One(AbilityController)))}), index:0})), kind:Any, grouping:SourceRecipient, subject:Recipient}) */
+chosen_damage_recipient_event ::= "choose" "target" noun_creature "you" "control" "." "if" "damage" "would" "be" "dealt" "to" "that" "creature"
+
+/* The counter amount is the result of the prevention in this same program. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:Performed(@prior)}]}}]} */
+prevent_damage_counter_body ::= "prevent" "that" "damage" "and" "put" "that" "many" counter_kind "counters" "on" affected
+
+/* @sem Operation::CreateReplacement{event:$targeted_spell_caused_damage, limit:UntilExpired, duration:$this_duration, body:$prevented_body_plain} */
+prevent_targeted_spell_caused_damage ::= targeted_spell_caused_damage this_duration "," prevented_body_plain
+
+/* @sem ObjectFilter::ControlledBy(OthersThan(AbilityController)) */
+prevent_by_other_sources ::= "sources" "you" "don't" "control"
+
+/* The body consumes the immediately preceding prevention result, grouped by source. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:$prevent_by_sources, recipients:$prevent_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:$prevent_receipt_body} */
+prevent_all_with_receipt_to_by_sources ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" prevent_to this_duration "by" prevent_by_sources "." prevent_receipt_body
+
+/* The two outcomes partition creature sources and noncreature sources. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, If{condition:AllOf([Compare{left:Performed(@last_result), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, Compare{left:CountObjects(Matching{objects:Damage(Source), filter:CardType(Creature)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}]), then:_{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One(Damage(Source))), amount:Performed(@prior), preventable:true}}]}, otherwise:_{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(One(ControllerOf(Damage(Source)))), amount:Performed(@back(3)), preventable:true}}]}}]} */
+prevent_receipt_split_source ::= "if" "damage" "from" "a" "creature" "source" "is" "prevented" "this" "way" "," SELF_NAME "deals" "that" "much" "damage" "to" "that" "creature" "." "if" "damage" "from" "a" "noncreature" "source" "is" "prevented" "this" "way" "," SELF_NAME "deals" "that" "much" "damage" "to" "the" "source's" "controller"
+
+/* The conditional delayed placement consumes this replacement's prevention receipt. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:Any}), index:0}, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($number), duration:$this_duration, body:$prevent_receipt_conditional_delayed_counters} */
+prevent_next_with_receipt_any_target ::= "prevent" "the" "next" number "damage" "that" "would" "be" "dealt" "to" "any" "target" this_duration "." prevent_receipt_conditional_delayed_counters
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, If{condition:ObjectMatches{object:RecipientObject{slot:0, index:0}, filter:$noun}, then:_{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(RecipientObject{slot:0, index:0})), kind:$counter_kind, amount:Performed(@back(3))}]}}]}}}]}, otherwise:_{}}]} */
+prevent_receipt_conditional_delayed_counters ::= "if" "it's" "a" noun "," "put" "a" counter_kind "counter" "on" "it" "for" "each" "1" "damage" "prevented" "this" "way" "at" "the" "beginning" "of" "the" "next" "end" "step"
