@@ -108,8 +108,7 @@ reverse_turn_order ::= "reverse" "the" "game's" "turn" "order"
 /* @sem $amount_keyword_action */
 you_amount_keyword_action ::= "you" amount_keyword_action
 
-amount_keyword_action ::= repeat_incubate_cast_x | repeat_incubate_action | adapt_action | bolster_action | incubate_action | discover_action | monstrosity_action
-    | fateseal_action | collect_evidence_action | blight_action | earthbend_action | amass_action
+amount_keyword_action ::= repeat_incubate_cast_x | repeat_incubate_action | adapt_action | bolster_action | incubate_action | discover_action | monstrosity_action | fateseal_action | collect_evidence_action | blight_action | earthbend_action | amass_action | repeat_counted_keyword_twice | repeat_incubate_x_twice_where | repeat_incubate_number_twice
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Adapt{amount:$value}} */
 adapt_action ::= "adapt" value
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Bolster{amount:$value}} */
@@ -224,7 +223,7 @@ exchange_shared_property ::= exchange_shared_property_type | exchange_shared_pro
 /* @sem Operation::Keyword{actor:One(AbilityController), action:$roll_composed_phrase} */
 roll_composed_action ::= "roll" roll_composed_phrase
 
-roll_composed_phrase ::= roll_highest_phrase | roll_store_phrase | roll_mana_d6_phrase
+roll_composed_phrase ::= roll_highest_phrase | roll_store_phrase | roll_mana_d6_phrase | roll_ignore_lower_phrase
 
 /* @sem KeywordAction::RollKeepHighest{sides:20, amount:$count_each} */
 roll_highest_phrase ::= "a" "d20" "for" "each" count_each "and" "ignore" "all" "but" "the" "highest" "roll"
@@ -747,3 +746,25 @@ discover_spell_property_power ::= "power"
 /* @sem ObjectProperty::Toughness */
 discover_spell_property_toughness ::= "toughness"
 discover_spell_property ::= discover_spell_property_mana_value | discover_spell_property_power | discover_spell_property_toughness
+
+/* Repeat a complete counted keyword action, keeping its amount independent. */
+/* @sem Operation::Repeat{times:Constant(2), body:$repeat_counted_keyword_body} */
+repeat_counted_keyword_twice ::= repeat_counted_keyword_body "twice"
+
+repeat_counted_keyword_body ::= incubate_action | bolster_action
+
+
+
+/* Two dice retain their higher result. */
+/* @sem KeywordAction::RollKeepHighest{sides:20, amount:Constant(2)} */
+roll_ignore_lower_phrase ::= "two" "d20" "and" "ignore" "the" "lower" "roll"
+
+/* Prefer "Incubate X twice, where X is ..." for a dynamic incubate count repeated twice. */
+/* @prefer always */
+/* @sem Operation::Repeat{times:Constant(2), body:Keyword{actor:One(AbilityController), action:KeywordAction::Incubate{amount:$value_number_of}}} */
+repeat_incubate_x_twice_where ::= "incubate" "X" "twice" "," "where" "X" "is" value_number_of
+
+/* Prefer "Incubate <N> twice" over "Incubate <N> two times" for numeric incubate counts. */
+/* @prefer always */
+/* @sem Operation::Repeat{times:Constant(2), body:Keyword{actor:One(AbilityController), action:KeywordAction::Incubate{amount:$number_digits}}} */
+repeat_incubate_number_twice ::= "incubate" number_digits "twice"

@@ -84,7 +84,7 @@ player_prohibition ::= player_prohibited_action
 /* @sem Change::[...$player_prohibition, ...$player_prohibitions] */
 player_prohibitions_more ::= player_prohibition ("or" | "and") player_prohibitions
 
-continuous_player_prohibition ::= continuous_repeated_controller_prohibitions | continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn | continuous_only_player_actions | continuous_player_prohibition_rest_game | continuous_target_repeated_prohibition | continuous_event_value_prohibition | continuous_target_controlled_attack_prohibition
+continuous_player_prohibition ::= continuous_repeated_controller_prohibitions | continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn | continuous_only_player_actions | continuous_player_prohibition_rest_game | continuous_target_repeated_prohibition | continuous_event_value_prohibition | continuous_target_controlled_attack_prohibition | continuous_event_subject_attack_defenders
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_rule_subject), changes:$player_prohibitions, duration:$duration, evaluation:LiveObjects} */
 continuous_player_prohibition_last ::= player_rule_subject "can't" player_prohibitions duration
@@ -819,3 +819,15 @@ shared_skip_your_step_if ::= shared_skip_your_step "if" condition "."
 /* A condition applies to the complete list of independent player rules. */
 /* @sem Ability::Conditional{condition:$condition, then:[$player_rule_ability, ...$player_rule_list]} */
 conditional_player_rule_list ::= "if" condition "," player_rule_ability "and" player_rule_list "."
+
+/* Keep event-subject defender prohibitions separate from player_attack_destinations (which emits two AttackInto rules). */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(EventSubject)), changes:[PlayerRule(Prohibit(AttackDefender($player_attack_defenders)))], duration:$this_duration, evaluation:LiveObjects} */
+continuous_event_subject_attack_defenders ::= "they" "can't" "attack" player_attack_defenders this_duration
+
+player_attack_defenders ::= player_attack_controller_and_planeswalkers | player_attack_event_and_planeswalkers
+
+/* @sem AttackDefenders::PlayersAndPlaneswalkers(One(AbilityController)) */
+player_attack_controller_and_planeswalkers ::= "you" "or" "planeswalkers" "you" "control"
+
+/* @sem AttackDefenders::PlayersAndPlaneswalkers(One(EventSubject)) */
+player_attack_event_and_planeswalkers ::= "them" "or" "planeswalkers" "they" "control"

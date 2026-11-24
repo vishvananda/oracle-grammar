@@ -135,7 +135,7 @@ tier_modes_one ::= tier_mode
 /* @sem SpreeMode::[$tier_mode, ...$tier_modes] */
 tier_modes_more ::= tier_mode NEWLINE tier_modes
 
-tier_mode ::= tier_mode_cross_slash | tier_mode_blade_beam | tier_mode_omnislash | tier_mode_plain
+tier_mode ::= tier_mode_cross_slash | tier_mode_blade_beam | tier_mode_omnislash | tier_mode_plain | tier_mode_somersault | tier_mode_meteor_strikes | tier_mode_final_heaven
 
 /* Printed tier names come from this catalogue; any other words still parse. */
 /* @sem () */
@@ -145,7 +145,7 @@ tier_name ::= tier_name_known | tier_word | tier_word tier_name
 tier_name_known ::= "Cross-Slash" | "Blade" "Beam" | "Omnislash" | "fire" | "Fira" | "Firaga"
     | "Blizzard" | "Blizzara" | "Blizzaga" | "Cure" | "Cura" | "Curaga" | "Thunder" | "Thundara"
     | "Thundaga" | "Somersault" | "Meteor" "Strikes" | "Final" "Heaven" | "Galian" "Beast"
-    | "Death" "Gigas" | "Hellmasker"
+    | "death" "Gigas" | "Hellmasker"
 
 /* @sem () */
 tier_word ::= WORD
@@ -178,7 +178,7 @@ class_levels_more ::= class_level NEWLINE class_levels
 class_level ::= cost ":" "level" NUMBER NEWLINE stage_abilities
 
 /* The lines inside a stage, each with its own targets. */
-stage_abilities ::= stage_line | stage_keyword | stage_abilities_more | stage_keyword_more
+stage_abilities ::= stage_line | stage_keyword | stage_abilities_more | stage_keyword_more | stage_cast_history_line
 
 /* @sem Ability::[@scope($ability)] */
 stage_line ::= ability
@@ -745,7 +745,7 @@ draft_effect_sentence ::= draft_effect "."
 draft_effect ::= draft_remove_face_up | draft_remove_face_down | draft_additional_into_pack
     | draft_additional_pass_next | draft_reveal_note_name | draft_reveal_type_note_name
     | draft_reveal_type_note_types | draft_whole_pack | draft_at_random | draft_offer_trade
-    | draft_look_chosen_next | draft_look_unopened | draft_last_cards | draft_pregame_reveal_and_exile
+    | draft_look_chosen_next | draft_look_unopened | draft_last_cards | draft_pregame_reveal_and_exile | draft_pregame_reveal_and_exile_one
 /* @sem Operand::Term{family:FaceUpDraftEffect, form:MayRemoveCardsFromDraftFaceUp} */
 draft_remove_face_up ::= "as" "you" "draft" "a" "card" "," "you" "may" "remove" "it" "from" "the" "draft" "face" "up"
 /* @sem Operand::Term{family:FaceUpDraftEffect, form:MayRemoveCardsFromDraftFaceDown} */
@@ -1000,3 +1000,49 @@ draft_exile_not_in_deck ::= draft_exile_multiple | draft_exile_one_creature
 
 /* @sem Operand::Term{family:PregameAction, form:ExileADraftedCardNotInDeck} */
 draft_exile_one_creature ::= "exile" "a" "creature" "card" "you" "drafted" "that" "isn't" "in" "your" "deck"
+
+/* @prefer always */
+/* @sem $stage_cast_history_inner */
+stage_cast_history_line ::= stage_cast_history_inner
+/* @prefer always */
+/* @sem Ability::[@scope($triggered_cast_spell_history_damage)] */
+stage_cast_history_inner ::= triggered_cast_spell_history_damage
+
+/* Tiered spell with a shared death-return trigger and tier-specific base power and toughness. */
+/* @prefer always */
+/* @sem Ability::Tiered{modes:[_{cost:_{parts:[Mana($mana_symbols)]}, ability:@scope(Ability::Spell{body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$filter_phrase}), index:0})), changes:[GrantAbility(@scope(Ability::Triggered{event:ZoneChange{objects:SameObject(Source), from:Battlefield, to:Graveyard}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:Move{objects:One($event_return_object), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}]}, announcement:@announcement})), SetBasePowerToughness{power:$number_digits, toughness:$number_digits_2}], duration:$duration, evaluation:Snapshot}}]}, announcement:@announcement})}, _{cost:_{parts:[Mana($mana_symbols_2)]}, ability:@scope(Ability::Spell{body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$filter_phrase}), index:0})), changes:[GrantAbility(@scope(Ability::Triggered{event:ZoneChange{objects:SameObject(Source), from:Battlefield, to:Graveyard}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:Move{objects:One($event_return_object), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}]}, announcement:@announcement})), SetBasePowerToughness{power:$number_digits_3, toughness:$number_digits_4}], duration:$duration, evaluation:Snapshot}}]}, announcement:@announcement})}, _{cost:_{parts:[Mana($mana_symbols_3)]}, ability:@scope(Ability::Spell{body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$filter_phrase}), index:0})), changes:[GrantAbility(@scope(Ability::Triggered{event:ZoneChange{objects:SameObject(Source), from:Battlefield, to:Graveyard}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:Move{objects:One($event_return_object), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}]}, announcement:@announcement})), SetBasePowerToughness{power:$number_digits_5, toughness:$number_digits_6}], duration:$duration, evaluation:Snapshot}}]}, announcement:@announcement})}]} */
+tiered_shared_death_return_pt ::= "tiered" NEWLINE duration "," "target" filter_phrase "gains" '"' "when" "this" "creature" "dies" "," "return" event_return_object "to" "the" "battlefield" "tapped" "under" "its" "owner's" "control" '"' "and" "has" "the" "chosen" "base" "power" "and" "toughness" "." NEWLINE "•" tier_pt_name_1 "—" mana_symbols "—" number_digits "/" number_digits "." NEWLINE "•" tier_pt_name_2 "—" mana_symbols "—" number_digits "/" number_digits "." NEWLINE "•" tier_pt_name_3 "—" mana_symbols "—" number_digits "/" number_digits "."
+
+/* @sem () */
+tier_pt_name_1 ::= "Galian" "Beast"
+
+/* @sem () */
+tier_pt_name_2 ::= "death" "Gigas"
+
+/* @sem () */
+tier_pt_name_3 ::= "Hellmasker"
+
+/* A singular pregame draft exile maps to the zero-operand PregameAction term. */
+/* @sem Operand::Term{family:PregameAction, form:MayActions, operands:[Term{family:PregameAction, form:RevealCardFromDeck}, Term{family:PregameAction, form:ExileADraftedCardNotInDeck}]} */
+draft_pregame_reveal_and_exile_one ::= "before" "you" "shuffle" "your" "deck" "to" "start" "the" "game" "," "you" "may" "reveal" "this" "card" "from" "your" "deck" "and" "exile" "an" "instant" "or" "sorcery" "card" "you" "drafted" "that" "isn't" "in" "your" "deck"
+
+/* Casualty X creates a nonlegendary copy whose starting loyalty is X. */
+/* @sem Ability::Mechanic{mechanic:CasualtyX} */
+mechanic_casualty_x ::= "casualty" "X" "." "the" "copy" "isn't" "legendary" "and" "has" "starting" "loyalty" "X" "."
+
+/* A threshold can grant a keyword followed by another scoped ability. */
+/* @sem Ability::CounterStages{counter:Named(ChargeCounter), stages:[_{minimum:$number, abilities:$stage_keyword_more}]} */
+charge_threshold_keyword_and_abilities ::= NUMBER "⁺" "|" stage_keyword_more
+
+/* Canonical mode labels for Tifa's Limit Break tier shapes. */
+/* @prefer always */
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}}]}}}) */
+tier_mode_somersault ::= "•" "Somersault" "—" cost "—" "target" "creature" "gets" signed "/" signed duration "."
+
+/* @prefer always */
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$double_possessive_characteristics}]}}}) */
+tier_mode_meteor_strikes ::= "•" "Meteor" "Strikes" "—" cost "—" double_possessive_characteristics "."
+
+/* @prefer always */
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$triple_target_characteristics}]}}}) */
+tier_mode_final_heaven ::= "•" "Final" "Heaven" "—" cost "—" triple_target_characteristics "."

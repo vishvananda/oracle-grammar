@@ -46,7 +46,7 @@ mana_persists ::= until_end_of_turn "," "you" "don't" "lose" "this" "mana" "as" 
 /* @sem ManaUse::Persists($until_end_of_combat) */
 mana_persists_combat ::= until_end_of_combat "," "you" "don't" "lose" "this" "mana" "as" "steps" "end"
 
-mana_use ::= mana_use_manifest_morph | mana_use_power_up | mana_use_colorless_or_ability | mana_use_chosen_type_pair | mana_use_unowned_spells | mana_use_face_down_or_turn | mana_use_atom | mana_use_either | mana_use_comma_either | mana_use_ability_or_cast | mana_use_three | mana_use_artifact_cast_or_ability | mana_use_cast_activate_pay_colorless | mana_use_cast_chosen_or_activate
+mana_use ::= mana_use_manifest_morph | mana_use_power_up | mana_use_colorless_or_ability | mana_use_chosen_type_pair | mana_use_unowned_spells | mana_use_face_down_or_turn | mana_use_atom | mana_use_either | mana_use_comma_either | mana_use_ability_or_cast | mana_use_three | mana_use_artifact_cast_or_ability | mana_use_cast_activate_pay_colorless | mana_use_cast_chosen_or_activate | mana_use_foretell_or_cast | mana_use_class_level
 /* @sem ManaUse::Either([$mana_use_atom, ...$mana_use_tail]) */
 mana_use_either ::= mana_use_atom "or" mana_use_tail
 mana_use_tail ::= mana_use_last | mana_use_more
@@ -54,15 +54,15 @@ mana_use_tail ::= mana_use_last | mana_use_more
 mana_use_last ::= mana_use_later
 /* @sem ManaUse::[$mana_use_later, ...$mana_use_tail] */
 mana_use_more ::= mana_use_later "or" mana_use_tail
-mana_use_later ::= mana_use_later_atom | mana_use_later_activate_one
+mana_use_later ::= mana_use_later_atom | mana_use_later_activate_one | mana_use_later_class_level
 
-mana_use_atom ::= mana_use_foretell | mana_use_cast | mana_use_activate | mana_use_activate_sources | mana_use_activate_source | mana_use_activate_permanents | mana_use_activate_permanent | mana_use_pay | mana_use_equip | mana_use_turn_plural_face_up
+mana_use_atom ::= mana_use_foretell | mana_use_cast | mana_use_activate | mana_use_activate_sources | mana_use_activate_source | mana_use_activate_permanents | mana_use_activate_permanent | mana_use_pay | mana_use_equip | mana_use_turn_plural_face_up | mana_use_foretell_cards
 
 /* Reuse the shared plural spell filters; full singular phrases can also
    share one cast verb, as in "an instant or sorcery spell or a kicked spell". */
 /* @sem ManaUse::CastSpell($mana_cast_filter) */
 mana_use_cast ::= "cast" mana_cast_filter
-mana_cast_filter ::= mana_spells_from_own_graveyard | spells_exact_color_count | cast_spells_filter | mana_spell_one | mana_spell_alternatives | mana_kicked_spells | mana_spells_outside_starting_deck | mana_spells_monocolored_chosen | mana_spell_color_count_without_x | mana_spells_value_or_x | mana_spell_outside_zone | mana_last_linked_card | mana_spell_with_keyword | mana_spells_flashback_graveyard | mana_commander_cast_filter | mana_spells_with_x_cost | mana_spells_without_abilities | mana_spell_from_your_graveyard | mana_instant_sorcery_two_kinds | mana_filtered_spells_value_or_x
+mana_cast_filter ::= mana_spells_from_own_graveyard | spells_exact_color_count | cast_spells_filter | mana_spell_one | mana_spell_alternatives | mana_kicked_spells | mana_spells_outside_starting_deck | mana_spells_monocolored_chosen | mana_spell_color_count_without_x | mana_spells_value_or_x | mana_spell_outside_zone | mana_last_linked_card | mana_spell_with_keyword | mana_spells_flashback_graveyard | mana_commander_cast_filter | mana_spells_with_x_cost | mana_spells_without_abilities | mana_spell_from_your_graveyard | mana_instant_sorcery_two_kinds | mana_filtered_spells_value_or_x | mana_cast_foretold_spells
 /* @sem ObjectFilter::Not(InStartingDeck(One(AbilityController))) */
 mana_spells_outside_starting_deck ::= "spells" "that" "aren't" "from" "your" "starting" "deck"
 /* @sem ObjectFilter::AllOf([Property{property:ColorCount, test:NumberTest::Compare{comparison:Equal, value:Constant(1)}}, Chosen(Color)]) */
@@ -546,6 +546,7 @@ mana_commander_cast_filter ::= "your" "commander"
 /* @sem ObjectFilter::State(HasX) */
 mana_spells_with_x_cost ::= "spells" "with" "{" "X" "}" "in" "their" "mana" "costs"
 
+/* @prefer always */
 /* @sem ManaUse::Purpose(Foretell) */
 mana_use_foretell ::= "foretell" "a" "card" "from" "your" "hand"
 
@@ -738,3 +739,42 @@ mana_commander_counted_entry ::= "it" "enters" "with" "a" "number" "of" "additio
 
 /* @sem Expr::EventHistory{event:Filtered{event:Spell{event:Cast, players:One(AbilityController), spells:State(Commander)}, condition:WasCastFrom{object:EventSubject, zone:Command}}, window:ThisGame, measure:Occurrences} */
 mana_commander_cast_history ::= "the" "number" "of" "times" "it's" "been" "cast" "from" "the" "command" "zone" "this" "game"
+
+/* The hand is that of the caster of the candidate spell. */
+/* @sem ObjectFilter::Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}} */
+mana_spells_from_caster_hand ::= "spells" "from" "your" "hand"
+
+/* An activated mana ability whose restriction refers to the candidate spell's caster's hand. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:Not(CastSpell($mana_spells_from_caster_hand))}}]}} */
+activated_mana_cant_cast_hand ::= cost ":" "add" mana_production "." "this" "mana" "can't" "be" "spent" "to" "cast" mana_spells_from_caster_hand "."
+
+/* @sem ManaUse::Purpose(Foretell) */
+mana_use_foretell_cards ::= "foretell" "cards"
+
+/* @sem ObjectFilter::State(Foretold) */
+mana_cast_foretold_spells ::= "spells" "that" "have" "foretell"
+
+/* @prefer always */
+/* @sem ManaUse::Either([$mana_use_foretell_cards, ManaUse::CastSpell($mana_cast_foretold_spells)]) */
+mana_use_foretell_or_cast ::= mana_use_foretell_cards "or" "cast" mana_cast_foretold_spells
+
+/* @sem ManaUse::Purpose(ClassLevel) */
+mana_use_class_level ::= "gain" "a" "Class" "level"
+
+/* @sem $mana_use_class_level */
+mana_use_later_class_level ::= "to" mana_use_class_level
+
+/* Keep the equal-amount action scoped to this restriction without altering mana_clause_restricted. */
+/* @sem Instruction::[Effect{result:@next, operation:$add_mana_amount_equal}] */
+mana_equal_clause ::= add_mana_amount_equal
+/* @sem ManaUse::Not(CastSpell(Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}})) */
+mana_cannot_cast_from_caster_hand ::= "this" "mana" "can't" "be" "spent" "to" "cast" "spells" "from" "your" "hand"
+/* @sem Vec<Instruction>::@restricted_mana($mana_equal_clause, $mana_cannot_cast_from_caster_hand) */
+mana_equal_caster_hand_restricted ::= mana_equal_clause "." mana_cannot_cast_from_caster_hand
+
+/* The named hand belongs to the ability controller in a turn-triggered mana ability. */
+/* @sem ObjectFilter::Cast{from:Players{zone:Hand, players:One(AbilityController)}} */
+mana_spells_from_own_hand ::= "spells" "from" "your" "hand"
+
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:Not(CastSpell($mana_spells_from_own_hand))}}]}} */
+triggered_mana_cant_cast_own_hand ::= "at" turn_event "," "add" mana_production "." "this" "mana" "can't" "be" "spent" "to" "cast" mana_spells_from_own_hand "."

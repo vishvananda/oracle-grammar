@@ -931,3 +931,87 @@ reading. No reference update or AST schema change was needed for this fix.
 - Faces (2): Katara, Water Tribe's Hope, Tifa, Martial Artist
 - Evidence: Tifa, Martial Artist checks 'if it's the first combat phase of your turn' (requiring PlayerIsActive(AbilityController) alongside Window(FirstCombat)); Katara, Water Tribe's Hope states 'Activate only during your turn' (limits.condition PlayerIsActive(AbilityController), not null).
 
+
+### U0162: Use historical WasAttachedTo(Target(0, 0)) after zone change on Fumble and Murderous Spoils.
+- Faces (2): Fumble, Murderous Spoils
+- Evidence: Fumble ('Return target creature to its owner's hand. Gain control of all Auras and Equipment that were attached to it, then attach them to another creature.') and Murderous Spoils ('Destroy target nonblack creature. It can't be regenerated. You gain control of all Equipment that were attached to it.') query what was attached to the target creature immediately before it left the battlefield (CR 608.2h). Frozen gold emitted live AttachedTo(SameObject(Target(0, 0))), which is always empty once the target is in hand or graveyard; crates/oracle-ir/src/ir/objects.rs:471 defines ObjectFilter::WasAttachedTo(ObjectRef) specifically as 'Was attached to this object as it last existed' (already used by frozen gold on Hateful Eidolon and Zack Fair).
+
+### U0163: Use AllSameProperty(Colors) instead of Not(NoCommonProperty(Colors)) on Dead Ringers.
+- Faces (1): Dead Ringers
+- Evidence: Dead Ringers reads 'Destroy two target nonblack creatures unless either one is a color the other isn't. They can't be regenerated.' It destroys both targets iff they have the exact same set of colors (AllSameProperty(Colors), defined in crates/oracle-ir/src/ir/selection.rs:322 as 'Every object has the same set of values of this property'). Frozen gold used Not(SubsetMeets{..., constraints:[NoCommonProperty(Colors)]}), which wrongly destroys a mono-red creature and a red-blue creature (they share red, even though the red-blue creature is blue which the red one isn't) and wrongly spares two colorless creatures (they share no colors).
+
+### U0164: Negate SharesWithAny on Radagast the Brown's 'doesn't share a creature type' filter.
+- Faces (1): Radagast the Brown
+- Evidence: Radagast the Brown's Oracle text reads: 'You may reveal a creature card that doesn't share a creature type with a creature you control from among those cards and put it into your hand.' Frozen gold (both Triggered abilities) exported positive SharesWithAny without Not(...), inverting the filter to match cards that DO share a creature type. Compare Menagerie Curator and Volo, Guide to Monsters in frozen gold, which both wrap SharesWithAny in Not(...).
+
+### U0165: Require AbilityController as caster and hand owner on Amped Raptor's 'if you cast it from your hand'.
+- Faces (1): Amped Raptor
+- Evidence: Amped Raptor reads: "When this creature enters, you get {E}{E}. Then if you cast it from your hand, exile cards from the top of your library until you exile a nonland card..." Under CR 109.5, "you" refers to the controller of the ability (AbilityController). Frozen gold exported Cast{by: null, from: Players{zone: Hand, players: One(CasterOf(Candidate))}}, which erroneously drops the 'you cast it' actor check and checks the caster's hand instead of the ability controller's hand (failing when an opponent casts it from their hand and it enters under your control, e.g. via Gather Specimens). All 27 other 'if you cast it from your hand' faces in the allowed corpus (Angel of the Dire Hour, Breaching Leviathan, Coal Stoker, Deathbringer Regent, Dread Cacodemon, Feasting Troll King, etc.) export Cast{by: One(AbilityController), from: Players{zone: Hand, players: One(AbilityController)}}.
+
+### U0166: Use CountDistinct(..., Names) on Swine Rebellion's 'Boars with different names' conditions.
+- Faces (1): Swine Rebellion
+- Evidence: Swine Rebellion reads: "If you control three or more Boars with different names, conjure each card from the Three Pigs spellbook onto the battlefield. If you control two or fewer Boars with different names, conjure two cards of your choice from the Three Pigs spellbook into your hand, then put one of them onto the battlefield." Frozen gold exported CountObjects over controlled Boars in both conditions, completely dropping 'with different names' (incorrectly treating three identically named Boars as satisfying 'three or more Boars with different names' and failing 'two or fewer Boars with different names'). All 4 other 'if you control ... with different names' faces in the allowed corpus (Field of the Dead, Liliana's Contract, Maze's End, The Necrobloom) use CountDistinct with property Names.
+
+### U0167: Use strict Less comparison for Gyrus, Waker of Corpses's 'with lesser power' graveyard target filter.
+- Faces (1): Gyrus, Waker of Corpses
+- Evidence: Gyrus, Waker of Corpses reads 'you may exile target creature card with lesser power from your graveyard.' Official Gatherer ruling (2018-07-13) confirms the targeted creature card's power must be strictly less than Gyrus's power (Less, not LessOrEqual).
+
+### U0168: Restore player protection effect on Faith's Shield's fateful hour branch.
+- Faces (1): Faith's Shield
+- Evidence: Faith's Shield reads 'If you have 5 or less life, instead you and each permanent you control gain protection from the color of your choice until end of turn.' Frozen MTGish gold omitted the Players(One(AbilityController)) PlayerRule(GrantKeyword(Protection(...))) continuous effect, matching Seht's Tiger and Serra's Emissary.
+
+### U0169: Exclude Source from Jeweled Bird's 'all other cards you own from the ante' graveyard return filter.
+- Faces (1): Jeweled Bird
+- Evidence: Jeweled Bird reads '{T}: Ante this artifact. If you do, put all other cards you own from the ante into your graveyard, then draw a card.' Frozen MTGish gold used OwnedBy(One(AbilityController)) without Not(SameObject(Source)), which would return Jeweled Bird itself from ante to the graveyard.
+
+### U0170: Use NotEqual comparison for Haktos the Unscarred's 'protection from each mana value other than the chosen number'.
+- Faces (1): Haktos the Unscarred
+- Evidence: Haktos the Unscarred reads 'Haktos has protection from each mana value other than the chosen number.' Frozen MTGish gold inverted the predicate to Equal (same bug class as U0158).
+
+### U0171: Reference AttachedTo(Source) rather than destroy result for Orcish Mine's 'that land's controller'.
+- Faces (1): Orcish Mine
+- Evidence: Orcish Mine reads 'When the last ore counter is removed from this Aura, destroy enchanted land and this Aura deals 2 damage to that land's controller.' Per CR 608.2c/609.3 and SPEC.md (same bug class as U0156 Ertai Resurrected), damage is still dealt to enchanted land's controller even if destruction fails (indestructible/regenerated); Result(0, Before, 0) would be empty.
+
+### U0172: Remove spurious ControlledBy(AbilityController) from Jasmine Boreal of the Seven's blocker filter.
+- Faces (1): Jasmine Boreal of the Seven
+- Evidence: Jasmine Boreal of the Seven reads 'Creatures you control with no abilities can't be blocked by creatures with abilities.' Frozen MTGish gold erroneously copied ControlledBy(One(AbilityController)) into the BeBlocked blocker filter.
+
+### U0173: Restrict Longhorn Firebeast and Vexing Devil willing-player damage payment to opponents.
+- Faces (2): Longhorn Firebeast, Vexing Devil
+- Evidence: Both Longhorn Firebeast ('any opponent may have it deal 5 damage to them') and Vexing Devil ('any opponent may have it deal 4 damage to them') specify 'any opponent', not 'any player'. Across the corpus all other 'any opponent may' cards use FirstWilling(OpponentsOf(AbilityController)); only these two faces erroneously exported FirstWilling(All).
+
+### U0174: Represent Mordenkainen's 'Exchange your hand and library, then shuffle' as sequential Exchange then Shuffle instructions.
+- Faces (1): Mordenkainen
+- Evidence: Mordenkainen's -10 ability reads 'Exchange your hand and library, then shuffle. You get an emblem with "You have no maximum hand size."' Per CR 608.2c, 'then shuffle' happens sequentially after the zone exchange (matching Morality Shift, which exports sequential [Effect(Exchange), Effect(Shuffle)], not simultaneous Together).
+
+### U0175: Restore missing negation Not(...) on Wilhelt, the Rotcleaver's 'if it didn't have decayed' intervening-if condition.
+- Faces (1): Wilhelt, the Rotcleaver
+- Evidence: Wilhelt, the Rotcleaver reads: 'Whenever another Zombie you control dies, if it didn't have decayed, create a 2/2 black Zombie creature token with decayed.' Frozen gold emitted `intervening_if: ObjectMatches{object: EventSubject, filter: HasKeywordFamily(Decayed)}` without `Not`, inverting the condition so Wilhelt triggers only when a decayed Zombie dies (going infinite with its own tokens) instead of when a non-decayed Zombie dies. Wrapping the filter in `Not(HasKeywordFamily(Decayed))` restores the exact Oracle meaning.
+
+### U0176: Apply Ent's Fury's +1/+1 pump to target creature you control (Target slot 0) rather than target creature you don't control (Target slot 1).
+- Faces (1): Ent's Fury
+- Evidence: Ent's Fury reads: 'Put a +1/+1 counter on target creature you control if its power is 4 or greater. Then that creature gets +1/+1 until end of turn and fights target creature you don't control.' 'That creature' refers unambiguously to Target{slot: 0} (target creature you control). Frozen gold mistakenly set the CreateContinuousEffect's `affected` to `Target{slot: 1, index: 0}`, pumping the opponent's creature before the fight instead of your own creature.
+
+### U0177: Use a CR 603.12 ReflexiveTrigger for Richlau, Headmaster's 'you may pay {1}. When you do, target artifact card in your graveyard ...' clause.
+- Faces (1): Richlau, Headmaster
+- Evidence: Richlau, Headmaster reads: 'At the beginning of your end step, you may pay {1}. When you do, target artifact card in your graveyard perpetually gains "This spell costs {1} less to cast." If it's a creature or Vehicle card, it perpetually gets +2/+2. Put it into your library second from the top.' Under CR 603.12, 'When you do, target ...' creates a reflexive triggered ability whose target is announced only after paying {1}, NOT when the end-step trigger goes on the stack (matching Go-Shintai of Lost Wisdom, Itzquinth, Firstborn of Gishath, and Ty Lee, Artful Acrobat in frozen gold). Frozen gold omitted ReflexiveTrigger and placed the target on the outer end-step trigger's announcement.
+
+### U0178: Check the exiled payment card's mana value via CostObjects on Summoner's Sending instead of turn-wide exile EventHistory.
+- Faces (1): Summoner's Sending
+- Evidence: Summoner's Sending reads: 'At the beginning of your end step, you may exile target creature card from a graveyard. If you do, create a 1/1 white Spirit creature token with flying. Put a +1/+1 counter on it if the exiled card's mana value is 4 or greater.' Frozen gold encoded 'if the exiled card's mana value is 4 or greater' as `EventHistory{event: ZoneChange{objects: Property{ManaValue >= 4}, to: Exile}, window: ThisTurn, measure: Occurrences} >= 1`, which falsely succeeds if any unrelated card with mana value >= 4 was exiled anywhere that turn even when Summoner's Sending exiled a 1-mana creature. Testing `Query{objects: CostObjects{payment: Resolution(0), component: [0], view: Performed, phase: After}, index: 0}` directly inspects the card exiled by the payment.
+
+### U0179: Restore missing ControlledBy(One(AbilityController)) predicate on Guild Summit's 'untapped Gates you control' choice.
+- Faces (1): Guild Summit
+- Evidence: Guild Summit reads: 'When this enchantment enters, you may tap any number of untapped Gates you control. Draw a card for each Gate tapped this way.' Frozen gold emitted `filter: AllOf([Not(Tapped), Subtype(Gate)])`, dropping `ControlledBy(One(AbilityController))` and allowing the controller to tap opponents' Gates (same class of dropped controller predicate fixed in U0159).
+
+### U0180: Restore missing Not(SameObject(Source)) ('other') exclusion on Coalition Construct's perpetual ETB buff.
+- Faces (1): Coalition Construct
+- Evidence: Coalition Construct reads: 'As this creature enters, choose a creature type. This creature is the chosen type in addition to its other types. When this creature enters, other creatures you control of the chosen type and creature cards of that type in your hand perpetually get +1/+1.' Frozen gold omitted `Not(SameObject(Source))` from the battlefield perpetual pump filter, causing Coalition Construct (which is itself the chosen creature type via ability 2) to perpetually buff itself, directly contradicting 'other creatures you control of the chosen type'.
+
+### U0181: Use WhichCreaturesBlock on Berserker's Frenzy's 'You choose which creatures block this turn and how those creatures block' result.
+- Faces (1): Berserker's Frenzy
+- Evidence: Berserker's Frenzy's 15-20 result reads verbatim: 'You choose which creatures block this turn and how those creatures block.' In frozen gold, every other card with this exact wording (Master Warcraft, Odric, Master Tactician, and Melee) uses `GameDecision::WhichCreaturesBlock` (allowing the controller to choose which creatures block, including choosing none), whereas `HowCreaturesBlock(filter)` is for cards like Brutal Hordechief ('you choose how those creatures block') that only control blocking assignments. Frozen gold exported `HowCreaturesBlock(CardType(Creature))` on Berserker's Frenzy, losing the 'which creatures block' decision.
+
+### U0182: Fix inverted Repeat times and Incubate amount on Glistening Dawn.
+- Faces (1): Glistening Dawn
+- Evidence: Glistening Dawn reads 'Incubate X twice, where X is the number of lands you control.' (CR 701.52: incubate with value X two times, creating two Incubator tokens each with X +1/+1 counters). Frozen MTGish gold inverted the operands as Repeat{times: CountObjects(lands you control), body: Incubate{amount: Constant(2)}} (creating X tokens with 2 counters each) instead of Repeat{times: Constant(2), body: Incubate{amount: CountObjects(lands you control)}}.

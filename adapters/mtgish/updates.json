@@ -104921,6 +104921,2410 @@
           }
         }
       ]
+    },
+    {
+      "id": "U0162",
+      "kind": "correction",
+      "summary": "Use historical WasAttachedTo(Target(0, 0)) after zone change on Fumble and Murderous Spoils.",
+      "evidence": "Fumble ('Return target creature to its owner's hand. Gain control of all Auras and Equipment that were attached to it, then attach them to another creature.') and Murderous Spoils ('Destroy target nonblack creature. It can't be regenerated. You gain control of all Equipment that were attached to it.') query what was attached to the target creature immediately before it left the battlefield (CR 608.2h). Frozen gold emitted live AttachedTo(SameObject(Target(0, 0))), which is always empty once the target is in hand or graveyard; crates/oracle-ir/src/ir/objects.rs:471 defines ObjectFilter::WasAttachedTo(ObjectRef) specifically as 'Was attached to this object as it last existed' (already used by frozen gold on Hateful Eidolon and Zack Fair).",
+      "changes": [
+        {
+          "face": "Fumble",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "operation",
+            "args",
+            "affected",
+            "Objects",
+            "args",
+            "filter",
+            "args",
+            1
+          ],
+          "from": {
+            "kind": "AttachedTo",
+            "args": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Target",
+                "args": {
+                  "slot": 0,
+                  "index": 0
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "WasAttachedTo",
+            "args": {
+              "kind": "Target",
+              "args": {
+                "slot": 0,
+                "index": 0
+              }
+            }
+          }
+        },
+        {
+          "face": "Murderous Spoils",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "operation",
+            "args",
+            "affected",
+            "Objects",
+            "args",
+            "filter",
+            "args",
+            1
+          ],
+          "from": {
+            "kind": "AttachedTo",
+            "args": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Target",
+                "args": {
+                  "slot": 0,
+                  "index": 0
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "WasAttachedTo",
+            "args": {
+              "kind": "Target",
+              "args": {
+                "slot": 0,
+                "index": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0163",
+      "kind": "correction",
+      "summary": "Use AllSameProperty(Colors) instead of Not(NoCommonProperty(Colors)) on Dead Ringers.",
+      "evidence": "Dead Ringers reads 'Destroy two target nonblack creatures unless either one is a color the other isn't. They can't be regenerated.' It destroys both targets iff they have the exact same set of colors (AllSameProperty(Colors), defined in crates/oracle-ir/src/ir/selection.rs:322 as 'Every object has the same set of values of this property'). Frozen gold used Not(SubsetMeets{..., constraints:[NoCommonProperty(Colors)]}), which wrongly destroys a mono-red creature and a red-blue creature (they share red, even though the red-blue creature is blue which the red one isn't) and wrongly spares two colorless creatures (they share no colors).",
+      "changes": [
+        {
+          "face": "Dead Ringers",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "condition"
+          ],
+          "from": {
+            "kind": "Not",
+            "args": {
+              "kind": "SubsetMeets",
+              "args": {
+                "objects": {
+                  "kind": "Targets",
+                  "args": 0
+                },
+                "comparison": "Equal",
+                "amount": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Targets",
+                    "args": 0
+                  }
+                },
+                "constraints": [
+                  {
+                    "NoCommonProperty": "Colors"
+                  }
+                ]
+              }
+            }
+          },
+          "to": {
+            "kind": "SubsetMeets",
+            "args": {
+              "objects": {
+                "kind": "Targets",
+                "args": 0
+              },
+              "comparison": "Equal",
+              "amount": {
+                "kind": "CountObjects",
+                "args": {
+                  "kind": "Targets",
+                  "args": 0
+                }
+              },
+              "constraints": [
+                {
+                  "AllSameProperty": "Colors"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0164",
+      "kind": "correction",
+      "summary": "Negate SharesWithAny on Radagast the Brown's 'doesn't share a creature type' filter.",
+      "evidence": "Radagast the Brown's Oracle text reads: 'You may reveal a creature card that doesn't share a creature type with a creature you control from among those cards and put it into your hand.' Frozen gold (both Triggered abilities) exported positive SharesWithAny without Not(...), inverting the filter to match cards that DO share a creature type. Compare Menagerie Curator and Volo, Guide to Monsters in frozen gold, which both wrap SharesWithAny in Not(...).",
+      "changes": [
+        {
+          "face": "Radagast the Brown",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "instructions",
+            1,
+            "args",
+            "operation",
+            "args",
+            "objects",
+            "args",
+            "filter",
+            "args",
+            1
+          ],
+          "from": {
+            "kind": "SharesWithAny",
+            "args": {
+              "property": "CreatureTypes",
+              "with": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "Not",
+            "args": {
+              "kind": "SharesWithAny",
+              "args": {
+                "property": "CreatureTypes",
+                "with": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Shared": "Battlefield"
+                    },
+                    "kind": "Permanent",
+                    "filter": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "face": "Radagast the Brown",
+          "path": [
+            1,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "instructions",
+            1,
+            "args",
+            "operation",
+            "args",
+            "objects",
+            "args",
+            "filter",
+            "args",
+            1
+          ],
+          "from": {
+            "kind": "SharesWithAny",
+            "args": {
+              "property": "CreatureTypes",
+              "with": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "Not",
+            "args": {
+              "kind": "SharesWithAny",
+              "args": {
+                "property": "CreatureTypes",
+                "with": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Shared": "Battlefield"
+                    },
+                    "kind": "Permanent",
+                    "filter": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0165",
+      "kind": "correction",
+      "summary": "Require AbilityController as caster and hand owner on Amped Raptor's 'if you cast it from your hand'.",
+      "evidence": "Amped Raptor reads: \"When this creature enters, you get {E}{E}. Then if you cast it from your hand, exile cards from the top of your library until you exile a nonland card...\" Under CR 109.5, \"you\" refers to the controller of the ability (AbilityController). Frozen gold exported Cast{by: null, from: Players{zone: Hand, players: One(CasterOf(Candidate))}}, which erroneously drops the 'you cast it' actor check and checks the caster's hand instead of the ability controller's hand (failing when an opponent casts it from their hand and it enters under your control, e.g. via Gather Specimens). All 27 other 'if you cast it from your hand' faces in the allowed corpus (Angel of the Dire Hour, Breaching Leviathan, Coal Stoker, Deathbringer Regent, Dread Cacodemon, Feasting Troll King, etc.) export Cast{by: One(AbilityController), from: Players{zone: Hand, players: One(AbilityController)}}.",
+      "changes": [
+        {
+          "face": "Amped Raptor",
+          "path": [
+            1,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "condition",
+            "args",
+            "filter"
+          ],
+          "from": {
+            "kind": "Cast",
+            "args": {
+              "by": null,
+              "from": {
+                "Players": {
+                  "zone": "Hand",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "CasterOf",
+                      "args": {
+                        "kind": "Candidate"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "Cast",
+            "args": {
+              "by": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              },
+              "from": {
+                "Players": {
+                  "zone": "Hand",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0166",
+      "kind": "correction",
+      "summary": "Use CountDistinct(..., Names) on Swine Rebellion's 'Boars with different names' conditions.",
+      "evidence": "Swine Rebellion reads: \"If you control three or more Boars with different names, conjure each card from the Three Pigs spellbook onto the battlefield. If you control two or fewer Boars with different names, conjure two cards of your choice from the Three Pigs spellbook into your hand, then put one of them onto the battlefield.\" Frozen gold exported CountObjects over controlled Boars in both conditions, completely dropping 'with different names' (incorrectly treating three identically named Boars as satisfying 'three or more Boars with different names' and failing 'two or fewer Boars with different names'). All 4 other 'if you control ... with different names' faces in the allowed corpus (Field of the Dead, Liliana's Contract, Maze's End, The Necrobloom) use CountDistinct with property Names.",
+      "changes": [
+        {
+          "face": "Swine Rebellion",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "condition",
+            "args",
+            "left"
+          ],
+          "from": {
+            "kind": "CountObjects",
+            "args": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Battlefield"
+                },
+                "kind": "Permanent",
+                "filter": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Subtype",
+                      "args": "Boar"
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "CountDistinct",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "Subtype",
+                        "args": "Boar"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "property": "Names"
+            }
+          }
+        },
+        {
+          "face": "Swine Rebellion",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "condition",
+            "args",
+            "left"
+          ],
+          "from": {
+            "kind": "CountObjects",
+            "args": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Battlefield"
+                },
+                "kind": "Permanent",
+                "filter": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Subtype",
+                      "args": "Boar"
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "CountDistinct",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "Subtype",
+                        "args": "Boar"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "property": "Names"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0167",
+      "kind": "correction",
+      "summary": "Use strict Less comparison for Gyrus, Waker of Corpses's 'with lesser power' graveyard target filter.",
+      "evidence": "Gyrus, Waker of Corpses reads 'you may exile target creature card with lesser power from your graveyard.' Official Gatherer ruling (2018-07-13) confirms the targeted creature card's power must be strictly less than Gyrus's power (Less, not LessOrEqual).",
+      "changes": [
+        {
+          "face": "Gyrus, Waker of Corpses",
+          "path": [
+            1,
+            "args",
+            "announcement",
+            "targets",
+            0,
+            "filter",
+            "args",
+            1,
+            "args",
+            "test",
+            "args",
+            "comparison"
+          ],
+          "from": "LessOrEqual",
+          "to": "Less"
+        }
+      ]
+    },
+    {
+      "id": "U0168",
+      "kind": "correction",
+      "summary": "Restore player protection effect on Faith's Shield's fateful hour branch.",
+      "evidence": "Faith's Shield reads 'If you have 5 or less life, instead you and each permanent you control gain protection from the color of your choice until end of turn.' Frozen MTGish gold omitted the Players(One(AbilityController)) PlayerRule(GrantKeyword(Protection(...))) continuous effect, matching Seht's Tiger and Serra's Emissary.",
+      "changes": [
+        {
+          "face": "Faith's Shield",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "then",
+            "instructions"
+          ],
+          "from": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "CreateContinuousEffect",
+                  "args": {
+                    "source": {
+                      "kind": "Source"
+                    },
+                    "affected": {
+                      "Objects": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Shared": "Battlefield"
+                          },
+                          "kind": "Permanent",
+                          "filter": {
+                            "kind": "ControlledBy",
+                            "args": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "changes": [
+                      {
+                        "kind": "GrantKeyword",
+                        "args": {
+                          "kind": "Protection",
+                          "args": {
+                            "Objects": {
+                              "kind": "Any",
+                              "filter": {
+                                "kind": "Chosen",
+                                "args": "Color"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "duration": "EndOfTurn",
+                    "evaluation": "Snapshot"
+                  }
+                }
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "CreateContinuousEffect",
+                  "args": {
+                    "source": {
+                      "kind": "Source"
+                    },
+                    "affected": {
+                      "Players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    },
+                    "changes": [
+                      {
+                        "kind": "PlayerRule",
+                        "args": {
+                          "GrantKeyword": {
+                            "Protection": {
+                              "Objects": {
+                                "kind": "Any",
+                                "filter": {
+                                  "kind": "Chosen",
+                                  "args": "Color"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "duration": "EndOfTurn",
+                    "evaluation": "LiveObjects"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateContinuousEffect",
+                  "args": {
+                    "source": {
+                      "kind": "Source"
+                    },
+                    "affected": {
+                      "Objects": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Shared": "Battlefield"
+                          },
+                          "kind": "Permanent",
+                          "filter": {
+                            "kind": "ControlledBy",
+                            "args": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "changes": [
+                      {
+                        "kind": "GrantKeyword",
+                        "args": {
+                          "kind": "Protection",
+                          "args": {
+                            "Objects": {
+                              "kind": "Any",
+                              "filter": {
+                                "kind": "Chosen",
+                                "args": "Color"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "duration": "EndOfTurn",
+                    "evaluation": "Snapshot"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U0169",
+      "kind": "correction",
+      "summary": "Exclude Source from Jeweled Bird's 'all other cards you own from the ante' graveyard return filter.",
+      "evidence": "Jeweled Bird reads '{T}: Ante this artifact. If you do, put all other cards you own from the ante into your graveyard, then draw a card.' Frozen MTGish gold used OwnedBy(One(AbilityController)) without Not(SameObject(Source)), which would return Jeweled Bird itself from ante to the graveyard.",
+      "changes": [
+        {
+          "face": "Jeweled Bird",
+          "path": [
+            1,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "then",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "objects",
+            "args",
+            "filter"
+          ],
+          "from": {
+            "kind": "OwnedBy",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          },
+          "to": {
+            "kind": "AllOf",
+            "args": [
+              {
+                "kind": "Not",
+                "args": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              },
+              {
+                "kind": "OwnedBy",
+                "args": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0170",
+      "kind": "correction",
+      "summary": "Use NotEqual comparison for Haktos the Unscarred's 'protection from each mana value other than the chosen number'.",
+      "evidence": "Haktos the Unscarred reads 'Haktos has protection from each mana value other than the chosen number.' Frozen MTGish gold inverted the predicate to Equal (same bug class as U0158).",
+      "changes": [
+        {
+          "face": "Haktos the Unscarred",
+          "path": [
+            2,
+            "args",
+            "changes",
+            0,
+            "args",
+            "args",
+            "Objects",
+            "filter",
+            "args",
+            "test",
+            "args",
+            "comparison"
+          ],
+          "from": "Equal",
+          "to": "NotEqual"
+        }
+      ]
+    },
+    {
+      "id": "U0171",
+      "kind": "correction",
+      "summary": "Reference AttachedTo(Source) rather than destroy result for Orcish Mine's 'that land's controller'.",
+      "evidence": "Orcish Mine reads 'When the last ore counter is removed from this Aura, destroy enchanted land and this Aura deals 2 damage to that land's controller.' Per CR 608.2c/609.3 and SPEC.md (same bug class as U0156 Ertai Resurrected), damage is still dealt to enchanted land's controller even if destruction fails (indestructible/regenerated); Result(0, Before, 0) would be empty.",
+      "changes": [
+        {
+          "face": "Orcish Mine",
+          "path": [
+            3,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "operation",
+            "args",
+            "recipients",
+            "args",
+            "args",
+            "args"
+          ],
+          "from": {
+            "kind": "Result",
+            "args": {
+              "result": 0,
+              "phase": "Before",
+              "index": 0
+            }
+          },
+          "to": {
+            "kind": "AttachedTo",
+            "args": {
+              "kind": "Source"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0172",
+      "kind": "correction",
+      "summary": "Remove spurious ControlledBy(AbilityController) from Jasmine Boreal of the Seven's blocker filter.",
+      "evidence": "Jasmine Boreal of the Seven reads 'Creatures you control with no abilities can't be blocked by creatures with abilities.' Frozen MTGish gold erroneously copied ControlledBy(One(AbilityController)) into the BeBlocked blocker filter.",
+      "changes": [
+        {
+          "face": "Jasmine Boreal of the Seven",
+          "path": [
+            1,
+            "args",
+            "changes",
+            0,
+            "args",
+            "Prohibit",
+            "BeBlocked",
+            "args"
+          ],
+          "from": [
+            {
+              "kind": "CardType",
+              "args": "Creature"
+            },
+            {
+              "kind": "ControlledBy",
+              "args": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            {
+              "kind": "Not",
+              "args": {
+                "kind": "State",
+                "args": "NoAbilities"
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "CardType",
+              "args": "Creature"
+            },
+            {
+              "kind": "Not",
+              "args": {
+                "kind": "State",
+                "args": "NoAbilities"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U0173",
+      "kind": "correction",
+      "summary": "Restrict Longhorn Firebeast and Vexing Devil willing-player damage payment to opponents.",
+      "evidence": "Both Longhorn Firebeast ('any opponent may have it deal 5 damage to them') and Vexing Devil ('any opponent may have it deal 4 damage to them') specify 'any opponent', not 'any player'. Across the corpus all other 'any opponent may' cards use FirstWilling(OpponentsOf(AbilityController)); only these two faces erroneously exported FirstWilling(All).",
+      "changes": [
+        {
+          "face": "Longhorn Firebeast",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "player"
+          ],
+          "from": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "All"
+            }
+          },
+          "to": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "OpponentsOf",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        },
+        {
+          "face": "Longhorn Firebeast",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "cost",
+            "parts",
+            0,
+            "PlayerAction",
+            "player"
+          ],
+          "from": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "All"
+            }
+          },
+          "to": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "OpponentsOf",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        },
+        {
+          "face": "Longhorn Firebeast",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "cost",
+            "parts",
+            0,
+            "PlayerAction",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "recipients",
+            "args",
+            "args"
+          ],
+          "from": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "All"
+            }
+          },
+          "to": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "OpponentsOf",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        },
+        {
+          "face": "Vexing Devil",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "player"
+          ],
+          "from": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "All"
+            }
+          },
+          "to": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "OpponentsOf",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        },
+        {
+          "face": "Vexing Devil",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "cost",
+            "parts",
+            0,
+            "PlayerAction",
+            "player"
+          ],
+          "from": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "All"
+            }
+          },
+          "to": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "OpponentsOf",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        },
+        {
+          "face": "Vexing Devil",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "cost",
+            "parts",
+            0,
+            "PlayerAction",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "recipients",
+            "args",
+            "args"
+          ],
+          "from": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "All"
+            }
+          },
+          "to": {
+            "kind": "FirstWilling",
+            "args": {
+              "kind": "OpponentsOf",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0174",
+      "kind": "correction",
+      "summary": "Represent Mordenkainen's 'Exchange your hand and library, then shuffle' as sequential Exchange then Shuffle instructions.",
+      "evidence": "Mordenkainen's -10 ability reads 'Exchange your hand and library, then shuffle. You get an emblem with \"You have no maximum hand size.\"' Per CR 608.2c, 'then shuffle' happens sequentially after the zone exchange (matching Morality Shift, which exports sequential [Effect(Exchange), Effect(Shuffle)], not simultaneous Together).",
+      "changes": [
+        {
+          "face": "Mordenkainen",
+          "path": [
+            2,
+            "args",
+            "body",
+            "instructions"
+          ],
+          "from": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "Together",
+                  "args": [
+                    {
+                      "kind": "Exchange",
+                      "args": {
+                        "kind": {
+                          "Zones": [
+                            "Hand",
+                            "Library"
+                          ]
+                        },
+                        "first": {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "second": {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "until": null
+                      }
+                    },
+                    {
+                      "kind": "Shuffle",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "excluding": null
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "CreateEmblem",
+                  "args": {
+                    "actor": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "abilities": [
+                      {
+                        "kind": "Static",
+                        "args": {
+                          "kind": "Ordinary",
+                          "affected": {
+                            "Players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          },
+                          "changes": [
+                            {
+                              "kind": "PlayerRule",
+                              "args": {
+                                "HandSize": "Unlimited"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "Exchange",
+                  "args": {
+                    "kind": {
+                      "Zones": [
+                        "Hand",
+                        "Library"
+                      ]
+                    },
+                    "first": {
+                      "kind": "Players",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    },
+                    "second": {
+                      "kind": "Players",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    },
+                    "until": null
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "Shuffle",
+                  "args": {
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "excluding": null
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateEmblem",
+                  "args": {
+                    "actor": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "abilities": [
+                      {
+                        "kind": "Static",
+                        "args": {
+                          "kind": "Ordinary",
+                          "affected": {
+                            "Players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          },
+                          "changes": [
+                            {
+                              "kind": "PlayerRule",
+                              "args": {
+                                "HandSize": "Unlimited"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U0175",
+      "kind": "correction",
+      "summary": "Restore missing negation Not(...) on Wilhelt, the Rotcleaver's 'if it didn't have decayed' intervening-if condition.",
+      "evidence": "Wilhelt, the Rotcleaver reads: 'Whenever another Zombie you control dies, if it didn't have decayed, create a 2/2 black Zombie creature token with decayed.' Frozen gold emitted `intervening_if: ObjectMatches{object: EventSubject, filter: HasKeywordFamily(Decayed)}` without `Not`, inverting the condition so Wilhelt triggers only when a decayed Zombie dies (going infinite with its own tokens) instead of when a non-decayed Zombie dies. Wrapping the filter in `Not(HasKeywordFamily(Decayed))` restores the exact Oracle meaning.",
+      "changes": [
+        {
+          "face": "Wilhelt, the Rotcleaver",
+          "path": [
+            0,
+            "args",
+            "intervening_if",
+            "args",
+            "filter"
+          ],
+          "from": {
+            "kind": "HasKeywordFamily",
+            "args": "Decayed"
+          },
+          "to": {
+            "kind": "Not",
+            "args": {
+              "kind": "HasKeywordFamily",
+              "args": "Decayed"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0176",
+      "kind": "correction",
+      "summary": "Apply Ent's Fury's +1/+1 pump to target creature you control (Target slot 0) rather than target creature you don't control (Target slot 1).",
+      "evidence": "Ent's Fury reads: 'Put a +1/+1 counter on target creature you control if its power is 4 or greater. Then that creature gets +1/+1 until end of turn and fights target creature you don't control.' 'That creature' refers unambiguously to Target{slot: 0} (target creature you control). Frozen gold mistakenly set the CreateContinuousEffect's `affected` to `Target{slot: 1, index: 0}`, pumping the opponent's creature before the fight instead of your own creature.",
+      "changes": [
+        {
+          "face": "Ent's Fury",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "operation",
+            "args",
+            "affected",
+            "Objects",
+            "args",
+            "args",
+            "slot"
+          ],
+          "from": 1,
+          "to": 0
+        }
+      ]
+    },
+    {
+      "id": "U0177",
+      "kind": "correction",
+      "summary": "Use a CR 603.12 ReflexiveTrigger for Richlau, Headmaster's 'you may pay {1}. When you do, target artifact card in your graveyard ...' clause.",
+      "evidence": "Richlau, Headmaster reads: 'At the beginning of your end step, you may pay {1}. When you do, target artifact card in your graveyard perpetually gains \"This spell costs {1} less to cast.\" If it's a creature or Vehicle card, it perpetually gets +2/+2. Put it into your library second from the top.' Under CR 603.12, 'When you do, target ...' creates a reflexive triggered ability whose target is announced only after paying {1}, NOT when the end-step trigger goes on the stack (matching Go-Shintai of Lost Wisdom, Itzquinth, Firstborn of Gishath, and Ty Lee, Artful Acrobat in frozen gold). Frozen gold omitted ReflexiveTrigger and placed the target on the outer end-step trigger's announcement.",
+      "changes": [
+        {
+          "face": "Richlau, Headmaster",
+          "path": [
+            0,
+            "args"
+          ],
+          "from": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Card",
+                      "zones": [
+                        "Graveyard"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Artifact"
+                      },
+                      {
+                        "kind": "InZone",
+                        "args": {
+                          "Players": {
+                            "zone": "Graveyard",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Mana": [
+                                {
+                                  "Generic": 1
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "CreatePerpetualEffect",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "GrantAbility",
+                                    "args": {
+                                      "kind": "Casting",
+                                      "args": {
+                                        "ReduceCost": [
+                                          {
+                                            "color": null,
+                                            "amount": {
+                                              "kind": "Constant",
+                                              "args": 1
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "If",
+                          "args": {
+                            "condition": {
+                              "kind": "ObjectMatches",
+                              "args": {
+                                "object": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                },
+                                "filter": {
+                                  "kind": "AnyOf",
+                                  "args": [
+                                    {
+                                      "kind": "CardType",
+                                      "args": "Creature"
+                                    },
+                                    {
+                                      "kind": "Subtype",
+                                      "args": "Vehicle"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "then": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 2,
+                                    "operation": {
+                                      "kind": "CreatePerpetualEffect",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Target",
+                                            "args": {
+                                              "slot": 0,
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "changes": [
+                                          {
+                                            "kind": "Pump",
+                                            "args": {
+                                              "power": {
+                                                "kind": "Constant",
+                                                "args": 2
+                                              },
+                                              "toughness": {
+                                                "kind": "Constant",
+                                                "args": 2
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            "otherwise": {
+                              "instructions": []
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "Library": {
+                                    "position": {
+                                      "FromTop": {
+                                        "kind": "Constant",
+                                        "args": 2
+                                      }
+                                    },
+                                    "order": "DestinationDefault",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "to": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 0,
+                                  "operation": {
+                                    "kind": "PayCost",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "cost": {
+                                        "parts": [
+                                          {
+                                            "Mana": [
+                                              {
+                                                "Generic": 1
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "optional": false
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 4,
+                                  "operation": {
+                                    "kind": "ReflexiveTrigger",
+                                    "args": {
+                                      "performed": 0,
+                                      "condition": null,
+                                      "announcement": {
+                                        "targets": [
+                                          {
+                                            "slot": 0,
+                                            "kind": {
+                                              "Object": {
+                                                "kind": "Card",
+                                                "zones": [
+                                                  "Graveyard"
+                                                ]
+                                              }
+                                            },
+                                            "count": {
+                                              "Exactly": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              }
+                                            },
+                                            "filter": {
+                                              "kind": "AllOf",
+                                              "args": [
+                                                {
+                                                  "kind": "CardType",
+                                                  "args": "Artifact"
+                                                },
+                                                {
+                                                  "kind": "InZone",
+                                                  "args": {
+                                                    "Players": {
+                                                      "zone": "Graveyard",
+                                                      "players": {
+                                                        "kind": "One",
+                                                        "args": {
+                                                          "kind": "AbilityController"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            },
+                                            "players": null,
+                                            "distribute": null,
+                                            "constraints": [],
+                                            "chooser": null
+                                          }
+                                        ],
+                                        "modes": null
+                                      },
+                                      "body": {
+                                        "instructions": [
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 1,
+                                              "operation": {
+                                                "kind": "CreatePerpetualEffect",
+                                                "args": {
+                                                  "objects": {
+                                                    "kind": "One",
+                                                    "args": {
+                                                      "kind": "Target",
+                                                      "args": {
+                                                        "slot": 0,
+                                                        "index": 0
+                                                      }
+                                                    }
+                                                  },
+                                                  "changes": [
+                                                    {
+                                                      "kind": "GrantAbility",
+                                                      "args": {
+                                                        "kind": "Casting",
+                                                        "args": {
+                                                          "ReduceCost": [
+                                                            {
+                                                              "color": null,
+                                                              "amount": {
+                                                                "kind": "Constant",
+                                                                "args": 1
+                                                              }
+                                                            }
+                                                          ]
+                                                        }
+                                                      }
+                                                    }
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          },
+                                          {
+                                            "kind": "If",
+                                            "args": {
+                                              "condition": {
+                                                "kind": "ObjectMatches",
+                                                "args": {
+                                                  "object": {
+                                                    "kind": "Target",
+                                                    "args": {
+                                                      "slot": 0,
+                                                      "index": 0
+                                                    }
+                                                  },
+                                                  "filter": {
+                                                    "kind": "AnyOf",
+                                                    "args": [
+                                                      {
+                                                        "kind": "CardType",
+                                                        "args": "Creature"
+                                                      },
+                                                      {
+                                                        "kind": "Subtype",
+                                                        "args": "Vehicle"
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "then": {
+                                                "instructions": [
+                                                  {
+                                                    "kind": "Effect",
+                                                    "args": {
+                                                      "result": 2,
+                                                      "operation": {
+                                                        "kind": "CreatePerpetualEffect",
+                                                        "args": {
+                                                          "objects": {
+                                                            "kind": "One",
+                                                            "args": {
+                                                              "kind": "Target",
+                                                              "args": {
+                                                                "slot": 0,
+                                                                "index": 0
+                                                              }
+                                                            }
+                                                          },
+                                                          "changes": [
+                                                            {
+                                                              "kind": "Pump",
+                                                              "args": {
+                                                                "power": {
+                                                                  "kind": "Constant",
+                                                                  "args": 2
+                                                                },
+                                                                "toughness": {
+                                                                  "kind": "Constant",
+                                                                  "args": 2
+                                                                }
+                                                              }
+                                                            }
+                                                          ]
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                ]
+                                              },
+                                              "otherwise": {
+                                                "instructions": []
+                                              }
+                                            }
+                                          },
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 3,
+                                              "operation": {
+                                                "kind": "Move",
+                                                "args": {
+                                                  "objects": {
+                                                    "kind": "One",
+                                                    "args": {
+                                                      "kind": "Target",
+                                                      "args": {
+                                                        "slot": 0,
+                                                        "index": 0
+                                                      }
+                                                    }
+                                                  },
+                                                  "destination": {
+                                                    "Library": {
+                                                      "position": {
+                                                        "FromTop": {
+                                                          "kind": "Constant",
+                                                          "args": 2
+                                                        }
+                                                      },
+                                                      "order": "DestinationDefault",
+                                                      "arrival": {
+                                                        "counters": [],
+                                                        "states": []
+                                                      }
+                                                    }
+                                                  },
+                                                  "qualifiers": []
+                                                }
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0178",
+      "kind": "correction",
+      "summary": "Check the exiled payment card's mana value via CostObjects on Summoner's Sending instead of turn-wide exile EventHistory.",
+      "evidence": "Summoner's Sending reads: 'At the beginning of your end step, you may exile target creature card from a graveyard. If you do, create a 1/1 white Spirit creature token with flying. Put a +1/+1 counter on it if the exiled card's mana value is 4 or greater.' Frozen gold encoded 'if the exiled card's mana value is 4 or greater' as `EventHistory{event: ZoneChange{objects: Property{ManaValue >= 4}, to: Exile}, window: ThisTurn, measure: Occurrences} >= 1`, which falsely succeeds if any unrelated card with mana value >= 4 was exiled anywhere that turn even when Summoner's Sending exiled a 1-mana creature. Testing `Query{objects: CostObjects{payment: Resolution(0), component: [0], view: Performed, phase: After}, index: 0}` directly inspects the card exiled by the payment.",
+      "changes": [
+        {
+          "face": "Summoner's Sending",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "then",
+            "instructions",
+            1,
+            "args",
+            "condition"
+          ],
+          "from": {
+            "kind": "Compare",
+            "args": {
+              "left": {
+                "kind": "EventHistory",
+                "args": {
+                  "event": {
+                    "ZoneChange": {
+                      "objects": {
+                        "kind": "Property",
+                        "args": {
+                          "property": "ManaValue",
+                          "test": {
+                            "kind": "Compare",
+                            "args": {
+                              "comparison": "GreaterOrEqual",
+                              "value": {
+                                "kind": "Constant",
+                                "args": 4
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "from": null,
+                      "to": "Exile"
+                    }
+                  },
+                  "window": "ThisTurn",
+                  "measure": "Occurrences"
+                }
+              },
+              "test": {
+                "kind": "Compare",
+                "args": {
+                  "comparison": "GreaterOrEqual",
+                  "value": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "ObjectMatches",
+            "args": {
+              "object": {
+                "kind": "Query",
+                "args": {
+                  "objects": {
+                    "kind": "CostObjects",
+                    "args": {
+                      "payment": {
+                        "Resolution": 0
+                      },
+                      "component": [
+                        0
+                      ],
+                      "view": "Performed",
+                      "phase": "After"
+                    }
+                  },
+                  "index": 0
+                }
+              },
+              "filter": {
+                "kind": "Property",
+                "args": {
+                  "property": "ManaValue",
+                  "test": {
+                    "kind": "Compare",
+                    "args": {
+                      "comparison": "GreaterOrEqual",
+                      "value": {
+                        "kind": "Constant",
+                        "args": 4
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0179",
+      "kind": "correction",
+      "summary": "Restore missing ControlledBy(One(AbilityController)) predicate on Guild Summit's 'untapped Gates you control' choice.",
+      "evidence": "Guild Summit reads: 'When this enchantment enters, you may tap any number of untapped Gates you control. Draw a card for each Gate tapped this way.' Frozen gold emitted `filter: AllOf([Not(Tapped), Subtype(Gate)])`, dropping `ControlledBy(One(AbilityController))` and allowing the controller to tap opponents' Gates (same class of dropped controller predicate fixed in U0159).",
+      "changes": [
+        {
+          "face": "Guild Summit",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "objects",
+            "args",
+            "filter",
+            "args"
+          ],
+          "from": [
+            {
+              "kind": "Not",
+              "args": {
+                "kind": "Tapped"
+              }
+            },
+            {
+              "kind": "Subtype",
+              "args": "Gate"
+            }
+          ],
+          "to": [
+            {
+              "kind": "Not",
+              "args": {
+                "kind": "Tapped"
+              }
+            },
+            {
+              "kind": "Subtype",
+              "args": "Gate"
+            },
+            {
+              "kind": "ControlledBy",
+              "args": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U0180",
+      "kind": "correction",
+      "summary": "Restore missing Not(SameObject(Source)) ('other') exclusion on Coalition Construct's perpetual ETB buff.",
+      "evidence": "Coalition Construct reads: 'As this creature enters, choose a creature type. This creature is the chosen type in addition to its other types. When this creature enters, other creatures you control of the chosen type and creature cards of that type in your hand perpetually get +1/+1.' Frozen gold omitted `Not(SameObject(Source))` from the battlefield perpetual pump filter, causing Coalition Construct (which is itself the chosen creature type via ability 2) to perpetually buff itself, directly contradicting 'other creatures you control of the chosen type'.",
+      "changes": [
+        {
+          "face": "Coalition Construct",
+          "path": [
+            2,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "objects",
+            "args",
+            "filter",
+            "args"
+          ],
+          "from": [
+            {
+              "kind": "CardType",
+              "args": "Creature"
+            },
+            {
+              "kind": "ControlledBy",
+              "args": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            {
+              "kind": "Chosen",
+              "args": "CreatureType"
+            }
+          ],
+          "to": [
+            {
+              "kind": "Not",
+              "args": {
+                "kind": "SameObject",
+                "args": {
+                  "kind": "Source"
+                }
+              }
+            },
+            {
+              "kind": "CardType",
+              "args": "Creature"
+            },
+            {
+              "kind": "ControlledBy",
+              "args": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            {
+              "kind": "Chosen",
+              "args": "CreatureType"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U0181",
+      "kind": "correction",
+      "summary": "Use WhichCreaturesBlock on Berserker's Frenzy's 'You choose which creatures block this turn and how those creatures block' result.",
+      "evidence": "Berserker's Frenzy's 15-20 result reads verbatim: 'You choose which creatures block this turn and how those creatures block.' In frozen gold, every other card with this exact wording (Master Warcraft, Odric, Master Tactician, and Melee) uses `GameDecision::WhichCreaturesBlock` (allowing the controller to choose which creatures block, including choosing none), whereas `HowCreaturesBlock(filter)` is for cards like Brutal Hordechief ('you choose how those creatures block') that only control blocking assignments. Frozen gold exported `HowCreaturesBlock(CardType(Creature))` on Berserker's Frenzy, losing the 'which creatures block' decision.",
+      "changes": [
+        {
+          "face": "Berserker's Frenzy",
+          "path": [
+            1,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "instructions",
+            1,
+            "args",
+            "then",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "changes",
+            0,
+            "args",
+            "Decides"
+          ],
+          "from": {
+            "HowCreaturesBlock": {
+              "kind": "CardType",
+              "args": "Creature"
+            }
+          },
+          "to": "WhichCreaturesBlock"
+        }
+      ]
+    },
+    {
+      "id": "U0182",
+      "kind": "correction",
+      "summary": "Fix inverted Repeat times and Incubate amount on Glistening Dawn.",
+      "evidence": "Glistening Dawn reads 'Incubate X twice, where X is the number of lands you control.' (CR 701.52: incubate with value X two times, creating two Incubator tokens each with X +1/+1 counters). Frozen MTGish gold inverted the operands as Repeat{times: CountObjects(lands you control), body: Incubate{amount: Constant(2)}} (creating X tokens with 2 counters each) instead of Repeat{times: Constant(2), body: Incubate{amount: CountObjects(lands you control)}}.",
+      "changes": [
+        {
+          "face": "Glistening Dawn",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args"
+          ],
+          "from": {
+            "times": {
+              "kind": "CountObjects",
+              "args": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Land"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "body": {
+              "kind": "Keyword",
+              "args": {
+                "actor": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "action": {
+                  "Incubate": {
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 2
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "to": {
+            "times": {
+              "kind": "Constant",
+              "args": 2
+            },
+            "body": {
+              "kind": "Keyword",
+              "args": {
+                "actor": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "action": {
+                  "Incubate": {
+                    "amount": {
+                      "kind": "CountObjects",
+                      "args": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Shared": "Battlefield"
+                          },
+                          "kind": "Permanent",
+                          "filter": {
+                            "kind": "AllOf",
+                            "args": [
+                              {
+                                "kind": "CardType",
+                                "args": "Land"
+                              },
+                              {
+                                "kind": "ControlledBy",
+                                "args": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
