@@ -337,10 +337,11 @@ move_battlefield_owner_tapped ::= ("return" | "put") affected ("to" | "onto") "t
    Keep the destination's controller and the actual moved objects independent. */
 /* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set($affected)), destination:Battlefield{controller:Player(AbilityController), arrival:$transformed_entry}, qualifiers:[]} */
 move_battlefield_transformed ::= ("return" | "put") affected ("to" | "onto") "the" "battlefield" transformed_entry "under" "your" "control"
-/* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set($affected)), destination:Battlefield{controller:Owner, arrival:$transformed_entry}, qualifiers:[]} */
-move_battlefield_owner_transformed ::= ("return" | "put") affected ("to" | "onto") "the" "battlefield" transformed_entry "under" owner_possessive "control"
+/* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set($affected)), destination:Battlefield{controller:Owner, arrival:$owner_transformed_entry}, qualifiers:[]} */
+move_battlefield_owner_transformed ::= ("return" | "put") affected ("to" | "onto") "the" "battlefield" owner_transformed_entry "under" owner_possessive "control"
 
 transformed_entry ::= entry_transformed | entry_transformed_tapped
+/* @prefer always */
 /* @sem BattlefieldArrival::BattlefieldArrival{tapped:false, counters:[], states:[Transformed]} */
 entry_transformed ::= "transformed"
 /* @sem BattlefieldArrival::BattlefieldArrival{tapped:true, counters:[], states:[Transformed]} */
@@ -369,10 +370,10 @@ clause_may ::= "you" "may" may_body
 /* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:@optional_then($may_body, $conjoined)}}] */
 clause_may_then ::= "you" "may" may_body "," "then" conjoined
 
-may_body ::= clause_have_equal_damage | put_chosen_graveyard_card_battlefield | clause_hand_on_bottom | put_private_card_counter_entry | graveyard_return_single | look_put_then_body | clause_have_continuous | clause_have_deal | clause_player_put_card | clause_imperative | clause_operation | clause_search | clause_search_where_split | clause_search_either | clause_search_private_either | clause_exile_from | clause_put_from | clause_put_from_tapped | copy_ref_may_choose_target | clause_have_retained_animation | clause_exile_creature_group_choice | have_copy_of_scoped_graveyard_card | clause_have_assign_unblocked | clause_search_three_zones_battlefield | chosen_graveyard_card_library_top | return_another_graveyard_card | may_action_then_defined_selection | may_cast_bounded_hand
+may_body ::= clause_have_equal_damage | put_chosen_graveyard_card_battlefield | clause_hand_on_bottom | put_private_card_counter_entry | graveyard_return_single | look_put_then_body | clause_have_continuous | clause_have_deal | clause_player_put_card | clause_imperative | clause_operation | clause_search | clause_search_where_split | clause_search_either | clause_search_private_either | clause_exile_from | clause_put_from | clause_put_from_tapped | copy_ref_may_choose_target | clause_have_retained_animation | clause_exile_creature_group_choice | have_copy_of_scoped_graveyard_card | clause_have_assign_unblocked | clause_search_three_zones_battlefield | chosen_graveyard_card_library_top | return_another_graveyard_card | may_action_then_defined_selection | may_cast_bounded_hand | instructions_reveal_until
 
 /* A cost paid during resolution, and what depends on paying it. */
-payment ::= payment_exile_hand_union | shared_exact_remove_cost | payment_remove_each_selected | payment_mana_and_graveyard_exile | payment_put_counters | payment_return_controlled_permanent | payment_put_hand_card | payment_hand_draw | resolution_life_sacrifice_cost | payment_remove_counters | cost | pay_mana | payment_sacrifice | payment_action | payment_exile | payment_return | payment_tap | payment_draw | payment_have_draw | payment_move_counters_source | payment_return_graveyard_union | payment_mana_and_discard | payment_put_hand_card_attacking | payment_exile_spell_and_named_cards | payment_return_owned_permanent | payment_choice_cost | payment_pair | payment_exile_other_colored_card | payment_reveal_own_hand | payment_mana_sacrifice_affected | payment_graveyard_to_library_bottom | payment_exiled_opponents_cards | payment_graveyard_card_bottom | payment_opponents_exiled_cards | payment_sacrifice_saddler | payment_exile_optional_opposing_permanent | payment_exile_controlled_or_graveyard | payment_event_player_return_card | payment_return_graveyard_filtered_an | payment_return_graveyard_filtered_a | payment_return_another_controlled
+payment ::= payment_exile_hand_union | shared_exact_remove_cost | payment_remove_each_selected | payment_mana_and_graveyard_exile | payment_put_counters | payment_return_controlled_permanent | payment_put_hand_card | payment_hand_draw | resolution_life_sacrifice_cost | payment_remove_counters | cost | pay_mana | payment_sacrifice | payment_action | payment_exile | payment_return | payment_tap | payment_draw | payment_have_draw | payment_move_counters_source | payment_return_graveyard_union | payment_mana_and_discard | payment_put_hand_card_attacking | payment_exile_spell_and_named_cards | payment_return_owned_permanent | payment_choice_cost | payment_pair | payment_exile_other_colored_card | payment_reveal_own_hand | payment_mana_sacrifice_affected | payment_graveyard_to_library_bottom | payment_exiled_opponents_cards | payment_graveyard_card_bottom | payment_opponents_exiled_cards | payment_sacrifice_saddler | payment_exile_optional_opposing_permanent | payment_exile_controlled_or_graveyard | payment_event_player_return_card | payment_return_graveyard_filtered_an | payment_return_graveyard_filtered_a | payment_return_another_controlled | payment_exile_hand_alternatives
 
 /* An imperative action has an implicit "you". Other payers use native costs
    or an explicit "have [player]" action, never that implicit performer. */
@@ -674,7 +675,7 @@ clause_chosen_vote_damage ::= "choose" "an" "opponent" "at" "random" "." object_
 
 /* The second-recipient rules start after the first target. Their slot reads
    precede their own target introduction and cannot capture that new target. */
-clause_damage_parts ::= clause_damage_distinct_three_objects | clause_damage_chosen_controlled_pair | clause_damage_controlled_each | clause_damage_controlled_target | clause_damage_same_controller | clause_damage_distinct_pair | clause_damage_distinct_three | clause_damage_opponent_choice | clause_damage_distinct_range
+clause_damage_parts ::= clause_damage_distinct_three_objects | clause_damage_chosen_controlled_pair | clause_damage_controlled_each | clause_damage_controlled_target | clause_damage_same_controller | clause_damage_distinct_pair | clause_damage_distinct_three | clause_damage_opponent_choice | clause_damage_distinct_range | clause_damage_chosen_remainder
 controller_damage_recipient ::= recipients_player_or_walker | recipients_opponent_or_walker
 
 /* @sem Instruction::[Effect{result:@next, operation:DealDamageParts{source:$damage_source_ref, parts:[_{recipients:$controller_damage_recipient, amount:$number}, _{recipients:$controller_damage_each, amount:$number_2}], preventable:true}}] */
@@ -1780,7 +1781,7 @@ support_action ::= "support" number
 choose_a_color ::= "choose" single_color_choice
 
 /* Choosing a player, a type, a number or colors. */
-choose_value ::= choose_color_among_permanents | player_chooses_permanent_options | choose_many_colors | choose_card_types_five | choose_land_types_pair | choose_color_pair | choose_planeswalker_type | choose_two_basic_land_types | choose_friend_or_foe | choose_opponent | choose_a_player | choose_land_type | choose_basic_land_type | choose_number_between | choose_a_number | choose_two_colors | choose_color_other | choose_creature_type_plain | choose_ability_options_three | choose_color_type_options_five | choose_card_types_pair | choose_land_or_nonland | choose_ability_options | choose_number_threshold | choose_land_class | choose_direction | choose_eight_creature_types | choose_hand_colors | choose_secret_interval | player_chooses_color | player_chooses_player | choose_color_word_shared | choose_letter_shared | choose_graveyard_color_shared | choose_unchosen_names_shared | choose_named_type | choose_card_types_three | choose_secret_player | choose_secret_creature_types_three
+choose_value ::= choose_color_among_permanents | player_chooses_permanent_options | choose_many_colors | choose_card_types_five | choose_land_types_pair | choose_color_pair | choose_planeswalker_type | choose_two_basic_land_types | choose_friend_or_foe | choose_opponent | choose_a_player | choose_land_type | choose_basic_land_type | choose_number_between | choose_a_number | choose_two_colors | choose_color_other | choose_creature_type_plain | choose_ability_options_three | choose_color_type_options_five | choose_card_types_pair | choose_land_or_nonland | choose_ability_options | choose_number_threshold | choose_land_class | choose_direction | choose_eight_creature_types | choose_hand_colors | choose_secret_interval | player_chooses_color | player_chooses_player | choose_color_word_shared | choose_letter_shared | choose_graveyard_color_shared | choose_unchosen_names_shared | choose_named_type | choose_card_types_three | choose_secret_player | choose_secret_creature_types_three | choose_a_letter
 /* @sem Operation::ChooseValue{choosers:$players_singular, kind:Word, terms:_{count:Exactly(Constant(1)), options:[Text(Friend), Text(Foe)]}} */
 choose_friend_or_foe ::= "for" players_singular "," "choose" "friend" "or" "foe"
 /* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[$single_player_choice]}} */
@@ -2647,7 +2648,7 @@ instructions_turn_linked_counter_names ::= turn_linked_cards_face_up "." "counte
 
 /* The anaphoric removal shares the tested object and counter kind. */
 /* @sem Instruction::[If{condition:ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:GreaterOrEqual, value:$value})}, then:Program{instructions:[Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($object_ref)), kind:$counter_kind, amount:All}]}}, Effect{result:@next, operation:$operation}]}, otherwise:Program{}}] */
-clause_counter_threshold_remove_them ::= "if" object_ref "has" value "or" "more" counter_kind "counters" "on" "it" "," "remove" "them" "all" "and" operation
+clause_counter_threshold_remove_them ::= "if" object_ref "has" value "or" "more" counter_kind "counters" "on" "it" "," counter_removal_them_words "and" operation
 
 clause_counter_threshold_remove_those ::= clause_counter_threshold_remove_those_required | clause_counter_threshold_may_remove
 
@@ -2773,7 +2774,7 @@ deal_damage_split_half ::= object_ref "deals" "X" "damage" "to" recipients "and"
 /* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@next, operation:$bound_player_action}]}}] */
 clause_each_bound_action ::= players_singular bound_player_action
 
-bound_player_action ::= bound_choose_word_pair | bound_return_each_graveyard_card | bound_coin_flip | bound_discard_excess | bound_turn_owned_linked_cards_up | bound_return_graveyard_to_battlefield | bound_shuffle_owned_permanents | bound_choose_each_basic_land_type | bound_return_fronted_graveyard_arrivals
+bound_player_action ::= bound_separates_controlled_piles | bound_choose_word_pair | bound_return_each_graveyard_card | bound_coin_flip | bound_discard_excess | bound_turn_owned_linked_cards_up | bound_return_graveyard_to_battlefield | bound_shuffle_owned_permanents | bound_choose_each_basic_land_type | bound_return_fronted_graveyard_arrivals
 
 /* The repeat keeps both named participants in its stopping condition. */
 /* @sem Instruction::[Repeatable{instructions:[ForEachPlayer{players:Union([One(AbilityController), $players_singular]), binding:0, body:Program{instructions:[Effect{result:@next, operation:$bound_coin_base}]}}, $coin_outcome_damage, If{condition:Not(AllOf([CoinCameUp{player:Some(@single_player($players_singular)), outcome:$coin_result_heads}, CoinCameUp{player:AbilityController, outcome:$coin_result_heads}])), then:Program{instructions:[Effect{result:@next, operation:RepeatProcess}]}, otherwise:Program{}}]}] */
@@ -3709,7 +3710,7 @@ instructions_returned_creature_conditional_copy ::= "return" "target" "creature"
 /* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, regeneration:true}}, If{condition:$condition_one, then:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, InSet(Transition{result:@prior, phase:After})])}), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:_{}}] */
 instructions_destroy_then_conditional_return ::= "destroy" "all" filter_plural "." "if" condition_one "," "return" "a" filter_phrase "card" "put" "into" "your" "graveyard" "this" "way" "to" "the" "battlefield" "under" "your" "control"
 
-exile_object_set ::= shared_each_graveyard_population | bounded_source_and_populations | target_players_graveyard_population | object_set | exile_target_stack_spell | stack_target_spells | exile_target_described_aimed_spell | exile_capped_your_graveyard_target | opponent_graveyard_arrival_set | personal_graveyard_mana_value_population | exile_excluded_quality_population
+exile_object_set ::= shared_each_graveyard_population | bounded_source_and_populations | target_players_graveyard_population | object_set | exile_target_stack_spell | stack_target_spells | exile_target_described_aimed_spell | exile_capped_your_graveyard_target | opponent_graveyard_arrival_set | personal_graveyard_mana_value_population | exile_excluded_quality_population | exile_battlefield_union
 
 /* @sem ObjectSet::One($target_stack_spell) */
 exile_target_stack_spell ::= target_stack_spell
@@ -13814,6 +13815,7 @@ exile_optional_owned_graveyard_counter ::= "exile" "up" "to" "one" "target" card
 program_optional_player_life_followup ::= "you" "may" "have" player_ref "lose" value "life" "." "if" "you" "do" "," program
 
 /* The paid object is the same source that returns from the exile receipt. */
+/* @prefer always */
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:One($self_explicit_ref)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}), zone:Exile}), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[Transformed]}}, qualifiers:[]}}]}, otherwise:Program{}}] */
 instructions_optional_paid_self_exile_return_him ::= "you" "may" "exile" self_explicit_ref "." "if" "you" "do" "," "return" "him" "to" "the" "battlefield" "transformed" "under" "his" "owner's" "control"
 
@@ -19199,3 +19201,177 @@ instructions_exile_top_value_pump_permission ::= card_exile_value_producer "." s
 /* Both alternatives share the same announced optional target. */
 /* @sem Instruction::[ChooseOne{decider:AbilityController, options:[_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:AllOf([Not(SameObject(Source)), $noun])}), index:0})), kind:$counter_plus, amount:Constant(1)}]}}]}, _{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:0, index:0})), kind:$counter_name, amount:@plural_amount($number)}]}}]}]}] */
 instructions_choice_counters_other_target ::= "put" "your" "choice" "of" "a" counter_plus "counter" "or" number counter_name "counters" "on" "up" "to" "one" "other" "target" noun
+
+/* Both mentions describe the announced pair; the chosen member is the exile input. */
+/* @sem Vec<Instruction>::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(2)), filter:@agree($plural, $plural_2), constraints:[CommonProperty(Controllers)]})), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+common_controller_pair_exile_choice ::= "choose" "two" "target" plural "controlled" "by" "the" "same" "player" "." "exile" "one" "of" "those" plural
+
+/* This continuation is scoped to the preceding pair choice and exile. */
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects(Targets(@last_slot)), kind:$counter_kind, amount:$value}]} */
+remaining_pair_counters_plural ::= "put" value counter_kind "counters" "on" "the" "other"
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$common_controller_pair_exile_choice, Effect{result:@next, operation:$remaining_pair_counters_plural}]}} */
+spell_common_controller_pair_exile_counters ::= common_controller_pair_exile_choice "and" remaining_pair_counters_plural "."
+
+/* Announce a permanent target before an independent action, then test that same target. */
+/* @sem Vec<Instruction>::[Effect{result:@next, operation:$operation_imperative}, If{condition:ObjectMatches{object:$target_permanent, filter:Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$chosen_target_graveyard_count}}}, then:Program{instructions:[Effect{result:@next, operation:Destroy{objects:One(Target{slot:@last_slot, index:0}), regeneration:true}}]}, otherwise:Program{}}] */
+chosen_target_action_destroy_mana_ceiling ::= "choose" target_permanent "." operation_imperative "," "then" "destroy" "the" "chosen" "permanent" "if" "its" "mana" "value" "is" "less" "than" "or" "equal" "to" chosen_target_graveyard_count
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$chosen_target_action_destroy_mana_ceiling}} */
+spell_chosen_target_action_destroy_mana_ceiling ::= chosen_target_action_destroy_mana_ceiling "."
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$graveyard_counted_cards}) */
+chosen_target_graveyard_count ::= "the" "number" "of" graveyard_counted_cards "in" "your" "graveyard"
+
+/* The player losing life also owns the counted exiled cards. */
+/* @sem Instruction::[Effect{result:@next, operation:LoseLife{players:One($defending_player), amount:CountObjects(Zone{scope:Shared(Exile), kind:Card, filter:AllOf([OwnedBy(One($defending_player)), Counters{kind:$counter_name, comparison:Greater, value:Constant(0)}])})}}] */
+clause_defender_loss_owned_counter_exile ::= defending_player "loses" "1" "life" "for" "each" "card" "they" "own" "in" "exile" "with" "a" counter_name "counter" "on" "it"
+
+/* The counted arrivals are produced by this exact exile action. */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:$exile_target_players_graveyard}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:CountObjects(Matching{objects:Transition{result:@prior, phase:After}, filter:$filter_phrase})}]}}] */
+instructions_graveyard_exile_filtered_counters ::= exile_target_players_graveyard "." "put" "a" counter_kind "counter" "on" affected "for" "each" filter_phrase "card" "exiled" "this" "way"
+
+/* The event player and the amount compose independently for counter placement. */
+/* @sem Recipients::Players(One(EventSubject)) */
+event_counter_recipient ::= "they"
+
+/* @sem Expr::EventAmount */
+event_counter_amount ::= "that" "many"
+
+counter_receipt_amount ::= value | event_counter_amount
+
+/* @sem Operation::PutCounters{placements:[_{recipients:$event_counter_recipient, kind:$counter_kind, amount:$counter_receipt_amount}]} */
+event_player_get_counters ::= event_counter_recipient "get" counter_receipt_amount counter_kind "counters"
+
+/* The announced objects are shuffled into their owners' libraries. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:$each_player_distinct_negative_targets, destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_each_player_choose_shuffle ::= each_player_distinct_negative_targets "." "those" "permanents'" "owners" "shuffle" "them" "into" "their" "libraries"
+
+/* The acting player separates that same player’s controlled permanent population. */
+/* @sem Operation::Piles{actor:One(Bound(0)), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}, count:$controlled_pile_count} */
+bound_separates_controlled_piles ::= "separates" "the" filter_plural "they" "control" "into" controlled_pile_count "piles"
+
+controlled_pile_count ::= controlled_pile_count_words | value
+
+/* @prefer always */
+/* @sem $count_plural */
+controlled_pile_count_words ::= count_plural
+
+/* The conditional receipt is scoped to the preceding face-up exile move. */
+/* @sem Condition::Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_phrase}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}} */
+exile_single_graveyard_receipt_condition ::= "at" "least" "one" filter_phrase "card" "was" "exiled" "this" "way"
+
+/* @sem Vec<Instruction>::[Effect{result:@mark, operation:$exile_single_graveyard_targets}, If{condition:$exile_single_graveyard_receipt_condition, then:Program{instructions:$instructions}, otherwise:Program{}}] */
+instructions_exile_single_graveyard_if_first ::= exile_single_graveyard_targets "." "if" exile_single_graveyard_receipt_condition "," instructions
+
+/* @sem Vec<Instruction>::[Effect{result:@mark, operation:$exile_single_graveyard_targets}, If{condition:$exile_single_graveyard_receipt_condition, then:Program{instructions:$instructions}, otherwise:Program{}}] */
+instructions_exile_single_graveyard_if_last ::= exile_single_graveyard_targets "." instructions "if" exile_single_graveyard_receipt_condition
+
+/* The measured spell is the cast event's subject. */
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:ManaSpent{object:EventSubject, filter:_{}, aggregation:Count}}]} */
+put_cast_spending_counters ::= "put" "a" "number" "of" counter_kind "counters" "on" affected "equal" "to" "the" "amount" "of" "mana" "spent" "to" "cast" "that" "spell"
+
+/* The tested counter kind and object identify the counters removed. */
+/* @sem Instruction::[If{condition:ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:GreaterOrEqual, value:$value})}, then:Program{instructions:[Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($object_ref)), kind:$counter_kind, amount:All}]}}, Effect{result:@next, operation:$operation}]}, otherwise:Program{}}] */
+counter_threshold_remove_them_and ::= "if" object_ref "has" value "or" "more" counter_kind "counters" "on" "it" "," "remove" "them" "and" operation
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$put_cast_spending_counters}, ...$counter_threshold_remove_them_and]} */
+cast_spending_counters_then_threshold ::= put_cast_spending_counters "." "then" counter_threshold_remove_them_and "."
+
+/* A single card matching either printed alternative is exiled from the controller’s hand. */
+/* @sem Cost::Cost{parts:[Move{selections:[_{objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AnyOf([$filter_phrase, $filter_phrase_2])}, choose:Exactly($counter_amount)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]} */
+payment_exile_hand_alternatives ::= "exile" counter_amount filter_phrase "card" "or" "a" filter_phrase "card" "from" "your" "hand"
+
+/* The bounded graveyard exile and both life effects share one arrival receipt. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:UpTo($count_plural), filter:Any})) */
+exile_graveyard_up_to_plural_targets ::= "up" "to" count_plural "target" "cards" "from" "graveyards"
+
+/* @sem Vec<Instruction>::[Effect{result:@next, operation:LoseLife{players:$players_singular, amount:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_phrase})}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_phrase})}}] */
+exile_receipt_filtered_drain ::= "for" "each" filter_phrase "card" "exiled" "this" "way" "," players_singular "loses" "1" "life" "and" "you" "gain" "1" "life"
+
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:Move{objects:$exile_graveyard_up_to_plural_targets, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, ...$exile_receipt_filtered_drain]} */
+exile_graveyard_filtered_drain_program ::= "exile" exile_graveyard_up_to_plural_targets "." exile_receipt_filtered_drain "."
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$exile_graveyard_filtered_drain_program} */
+triggered_exile_graveyard_filtered_drain ::= event_clause "," exile_graveyard_filtered_drain_program
+
+/* A battlefield population combining two independently described kinds. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_plural, $filter_phrase])} */
+exile_battlefield_union ::= "all" filter_plural "and" filter_phrase
+
+/* An immediate action and a separately timed return retain their own results. */
+/* @sem Program::Program{instructions:[...$clause_you, Effect{result:@next, operation:CreateDelayedTrigger{event:$delayed_move_end_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:$delayed_graveyard_self_move}]}}}]} */
+immediate_then_delayed_self_return ::= clause_you "," "and" "you" delayed_graveyard_self_move "at" delayed_move_end_event "."
+
+/* The delayed return consumes this source exile's arrival; the combat rule
+   applies to the returned arrival, within the same delayed program. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$exile_explicit_self}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:DeclareAttackersStepBegins, players:One(OwnerOf(Source))}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:Transition{result:@back(3), phase:After}, zone:Exile}, destination:Battlefield{controller:Owner, arrival:$owner_combat_return_arrival}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Transition{result:@prior, phase:After}), changes:$returned_combat_restriction, duration:EndOfCombat, evaluation:LiveObjects}}]}}}]} */
+program_exile_self_owner_combat_return ::= exile_explicit_self "." "return" "it" "to" "the" "battlefield" "under" "its" "owner's" "control" owner_combat_return_arrival "at" "the" "beginning" "of" "that" "player's" "next" "declare" "attackers" "step" "." returned_combat_restriction "."
+
+/* @sem BattlefieldArrival::BattlefieldArrival{tapped:true, states:[Attacking{}]} */
+owner_combat_return_arrival ::= "tapped" "and" "attacking"
+
+/* @sem Vec<Change>::[Rule(Prohibit(BeBlocked(Any)))] */
+returned_combat_restriction ::= "it" "can't" "be" "blocked" "that" "combat"
+
+/* Capture a defined quantity before placing counters. */
+/* @sem Instruction::[Effect{result:@mark, operation:BindValue{value:$value}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:BoundValue(@marked)}]}}] */
+captured_counter_placement ::= "put" "X" counter_kind "counters" "on" affected "," "where" "X" "is" value
+
+/* The follow-up is a separate effect on the previously referenced object. */
+/* @sem Program::Program{instructions:[...$captured_counter_placement, Effect{result:@next, operation:$retained_type_followup}]} */
+program_captured_counter_retained_type ::= captured_counter_placement "." retained_type_followup
+
+owner_transformed_entry ::= entry_transformed | entry_converted | entry_transformed_tapped
+
+/* @sem BattlefieldArrival::BattlefieldArrival{tapped:false, counters:[], states:[Transformed]} */
+entry_converted ::= "converted"
+
+/* A subsequent one-shot copy is described as additional only in a paired sequence. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:Spell{event:Cast, players:One(AbilityController), spells:$spell_filter}, duration:$this_duration, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventSubject, times:Constant(1), targets:May}}]}, once:true}}] */
+next_cast_additional_copy ::= "when" "you" "next" "cast" spell_filter this_duration "," "copy" "that" "spell" "an" "additional" "time" "." "you" "may" "choose" "new" "targets" "for" "the" "copy"
+
+/* The creature and its controller share the announced target; both amounts retain their operands. */
+/* @sem Instruction::[Effect{result:@next, operation:DealDamageParts{source:$damage_source_ref, parts:[_{recipients:Objects(One($chosen_split_creature)), amount:ChosenNumber}, _{recipients:Players(One(ControllerOf(Target{slot:@last_slot, index:0}))), amount:Subtract([$number, ChosenNumber])}], preventable:true}}] */
+clause_damage_chosen_remainder ::= damage_source_ref "deals" "X" "damage" "to" chosen_split_creature "and" number "minus" "X" "damage" "to" "that" "creature's" "controller" "," "where" "X" "is" "the" "chosen" "number"
+
+/* A creature antecedent is required by the controller anaphor. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:$excess_damage_creature}), index:0} */
+chosen_split_creature ::= "target" excess_damage_creature
+
+/* Exile each opponent's separately owned target, then mark the actual arrivals. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:AnyNumber, filter:AllOf([$filter_phrase, OwnedBy(OpponentsOf(AbilityController))]), constraints:[DifferentOwners]})), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Transition{result:@prior, phase:After}), kind:$counter_kind, amount:Constant(1)}]}}] */
+clause_opponent_graveyard_exile_counter ::= "for" "each" "opponent" "," "exile" "up" "to" "one" "target" filter_phrase "card" "from" "that" "player's" "graveyard" "and" "put" "a" counter_kind "counter" "on" "it"
+
+/* The discarded card remains tied to its discard-event frame. */
+discarded_event_graveyard_ref ::= discarded_third_graveyard_card | discarded_third_named_graveyard_card
+
+/* @sem ObjectRef::Query{objects:InZone{objects:One(Discarded), zone:Graveyard}, index:0} */
+discarded_third_graveyard_card ::= "it" "from" "their" "graveyard"
+
+/* @sem ObjectRef::Query{objects:InZone{objects:One(Discarded), zone:Graveyard}, index:0} */
+discarded_third_named_graveyard_card ::= "that" "card" "from" "their" "graveyard"
+
+/* A singular counter travels with the discarded card into exile. */
+/* @sem Operation::Move{objects:One($discarded_event_graveyard_ref), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[[$counter_kind, Constant(1)]], states:[]}}, qualifiers:[]} */
+exile_discard_event_card_with_counter ::= "exile" discarded_event_graveyard_ref "with" "a" counter_kind "counter" "on" "it"
+
+/* @sem Ability::Triggered{event:$event_discard_third, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$exile_discard_event_card_with_counter}]}} */
+triggered_third_discard_exile_counter ::= "whenever" event_discard_third "," exile_discard_event_card_with_counter "."
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Letter, terms:_{count:Exactly(Constant(1)), options:[]}} */
+choose_a_letter ::= "choose" "a" "letter"
+
+/* The chosen target remains the object moved with its arrival counter. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:One($target_card), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[[$counter_kind, $counter_a]], states:[]}}, qualifiers:[]}}] */
+instructions_choose_exile_arrival_counter ::= "choose" target_card "." "exile" "it" "with" counter_a counter_kind "counter" "on" "it"
+
+/* @prefer always */
+/* @sem () */
+counter_removal_them_all ::= "remove" "them" "all"
+
+/* @sem () */
+counter_removal_them_bare ::= "remove" "them"
+
+counter_removal_them_words ::= counter_removal_them_all | counter_removal_them_bare

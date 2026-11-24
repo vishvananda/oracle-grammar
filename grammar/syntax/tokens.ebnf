@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite
+created_token_name ::= created_name_wolves_of_the_hunt | created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -1340,8 +1340,7 @@ created_name_spark_elemental ::= "Spark" "Elemental"
 /* @sem TokenRecipe::@token_abilities($token_recipe_explicit_name, $token_named_end_ability_list) */
 token_named_final_quote ::= token_recipe_explicit_name "." "it" "has" token_named_end_ability_list
 
-/* @sem Ability::[$token_ability, $token_ability_2, @holder($triggered_each_end_step)] */
-token_named_end_ability_list ::= token_ability "," token_ability "," "and" '"' triggered_each_end_step '"' 
+token_named_end_ability_list ::= token_named_end_multiple | token_named_end_bands
 
 /* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_named_final_quote}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
 create_named_final_quote ::= "create" token_amount token_named_final_quote
@@ -2014,3 +2013,70 @@ token_named_equal_its_stat ::= "a" "number" "of" token_named_recipe "tokens" "eq
 /* Each iteration attaches its Role to the same controlled subtype member. */
 /* @sem Instruction::[ForEachObject{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($creature_subtype, $creature_subtype_2), ControlledBy(One(AbilityController))])}, binding:0, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$role_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo(Bound(0))]}}}]}}] */
 clause_each_controlled_subtype_role ::= "for" "each" creature_subtype "you" "control" "," "create" role_token "attached" "to" "that" creature_subtype
+
+/* The exclusion is tied to this creation, including when operands are edited. */
+/* @sem Instruction::[Effect{result:@mark, operation:@apply(PlayerSet::One(AbilityController), $create_base)}, Effect{result:@next, operation:Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(InSet(Created(@marked))), $filter_phrase, $filter_plural, ControlledBy(One(AbilityController))])}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+created_then_exile_other_controlled ::= create_base "." "then" "exile" "all" "other" filter_phrase filter_plural "you" "control"
+
+/* Keep the singular creation and its combat-end sacrifice in one scope. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$singular_cleanup_defined_token], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, expires:EndOfCombat, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]} */
+singular_attacking_token_combat_sacrifice ::= "create" singular_cleanup_defined_token "that's" "tapped" "and" "attacking" "." "sacrifice" "that" "token" "at" "end" "of" "combat"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:$singular_attacking_token_combat_sacrifice, otherwise:Program{}}]} */
+paid_singular_attacking_token_cleanup ::= "you" "may" payment "." "if" "you" "do" "," singular_attacking_token_combat_sacrifice
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$paid_singular_attacking_token_cleanup} */
+triggered_paid_singular_combat_token ::= event_clause "," paid_singular_attacking_token_cleanup "."
+
+/* @prefer always */
+/* @sem Ability::[$token_ability, $token_ability_2, @holder($triggered_each_end_step)] */
+token_named_end_multiple ::= token_ability "," token_ability "," "and" '"' triggered_each_end_step '"'
+
+/* @sem Ability::[Mechanic{mechanic:BandsWithOthers, filter:AllOf([$filter_plural, Name($created_token_name)])}] */
+token_named_end_bands ::= '"' "↓" "bands" "with" "other" filter_plural "named" created_token_name "." '"'
+
+/* @sem String::'Wolves of the Hunt' */
+created_name_wolves_of_the_hunt ::= "Wolves" "of" "the" "Hunt"
+
+/* The copied population is linked to this ability's source, independently of
+   the opponent attacked by each token. */
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)} */
+loop_linked_exiled_cards ::= "the" "exiled" "card"
+
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:$loop_linked_exiled_cards, exceptions:[]}} */
+loop_tapped_linked_copy ::= "a" "tapped" "token" "that's" "a" "copy" "of" loop_linked_exiled_cards
+
+/* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:CopyEach{objects:$loop_linked_exiled_cards, exceptions:[]}} */
+loop_tapped_linked_copies ::= counter_amount "tapped" "tokens" "that" "are" "copies" "of" loop_linked_exiled_cards
+
+loop_tapped_copy_spec ::= loop_tapped_linked_copy | loop_tapped_linked_copies
+
+/* The delayed sacrifice consumes the creation result inside this exact loop. */
+/* @sem Program::Program{instructions:[ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$loop_tapped_copy_spec], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{player:Bound(0)}]}}}]}}, Effect{result:@next, operation:CreateDelayedTrigger{event:$delayed_move_end_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]} */
+per_opponent_linked_copy_cleanup ::= "for" "each" "opponent" "," "create" loop_tapped_copy_spec "attacking" "that" "opponent" "." "at" delayed_move_end_event "," "sacrifice" "those" "tokens"
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$per_opponent_linked_copy_cleanup} */
+triggered_per_opponent_linked_copy_cleanup ::= event_clause "," per_opponent_linked_copy_cleanup "."
+
+/* The second sentence refers to this creation's result, not a live token population. */
+/* @sem Instruction::[Effect{result:@mark, operation:@apply($players_singular, $create_tapped_third)}, Effect{result:@next, operation:KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Goad{until:Indefinite}, objects:Created(@marked)}}] */
+instructions_created_tokens_goaded ::= players_singular create_tapped_third "." "the" "tokens" "are" "goaded" "for" "the" "rest" "of" "the" "game"
+
+/* A single token enters in combat; its recipe and X definition remain operands. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$attacking_x_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_attacking_x_where ::= "create" "a" "tapped" "and" "attacking" attacking_x_recipe
+
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$value, $value], abilities:[Keyword($keyword_name)]}) */
+attacking_x_recipe ::= "X" "/" "X" token_colors token_subtypes token_types "token" "with" keyword_name "," "where" "X" "is" value
+
+/* The bound host is the object selected by the enclosing loop. */
+/* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:Rules, recipe:$role_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo(Bound(0))]}} */
+create_role_on_each_singular ::= "create" "a" role_recipe "token" "attached" "to" "that" "creature"
+
+/* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$number, words:Rules, recipe:$role_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo(Bound(0))]}} */
+create_role_on_each_plural ::= "create" number role_recipe "tokens" "attached" "to" "that" "creature"
+
+create_role_on_each ::= create_role_on_each_singular | create_role_on_each_plural
+
+/* @sem Instruction::[ForEachObject{objects:$affected, binding:0, body:Program{instructions:[Effect{result:@next, operation:$create_role_on_each}]}}] */
+for_each_create_attached_role ::= "for" affected "," create_role_on_each

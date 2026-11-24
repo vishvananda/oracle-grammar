@@ -1,6 +1,6 @@
 /* Keyword actions the ability's controller performs. A single application
    keeps the native absent amount; counted applications retain theirs. */
-keyword_action ::= forage_action | roll_composed_action | investigate_action | populate_action | open_attraction_action | time_travel_action | roll_die_action | additional_combat_phase | additional_combat_and_main_phase | become_monarch | take_initiative | ring_tempts_you | venture_into_dungeon | take_extra_turn | learn_action | end_the_turn | planeswalk_action | reverse_turn_order | amount_keyword_action | you_amount_keyword_action | object_keyword_action | group_keyword_action | skip_next_untap_step | roll_planar_die_action | additional_beginning_phase | additional_phase_after | skip_next_your_part | you_skip_next_your_part | game_outcome | become_day_action | become_night_action | controller_incubates_defined | double_unspent_mana | reorder_own_graveyard | visit_attractions_action
+keyword_action ::= forage_action | roll_composed_action | investigate_action | populate_action | open_attraction_action | time_travel_action | roll_die_action | additional_combat_phase | additional_combat_and_main_phase | become_monarch | take_initiative | ring_tempts_you | venture_into_dungeon | take_extra_turn | learn_action | end_the_turn | planeswalk_action | reverse_turn_order | amount_keyword_action | you_amount_keyword_action | object_keyword_action | group_keyword_action | skip_next_untap_step | roll_planar_die_action | additional_beginning_phase | additional_phase_after | skip_next_your_part | you_skip_next_your_part | game_outcome | become_day_action | become_night_action | controller_incubates_defined | double_unspent_mana | reorder_own_graveyard | visit_attractions_action | reroll_stored_action
 
 investigate_action ::= investigate_for_each_controlled | investigate_for_population | investigate_for_life_loss | investigate_for_player_count | investigate_once | investigate_twice | investigate_number_times | investigate_that_many_times | investigate_for_population_plain
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{}} */
@@ -193,8 +193,8 @@ group_keyword_action ::= turn_target_group_face_down | suspected_population_keyw
 affected_phase_out ::= affected "phase" "out"
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Connive, objects:$affected} */
 affected_connive ::= affected "connive"
-/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::BecomeBlocked, objects:$affected} */
-affected_become_blocked ::= affected "become" "blocked"
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::BecomeBlocked, objects:$blocked_action_subject} */
+affected_become_blocked ::= blocked_action_subject "become" "blocked"
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Transform, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}} */
 transform_all ::= "transform" "all" filter_plural
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Explore, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}} */
@@ -700,3 +700,12 @@ die_dash_program ::= die_dash_operation "."
 die_dash_program_damage_life ::= deal_damage "and" you_gain_life "."
 
 die_dash_operation ::= base_toughness_for_duration | put_counters_direct | deal_damage | continuous_snapshot | destroy | exile_objects
+
+blocked_action_subject ::= affected | objects_announced_x_targets
+
+/* The reroll phrase supplies the keyword action to the controller operation. */
+/* @sem Operation::Keyword{actor:One(AbilityController), action:$stored_results_reroll} */
+reroll_stored_action ::= "reroll" stored_results_reroll
+
+/* @sem KeywordAction::RerollStoredDice */
+stored_results_reroll ::= "any" "number" "of" "this" "creature's" "stored" "results"

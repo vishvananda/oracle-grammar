@@ -26,7 +26,7 @@ energy_word_one ::= ("an" | "one") "energy" "counter"
 energy_word_many ::= energy_plural_words "energy" "counters"
 energy_plural_words ::= count_plural | energy_fifty
 
-energy_get_base ::= energy_get_controlled | energy_get_per_each | energy_get_fixed | energy_get_value | energy_get_event
+energy_get_base ::= energy_get_excess_history | energy_get_controlled | energy_get_per_each | energy_get_fixed | energy_get_value | energy_get_event
 energy_get_third ::= energy_gets_controlled | energy_gets_per_each | energy_gets_fixed | energy_gets_value | energy_gets_event
 /* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$energy_amount}} */
 energy_get_fixed ::= "get" energy_amount
@@ -172,3 +172,10 @@ spell_chosen_creature_energy_pump ::= instructions_chosen_energy_pump "."
    The success-dependent first instruction and property remain independent. */
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:ExchangeControl{first:$object_ref, second:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([@agree($noun, $noun_2), ControlledBy(OpponentsOf(AbilityController))])}), index:0}}}}]}}]}, optional:false}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[...$clause_before_then, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Energy(ObjectProperty{object:Target{slot:@last_slot, index:0}, property:$stat, information:CurrentOrLastKnown})]}, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One(Target{slot:@last_slot, index:0})}}]}, otherwise:Program{}}]}, otherwise:Program{}}] */
 exchange_opponent_target_if_do_unless_energy ::= "exchange" "control" "of" object_ref "and" "target" noun "an" "opponent" "controls" "." "if" "you" "do" "," clause_before_then "," "then" "sacrifice" "that" noun "unless" "you" "pay" "an" "amount" "of" "{E}" "equal" "to" "its" stat
+
+/* The quantity is the excess damage dealt this turn to the damage-event recipient. */
+/* @sem Expr::EventHistory{event:Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject(Damage(Recipient))), kind:Excess, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:TotalAmount} */
+energy_excess_history_amount ::= "X" "{" "E" "}" "," "where" "X" "is" "that" "excess" "damage"
+
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$energy_excess_history_amount}} */
+energy_get_excess_history ::= "get" energy_excess_history_amount

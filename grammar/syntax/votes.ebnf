@@ -276,3 +276,14 @@ vote_counter_outcome ::= "if" condition_most_votes "," "counter" "the" "spell"
 
 /* @sem Condition::$condition_most_votes_or_tied */
 vote_copy_outcome ::= "if" condition_most_votes_or_tied "," "copy" "the" "spell" "." "you" "may" "choose" "new" "targets" "for" "the" "copy"
+
+/* The ballot fixes a creature population while retaining its control filter. */
+/* @sem Instruction::[ForEachPlayer{players:All, binding:0, starting_with:AbilityController, body:_{instructions:[Effect{result:@next, operation:Vote{actor:One(Bound(0)), ballot:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$public_creature_vote_filter})}}]}}] */
+public_creature_ballot ::= "starting" "with" "you" "," "each" "player" "votes" "for" "a" public_creature_vote_filter
+
+/* @sem @and(ObjectFilter::CardType(Creature), $vote_creature_control) */
+public_creature_vote_filter ::= "creature" vote_creature_control
+
+/* Only the adjacent creature ballot proves the winner's creature type. */
+/* @sem Instruction::[...$public_creature_ballot, Effect{result:@next, operation:Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$modifier_vote_winner}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+instructions_public_creature_vote_exile ::= public_creature_ballot "." "exile" "each" "creature" modifier_vote_winner
