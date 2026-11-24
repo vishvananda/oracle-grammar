@@ -84,7 +84,7 @@ player_prohibition ::= player_prohibited_action
 /* @sem Change::[...$player_prohibition, ...$player_prohibitions] */
 player_prohibitions_more ::= player_prohibition ("or" | "and") player_prohibitions
 
-continuous_player_prohibition ::= continuous_repeated_controller_prohibitions | continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn | continuous_only_player_actions | continuous_player_prohibition_rest_game
+continuous_player_prohibition ::= continuous_repeated_controller_prohibitions | continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn | continuous_only_player_actions | continuous_player_prohibition_rest_game | continuous_target_repeated_prohibition
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_rule_subject), changes:$player_prohibitions, duration:$duration, evaluation:LiveObjects} */
 continuous_player_prohibition_last ::= player_rule_subject "can't" player_prohibitions duration
@@ -106,7 +106,7 @@ all_player_rule_more_turn ::= all_player_rule_turn "and" all_player_rule_list_tu
 /* @sem PlayerAction::PlayLand{filter:Any} */
 player_prohibit_land ::= "play" "lands"
 
-player_prohibited_action ::= player_prohibit_become_monarch | player_prohibit_attack_recipient | player_named_land_prohibition | player_prohibit_attack_creatures | player_prohibit_receive_counters | player_prohibit_land | player_prohibit_spells | player_prohibit_typed_spells | player_prohibit_named_spells | player_prohibit_land_from_zone | player_prohibit_draw | player_prohibit_gain_life | player_prohibit_lose_life | player_prohibit_win | player_prohibit_lose | player_prohibit_search | player_prohibit_discard | player_prohibit_cycle | player_prohibit_counters | player_prohibit_cast_qualified | player_prohibit_pay_life_spells
+player_prohibited_action ::= player_prohibit_become_monarch | player_prohibit_attack_recipient | player_named_land_prohibition | player_prohibit_attack_creatures | player_prohibit_receive_counters | player_prohibit_land | player_prohibit_spells | player_prohibit_typed_spells | player_prohibit_named_spells | player_prohibit_land_from_zone | player_prohibit_draw | player_prohibit_gain_life | player_prohibit_lose_life | player_prohibit_win | player_prohibit_lose | player_prohibit_search | player_prohibit_discard | player_prohibit_cycle | player_prohibit_counters | player_prohibit_cast_qualified | player_prohibit_pay_life_spells | player_prohibit_activate_nonmana
 /* @sem PlayerAction::Draw */
 player_prohibit_draw ::= "draw" "cards"
 /* @sem PlayerAction::GainLife */
@@ -751,3 +751,14 @@ player_lands_or_filtered_spells_restriction ::= "can't" "play" "lands" "or" "cas
 /* The subject makes the payment and receives the temporary exception. */
 /* @sem Ability::PayToIgnore{subjects:Players($player_more_permanents_than_others), rules:$player_lands_or_filtered_spells_restriction, cost:$ignore_sacrifice_choice, until:EndOfTurn} */
 pay_to_ignore_more_permanents_player ::= player_more_permanents_than_others player_lands_or_filtered_spells_restriction "." "that" "player" "may" ignore_sacrifice_choice "for" "that" "player" "to" "ignore" "this" "effect" "until" "end" "of" "turn" "."
+
+/* Both clauses constrain the same announced target; the anaphor has an explicit antecedent. */
+/* @prefer always */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One($target_player)), changes:[...$target_repeated_first, ...$player_prohibition], duration:$duration, evaluation:LiveObjects} */
+continuous_target_repeated_prohibition ::= duration "," target_player "can't" target_repeated_first "," "and" "that" "player" "can't" player_prohibition
+
+target_repeated_first ::= target_repeated_cast_union | player_prohibition
+
+/* @prefer always */
+/* @sem Change::[PlayerRule(Prohibit(CastSpell{filter:$card_or}))] */
+target_repeated_cast_union ::= "cast" card_or "spells"

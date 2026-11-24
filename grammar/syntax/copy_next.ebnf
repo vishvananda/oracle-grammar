@@ -7,7 +7,7 @@ copy_stack_spell ::= "copy" target_stack_spell
 /* "Copy target instant or sorcery spell. You may choose new targets for the copy." */
 /* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$copy_stack_target, times:Constant(1), targets:May}}] */
 clause_copy_new_targets ::= "copy" copy_stack_target "." "you" "may" "choose" "new" "targets" "for" ("the" | "that") "copy"
-copy_stack_target ::= target_uncast_controlled_spell | target_stack_spell | target_your_stack_ability | target_your_stack_ability_from | target_your_triggered_ability | target_spell_or_stack_ability_kinds
+copy_stack_target ::= target_single_stack_object | target_uncast_controlled_spell | target_stack_spell | target_your_stack_ability | target_your_stack_ability_from | target_your_triggered_ability | target_spell_or_stack_ability_kinds | target_spell_targeting_you
 
 /* "Target activated or triggered ability you control", perhaps "from an artifact source". */
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Ability, zones:[Stack]}), count:Exactly(Expr::Constant(1)), filter:AllOf([AnyOf([OnStack(Activated), OnStack(Triggered)]), ControlledBy(One(AbilityController))])}), index:0} */
@@ -335,3 +335,27 @@ stack_copy_exception ::= "the" "copy" "isn't" "legendary"
 
 /* @sem () */
 copy_retarget_permission ::= "you" "may" "choose" "new" "targets" "for" "the" "copy"
+
+/* The copy's color is an exception to its copiable values; its target and
+   the chosen color remain independent operands. */
+/* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$target_stack_spell, times:Constant(1), targets:May, exceptions:[$stack_copy_color_exception]}}] */
+clause_copy_color_new_targets ::= "copy" target_stack_spell "," "except" stack_copy_color_exception "." "you" "may" "choose" "new" "targets" "for" "the" "copy"
+
+/* @sem CopyException::Colors{mode:Set, colors:Listed([$mana_color_word])} */
+stack_copy_color_exception ::= "that" "the" "copy" "is" mana_color_word
+
+/* The selection is reusable wherever a single-target stack object is selected. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:Exactly(Constant(1)), filter:OnStack(SingleTarget)}), index:0} */
+target_single_stack_object ::= "target" "spell" "or" "ability" "that" "targets" "only" "a" "single" "permanent" "or" "player"
+
+/* EachLegal makes one copy for each other legal target. The final one is
+   the number of targets per copy, not the number of copies. */
+/* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$target_single_stack_object, times:Constant(1), targets:EachLegal}}] */
+clause_copy_each_legal_stack_target ::= "choose" target_single_stack_object "." "copy" "that" "spell" "or" "ability" "for" "each" "other" "permanent" "or" "player" "the" "spell" "or" "ability" "could" "target" "." "each" "copy" "targets" "a" "different" "one" "of" "those" "permanents" "and" "players"
+
+/* The announced stack object retains both its spell types and player target. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([$stack_target_spell_filter, $spell_targets_you_filter])}), index:0} */
+target_spell_targeting_you ::= "target" stack_target_spell_filter "spell" "that" spell_targets_you_filter
+
+/* @sem ObjectFilter::TargetsAny(Players(One(AbilityController))) */
+spell_targets_you_filter ::= "targets" "you"

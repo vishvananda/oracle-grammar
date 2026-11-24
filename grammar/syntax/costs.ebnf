@@ -2863,3 +2863,75 @@ discard_one_mana_receipt_cost ::= discard_one_random_receipt_cost | cost_discard
 
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $discard_one_mana_receipt_cost]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$discard_paid_property_damage}]}} */
 activated_discard_paid_property_damage ::= cost_mana "," "↑" discard_one_mana_receipt_cost ":" discard_paid_property_damage "."
+
+/* The casting payment proves the origin and singularity of the exiled card;
+   the following phrase is only available inside this scoped contract. */
+/* @prefer always */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost::Cost{parts:[$cost_exile_graveyard]}, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$casting_exile_value_damage}, ...$instructions, ...$instructions_2]}}] */
+line_cast_exile_value_damage_paragraphs ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost_exile_graveyard "." NEWLINE casting_exile_value_damage "." instructions "." NEWLINE instructions "."
+
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost::Cost{parts:[$cost_exile_graveyard]}, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$casting_exile_value_damage}, ...$instructions]}}] */
+line_cast_exile_value_damage_followed ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost_exile_graveyard "." NEWLINE casting_exile_value_damage "." instructions "."
+
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost::Cost{parts:[$cost_exile_graveyard]}, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$casting_exile_value_damage}]}}] */
+line_cast_exile_value_damage ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost_exile_graveyard "." NEWLINE casting_exile_value_damage "."
+
+/* @sem Operation::DealDamage{source:$object_ref, recipients:Objects($affected), amount:ObjectProperty{object:Query{objects:CostObjects{payment:Casting{ability:0}, component:[0], view:Performed, phase:After}, index:0}, property:ManaValue, information:CurrentOrLastKnown}, preventable:true} */
+casting_exile_value_damage ::= object_ref "deals" "X" "damage" "to" affected "," "where" "X" "is" "the" "exiled" "card's" "mana" "value"
+
+/* Each activation fixes both the payment kind and the named receipt kind. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[TapSymbol, RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($object_ref)), kind:PowerToughness(1, 1), amount:All}]}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$damage_equal_paid_counters}]}} */
+activation_tap_remove_plus_counter_damage ::= "{T}" "," "↑" "remove" "all" "+" "1" "/" "+" "1" "counters" "from" object_ref ":" damage_equal_paid_counters "equal" "to" "the" "number" "of" "+" "1" "/" "+" "1" "counters" "removed" "this" "way" "."
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[TapSymbol, RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($object_ref)), kind:PowerToughness(-1, -1), amount:All}]}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$damage_equal_paid_counters}]}} */
+activation_tap_remove_minus_counter_damage ::= "{T}" "," "↑" "remove" "all" "-" "1" "/" "-" "1" "counters" "from" object_ref ":" damage_equal_paid_counters "equal" "to" "the" "number" "of" "-" "1" "/" "-" "1" "counters" "removed" "this" "way" "."
+
+/* This phrase is only used in an activation that proves its payment component. */
+/* @sem Operation::DealDamage{source:$object_ref, recipients:$recipients, amount:PaidCountersRemoved{payment:Activation, component:[1]}, preventable:true} */
+damage_equal_paid_counters ::= object_ref "deals" "damage" "to" recipients
+
+/* The receipt is component 1 of this activation, whose second cost is a
+   single land sacrifice. Keeping the cost and consumer in one ability proves
+   the referent in both parsing and inverse printing. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[TapSymbol, $landwalk_sacrifice_cost]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$landwalk_sacrifice_effect}]}} */
+activated_sacrificed_landwalk ::= "{T}" "," "↑" landwalk_sacrifice_cost ":" landwalk_sacrifice_effect "."
+
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$sacrificed_land_filter}, choose:Exactly(Constant(1))} */
+landwalk_sacrifice_cost ::= "sacrifice" "a" sacrificed_land_filter
+
+sacrificed_land_filter ::= sacrificed_basic_land | sacrificed_snow_land
+
+/* @sem ObjectFilter::AllOf([Supertype(Basic), CardType(Land)]) */
+sacrificed_basic_land ::= "basic" "land"
+
+/* @sem ObjectFilter::AllOf([Supertype(Snow), CardType(Land)]) */
+sacrificed_snow_land ::= "snow" "land"
+
+/* The counted removal is the third cost component; both mentions must name
+   the same counter kind before the receipt can measure the damage. */
+/* @sem Ability::Activated{origin:Ordinary, cost:@agree(Cost::Cost{parts:[Mana($mana_symbols), TapSymbol, RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($object_ref)), kind:$counter_kind, amount:All}]}]}, Cost::Cost{parts:[Mana($mana_symbols), TapSymbol, RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($object_ref)), kind:$counter_kind_2, amount:All}]}]}), limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:DealDamage{source:$object_ref_2, recipients:Objects($affected), amount:PaidCountersRemoved{payment:Activation, component:[2]}, preventable:true}}]}} */
+activation_remove_all_counter_damage ::= mana_symbols "," "{T}" "," "↑" "remove" "all" counter_kind "counters" "from" object_ref ":" object_ref "deals" "damage" "to" affected "equal" "to" "the" "number" "of" counter_kind "counters" "removed" "this" "way" "."
+
+/* Prefer spelled-out multipliers in this phrase while retaining general values. */
+casting_tap_multiplier ::= casting_tap_multiplier_words | casting_tap_multiplier_value
+
+/* @prefer always */
+/* @sem $number_words */
+casting_tap_multiplier_words ::= number_words
+
+/* @sem $value */
+casting_tap_multiplier_value ::= value
+
+/* Scope the casting receipt to the exact tap payment that produced it. */
+/* @sem Expr::Multiply([$casting_tap_multiplier, CountObjects(CostObjects{payment:Casting{ability:0}, component:[0], view:Performed, phase:Before})]) */
+casting_tapped_creatures_multiple ::= casting_tap_multiplier "times" "the" "number" "of" "creatures" "tapped" "this" "way"
+
+/* @sem Operation::DealDamage{source:$damage_source_ref, recipients:$recipients, amount:$casting_tapped_creatures_multiple, preventable:true} */
+casting_tap_scaled_damage ::= damage_source_ref "deals" "damage" "to" recipients "equal" "to" casting_tapped_creatures_multiple
+
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost::Cost{parts:[$resolution_tap_creatures]}, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$casting_tap_scaled_damage}]}}] */
+line_casting_tap_scaled_damage ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," resolution_tap_creatures "." NEWLINE casting_tap_scaled_damage "."
+
+/* The second payment is the counter-removal producer measured by the body. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $cost_remove_all_counters_from]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$damage_x_where_defined}]}} */
+activated_mana_removed_counter_damage ::= cost_mana "," "↑" cost_remove_all_counters_from ":" damage_x_where_defined "."

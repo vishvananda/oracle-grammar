@@ -2135,3 +2135,18 @@ clause_per_player_quoted_token ::= "for" players_singular "," "you" "create" "a"
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$clause_per_player_quoted_token}} */
 spell_per_player_quoted_token ::= clause_per_player_quoted_token
+
+/* The counted receipt is produced by returning the battlefield creatures to
+   their owners' hands in this same spell, not by an arbitrary prior action. */
+/* @sem Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Multiply([$token_amount, CountPlayers(Intersection([$players_singular, Matching{binding:0, condition:Compare{left:CountObjects(Matching{objects:Transition{result:@prior, phase:Before}, filter:ControlledBy(One(Bound(0)))}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}}]))]), words:CreatingEffect, recipe:$return_count_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}} */
+spell_return_creatures_controller_tokens ::= "return" "all" "creatures" "to" "their" "owners'" "hands" "." "for" players_singular "who" "controlled" "a" "creature" "returned" "this" "way" "," "you" "create" token_amount return_count_token_recipe
+
+/* @sem TokenRecipe::@token_abilities($token_recipe_base, $return_count_abilities) */
+return_count_token_recipe ::= token_recipe_base "with" return_count_abilities
+
+/* @sem Ability::[$keyword_ability, $token_quoted] */
+return_count_abilities ::= keyword_ability "and" token_quoted
+
+/* The counted excess belongs to this immediately preceding damage to one target creature. */
+/* @sem Instruction::[Effect{result:@mark, operation:DealDamage{source:$damage_source_ref, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), amount:$number, preventable:true}}, If{condition:Compare{left:ExcessDamage{result:@marked, to:Any}, test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:ExcessDamage{result:@marked, to:Any}, words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
+instructions_damage_excess_named_tokens ::= damage_source_ref "deals" number "damage" "to" "target" "creature" "." "create" "a" "number" "of" token_named_recipe "tokens" "equal" "to" "the" "amount" "of" "excess" "damage" "dealt" "to" "that" "creature" "this" "way"
