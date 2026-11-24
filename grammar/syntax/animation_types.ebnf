@@ -168,3 +168,17 @@ commander_maximum_mana ::= "the" "greatest" "mana" "value" "among" "your" "comma
 
 /* @sem Change::[SetBasePowerToughness{power:$number_digits, toughness:$number_digits_2}, CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature), ...$grants] */
 land_arrival_animation ::= "become" number_digits "/" number_digits becomes_types "creatures" "with" grants
+
+/* Three or more creature types with a granted keyword retain the named
+   source's planeswalker type. This form remains scoped to its prevention. */
+/* @sem CreatureType::[@subtype_name($becomes_creature_subtype), @subtype_name($becomes_creature_subtype_2), ...$becomes_types] */
+animation_three_or_more_types ::= becomes_creature_subtype becomes_creature_subtype becomes_types
+
+/* @sem Change::[SetBasePowerToughness{power:$number, toughness:$number_2}, CreatureTypes{mode:Set, types:Listed($animation_three_or_more_types)}, AddCardType(Creature), GrantKeyword($keyword_name)] */
+animation_three_types_keyword ::= "a" number "/" number animation_three_or_more_types "creature" "with" keyword_name
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:$animation_three_types_keyword, duration:EndOfTurn, evaluation:Snapshot} */
+source_retained_turn_keyword_animation ::= "until" "end" "of" "turn" "," self_named "becomes" animation_three_types_keyword "that's" "still" "a" "planeswalker"
+
+/* @sem Instruction::[Effect{result:@next, operation:$source_retained_turn_keyword_animation}, Effect{result:@next, operation:$source_him_turn_prevention}] */
+instructions_source_keyword_animation_prevention ::= source_retained_turn_keyword_animation "." source_him_turn_prevention

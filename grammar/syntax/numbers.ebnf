@@ -1576,8 +1576,7 @@ owned_zones_plus_value ::= value_atom "plus" value_owned_exile_graveyard_union
 /* @sem Expr::EventHistory{event:Damage(_{source_kind:Any, sources:AllOf([Not(SameObject($self_ref_holder)), Name($referenced_card_name)]), recipients:Objects(SameObject($self_ref_holder)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:TotalAmount} */
 history_other_named_damage ::= "the" "amount" "of" "damage" "dealt" "to" self_ref_holder "this" "turn" "by" "other" "sources" "named" referenced_card_name
 
-/* @sem Expr::Add([$value, $history_other_named_damage]) */
-history_damage_sum ::= value "plus" history_other_named_damage
+history_damage_sum ::= history_damage_named_sum | history_damage_outside_hand_sum
 
 /* @sem Expr::CountDistinct{objects:$affected, property:CreatureTypes} */
 value_creature_types_among ::= "the" "number" "of" "creature" "types" "among" affected
@@ -1599,3 +1598,20 @@ card_population_owned_keyword_exile ::= "cards" "with" exiled_keyword_family "yo
 /* A shared creature head qualifies both subtype alternatives. */
 /* @sem @and(ObjectFilter::AnyOf([$subtype, $subtype_2]), $noun_creature) */
 card_subtype_union_creature ::= subtype "or" subtype noun_creature
+
+/* Cast occurrences retain the caster and the source-spell exclusion. */
+/* @sem Expr::EventHistory{event:Spell{event:Cast, players:All, spells:AllOf([Not(SameObject(Source)), Cast{by:One(AbilityController)}])}, window:ThisTurn, measure:Occurrences} */
+history_other_spells_cast ::= "the" "number" "of" "other" "spells" "you've" "cast" "this" "turn"
+
+/* @sem Expr::Add([$value_atom, $history_other_spells_cast]) */
+other_spells_sum ::= value_atom "plus" history_other_spells_cast
+
+/* @prefer always */
+/* @sem Expr::Add([$value, $history_other_named_damage]) */
+history_damage_named_sum ::= value "plus" history_other_named_damage
+
+/* @sem Expr::Add([$value, $history_spells_cast_outside_hand]) */
+history_damage_outside_hand_sum ::= value "plus" history_spells_cast_outside_hand
+
+/* @sem Expr::EventHistory{event:Spell{event:Cast, players:One(AbilityController), spells:Not(Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}})}, window:ThisTurn, measure:Occurrences} */
+history_spells_cast_outside_hand ::= "the" "number" "of" "spells" "you've" "cast" "from" "anywhere" "other" "than" "your" "hand" "this" "turn"

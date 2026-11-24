@@ -1,7 +1,7 @@
 /* Costs and mana symbols. */
 cost ::= cost_standard | cost_pay_mana_or_words | cost_reattach_player_subtype
 
-cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self | cost_tap_controlled_and_sacrifice
+cost_parts ::= cost_blight_return_enchantment | cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self | cost_tap_controlled_and_sacrifice
 
 /* "Remove three quest counters from this enchantment and sacrifice it": "it" is the
    source the counters come off. */
@@ -2668,7 +2668,7 @@ activation_cost_word_later ::= "↑" activation_cost_words
 
 activation_cost_words ::= mined_cost | cost_words_activation | casting_keyword_choice_part
 
-free_cast_condition ::= condition | condition_cast_opponent_and
+free_cast_condition ::= condition | condition_cast_opponent_and | condition_cast_opponent_a_and
 
 /* The active opponent restriction applies equally to either declaration step. */
 /* @sem Condition::AllOf([Window(DeclareAttackers), ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:PlayerIsActive(Bound(0))}]) */
@@ -3043,3 +3043,12 @@ artifact_self_tap_sacrifice_cost ::= "{" "T" "}" "," "↑" "sacrifice" "this" "a
 
 /* @sem ActivationLimits::ActivationLimits{condition:AllOf([ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:PlayerIsActive(Bound(0))}, Window(BeforeCombat)])} */
 limit_opponents_turn_before_combat ::= "activate" "only" "during" "an" "opponent's" "turn" "and" "only" "before" "combat"
+
+/* Named action followed by returning the enchantment that bears the ability. */
+/* @prefer always */
+/* @sem CostPart::[$cost_blight, CostPart::Move{selections:[CostObjectSelection{objects:One(ObjectRef::Source)}], destination:OwnersHand(CardArrival{counters:[], states:[]})}] */
+cost_blight_return_enchantment ::= cost_blight "," "↑" "return" self_enchantment "to" "its" "owner's" "hand"
+
+/* A mana payment and its stack-copy continuation share the payment receipt. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$pay_mana, optional:true}}, If{condition:PaymentChosen(@marked), then:$program_copy_targeting_ability, otherwise:Program{}}]} */
+optional_mana_payment_then_stack_copy ::= "you" "may" pay_mana "." "if" "you" "do" "," program_copy_targeting_ability

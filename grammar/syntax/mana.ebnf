@@ -31,7 +31,7 @@ mana_clause_restricted ::= mana_clause "." mana_spending
 
 /* Mana that triggers when it's spent on a spell: the trigger is the mana's own
    restriction, and the rest of the ability is its body. */
-instructions_mana_spent_trigger ::= instructions_mana_spent_active | instructions_mana_spent_passive | instructions_mana_spent_passive_program
+instructions_mana_spent_trigger ::= instructions_mana_spent_active | instructions_mana_spent_passive | instructions_mana_spent_passive_program | instructions_mana_spent_commander_history
 
 mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists | mana_persists_combat | mana_spend_only_countered | mana_spent_gives_riot | mana_spent_gives_uncounterable | mana_spend_x_cost | mana_spent_on_changes | mana_spent_counter
 /* @sem $mana_use */
@@ -696,3 +696,34 @@ instructions_mana_spent_passive_program ::= "add" mana_production "." "when" "th
 
 /* @sem @and($spell_post_base, $spell_shares_commander_type) */
 spent_qualified_spell ::= spell_post_base spell_shares_commander_type
+
+/* The history anaphor is scoped to the owned commander in this spending clause. */
+/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:WhenSpent{spells:$owned_commander_singular, body:Program($spent_commander_history_program)}}}] */
+instructions_mana_spent_commander_history ::= "add" mana_production "." "when" "you" "spend" "this" "mana" "to" "cast" owned_commander_singular "," spent_commander_history_program
+
+/* The scry amount records the commander's cast history with its own origin and window. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Scry{players:One(AbilityController), amount:$spent_commander_cast_count}}]} */
+spent_commander_history_program ::= "scry" "X" "," "where" "X" "is" spent_commander_cast_count
+
+/* @sem Expr::EventHistory{event:Filtered{event:Spell{event:Cast, players:One(AbilityController), spells:State(Commander)}, condition:WasCastFrom{object:EventSubject, zone:$their_commander_origin}}, window:$their_commander_window, measure:Occurrences} */
+spent_commander_cast_count ::= "the" "number" "of" "times" "it's" "been" "cast" "from" "the" their_commander_origin their_commander_window
+
+/* A target player's controlled population defines an amount. */
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$subtype_plural, ControlledBy(One($target_opponent))])}) */
+mana_target_opponent_population ::= "the" "number" "of" subtype_plural target_opponent "controls"
+
+/* Capture the definition once before the optional mana action. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:BindValue{value:$mana_target_opponent_population}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:BoundValue(@marked), production:$mana_unit_any_one_color, choice:Once}}}]}}]} */
+optional_defined_target_population_mana ::= "you" "may" "add" "X" mana_unit_any_one_color "," "where" "X" "is" mana_target_opponent_population
+
+/* This condition is scoped to the optional mana production it qualifies. */
+/* @sem Ability::Triggered{event:$turn_event, intervening_if:Compare{left:Game(ResolutionsThisTurn), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}}, limits:_{}, announcement:@announcement, body:$optional_defined_target_population_mana} */
+triggered_once_optional_defined_mana ::= "at" turn_event "," "if" "you" "haven't" "added" "mana" "with" "this" "ability" "this" "turn" "," optional_defined_target_population_mana "."
+
+/* Unrestricted activated production keeps its independent per-unit choice.
+   A spending qualification has a separate different-colors representation. */
+/* @sem ManaProduction::Repeat{amount:$value, production:ChooseOne([Amount{color:White, amount:Constant(1)}, Amount{color:Blue, amount:Constant(1)}, Amount{color:Black, amount:Constant(1)}, Amount{color:Red, amount:Constant(1)}, Amount{color:Green, amount:Constant(1)}]), choice:EachUnit} */
+unrestricted_different_colors_mana ::= value "mana" "of" "different" "colors"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$unrestricted_different_colors_mana}}]}} */
+activated_unrestricted_different_mana ::= cost ":" "add" unrestricted_different_colors_mana "."

@@ -187,3 +187,15 @@ energy_payment_hand_exchange_permission ::= "you" "may" "pay" "any" "amount" "of
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$energy_tax_prefix}, ...$energy_payment_hand_exchange_permission]}} */
 spell_energy_hand_exchange ::= energy_tax_prefix "," "then" energy_payment_hand_exchange_permission "."
+
+/* The payment and the dependent grant consume the same energy receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[EnergyOneOrMore]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, ControlledBy(One(AbilityController)), Property{property:Power, test:NumberTest::Compare{comparison:Equal, value:Performed(@marked)}}])}), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot}}]}, otherwise:Program{}}] */
+clause_energy_payment_keyword ::= "you" "may" "pay" "one" "or" "more" "{E}" "." "if" "you" "do" "," "each" noun "you" "control" "with" "power" "equal" "to" "the" "amount" "of" "{E}" "paid" "this" "way" "gains" keyword_name duration
+
+/* Preserve the paragraph break when this payment follows a then-sequenced action. */
+/* @prefer always */
+/* @sem Vec<Instruction>::@then_sequence($clause_before_then, $clause_energy_payment_keyword) */
+energy_payment_keyword_then ::= clause_before_then "," "then" clause_energy_payment_keyword
+/* @prefer always */
+/* @sem Ability::[Spell{announcement:@announcement, body:Program{instructions:[...$energy_payment_keyword_then, ...$root_spell_paragraph_tail]}}] */
+line_energy_payment_keyword_paragraphs ::= energy_payment_keyword_then "." NEWLINE root_spell_paragraph_tail

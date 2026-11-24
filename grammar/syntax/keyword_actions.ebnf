@@ -484,7 +484,7 @@ die_row_exact_extreme_that_player ::= number "|" die_extreme_that_player "."
 /* @sem Instruction::[ForEachPlayer{players:$hand_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(Bound(0)), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_nonlist_head, ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:Equal, value:Expr::Aggregate{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($plural_head, ObjectFilter::ControlledBy(One(Bound(0))))}, property:$stat, aggregation:$extreme_aggregation}}})}, choose:AsManyAsCan(Constant(1))})}]}}] */
 die_extreme_that_player ::= hand_plural_players "sacrifices" "a" filter_nonlist_head "with" "the" extreme_aggregation stat "among" plural_head "that" "player" "controls"
 
-discover_amount ::= value | excess_damage_x_amount
+discover_amount ::= value | excess_damage_x_amount | discover_cast_spell_mana_value
 
 /* @sem Expr::ExcessDamage{result:@prior, to:Any} */
 excess_damage_x_amount ::= "X" "," "where" "X" "is" "that" "excess" "damage"
@@ -731,3 +731,19 @@ investigate_defined_chosen_control_count ::= "investigate" "X" "times" "," "wher
 
 /* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:All})))])}) */
 chosen_players_controlled_total ::= "the" "total" "number" "of" filter_plural "those" "players" "control"
+
+/* The amount measures the spell which caused the cast trigger. */
+/* @prefer always */
+/* @sem Expr::ObjectProperty{object:EventSubject, property:$discover_spell_property, information:CurrentOrLastKnown} */
+discover_cast_spell_mana_value ::= "X" "," "where" "X" "is" "that" "spell's" discover_spell_property
+
+/* @prefer always */
+/* @sem ObjectProperty::ManaValue */
+discover_spell_property_mana_value ::= "mana" "value"
+/* @prefer always */
+/* @sem ObjectProperty::Power */
+discover_spell_property_power ::= "power"
+/* @prefer always */
+/* @sem ObjectProperty::Toughness */
+discover_spell_property_toughness ::= "toughness"
+discover_spell_property ::= discover_spell_property_mana_value | discover_spell_property_power | discover_spell_property_toughness
