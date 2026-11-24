@@ -226,3 +226,20 @@ vote_winner_exile ::= "exile" objects_each_vote_winner
 
 /* @sem Instruction::[...$public_object_ballot, Effect{result:@next, operation:$vote_winner_exile}] */
 instructions_public_vote_exile ::= public_object_ballot "." vote_winner_exile
+
+/* Vote outcomes use the named vote condition and an independently specified
+   keyword action. The tie condition is a separate printed shape. */
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::ChaosEnsues} */
+vote_chaos_ensues_action ::= "chaos" "ensues"
+
+vote_outcome_action ::= keyword_action | vote_chaos_ensues_action
+
+/* @sem Instruction::[If{condition:$condition_most_votes, then:Program{instructions:[Effect{result:@next, operation:$vote_outcome_action}]}, otherwise:Program{}}] */
+vote_outcome_winner ::= "if" condition_most_votes "," vote_outcome_action
+
+/* @sem Instruction::[If{condition:$condition_most_votes_or_tied, then:Program{instructions:[Effect{result:@next, operation:$vote_outcome_action}]}, otherwise:Program{}}] */
+vote_outcome_winner_or_tied ::= "if" condition_most_votes_or_tied "," vote_outcome_action
+
+/* An initial instruction and a subsequent ballot are part of one spell. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$clause_third, ...$clause_word_vote, ...$vote_outcome_winner, ...$vote_outcome_winner_or_tied]}} */
+spell_instruction_vote_outcomes ::= clause_third "." NEWLINE clause_word_vote "." vote_outcome_winner "." vote_outcome_winner_or_tied "."

@@ -7,7 +7,7 @@ entry_copy_ability ::= "you" "may" "have" self_explicit_ref "enter" "as" entry_c
 entry_copy_tapped_ability ::= "you" "may" "have" self_explicit_ref "enter" entry_copy_tapped_actions
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_battlefield_explicit, exceptions:[]})}}, Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}] */
 entry_copy_tapped_actions ::= "tapped" "as" "a" "copy" "of" entry_copy_battlefield_explicit "."
-entry_copy_objects ::= entry_copy_battlefield | entry_copy_graveyard_arrived | entry_copy_exile_counter | entry_copy_your_graveyard_from_library
+entry_copy_objects ::= entry_copy_battlefield | entry_copy_graveyard_any | entry_copy_graveyard_arrived | entry_copy_exile_counter | entry_copy_your_graveyard_from_library
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_choice} */
 entry_copy_battlefield ::= entry_copy_choice
 /* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AllOf([$filter_phrase, ArrivedThisTurn{from:Battlefield}])} */
@@ -28,7 +28,7 @@ copy_exceptions_sentence ::= copy_exceptions_period | copy_exceptions_closed
 /* @sem $copy_exceptions_plain */
 copy_exceptions_period ::= copy_exceptions_plain "."
 
-copy_exceptions_plain ::= copy_his_named_stats_keyword_current | copy_creature_stats_color_keyword | copy_stats_artifact_creature_keyword | copy_colored_stats_types | copy_nonlegendary_with_loyalty | copy_artifact_creature_stats_list | copy_keyword_current | copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain | copy_token_stats_ability | copy_food_ability | copy_exception_oxford_more | copy_exception_comma_more | copy_keyword_without_soulbond | copy_not_legendary_and_type | copy_nonlegendary_stats_types
+copy_exceptions_plain ::= copy_his_named_stats_keyword_current | copy_creature_stats_color_keyword | copy_stats_artifact_creature_keyword | copy_colored_stats_types | copy_nonlegendary_with_loyalty | copy_artifact_creature_stats_list | copy_keyword_current | copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain | copy_token_stats_ability | copy_food_ability | copy_exception_oxford_more | copy_exception_comma_more | copy_keyword_without_soulbond | copy_not_legendary_and_type | copy_nonlegendary_stats_types | copy_stats_added_creature_types | copy_added_colored_stats_types
 
 /* @sem Vec<CopyException>::[$copy_exception_plain] */
 copy_exception_plain_one ::= copy_exception_plain
@@ -401,3 +401,11 @@ copy_his_keyword ::= "he" "has" copy_added_keyword
 
 /* @sem CopyException::SetName(@card_name) */
 copy_his_self_name ::= "his" "name" "is" SELF_NAME
+
+/* Power, toughness and added creature types remain independent copy operands. */
+/* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$token_stat, toughness:$token_stat_2}, CopyException::AddCreatureTypes($becomes_types), CopyException::AddCardTypes([Creature])] */
+copy_stats_added_creature_types ::= "it's" "a" token_stat "/" token_stat becomes_types "creature" "in" "addition" "to" "its" "other" "types"
+
+/* The three copiable characteristics retain independent current operands. */
+/* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$value, toughness:$value_2}, CopyException::Colors{mode:Add, colors:Listed([$mana_color_word])}, CopyException::AddCreatureTypes($becomes_types)] */
+copy_added_colored_stats_types ::= "it's" "a" value "/" value mana_color_word becomes_types "in" "addition" "to" "its" "other" "colors" "and" "types"

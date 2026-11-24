@@ -313,3 +313,15 @@ loyalty_activation_copy_event ::= "whenever" event_loyalty
 /* A retargeting permission and a following action share this sentence. */
 /* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$object_ref, times:Constant(1), targets:May}}, ...$conjoined] */
 conjoined_copy_retarget_followup ::= "copy" object_ref "," "you" "may" "choose" "new" "targets" "for" "the" "copy" "," "and" conjoined
+
+/* A future activation identifies the ability actually put on the stack. */
+/* @sem ObjectFilter::OnStack(Loyalty) */
+next_copy_loyalty_ability ::= "loyalty" "ability"
+
+/* @sem ObjectFilter::OnStack(Activated) */
+next_copy_activated_ability ::= "activated" "ability"
+
+next_copy_ability_kind ::= next_copy_loyalty_ability | next_copy_activated_ability
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:Activated{players:One(AbilityController), abilities:$next_copy_ability_kind}, duration:$this_duration, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventStackObject, times:Constant(1), targets:May}}]}, once:true}}] */
+copy_next_activated_retarget ::= "copy" "the" "next" next_copy_ability_kind "you" "activate" this_duration "when" "you" "activate" "it" "." "you" "may" "choose" "new" "targets" "for" "the" "copy"

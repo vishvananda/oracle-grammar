@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= named_legendary_equipment_token | token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal | token_named_equal_vote_total
+token_group ::= named_legendary_equipment_token | token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal | token_named_equal_vote_total | token_variable_square_product
 
 token_copy ::= token_copy_characteristics_it | token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle | token_copy_random_mana_card | token_copy_characteristics
 
@@ -164,7 +164,7 @@ token_named_tapped ::= token_amount "tapped" token_named_recipe ("token" | "toke
 /* @sem TokenSpec::TokenSpec{amount:$count_each, words:Rules, recipe:$token_named_recipe} */
 token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_each
 
-token_recipe ::= named_snow_artifact_recipe | token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors
+token_recipe ::= named_snow_artifact_recipe | token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors | token_recipe_basic_land_named | token_recipe_basic_land_named_plural | token_recipe_life_paid_entry
 
 token_recipe_base ::= token_recipe_statless_named | token_recipe_statless_named_plural | token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
 
@@ -970,9 +970,9 @@ explicit_token_primo ::= "Primo" "," "the" "Indivisible"
 /* @sem TokenName::Explicit('Scion of the Deep') */
 explicit_token_scion_deep ::= "Scion" "of" "the" "Deep"
 
-/* The creation occurs only if both choices exist. The two statistics remain independent. */
-/* @sem Instruction::[If{condition:AllOf([ValueChosen(Color), ValueChosen(CreatureType)]), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, chosen_color:true, chosen_creature_type:true, card_types:[Creature], power_toughness:[$token_stat, $token_stat_2]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
-instructions_chosen_creature_token ::= "create" "a" token_stat "/" token_stat "creature" "token" "of" "the" "chosen" "color" "and" "type"
+/* The creation occurs only if both choices exist. */
+/* @sem Instruction::[If{condition:AllOf([ValueChosen(Color), ValueChosen(CreatureType)]), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$chosen_creature_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
+instructions_chosen_creature_token ::= "create" chosen_creature_token
 
 /* A named artifact token carries its own scoped activated ability. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$token_amount, words:CreatingEffect, recipe:$named_artifact_quoted_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
@@ -1862,3 +1862,48 @@ damaged_player_creates_scoped_token ::= "that" "player" "creates" token_with_blo
 
 /* @sem Ability::Triggered{event:$event_combat_damage_player, limits:TriggerLimits{}, announcement:@announcement, body:$damaged_player_creates_scoped_token} */
 triggered_damage_player_creates_scoped_token ::= "whenever" event_combat_damage_player "," damaged_player_creates_scoped_token
+
+/* A named land token can independently carry any basic land type. */
+/* @sem TokenRecipe::Defined{name:Explicit($land_token_name), colors:$token_colors, card_types:[Land], subtypes:[Plains, Island, Swamp, Mountain, Forest]} */
+token_recipe_basic_land_named ::= token_colors "land" "token" "named" land_token_name "that" "is" "every" "basic" "land" "type"
+
+/* @sem TokenRecipe::Defined{name:Explicit($land_token_name), colors:$token_colors, card_types:[Land], subtypes:[Plains, Island, Swamp, Mountain, Forest]} */
+token_recipe_basic_land_named_plural ::= token_colors "land" "tokens" "named" land_token_name "that" "are" "every" "basic" "land" "type"
+
+land_token_name ::= land_token_name_everywhere | created_token_name
+
+/* @sem String::'Everywhere' */
+land_token_name_everywhere ::= "Everywhere"
+
+/* A copied controlled permanent is the target of this token recipe. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, ControlledBy(One(AbilityController))])}), index:0}, exceptions:[]}} */
+controlled_target_copy_token ::= "token" "that's" "a" "copy" "of" "target" noun "you" "control"
+
+/* The delayed sacrifice consumes the receipt of this particular creation. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$controlled_target_copy_token], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:$token_cleanup_end_step, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]} */
+program_attacking_copy_sacrifice ::= "create" "a" "tapped" "and" "attacking" controlled_target_copy_token "." "sacrifice" "the" "token" "at" token_cleanup_end_step
+
+/* The entry payment determines both characteristics of this token recipe. */
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Game(LifePaid), Game(LifePaid)]}) */
+token_recipe_life_paid_entry ::= "X" "/" "X" token_colors token_subtypes token_types "token" "," "where" "X" "is" "the" "life" "paid" "as" "this" "artifact" "entered"
+
+chosen_creature_token ::= chosen_creature_token_fixed | chosen_creature_token_counter_stats
+
+/* @prefer always */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, chosen_color:true, chosen_creature_type:true, card_types:[Creature], power_toughness:[$token_stat, $token_stat_2]}} */
+chosen_creature_token_fixed ::= "a" token_stat "/" token_stat "creature" "token" "of" "the" "chosen" "color" "and" "type"
+
+/* A single X definition supplies both statistics, retaining its current counter operands. */
+/* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:FromSubtypes, chosen_color:true, chosen_creature_type:true, card_types:[Creature], power_toughness:[$chosen_token_counter_value, $chosen_token_counter_value]}} */
+chosen_creature_token_counter_stats ::= counter_amount "X" "/" "X" "creature" "token" "of" "the" "chosen" "color" "and" "type" "," "where" "X" "is" chosen_token_counter_value
+
+/* @sem Expr::CountCounters{recipients:Objects($affected), kind:$counter_kind, information:CurrentOrLastKnown} */
+chosen_token_counter_value ::= "the" "number" "of" counter_kind "counters" "on" affected
+
+/* The definition supplies both statistics of the created token. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Multiply([$value, $value_2]), Multiply([$value, $value_2])]}} */
+token_variable_square_product ::= "an" "X" "/" "X" token_colors token_subtypes token_types "token" "," "where" "X" "is" value "times" value
+
+/* A later temporary grant refers to the preceding created object. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($created_gains_subject), changes:$grants, duration:$duration, evaluation:Snapshot}}] */
+clause_created_gains_duration ::= created_gains_subject "gains" grants duration
