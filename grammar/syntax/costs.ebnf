@@ -2455,7 +2455,7 @@ x_payment_life_lost ::= "the" "amount" "of" "life" "you" "lost" "this" "turn"
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:EventSubject, cost:$event_subject_payment_cost_phrase, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:$event_subject_payment_reward}]}, otherwise:Program{}}]} */
 event_subject_payment_sentence ::= event_subject_payment_cost_phrase "." "if" "the" "player" "does" "," event_subject_payment_reward "."
 
-event_subject_payment_cost_phrase ::= event_attacker_discard_payment | event_player_mana_payment
+event_subject_payment_cost_phrase ::= event_attacker_discard_payment | event_player_mana_payment | event_player_counter_payment
 
 /* @sem Cost::Cost{parts:[$event_subject_discard_part]} */
 event_attacker_discard_payment ::= "that" "attacking" "player" "may" event_subject_discard_part
@@ -2465,7 +2465,7 @@ event_subject_discard_part ::= cost_discard | cost_discard_filtered | cost_disca
 /* @sem Cost::Cost{parts:[Mana($mana_symbols)]} */
 event_player_mana_payment ::= "they" "may" "pay" mana_symbols
 
-event_subject_payment_reward ::= event_subject_draw_reward | event_subject_delayed_draw_reward
+event_subject_payment_reward ::= event_subject_draw_reward | event_subject_delayed_draw_reward | event_subject_counter_mana_reward
 
 /* @sem Operation::Draw{players:One(EventSubject), amount:$card_count} */
 event_subject_draw_reward ::= "they" "draw" card_count
@@ -2815,3 +2815,33 @@ casting_colored_reduction_if_shared ::= "this" "spell" "costs" colored_reduction
 
 /* @sem ObjectFilter::Any */
 your_cast_spells_any_that ::= "spells" "that" "you" "cast"
+
+/* The event player pays the counter cost and receives the resulting mana. */
+/* @sem Cost::Cost{parts:[PutCounters([_{recipients:Objects(One($self_explicit_ref)), kind:$counter_kind, amount:Constant(1)}])]} */
+event_player_counter_payment ::= "that" "player" "may" "put" "a" counter_kind "counter" "on" self_explicit_ref
+
+/* @sem Operation::AddMana{players:One(EventSubject), mana:Repeat{amount:$count_each_counter_on, production:$mana_production, choice:Once}} */
+event_subject_counter_mana_reward ::= "they" "add" mana_production "for" "each" count_each_counter_on
+
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:EventSubject, cost:$event_subject_payment_cost_phrase, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:$event_subject_payment_reward}]}, otherwise:Program{}}]} */
+event_subject_payment_they_sentence ::= event_subject_payment_cost_phrase "." "if" "they" "do" "," event_subject_payment_reward "."
+
+/* A performed player action supplies the condition for the following program. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$object_keyword_action}]}}]}, optional:false}}, If{condition:PaymentChosen(@prior), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$token_explicit_legendary], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}]} */
+player_action_if_done_create_legendary ::= object_keyword_action "." "if" "you" "do" "," "create" token_explicit_legendary
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$player_action_if_done_create_legendary} */
+triggered_player_action_if_done_create_legendary ::= event_clause "," player_action_if_done_create_legendary "."
+
+/* A single card selected from its controller's hand arrives in exile with
+   counters measured from that card's earlier mana value. */
+/* @sem CostPart::Move{selections:[_{objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$adjective_nontype}), choose:Exactly(Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[[$counter_kind, Earlier{what:It, measure:Of(ManaValue)}]], states:[]}}} */
+exile_hand_card_mana_value_counters ::= "exile" "a" adjective_nontype "card" "from" "your" "hand" "with" "a" "number" "of" counter_kind "counters" "on" "it" "equal" "to" "its" "mana" "value"
+
+/* The alternatives are independent complete payments, not cumulative parts. */
+/* @sem Cost::Cost{parts:[Choice([Cost{parts:[$discard_choice_part]}, Cost{parts:[$sacrifice_choice_part]}])]} */
+discard_or_sacrifice_payment ::= discard_choice_part "or" sacrifice_choice_part
+
+discard_choice_part ::= cost_discard | cost_discard_many | cost_discard_filtered
+
+sacrifice_choice_part ::= cost_sacrifice | cost_sacrifice_many

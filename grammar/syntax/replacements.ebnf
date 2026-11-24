@@ -166,7 +166,7 @@ replacement_draw_empty_before ::= "if" draw_event "while" "your" "library" "has"
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= redirect_unblocked_combat_timed | next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late | prevent_next_granting_spell | redirect_all_to_by_permanents | prevent_next_with_receipt_shared
+prevent_clause ::= shield_next_prevent_tokens | redirect_unblocked_combat_timed | next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late | prevent_next_granting_spell | redirect_all_to_by_permanents | prevent_next_with_receipt_shared
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -1926,7 +1926,7 @@ replacement_you_create_extra ::= "if" replacement_you_create_event "," replaceme
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_sacrifice_any}]} */
 entry_sacrifice_program ::= entry_sacrifice_any
 
-next_prevent_event ::= shield_chosen_type_event | next_damage_by_object
+next_prevent_event ::= next_target_damage_players | shield_chosen_type_event | next_damage_by_object
 
 /* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}) */
 next_damage_by_object ::= object_ref "would" "deal" "damage"
@@ -4045,3 +4045,23 @@ replacement_energy_bonus_plus ::= "you" "get" "that" "many" "plus" number "{" "E
 
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::GainEnergy{amount:Multiply([$replacement_life_factor, EventAmount])}} */
 replacement_energy_bonus_scaled ::= "you" "get" replacement_life_factor "that" "many" "{" "E" "}"
+
+/* The antecedent is the named source in the preceding copy instruction. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject(Source)), kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_damage_to_him_this_duration ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" "him" this_duration
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($next_chosen_sources), count:Exactly($counter_amount)}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:NextOccurrence, duration:$this_duration, body:$redirect_damage_body}}] */
+instructions_next_chosen_redirect_any ::= "the" "next" "time" counter_amount next_chosen_sources "would" "deal" "damage" this_duration "," redirect_damage_body
+
+/* The prevention receipt is consumed inside its replacement body, so the
+   condition and token amount refer to that exact prevention. */
+/* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:SameObject($target_object), recipients:Players(All), kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}) */
+next_target_damage_players ::= target_object "would" "deal" prevent_damage "to" "one" "or" "more" "players"
+
+/* @sem Operation::CreateReplacement{event:$next_prevent_event, limit:NextOccurrence, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, If{condition:Compare{left:Performed(@last_result), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Performed(@prior), words:CreatingEffect, recipe:$prevention_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:_{}}]}} */
+shield_next_prevent_tokens ::= "the" "next" "time" next_prevent_event this_duration "," "prevent" "that" "damage" "." "if" "damage" "is" "prevented" "this" "way" "," "create" "that" "many" prevention_token_recipe
+
+prevention_token_recipe ::= token_recipe | token_recipe_quoted
+
+/* @sem Instruction::[Effect{result:@next, operation:$shield_next_prevent_tokens}] */
+instructions_prevent_tokens_quoted ::= shield_next_prevent_tokens

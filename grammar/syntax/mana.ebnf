@@ -62,7 +62,7 @@ mana_use_atom ::= mana_use_foretell | mana_use_cast | mana_use_activate | mana_u
    share one cast verb, as in "an instant or sorcery spell or a kicked spell". */
 /* @sem ManaUse::CastSpell($mana_cast_filter) */
 mana_use_cast ::= "cast" mana_cast_filter
-mana_cast_filter ::= spells_exact_color_count | cast_spells_filter | mana_spell_one | mana_spell_alternatives | mana_kicked_spells | mana_spells_outside_starting_deck | mana_spells_monocolored_chosen | mana_spell_color_count_without_x | mana_spells_value_or_x | mana_spell_outside_zone | mana_last_linked_card | mana_spell_with_keyword | mana_spells_flashback_graveyard | mana_commander_cast_filter | mana_spells_with_x_cost | mana_spells_without_abilities
+mana_cast_filter ::= spells_exact_color_count | cast_spells_filter | mana_spell_one | mana_spell_alternatives | mana_kicked_spells | mana_spells_outside_starting_deck | mana_spells_monocolored_chosen | mana_spell_color_count_without_x | mana_spells_value_or_x | mana_spell_outside_zone | mana_last_linked_card | mana_spell_with_keyword | mana_spells_flashback_graveyard | mana_commander_cast_filter | mana_spells_with_x_cost | mana_spells_without_abilities | mana_spell_from_your_graveyard
 /* @sem ObjectFilter::Not(InStartingDeck(One(AbilityController))) */
 mana_spells_outside_starting_deck ::= "spells" "that" "aren't" "from" "your" "starting" "deck"
 /* @sem ObjectFilter::AllOf([Property{property:ColorCount, test:NumberTest::Compare{comparison:Equal, value:Constant(1)}}, Chosen(Color)]) */
@@ -587,3 +587,17 @@ mana_add_event_combination ::= "add" "that" "much" "mana" "in" "any" "combinatio
 
 /* @sem ManaProduction::ChooseOne([$mana_unit, $mana_unit_2]) */
 mana_combination_pair ::= mana_unit "and" "/" "or" mana_unit
+
+/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:$players_singular, mana:Repeat{amount:CountObjects($affected), production:$mana_for_each_existing, choice:Once}}}] */
+clause_player_adds_per_affected ::= players_singular "adds" mana_for_each_existing "for" affected
+
+/* The graveyard belongs to the ability controller, not every player. */
+/* @sem ObjectFilter::Cast{from:Players{zone:Graveyard, players:One(AbilityController)}} */
+mana_spell_from_your_graveyard ::= "a" "spell" "from" "your" "graveyard"
+
+/* A player's mana production and a separately measured damage event. */
+/* @sem Instruction::[Effect{result:@next, operation:$add_mana_player}, Effect{result:@next, operation:$damage_to_event_player}] */
+mana_player_and_event_damage ::= add_mana_player "," "and" damage_to_event_player
+
+/* @sem Operation::DealDamage{source:$damage_source_ref, recipients:Players(One(@that_player)), amount:$number, preventable:true} */
+damage_to_event_player ::= damage_source_ref "deals" number "damage" "to" "the" "player"

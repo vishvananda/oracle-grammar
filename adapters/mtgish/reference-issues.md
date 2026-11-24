@@ -594,3 +594,112 @@ matching the retained reference. A request to create one token can produce
 several after replacements. The grammar supplies the batch property directly,
 with a printing inverse; it rejects a competing `ObjectProperty(Result{index:0})`
 reading. No reference update or AST schema change was needed for this fix.
+
+### U0078: Preserve the triggering or targeted player identity rather than substituting AbilityController.
+- Faces (6): Bamboozle, Blinkmoth Urn, Cheering Crowd, Cruel Reality, Paradox Haze, Sleep
+- Evidence: Bamboozle puts the rest on top of 'their [target player's] library', not AbilityController's; Blinkmoth Urn triggers at 'each player's first main phase', not only AbilityController's; Cheering Crowd, Cruel Reality, and Paradox Haze act on the triggering player (EventSubject), not AbilityController; Sleep skips untapping during 'that player's next untap step' (Target(0,0)), not ControllerOf(Affected).
+
+### U0079: Preserve player-bound and graveyard-owner scopes on 'their', 'your', and 'each other player' references.
+- Faces (8): Anya, Merciless Angel, Damping Engine, Endless Detour, Lord of the Forsaken, The Council of Four, Thoughtbound Primoc, Underworld Cerberus, Wild Mammoth
+- Evidence: Anya compares against each bound opponent's starting life total (Bound(0), not Acting); Endless Detour targets any 'card in a graveyard', not only AbilityController's graveyard; Rootcoil Creeper and Lord of the Forsaken restrict mana to spells cast 'from your graveyard' (One(AbilityController), not All); Underworld Cerberus and Grave Sifter return cards from each bound player's own graveyard (One(Bound(0)), not All); The Council of Four checks a player's second card 'during their turn' (One(Active), not All); Thoughtbound Primoc, Wild Mammoth, and Damping Engine compare against 'each other player' (OthersThan(Bound(0)), not All).
+
+### U0080: Preserve explicit chooser and controller clauses on library placement and battlefield entry.
+- Faces (3): Hinder, Not Forgotten, The Cyber-Controller
+- Evidence: Hinder and Not Forgotten specify 'your choice of the top or bottom of its owner's library' (AbilityController chooses, not Owners); The Cyber-Controller puts milled creature cards onto the battlefield 'under your control' (Player(AbilityController), not Owner).
+
+### U0081: Countering 'all abilities' targets stack objects of kind Ability, not Spell.
+- Faces (1): Kadena's Silencer
+- Evidence: Summary Dismissal says 'counter all abilities' and Kadena's Silencer says 'counter all abilities your opponents control'; MTGish exported object kind Spell instead of Ability on both.
+
+### U0082: Preserve swapped or misbound object, attachment, and result references.
+- Faces (6): Flames of Moradin, Karona, False God Avatar, Keen Duelist, Oko, the Trickster, Technomancer, Three Tree Battalion
+- Evidence: Oko, the Trickster prevents damage dealt 'to him' (Source, not Target(0,0)); Ogre Geargrabber attaches Target(0,0) to Source (MTGish swapped attachments and host); Karona, False God Avatar exchanges Result(0,0) with Result(1,0) (MTGish referenced Result(0,1)); Keen Duelist loses life equal to the other player's revealed card (Recorded(0), not Recorded(1)); Three Tree Battalion perpetually modifies the conjured duplicate (result 3, not result 2); Flames of Moradin duplicates nontoken artifacts destroyed by result 0 (Matching(Transition(0, Before)), not all Battlefield artifacts); Technomancer chooses artifact creature cards 'from your graveyard' (Zone(Graveyard), not only the 3 milled cards in Recorded(0)).
+
+### U0083: Preserve comparison operators, aggregations, and boolean connectives (NotEqual, Less, Maximum, AnyOf, Not).
+- Faces (7): Decree of Annihilation, Jackdaw Savior, Katsumasa, the Animator, Mentor's Guidance, Skull Raid, Slime Against Humanity, Squall, Gunblade Duelist
+- Evidence: Iridian Maelstrom checks 'isn't all colors' (NotEqual, not Equal); Skull Raid ('fewer than two') and Jackdaw Savior ('lesser mana value') test strict Less, not LessOrEqual; Timely Reinforcements ('fewer creatures than an opponent') compares against Maximum opponent creature count, not Minimum; Decree of Annihilation ('artifacts, creatures, and lands'), Squall ('power or toughness equal'), Mentor's Guidance ('planeswalker, Cleric, Druid, Shaman, Warlock, or Wizard'), and Slime Against Humanity ('Oozes or named Slime Against Humanity') are disjunctions (AnyOf), not conjunctions (AllOf); Katsumasa checks 'if it's not a Vehicle' (Not(Subtype(Vehicle)), not Subtype(Vehicle)).
+
+### U0084: Preserve explicit face-down visibility, secret choice, play-permission terms, choice costs, and optional wrappers.
+- Faces (8): Cunning Azurescale, Divining Dive, Elder Brain, Expensive Taste, Sheoldred's Assimilator, Torment of Hailfire, Wheel of Misfortune, Whispersteel Dagger
+- Evidence: Expensive Taste exiles cards 'face down' (FaceDown, not FaceUp); Cunning Azurescale and Divining Dive 'secretly choose' (secret: true); Wheel of Misfortune restricts to '0 or greater' (options: [Comparison(GreaterOrEqual, 0)]); Whispersteel Dagger has no exile replacement (into_exile: false); Elder Brain lets you spend mana as any color at normal cost (cost: Normal, spend_as: AnyColor, not Free); Torment of Hailfire offers a Choice between sacrificing or discarding, not paying both; Hope-Ender Coatl counters 'unless they pay {1}' (If(Not(PaymentChosen(0)))), not unconditionally; Expedited Inheritance ('may exile') and Sheoldred's Assimilator ('you may conjure') are Optional.
+
+### U0085: Preserve explicit characteristic, subtype, and property checks (BasePower/BaseToughness, Toughness, Spacecraft, CreatureTypes, AddCardType(Creature)).
+- Faces (3): Evolving Adaptive, Menagerie Curator, Network Marauder
+- Evidence: Angelic Aberration checks 'base power or toughness 1 or less' (BasePower/BaseToughness); Evolving Adaptive compares toughness against this creature's Toughness, not Power; Network Marauder buffs 'Spacecraft cards', not Equipment; Menagerie Curator checks 'share a creature type' with a creature card in your library (SharesWithAny(CreatureTypes), not SharesNameWithAny); Waker of the Wilds animates target land into a '0/0 Elemental creature' (including AddCardType(Creature)).
+
+### U0086: Preserve explicit control, ownership, and CardType(Creature) filter conjuncts.
+- Faces (7): Benevolent Blessing, Grand Ossuary, Mirror of the Forebears, Olag, Ludevic's Hubris, Purging Scythe, Tamanoa, Trial of Agony
+- Evidence: Grand Ossuary ('creatures they control'), Mirror of the Forebears ('target creature you control'), Tamanoa and Disciples of the Inferno ('noncreature source you control'), Trial of Agony ('controlled by the same opponent'), Benevolent Blessing ('Auras and Equipment you control'), Shaun ('creature you control'), and Rift Elemental ('suspended card you own') omitted or inverted their controller/owner conjunct; Olag, Purging Scythe, High Score, Primal Empathy, and Éomer omitted CardType(Creature); Szat's Will omitted OpponentsOf scope and Creature card filter on exiled cards.
+
+### U0087: Preserve explicit zone, turn-window, event-subject, and self-exclusion constraints.
+- Faces (7): Boltbender, Corpse Appraiser, Ever-Watching Threshold, Molten Lavamancer, Nicol Bolas, Dragon-God, Psychic Battle, Seshiro the Anointed Avatar
+- Evidence: Harsh Mentor triggers on abilities 'on the battlefield' (InZone(Battlefield)); Corpse Appraiser checks 'put into exile this way' (InZone(Exile)); Seshiro the Anointed Avatar excludes 'the battlefield or the stack' (adding Not(InZone(Stack))); Molten Lavamancer triggers 'during your turn' (Filtered(PlayerIsActive(AbilityController))); Ever-Watching Threshold tests 'if they attacked' (Attack.by: One(EventSubject)); Psychic Battle triggers on any player choosing targets without an unprinted Psychic Battle exclusion; Boltbender ('other spells or abilities'), Nicol Bolas, Dragon-God ('all other planeswalkers'), and Archfiend of Ifnir / Curator of Mysteries / Horror of the Broken Lands ('cycle or discard another card') require self-exclusion.
+
+### U0088: Restore omitted controller, zone, non-self, and target-kind filter predicates
+- Faces (13): Ancient Lumberknot, Bedrock Tortoise, Chef's Kiss, Emissary of Grudges, From the Catacombs, Harsh Mentor, Holy Frazzle-Cannon, Noble Banneret, Orzhov Advokist, Penregon Besieged, Tapestry Warden, The Muckslinger Gang, This Is How It Ends
+- Evidence: Oracle wording explicitly constrains controller ("you control", "they control", "opponents control"), zone ("from your graveyard", "from a graveyard", "other than the battlefield or the stack", "on the battlefield"), non-self ("another", "other"), or target kind ("permanent or player", "you or a permanent you control"), whereas MTGish gold dropped or inverted those filter terms.
+
+### U0089: Correct inverted AllOf/AnyOf connectives, erroneous Subtype(Saga), and bogus ColorCount filter
+- Faces (4): Coveted Falcon, Focus Fire, Herigast, Erupting Nullkite, Providence of Night
+- Evidence: Coveted Falcon says "you own but don't control" (conjunction, not disjunction); Focus Fire says "creatures and/or Spacecraft" (disjunction, not conjunction); Herigast says "Each creature spell you cast" (not Saga); Providence of Night says "with hybrid mana in its mana cost" (monocolored hybrid cards like {2/W} qualify without ColorCount > 1).
+
+### U0090: Restore missing Not negation on Fastbond and non-mana activated ability triggers
+- Faces (6): Battlemage's Bracers, Fastbond, Harsh Mentor, Illusionist's Bracers, Kurkesh, Onakke Ancient, Rings of Brighthearth
+- Evidence: Fastbond says "if it wasn't the first land you played this turn" and Battlemage's Bracers, Harsh Mentor, Illusionist's Bracers, Kurkesh, Onakke Ancient, and Rings of Brighthearth all say "if it isn't a mana ability", whereas MTGish gold omitted Not(...) and encoded the positive predicate.
+
+### U0091: Use strict Less comparison for "fewer than" and "lesser mana value"
+- Faces (2): Scrap Trawler, Vraska, Betrayal's Sting
+- Evidence: Vraska, Betrayal's Sting says "fewer than nine poison counters" and Scrap Trawler says "with lesser mana value", both strict inequalities (<), whereas MTGish gold encoded LessOrEqual (<=).
+
+### U0092: Correct event-player and villainous-choice actor bindings
+- Faces (5): Blood Clock, Fraying Line, Glimmervoid Basin, Infernal Genesis, Overabundance
+- Evidence: Glimmervoid Basin, Overabundance, Blood Clock, Fraying Line, and Infernal Genesis explicitly refer to the triggering player ("that player", "they"), not AbilityController; Great Intelligence's Plan says "or you may cast a spell from your hand", assigning decider/actor/hand to AbilityController rather than Target(0).
+
+### U0093: Correct object reference identities in damage, pump, granted upkeep cost, hexproof, exchange, and Coin of Fate
+- Faces (5): Coin of Fate, Cultural Exchange, Jilt, Orim's Thunder, Tam, Mindful First-Year
+- Evidence: Jilt and Orim's Thunder deal damage from the spell (Source), not Target(0); Ent's Fury pumps Target(0) before fighting Target(1); granted upkeep abilities on Essence Leak and Disruption Aura reference their own holder (Source); Tam grants hexproof from each affected creature's own colors (Affected); Cultural Exchange swaps Selected(0) and Selected(1); Coin of Fate returns Unselected(0).
+
+### U0094: Correct trigger scope, timing conditions, and turn/combat durations
+- Faces (5): Canyon Vaulter, Elesh Norn, Mother of Machines, Reckless Velocitaur, Ria Ivor, Bane of Bladehold, Valiant Farewell
+- Evidence: Elesh Norn suppresses abilities controlled by opponents for any entering permanent; Canyon Vaulter and Reckless Velocitaur trigger only during your main phase; Tifa checks first combat phase of your turn; Ria Ivor lasts EndOfCombat ("this combat"); Valiant Farewell's delayed trigger expires EndOfTurn ("this turn").
+
+### U0095: Restore optionality, up-to/any-number counts, disjunction cost, and suspend guard
+- Faces (6): Expedited Inheritance, Expose the Culprit, Hag of Ceaseless Torment, Heroes' Hangout, Taigam, Master Opportunist, Trade Secrets
+- Evidence: Capricopian ("may reselect"), Trade Secrets ("draw up to four"), Worldpurge ("up to seven"), Expose the Culprit ("any number of"), Expedited Inheritance ("may exile"), Hag of Ceaseless Torment ("sacrifices ... or discards"), Taigam ("If it doesn't have suspend"), and Heroes' Hangout (unconditional play permission without spurious empty PayCost) all directly contradict the MTGish export.
+
+### U0096: Correct Opal-Eye RedirectDamage, Arvinox AnyColor spend_as, and Soundwave Legendary tokens
+- Faces (3): Arvinox, the Mind Flail, Opal-Eye, Konda's Yojimbo, Soundwave, Superior Captain
+- Evidence: Opal-Eye redirects damage to itself rather than preventing it; Arvinox grants "spend mana as though it were mana of any color"; Soundwave explicitly creates legendary Ravage and legendary Laserbeak tokens.
+
+### U0097: Restore omitted Not negation on Dose of Dawnglow, Wilhelt, Desynchronization, and undamaged hexproof guards
+- Faces (5): Desynchronization, Dose of Dawnglow, Karakyk Guardian, Oyaminartok, Polar Werebear, Palladia-Mors, the Ruiner
+- Evidence: Dose of Dawnglow ("if it isn't your main phase"), Wilhelt ("if it didn't have decayed"), Desynchronization ("not historic"), and Karakyk Guardian/Oyaminartok/Palladia-Mors ("as long as it hasn't dealt damage yet") are all negated in Oracle text, whereas MTGish gold omitted Not(...).
+
+### U0098: Restore omitted filter predicates (Modified, non-self, Land, Creature, ControlledBy, FaceDown, and Extreme population)
+- Faces (8): Dispersal, Lethal Throwdown, Might Makes Right, Monument to Perfection, Spy Network, The Peregrine Dynamo, Tidus, Yuna's Guardian, Zinnia, Valley's Voice
+- Evidence: Oracle text explicitly requires modified (Lethal Throwdown), non-self/second target (The Peregrine Dynamo, Tidus), Land/Creature type (Monument to Perfection, Zinnia, Might Makes Right), ControlledBy(You) (Minas Tirith Garrison, Orphans of the Wheat), FaceDown (Spy Network), and among all permanents they control (Dispersal).
+
+### U0099: Fix swapped Repeat.times and Incubate.amount on The Argent Etchings and Glistening Dawn
+- Faces (1): The Argent Etchings
+- Evidence: The Argent Etchings says "Incubate 2 five times" (times=5, amount=2) and Glistening Dawn says "Incubate X twice, where X is the number of lands you control" (times=2, amount=land count), whereas MTGish swapped the two operands.
+
+### U0100: Correct player scope and controller bindings (Kynaios, Okaun, Zndrsplt, Otaria, Death in Heaven, Reality Shift, Barroom Brawl, Jhoira)
+- Faces (7): Barroom Brawl, Jhoira, Weatherlight Corsair, Kynaios and Tiro of Meletis, Okaun, Eye of Chaos, Otaria, Reality Shift, Zndrsplt, Eye of Wisdom
+- Evidence: Oracle text specifies opponents (Kynaios), any player (Okaun, Zndrsplt, Otaria), under your control (Death in Heaven), target controller's library (Reality Shift), opponent to your left (Barroom Brawl), and You lose life (Jhoira).
+
+### U0101: Restore activation timing restrictions and up-to-one mode minimum 0
+- Faces (1): Hama, the Bloodbender
+- Evidence: Blighted Nightmare says "Activate only as a sorcery"; Katara says "Activate only during your turn"; Hama says "during your turn"; Ravager Wurm and Dreamshackle Geist say "choose up to one" (minimum 0, not 1).
+
+### U0102: Correct unless-cost disjunctions, Emissary's Ploy choice 2, and Michelangelo OneForEach constraint
+- Faces (4): Emissary's Ploy, Michelangelo, Improviser, Perforating Artist, Polygraph Orb
+- Evidence: Perforating Artist and Polygraph Orb offer an OR choice between sacrificing and discarding; Emissary's Ploy says "choose 1, 2, or 3" (gold omitted 2); Michelangelo says "a creature card and/or a land card" (at most one of each, not two lands or two creatures).
+
+### U0103: Fix otherwise branch scoping, suspend guard, and missing player protection on Faith's Shield
+- Faces (3): Amy's Home, Bre of Clan Stoutarm, Guidelight Pathmaker
+- Evidence: Amy's Home checks "If it doesn't have suspend"; Bre of Clan Stoutarm and Guidelight Pathmaker say "Otherwise, put it into your hand"; Faith's Shield grants protection to "you and each permanent you control" at 5 or less life.
+
+### U0104: Fix Volo CreatureTypes check, Volcano Hellion unpreventable damage, Coram land+spell permissions, and Sleuth Instructor single trigger
+- Faces (4): Coram, the Undertaker, Sleuth Instructor, Volcano Hellion, Volo, Guide to Monsters
+- Evidence: Volo tests creature types rather than colors; Volcano Hellion says "The damage can't be prevented"; Coram permits both playing a land AND casting a spell each turn; Sleuth Instructor is one ability with "This ability triggers only once."
+
