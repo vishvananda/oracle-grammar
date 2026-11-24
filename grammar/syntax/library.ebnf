@@ -6902,3 +6902,65 @@ search_basic_pair_choice ::= "a" "basic" subtype "card"
 /* The selection from this search supplies both the reveal and the move. */
 /* @sem Instruction::[Effect{result:@mark, operation:$search_library_basic_pair}, ...$search_those_reveal_hand_follow] */
 clause_search_pair_those ::= search_library_basic_pair "," search_those_reveal_hand_follow
+
+/* The play permission consumes the immediately preceding library-exile receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@marked, phase:After}, from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects}}] */
+clause_top_exile_play_those ::= exile_top_cards_of_your_library "." duration "," "you" "may" "play" "those" "cards"
+
+/* The same one-card exile receipt supplies both the life amount and permission.
+   Keep the producer in this phrase so the printed card is proved to be exiled. */
+/* @sem Vec<Instruction>::[Effect{result:@mark, operation:$exile_top_card_receipt}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:$receipt_stat, information:CurrentOrLastKnown}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:$exiled_spending}})], duration:$duration, evaluation:LiveObjects}}] */
+exile_top_gain_and_cast ::= exile_top_card_receipt "." "you" "gain" "life" "equal" "to" "that" "card's" receipt_stat "." duration "," "you" "may" "cast" "that" "card" "and" exiled_spending
+
+/* @sem Ability::Triggered{event:$event_combat_damage_player, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$exile_top_gain_and_cast}} */
+triggered_combat_exile_gain_cast ::= "whenever" event_combat_damage_player "," exile_top_gain_and_cast "."
+
+/* Random library selection and hand arrival with an independent comparison referent. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:ObjectProperty{object:$object_ref, property:ManaValue, information:CurrentOrLastKnown}}}}, count:AsManyAsCan($card_count), constraints:[AtRandom]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+clause_seek_same_mana ::= "seek" card_count "with" "the" "same" "mana" "value" "as" object_ref
+
+/* The permission and its immediately preceding top-library exile are one
+   receipt-scoped program; the inverse checks both actions together. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:CastSpell, filter:Any})], duration:$this_duration, evaluation:LiveObjects}}]} */
+program_top_exile_play_those ::= exile_top_cards_of_your_library "." "you" "may" "play" "those" "cards" this_duration "."
+
+/* A paid look and partition share the same observation and move receipts. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$pay_mana, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$look_paid_other_partition}, otherwise:Program{}}] */
+clause_paid_look_hand_split ::= "you" "may" pay_mana "." "if" "you" "do" "," look_paid_other_partition
+
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_other_hand_split] */
+look_paid_other_partition ::= look_top "." look_other_hand_split
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($look_hand_count), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:$hand_other_graveyard}] */
+look_other_hand_split ::= "put" look_hand_count "into" "your" "hand" "and" hand_other_graveyard
+
+/* The selected cards come from this mill payment, not an arbitrary prior receipt. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$mill_receipt_payment]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, filter:$mill_receipt_card_filter}, count:Exactly(Constant(1)), constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}]}, otherwise:Program{}}]} */
+program_optional_mill_receipt_hand ::= "you" "may" mill_receipt_payment "." "if" "you" "do" "," "you" "may" "put" mill_receipt_card_filter "card" "from" "among" "them" "into" "your" "hand"
+
+/* @sem CostPart::Mill{count:$mill_receipt_amount} */
+mill_receipt_payment ::= "mill" mill_receipt_amount
+
+mill_receipt_amount ::= mill_cast_event_amount | card_count
+
+/* @sem $milled_return_filter */
+mill_receipt_card_a ::= "a" milled_return_filter
+
+/* @sem ObjectFilter::CardType(Artifact) */
+mill_receipt_card_artifact ::= "an" "artifact"
+
+mill_receipt_card_filter ::= mill_receipt_card_a | mill_receipt_card_artifact
+
+/* Keep the observed library slice, its two piles, the exiled pile and the
+   remaining selection together. The remaining observed cards stay in the
+   controller's library before that library is shuffled. */
+/* @sem Instruction::[Effect{result:@mark, operation:LookAt{player:$player_ref, objects:$your_top}}, Effect{result:@next, operation:Piles{actor:One($player_ref), objects:InZone{objects:Observed(@marked), zone:Library}, count:Constant(2), names:['face down', 'face down']}}, Effect{result:@next, operation:$choose_pile_destination}, Effect{result:@next, operation:WithSelections{steps:[_{binding:@selection_id(0), chooser:Players(One(AbilityController)), objects:InZone{objects:Observed(@marked), zone:Library}, count:Exactly(Constant(1)), constraints:[]}], action:Move{objects:Prepared(@selection_id(0)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+instructions_observed_pile_search_shuffle ::= player_ref "looks" "at" your_top "and" "separates" "them" "into" "two" "face-down" "piles" "." choose_pile_destination "." "search" "the" "other" "pile" "for" "a" "card" "," "put" "it" "into" "your" "hand" "," "then" "shuffle" "the" "rest" "of" "that" "pile" "into" "your" "library"
+
+/* The other card is the remainder of this exact two-card observation. */
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top_two}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan(Constant(1)), constraints:[CanMoveTo{destination:OwnersGraveyard(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Top, order:Chosen}}] */
+look_two_graveyard_other_top ::= look_top_two "." "put" "one" "of" "them" "into" "your" "graveyard" "and" "the" "other" "back" "on" "top" "of" "your" "library"
+
+/* Keep the mill and the chosen arrival receipt together for both directions. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Mill{players:One(AbilityController), amount:$number}}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@back(3), phase:After}, filter:$noun}, count:Exactly(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}]}}}, If{condition:Not(PaymentChosen(@back(3))), then:$then_condition_program, otherwise:_{}}]} */
+program_mill_receipt_hand_failure ::= "mill" number "cards" "." "put" "a" noun "card" "from" "among" "the" "milled" "cards" "into" "your" "hand" "." "if" "you" "can't" "," then_condition_program

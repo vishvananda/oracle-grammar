@@ -1159,8 +1159,8 @@ event_encounter_phenomenon ::= "you" "encounter" object_ref
 
 /* @sem EventSpec::Discard(_{players:One(AbilityController), cards:Any, kind:Any, grouping:Card}) */
 event_cycle_or_discard ::= "you" "cycle" "or" "discard" "a" "card"
-/* @sem EventSpec::Discard(_{players:One(AbilityController), cards:Any, kind:Cycling, grouping:Card}) */
-event_cycle_card ::= "you" "cycle" "a" "card"
+/* @sem EventSpec::Discard(_{players:One(AbilityController), cards:$cycling_card_noun, kind:Cycling, grouping:Card}) */
+event_cycle_card ::= "you" "cycle" cycling_card_noun
 
 /* @sem EventSpec::Batch{event:Object{event:LeavesGraveyard, objects:AllOf([$filter_phrase, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}, per:Whole} */
 event_cards_leave_your_graveyard ::= "one" "or" "more" filter_phrase "cards" "leave" "your" "graveyard"
@@ -1297,7 +1297,7 @@ event_cast_filtered_from_graveyard ::= "you" "cast" spell_filter "from" "your" "
 event_cast_filtered_from_library ::= "you" "cast" spell_filter "from" "your" "library"
 
 /* A shared plural source retains its filter and controller independently. */
-combat_group_source ::= combat_group_filter | combat_group_compound_controlled
+combat_group_source ::= combat_group_filter | combat_group_compound_controlled | combat_group_suspected_controlled
 
 /* @sem ObjectFilter::$filter_plural */
 combat_group_filter ::= "one" "or" "more" filter_plural
@@ -1845,10 +1845,8 @@ revealed_draw_modified_card ::= "card" modifier_chosen_name
 /* @sem EventSpec::FirstEachTurn($event_first_each_turn_operand) */
 event_first_each_turn_shared ::= event_first_each_turn_operand "for" "the" "first" "time" "each" "turn"
 
-event_first_each_turn_operand ::= event_combat_damage_player | event_dealt_damage | event_cycle_another_card | event_object_becomes_crewed | event_you_investigate | event_holder_counters_put | event_you_scry | event_discard_many | event_active_discard_many
+event_first_each_turn_operand ::= event_combat_damage_player | event_dealt_damage | event_object_becomes_crewed | event_you_investigate | event_holder_counters_put | event_you_scry | event_discard_many | event_active_discard_many | event_cycle_card
 
-/* @sem EventSpec::Discard(_{players:One(AbilityController), cards:Any, kind:Cycling, grouping:Card}) */
-event_cycle_another_card ::= "you" "cycle" "another" "card"
 
 /* Filter the cast itself by the stated condition or controller timing. */
 /* @sem EventSpec::Filtered{event:Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:$spell_filter}, condition:$condition} */
@@ -2013,6 +2011,7 @@ history_discard_event ::= history_discard_subject "discarded"
 
 history_discard_subject ::= history_discard_you | history_discard_youve
 
+/* @prefer always */
 /* @sem PlayerRef::AbilityController */
 history_discard_you ::= "you"
 
@@ -4249,8 +4248,8 @@ excess_damage_any ::= "excess" "damage"
 /* @sem DamageKind::ExcessNoncombat */
 excess_damage_noncombat ::= "excess" "noncombat" "damage"
 
-/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$event_singular_subject, recipients:Players(OpponentsOf(AbilityController)), kind:Combat, grouping:SourceRecipient, subject:Source}) */
-event_combat_damage_one_opponent ::= event_singular_subject "deals" "combat" "damage" "to" "one" "of" "your" "opponents"
+/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$event_one_opponent_subject, recipients:Players(OpponentsOf(AbilityController)), kind:Combat, grouping:SourceRecipient, subject:Source}) */
+event_combat_damage_one_opponent ::= event_one_opponent_subject "deals" "combat" "damage" "to" "one" "of" "your" "opponents"
 
 /* The plural subtype alternatives constrain the single source of combat damage. */
 /* @sem ObjectFilter::AnyOf([$subtype_spelled, $subtype_spelled_2, $subtype_spelled_3, $subtype_spelled_4]) */
@@ -7342,3 +7341,52 @@ source_hidden_graveyard_conjure_trigger ::= source_death_or_owned_hidden_graveya
 /* The granted ability's event and payment body retain their own scope. */
 /* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$holder_declined_payment_program} */
 holder_unless_trigger ::= "at" turn_event "," holder_declined_payment_program "."
+
+/* A goaded qualifier composes with the written singular population. */
+/* @prefer always */
+/* @sem @and($adjective_goaded, $filter_phrase) */
+goaded_singular_event_subject ::= "a" adjective_goaded filter_phrase
+
+event_one_opponent_subject ::= event_singular_subject | goaded_singular_event_subject
+
+/* A suspected controlled population can be used by distinct group events. */
+/* @sem ObjectFilter::@and(ObjectFilter::State(Suspected), $filter_plural, ObjectFilter::ControlledBy(One(AbilityController))) */
+suspected_controlled_plural ::= "suspected" filter_plural "you" "control"
+
+/* @sem ObjectFilter::$suspected_controlled_plural */
+combat_group_suspected_controlled ::= "one" "or" "more" suspected_controlled_plural
+
+/* @sem EventSpec::Batch{event:Attack{attackers:$suspected_controlled_plural, defenders:Any}, per:Whole} */
+event_suspected_controlled_attack ::= "whenever" "one" "or" "more" suspected_controlled_plural "attack"
+
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:$program_top_exile_play_those} */
+triggered_turn_top_exile_play ::= "at" turn_event "," program_top_exile_play_those
+
+/* The damage event supplies the amount used by both later X operands. */
+retirement_damage_player_event ::= event_combat_damage_player | event_damage_player | event_combat_damage_opponent | event_damage_opponent
+
+/* @prefer always */
+/* @sem Expr::EventAmount */
+retirement_damage_event_amount ::= "the" "amount" "of" "damage" "dealt"
+
+/* @sem Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(EventSubject)}, kind:Card, filter:Any}, count:$retirement_damage_event_amount, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+retirement_damage_exile_top ::= "exile" "the" "top" "X" "cards" "of" "their" "library" "," "where" "X" "is" retirement_damage_event_amount
+
+/* @sem NumberTest::Compare{comparison:LessOrEqual, value:EventAmount} */
+retirement_damage_mana_at_most ::= "X" "or" "less" /* @prefer always */
+
+/* @sem NumberTest::Compare{comparison:Less, value:EventAmount} */
+retirement_damage_mana_less ::= "less" "than" "X"
+
+retirement_damage_mana_test ::= retirement_damage_mana_at_most | retirement_damage_mana_less
+
+/* @sem Operation::PlayCards{actor:One(AbilityController), action:CastSpell, cards:Matching{objects:Transition{result:@prior, phase:After}, filter:Property{property:ManaValue, test:$retirement_damage_mana_test}}, count:AnyNumber, cost:Free} */
+retirement_damage_cast_arrivals ::= "you" "may" "cast" "any" "number" "of" "spells" "with" "mana" "value" retirement_damage_mana_test "from" "among" "them" "without" "paying" "their" "mana" "costs"
+
+/* @prefer always */
+/* @sem Ability::Triggered{event:$retirement_damage_player_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$retirement_damage_exile_top}, Effect{result:@next, operation:$retirement_damage_cast_arrivals}]}} */
+retirement_damage_exile_cast_trigger ::= "whenever" retirement_damage_player_event "," retirement_damage_exile_top "." retirement_damage_cast_arrivals "." /* @prefer always */
+
+/* @prefer always */
+/* @sem Ability::[$retirement_damage_exile_cast_trigger] */
+retirement_damage_exile_cast_line ::= retirement_damage_exile_cast_trigger

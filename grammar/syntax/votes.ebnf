@@ -255,3 +255,24 @@ vote_consequences ::= "consequences"
 count_each_your_vote ::= "vote" "you" "received"
 
 count_fronted_vote ::= count_each_vote | count_each_your_vote
+
+/* A winning ballot can cause a keyword action followed by a counter placement. */
+/* @sem Instruction::[If{condition:$condition_most_votes, then:Program{instructions:[Effect{result:@next, operation:$keyword_action}, Effect{result:@next, operation:$shared_you_put_counters}]}, otherwise:Program{}}] */
+vote_keyword_counter_winner ::= "if" condition_most_votes "," keyword_action "," "then" shared_you_put_counters
+
+/* @sem Instruction::[If{condition:$condition_most_votes_or_tied, then:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}]}, otherwise:Program{}}] */
+vote_draw_winner_or_tied ::= "if" condition_most_votes_or_tied "," "draw" card_count
+
+/* @sem Ability::Triggered{event:$turn_event, intervening_if:$condition_another_entered_this_turn, limits:_{}, announcement:@announcement, body:Program{instructions:[...$clause_word_vote, ...$vote_keyword_counter_winner, ...$vote_draw_winner_or_tied]}} */
+triggered_word_vote_counter ::= "at" turn_event "," "if" condition_another_entered_this_turn "," clause_word_vote "." vote_keyword_counter_winner "." vote_draw_winner_or_tied "."
+
+/* A chosen stack spell can be acted on by two separately tested ballot outcomes.
+   The target is announced once and both actions retain that target identity. */
+/* @sem Ability::Spell{announcement:@announcement, body:_{instructions:[...$clause_word_vote, If{condition:$vote_counter_outcome, then:_{instructions:[Effect{result:@next, operation:Counter{objects:One($target_stack_spell), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}]}, otherwise:_{}}, If{condition:$vote_copy_outcome, then:_{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:Target{slot:@last_slot, index:0}, times:Constant(1), targets:May}}]}, otherwise:_{}}]}} */
+spell_choose_voted_stack_actions ::= "choose" target_stack_spell "." clause_word_vote "." vote_counter_outcome "." vote_copy_outcome "."
+
+/* @sem Condition::$condition_most_votes */
+vote_counter_outcome ::= "if" condition_most_votes "," "counter" "the" "spell"
+
+/* @sem Condition::$condition_most_votes_or_tied */
+vote_copy_outcome ::= "if" condition_most_votes_or_tied "," "copy" "the" "spell" "." "you" "may" "choose" "new" "targets" "for" "the" "copy"

@@ -441,14 +441,16 @@ casting_reduction_if_targets ::= object_ref target_cast_cost_adjustment "if" "it
 casting_reduction_x ::= "this" "spell" "costs" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" value "."
 
 /* An alternative cost, perhaps only while a condition holds, before or after it. */
-casting_alternative_cost ::= casting_alternative_plain | casting_alternative_if | casting_alternative_if_filtered_hand | casting_alternative_if_after | casting_alternative_if_preposed | casting_alternative_if_prefix | casting_alternative_treasure
+casting_alternative_cost ::= casting_alternative_plain | casting_alternative_if | casting_alternative_if_filtered_hand | casting_alternative_if_after | casting_alternative_if_preposed | casting_alternative_if_prefix | casting_alternative_treasure | casting_alternative_as_long_pay
 
 /* @sem Ability::Casting(AlternativeCost($alternative_payment)) */
 casting_alternative_plain ::= "you" "may" alternative_payment rather_than_mana_cost "."
 
+/* @prefer always */
 /* @sem Ability::Casting(If{condition:$condition, rule:AlternativeCost($alternative_payment)}) */
 casting_alternative_if ::= "if" condition "," "you" "may" alternative_payment rather_than_mana_cost "."
 
+/* @prefer always */
 /* @sem Ability::Casting(If{condition:$condition, rule:AlternativeCost($alternative_payment)}) */
 casting_alternative_if_after ::= "you" "may" alternative_payment rather_than_mana_cost "if" condition "."
 
@@ -979,6 +981,7 @@ cost_self_and_other_noncreatures ::= "sacrifice" "this" "creature" "and" "any" "
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[TapSymbol, ...$cost_self_and_other_noncreatures]}, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Union([CostObjects{payment:Activation, component:[1], view:Performed, phase:Before}, CostObjects{payment:Activation, component:[2], view:Performed, phase:Before}])), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}} */
 activated_sacrifice_pair_token_receipt ::= "{" "T" "}" "," "↑" cost_self_and_other_noncreatures ":" "create" "a" token_recipe "for" "each" "creature" "sacrificed" "this" "way" "."
 
+/* @prefer always */
 /* @sem Ability::Casting(If{condition:$condition, rule:AlternativeCost($alternative_payment)}) */
 casting_alternative_if_preposed ::= "if" condition "," rather_than_mana_cost "," "you" "may" alternative_payment "."
 
@@ -1101,6 +1104,7 @@ casting_reduction_if_first ::= "if" condition "," "this" "spell" "costs" braced_
 /* @sem CostPart::PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$move_object_owners_library}]}} */
 cost_performed_library_move ::= move_object_owners_library
 
+/* @prefer always */
 /* @sem Ability::Casting(If{condition:$condition, rule:AlternativeCost($alternative_payment)}) */
 casting_alternative_if_prefix ::= "if" condition "," rather_than_mana_cost "," "you" "may" alternative_payment "."
 
@@ -2771,3 +2775,35 @@ holder_declined_payment_program ::= program "unless" "you" cost
 /* A stack selection is independent of the destination of the cost. */
 /* @sem CostPart::Move{selections:[$controlled_spell_cost_selection], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
 cost_exile_controlled_spell_selection ::= "exile" controlled_spell_cost_selection
+
+/* A named discard preserves the named card filter as an operand. */
+/* @sem CostPart::Discard{count:Constant(1), filter:Name($referenced_card_name)} */
+cost_discard_another_named ::= "discard" "another" "card" "named" referenced_card_name
+
+/* Keep named-discard activations scoped to the self-stat effect: generic
+   activation programs also admit distinct snapshot and live X readings. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_discard_another_named]}, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_defined_stat_pump}]}} */
+named_discard_self_stat_activation ::= cost_discard_another_named ":" self_defined_stat_pump "."
+
+/* A paid activation can resolve a source pump independently of the payment. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[$activation_receipt_pump]}} */
+activated_cost_source_pump ::= cost ":" "↓" activation_receipt_pump "."
+
+/* A conditional activation can carry a scoped exile-and-play program. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{condition:$condition}, announcement:@announcement, body:$fronted_single_free_play_program} */
+activated_scoped_free_play_condition ::= cost ":" fronted_single_free_play_program "." "activate" "only" "if" condition "."
+
+/* A named player may pay, with the following program conditional on that payment. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:$player_ref, cost:$cost, optional:true}}, If{condition:PaymentChosen(@marked), then:$program, otherwise:Program{}}]} */
+player_optional_payment_continuation ::= player_ref "may" "pay" cost "." "if" "the" "player" "does" "," program "."
+
+/* The failure condition refers to this immediately preceding random discard. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:EventSubject, cost:Cost{parts:[Discard{count:$card_count, filter:Any, random:true}]}, optional:false}}, If{condition:Not(PaymentChosen(@marked)), then:$program, otherwise:Program{}}]} */
+event_player_random_discard_failure ::= "that" "player" "discards" card_count "at" "random" "." "if" "the" "player" "can't" "," program
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$event_player_random_discard_failure} */
+triggered_event_player_random_discard_failure ::= event_clause "," event_player_random_discard_failure "."
+
+/* A condition may permit a direct payment to cast the spell. */
+/* @sem Ability::Casting(If{condition:$condition, rule:AlternativeCost($cost)}) */
+casting_alternative_as_long_pay ::= "as" "long" "as" condition "," "you" "may" "pay" cost "to" "cast" "this" "spell" "."

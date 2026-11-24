@@ -683,3 +683,20 @@ explore_subject ::= object_ref | target_that_crewed_event_subject
 
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::VisitAttractions} */
 visit_attractions_action ::= "roll" "to" "visit" "your" "Attractions"
+
+/* Six bounded die outcomes refer to the same marked roll. */
+/* @sem Program::Program{instructions:[...$die_table_head, $die_dash_row, $die_dash_row_2, $die_dash_row_3, $die_dash_row_4, $die_dash_row_5, $die_dash_row_6]} */
+program_sentence_grouped_die_table ::= die_table_head "." NEWLINE die_dash_row NEWLINE die_dash_row NEWLINE die_dash_row NEWLINE die_dash_row NEWLINE die_dash_row NEWLINE die_dash_row
+
+/* @sem Instruction::If{condition:Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:Equal, value:$number}}, then:$die_dash_outcome, otherwise:_{}} */
+die_dash_row ::= number "—" die_dash_outcome
+
+die_dash_outcome ::= die_dash_program | die_dash_program_damage_life
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$die_dash_operation}]} */
+die_dash_program ::= die_dash_operation "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$deal_damage}, Effect{result:@next, operation:$you_gain_life}]} */
+die_dash_program_damage_life ::= deal_damage "and" you_gain_life "."
+
+die_dash_operation ::= base_toughness_for_duration | put_counters_direct | deal_damage | continuous_snapshot | destroy | exile_objects
