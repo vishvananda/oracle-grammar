@@ -174,7 +174,7 @@ count_each_tapped ::= "creature" "tapped" "this" "way"
 
 /* What a card can be, away from the battlefield. `permanent` narrows nothing on the
    battlefield, but among cards it excludes instants and sorceries. */
-card_filter ::= card_subtype_list_typed | mined_cards | card_word | card_stacked | card_stacked_comma | card_stacked_either | card_stacked_either_union | card_stacked_type | card_or | card_list | card_filter_and | card_qualified_three | card_union_repeated_plural | card_named_or_an
+card_filter ::= card_subtype_list_typed | mined_cards | card_word | card_stacked | card_stacked_comma | card_stacked_either | card_stacked_either_union | card_stacked_type | card_or | card_list | card_filter_and | card_qualified_three | card_union_repeated_plural | card_named_or_an | card_subtype_union_creature
 
 card_word ::= quality | card_noun | spell_instant | spell_sorcery
 
@@ -348,7 +348,7 @@ value_twice ::= "twice" value
 /* @sem Expr::CountObjects($card_population) */
 value_number_cards ::= "the" "number" "of" card_population
 
-card_population ::= card_population_opponents_owned_exile | card_population_owned_exile | card_population_stickered_vowel | card_population_stickered_consonant | card_population_plain | card_population_filtered | card_population_named | card_population_cycling | card_population_same_name | card_population_linked | card_population_linked_any
+card_population ::= card_population_owned_keyword_exile | card_population_opponents_owned_exile | card_population_owned_exile | card_population_stickered_vowel | card_population_stickered_consonant | card_population_plain | card_population_filtered | card_population_named | card_population_cycling | card_population_same_name | card_population_linked | card_population_linked_any
 /* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:Any} */
 card_population_plain ::= "cards" "in" card_zone_scope
 /* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:$card_filter} */
@@ -1591,3 +1591,11 @@ count_each_additional ::= count_each | count_each_opponent_hand_bounded
 /* Count each opponent against that opponent’s own hand. */
 /* @sem Expr::CountPlayers(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), test:NumberTest::Compare{comparison:$bound_words, value:$count}}}])) */
 count_each_opponent_hand_bounded ::= "opponent" "who" "has" count bound_words "cards" "in" "hand"
+
+/* The keyword and owner independently filter the live exile population. */
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([$exiled_keyword_family, OwnedBy(One(AbilityController))])} */
+card_population_owned_keyword_exile ::= "cards" "with" exiled_keyword_family "you" "own" "in" "exile"
+
+/* A shared creature head qualifies both subtype alternatives. */
+/* @sem @and(ObjectFilter::AnyOf([$subtype, $subtype_2]), $noun_creature) */
+card_subtype_union_creature ::= subtype "or" subtype noun_creature

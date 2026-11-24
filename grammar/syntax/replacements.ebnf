@@ -165,7 +165,7 @@ replacement_draw_empty_before ::= "if" draw_event "while" "your" "library" "has"
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= shield_next_prevent_tokens | redirect_unblocked_combat_timed | next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late | prevent_next_granting_spell | redirect_all_to_by_permanents | prevent_next_with_receipt_shared | prevent_next_defined_receipt | prevent_group_to_and_by
+prevent_clause ::= shield_next_prevent_tokens | redirect_unblocked_combat_timed | next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late | prevent_next_granting_spell | redirect_all_to_by_permanents | prevent_next_with_receipt_shared | prevent_next_defined_receipt | prevent_group_to_and_by | prevent_colored_sources_to_objects
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -480,7 +480,7 @@ replacement_prevent_self_deals ::= "prevent" "all" "damage" "that" self_ref "wou
 /* @sem Ability::Replacement{active:Battlefield, event:Either([Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient})]), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
 replacement_prevent_to_and_by ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" "and" "dealt" "by" object_ref "."
 
-prevent_by_permanents ::= prevent_by_group | prevent_by_object | prevent_by_group_except
+prevent_by_permanents ::= prevent_by_group | prevent_by_object | prevent_by_group_except | prevent_by_without_counters
 /* @sem ObjectFilter::$filter_plural */
 prevent_by_group ::= filter_plural
 /* @sem ObjectFilter::SameObject($object_ref) */
@@ -4317,3 +4317,30 @@ optional_counted_damage_prevention ::= "you" "may" "prevent" "X" "of" "that" "da
 
 /* @sem Ability::Replacement{active:Battlefield, event:$damage_event, body:$optional_counted_damage_prevention} */
 replacement_optional_counted_prevention ::= "if" damage_event "," optional_counted_damage_prevention "."
+
+/* Both sentences change the same entering event. The conditional clause is
+   reusable with any preceding entry-counter change. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:Program{instructions:[Effect{result:@next, operation:$entry_plural_counter_change}, ...$entry_x_conditional_counter]}}) */
+entry_counter_sequence ::= object_ref "enters" entry_plural_counter_change "." entry_x_conditional_counter "."
+
+/* @sem Instruction::[If{condition:ObjectMatches{object:$it_ordinary_pronoun, filter:Property{property:SpellX, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}}, then:Program{instructions:[Effect{result:@next, operation:$entry_extra_counter_change}]}, otherwise:Program{}}] */
+entry_x_conditional_counter ::= "if" "X" "is" value "or" "more" "," it_ordinary_pronoun "enters" entry_extra_counter_change
+
+/* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})} */
+entry_extra_counter_change ::= "with" "an" "additional" value counter_kind "counters" "on" "it"
+
+/* A next draw can be replaced by a look, a bounded remainder, and a draw. */
+/* @sem Operation::CreateReplacement{event:Player{event:Draw, players:One(AbilityController)}, limit:NextOccurrence, duration:$this_duration, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, ...$look_leave_some_bottom, Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $draw_base)}]}} */
+next_draw_look_leave ::= "the" "next" "time" "you" "would" "draw" "a" "card" this_duration "," "instead" look_leave_some_bottom "," "then" draw_base
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$limit_x_nonzero, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$next_draw_look_leave}]}} */
+activated_next_draw_look ::= cost ":" next_draw_look_leave "." limit_x_nonzero "."
+
+/* A permanent population without the specified kind of counter. */
+/* @prefer always */
+/* @sem ObjectFilter::AllOf([$filter_plural, Counters(_{kind:$counter_kind, comparison:Equal, value:Constant(0)})]) */
+prevent_by_without_counters ::= filter_plural "with" "no" counter_kind "counters" "on" "them"
+
+/* Prevention by either of two colored sources, applied to a filtered population. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:AnyOf([$adjective_color, $adjective_color_2]), recipients:Objects($filter_plural), kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_colored_sources_to_objects ::= "prevent" "all" "damage" "that" adjective_color "and" "/" "or" adjective_color "sources" "would" "deal" "to" filter_plural this_duration

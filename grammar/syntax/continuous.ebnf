@@ -2,7 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= continuous_own_mana_defined_snapshot | controlled_subtype_temporary_keyword | controlled_creature_color_pump | continuous_grant_own_mana_cost | continuous_target_additional_count_pump | continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump | continuous_plural_pump_grant | prior_creatures_pump | continuous_defined_x_snapshot | temporary_grant_equal_own_mana | temporary_harmonize_mana_cost | combat_relative_stats | land_animation_retained | switch_each_population_stats | continuous_negative_population_pump | chosen_target_colors_protection | continuous_defined_pump_keyword | targeted_color_scaled_snapshot | continuous_controlled_subtypes_grant | controlled_three_subject_temporary_keyword | leading_observed_base_stats | continuous_x_group_snapshot | continuous_switch_characteristics | qualified_creature_timed_quoted_grant | continuous_chosen_type_population_snapshot | self_defined_stat_pump | continuous_each_valued_grant | switch_possessive_stats | continuous_target_basic_land_controller_untap | controlled_subtype_pump_grant_snapshot | continuous_set_named_base_power | continuous_leading_snapshot | continuous_snapshot_leading | continuous_own_stat_difference_pump | continuous_leading_keyword_loss | continuous_additional_cast_count
+continuous_snapshot ::= continuous_own_mana_defined_snapshot | controlled_subtype_temporary_keyword | controlled_creature_color_pump | continuous_grant_own_mana_cost | continuous_target_additional_count_pump | continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump | continuous_plural_pump_grant | prior_creatures_pump | continuous_defined_x_snapshot | temporary_grant_equal_own_mana | temporary_harmonize_mana_cost | combat_relative_stats | land_animation_retained | switch_each_population_stats | continuous_negative_population_pump | chosen_target_colors_protection | continuous_defined_pump_keyword | targeted_color_scaled_snapshot | continuous_controlled_subtypes_grant | controlled_three_subject_temporary_keyword | leading_observed_base_stats | continuous_x_group_snapshot | continuous_switch_characteristics | qualified_creature_timed_quoted_grant | continuous_chosen_type_population_snapshot | self_defined_stat_pump | continuous_each_valued_grant | switch_possessive_stats | continuous_target_basic_land_controller_untap | controlled_subtype_pump_grant_snapshot | continuous_set_named_base_power | continuous_leading_snapshot | continuous_snapshot_leading | continuous_own_stat_difference_pump | continuous_leading_keyword_loss | continuous_additional_cast_count | other_target_controller_snapshot
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
    layers, not the written order, decide how the changes combine. */
@@ -1484,9 +1484,9 @@ nonbattlefield_granted_madness ::= "madness" "." "the" "madness" "cost" "is" "eq
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($shared_rule_subject), changes:$shared_rule_characteristics, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($shared_rule_subject), changes:$rule_changes, duration:$this_duration, evaluation:LiveObjects}}] */
 clause_shared_population_rule ::= shared_rule_subject shared_rule_characteristics duration "and" rule_changes this_duration
 
-/* Only explicit noun, target and holder subjects enter this composition.
-   Implicit pronoun/receipt continuations keep their separate contracts. */
-shared_rule_subject ::= immediate_affected_set | affected_targets_each | affected_pair_each | shared_rule_object
+/* Explicit subjects and named anaphors share this composition. Implicit
+   pronoun and receipt continuations keep their separate contracts. */
+shared_rule_subject ::= immediate_affected_set | affected_targets_each | affected_pair_each | shared_rule_object | shared_rule_anaphor
 /* @sem ObjectSet::One($shared_rule_reference) */
 shared_rule_object ::= shared_rule_reference
 shared_rule_reference ::= target_object | self_explicit_ref | attached_ref
@@ -10428,8 +10428,8 @@ cross_one_color ::= mana_color_word
 cross_all_colors ::= "all" "colors"
 
 /* The standalone source definition uses the card's name as its subject. */
-/* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(Source)), changes:$cross_colors} */
-source_named_color_definition ::= self_named "is" cross_colors "."
+/* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(Source)), changes:$source_definition_colors} */
+source_named_color_definition ::= self_named "is" source_definition_colors "."
 
 /* The linked callback owns its target announcement and program scope. */
 /* @sem Ability::@scope(Ability::Spell{announcement:@announcement, body:$program_attacking_copy_sacrifice}) */
@@ -11799,3 +11799,147 @@ attack_requirement_trigger ::= "if" "a" filter_phrase "attacks"
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$attack_requirement_trigger}) */
 static_attack_requirement_prefix ::= attack_requirement_trigger "," affected "also" "attacks" "if" "able" "."
+
+/* Controller-relative cause restrictions compose the affected players and action. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players($cause_controller_players), changes:[PlayerRule(CantBeCaused{action:$cause_controller_action, by:Not(ControlledBy(One(Affected)))})]} */
+static_cause_controller_restriction ::= "spells" "and" "abilities" cause_controller_players "control" "can't" "cause" "their" "controller" "to" cause_controller_action "."
+
+/* @sem PlayerSet::OpponentsOf(AbilityController) */
+cause_controller_opponents ::= "your" "opponents"
+
+/* @sem PlayerSet::One(AbilityController) */
+cause_controller_you ::= "you"
+
+cause_controller_players ::= cause_controller_opponents | cause_controller_you
+
+cause_controller_action ::= cause_controller_search | player_prohibit_draw | player_prohibit_discard
+
+/* @sem PlayerAction::SearchLibraries */
+cause_controller_search ::= "search" "their" "library"
+
+source_definition_colors ::= cross_colors | source_definition_colorless
+
+/* @sem Change::[Colors{mode:Set, colors:[]}] */
+source_definition_colorless ::= "colorless"
+
+/* A plural population perpetually acquires an independently scoped ability. */
+/* @sem Operation::CreatePerpetualEffect{objects:$affected, changes:[GrantAbility(@scope($perpetual_quoted_event_trigger))]} */
+perpetual_population_quoted_trigger ::= affected "perpetually" "gain" '"' perpetual_quoted_event_trigger '"'
+
+/* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$perpetual_quoted_event_program} */
+perpetual_quoted_event_trigger ::= event_clause "," perpetual_quoted_event_program "."
+
+/* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$perpetual_population_quoted_trigger}]}} */
+triggered_perpetual_population_quote ::= event_clause "," perpetual_population_quoted_trigger
+
+/* A timed source animation composes with other instructions. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_explicit_ref)), changes:$artifact_keyword_animation, duration:$duration, evaluation:Snapshot} */
+source_timed_keyword_animation ::= duration "," self_explicit_ref artifact_keyword_animation
+
+/* A choice to animate the source includes its conditional subtype loss in the
+   same continuous effect. The subject and its later pronoun are the source. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$self_animation_with_loss}]}}] */
+optional_self_animation ::= "you" "may" "have" self_animation_with_loss
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_explicit_ref)), changes:[...$animation_with, ...$animation_equipment_loss], duration:Indefinite, evaluation:Snapshot} */
+self_animation_with_loss ::= self_explicit_ref "become" animation_with "." "if" "you" "do" "," animation_equipment_loss
+
+/* @sem Change::[RemoveSubtype(Equipment)] */
+animation_equipment_loss ::= "it" "isn't" "an" "Equipment"
+
+/* A final quoted ability supplies the enclosing sentence's punctuation. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[$leading_quoted_grant], duration:$duration, evaluation:Snapshot} */
+leading_quoted_ability_grant ::= duration "," affected "gains" leading_quoted_grant
+
+leading_quoted_grant ::= preferred_damage_history_grant | grant_ability
+
+/* @prefer always */
+/* @sem Change::GrantAbility(@holder($static_damaged_cannot_regenerate)) */
+preferred_damage_history_grant ::= '"' static_damaged_cannot_regenerate '"' 
+
+/* Damage history belongs to the source named within the granted ability. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, Condition(Compare{left:EventHistory{event:Damage{source_kind:Permanent, sources:SameObject($object_ref), recipients:Objects(SameObject(Candidate)), kind:Any, grouping:SourceRecipient, subject:Recipient}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})])}), changes:[Rule(Prohibit(Regenerate))]} */
+static_damaged_cannot_regenerate ::= filter_plural "dealt" "damage" "by" object_ref "this" "turn" "can't" "be" "regenerated" "this" "turn" "."
+
+/* The enclosing reveal sequence supplies the antecedent for that card. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[CopyOf{object:Earlier{what:Revealed}, exceptions:$copy_exceptions_plain}], duration:$duration, evaluation:Snapshot} */
+copy_revealed_for_duration ::= affected "becomes" "a" "copy" "of" "that" "card" duration "," "except" copy_exceptions_plain
+
+/* The replacement belongs to the arriving object, not the grant source. */
+/* @sem Instruction::[Effect{result:@next, operation:$post_grant_move}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@prior, phase:After, index:0})), changes:[GrantAbility(@holder($post_move_replacement_ability))], duration:Indefinite, evaluation:Snapshot}}] */
+clause_post_move_quoted_replacement ::= post_grant_move "." "it" "gains" '"' post_move_replacement_ability '"'
+
+/* @sem Program::Program{instructions:[...$clause_post_move_quoted_replacement]} */
+program_sentence_post_move_quoted_replacement ::= clause_post_move_quoted_replacement
+
+post_move_replacement_ability ::= post_move_creature_replacement | graveyard_return_granted_ability
+
+/* @prefer always */
+/* @sem Ability::Replacement{active:Battlefield, event:Object{event:LeavesBattlefield, objects:SameObject(Source)}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}} */
+post_move_creature_replacement ::= "if" "this" "creature" "would" "leave" "the" "battlefield" "," "exile" "it" "instead" "of" "putting" "it" "anywhere" "else" "."
+
+/* A singular controlled population gains the written list for a duration. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, ControlledBy(One(AbilityController))])}), changes:$grants, duration:$duration, evaluation:Snapshot} */
+controlled_each_temporary_grants ::= "each" noun "you" "control" "gains" grants duration
+
+/* A duration scopes the same targeting exception for a player set and an object population. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players($permission_players), changes:[PlayerRule(TargetableDespite{sources:ControlledBy(One(AbilityController)), keyword:$permission_keyword})], duration:$targeting_permission_duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(TargetableDespite{sources:ControlledBy(One(AbilityController)), keyword:$permission_keyword})], duration:$targeting_permission_duration, evaluation:LiveObjects}}] */
+clause_timed_targeting_permission ::= targeting_permission_duration "," permission_players "and" affected permission_keyword
+
+/* @prefer always */
+/* @sem Duration::$until_end_of_turn */
+targeting_permission_end_turn ::= until_end_of_turn
+
+targeting_permission_duration ::= targeting_permission_end_turn | until_next_end_step | until_beginning_next_upkeep | duration_die_roll_earliest | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | until_end_of_next_upkeep | until_next_upkeep | while_you_control | while_on_battlefield | until_player_planeswalks | while_you_control_and_tapped
+
+/* The excluded object and controller both refer to the last announced target. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Target{slot:@last_slot, index:0})), $noun, ControlledBy(One(ControllerOf(Target{slot:@last_slot, index:0})))])} */
+other_target_controller_population ::= "each" "other" noun "that" "player" "controls"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($other_target_controller_population), changes:$singular_pump, duration:$duration, evaluation:Snapshot} */
+other_target_controller_snapshot ::= other_target_controller_population singular_pump duration
+
+/* A counted bonus for a qualified controlled creature population. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$adjective, CardType(Creature), ControlledBy(One(AbilityController))])}), changes:[Pump{power:$value, toughness:$signed}], duration:$duration, evaluation:Snapshot} */
+controlled_creature_counted_pump ::= adjective "creatures" "you" "control" "get" "+" "X" "/" signed duration "," "where" "X" "is" value
+
+/* Snapshot pumps over explicitly named battlefield populations. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot} */
+shared_all_population_pump ::= "all" filter_plural "get" signed "/" signed duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(OpponentsOf(AbilityController))])}), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot} */
+shared_only_opponents_population_pump ::= "only" filter_plural "your" "opponents" "control" "get" signed "/" signed duration
+
+/* A word-replacement choice also forms a complete spell on its own. */
+/* @sem Ability::Spell{announcement:_{modes:$word_replacement_choice}, body:Program{}} */
+spell_word_replacement_choice ::= word_replacement_choice "."
+
+/* @sem ObjectSet::One($that_noun) */
+shared_rule_anaphor ::= that_noun
+
+/* Plural artifact animation retains the object's existing card types. */
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, AddCardType(Artifact), AddCardType(Creature)] */
+plural_artifact_creature_animation ::= "become" value "/" value "artifact" "creatures"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($any_number_controlled_noncreature_targets), changes:$plural_artifact_creature_animation, duration:Indefinite, evaluation:Snapshot} */
+controlled_targets_artifact_animation ::= any_number_controlled_noncreature_targets plural_artifact_creature_animation
+
+/* The target whose turn is named also controls the affected population. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$plural, ControlledBy(One($target_hand_owner))])}), changes:$next_turn_plural_combat, duration:DuringNextTurn($target_hand_owner), evaluation:LiveObjects} */
+next_turn_controlled_combat ::= "during" target_hand_owner "next" "turn" "," plural "that" "player" "controls" next_turn_plural_combat "if" "able"
+
+/* @sem Change::[Rule(RequireCombat{action:Attack(Players(One(AbilityController))), amount:AtLeast(Constant(1))})] */
+next_turn_attack_you ::= "attack" "you"
+
+/* @sem Change::[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))})] */
+next_turn_attack ::= "attack"
+
+next_turn_plural_combat ::= next_turn_attack_you | next_turn_attack
+
+/* The shared target receives two separately created temporary effects. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:[GrantKeyword($keyword_value)], duration:$duration, evaluation:Snapshot}}] */
+clause_control_and_grant_separate ::= duration "," "gain" "control" "of" target_object "and" "it" "gains" keyword_value
+
+/* The counter and grant refer to the same explicitly chosen controlled permanent. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, ControlledBy(One(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Result{result:@marked, phase:After, index:0})), kind:$counter_kind, amount:Constant(1)}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@marked, phase:After, index:0})), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot}}]} */
+program_sentence_chosen_counter_grant ::= "put" "a" counter_kind "counter" "on" "a" noun "you" "control" "." "it" "gains" keyword_name duration "."

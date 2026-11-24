@@ -31,7 +31,7 @@ mana_clause_restricted ::= mana_clause "." mana_spending
 
 /* Mana that triggers when it's spent on a spell: the trigger is the mana's own
    restriction, and the rest of the ability is its body. */
-instructions_mana_spent_trigger ::= instructions_mana_spent_active | instructions_mana_spent_passive
+instructions_mana_spent_trigger ::= instructions_mana_spent_active | instructions_mana_spent_passive | instructions_mana_spent_passive_program
 
 mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists | mana_persists_combat | mana_spend_only_countered | mana_spent_gives_riot | mana_spent_gives_uncounterable | mana_spend_x_cost | mana_spent_on_changes | mana_spent_counter
 /* @sem $mana_use */
@@ -674,3 +674,25 @@ mana_filtered_spells_value_or_x ::= filter_phrase "spells" "with" "mana" "value"
 /* Snow mana spent on the referenced spell determines the number of productions. */
 /* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:ManaSpent{object:$object_ref, filter:_{snow:true}, aggregation:Count}, production:$mana_production, choice:Once}} */
 mana_add_per_snow_spent ::= "add" mana_production "for" "each" "{" "S" "}" "spent" "to" "cast" object_ref
+
+/* A defined total supplies each independently chosen colored mana unit. */
+/* @sem ManaProduction::Repeat{amount:Aggregate{objects:$mana_total_population, property:$creature_stat, aggregation:Sum}, production:ChooseOne([Amount{color:White, amount:Constant(1)}, Amount{color:Blue, amount:Constant(1)}, Amount{color:Black, amount:Constant(1)}, Amount{color:Red, amount:Constant(1)}, Amount{color:Green, amount:Constant(1)}]), choice:EachUnit} */
+mana_combination_total ::= "X" "mana" "in" "any" "combination" "of" "colors" "," "where" "X" "is" "the" "total" creature_stat "of" mana_total_population
+
+/* Both restrictions qualify the same production. */
+/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_combination_total, restriction:All([$mana_spend_only, $mana_persists])}}] */
+mana_combination_total_restricted ::= "add" mana_combination_total "." mana_spend_only "." mana_persists
+
+/* Prefer the plural population when spelling an attacking total. */
+mana_total_population ::= mana_total_attacking | affected
+
+/* @prefer always */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Attacking, $attacking_type_plural])} */
+mana_total_attacking ::= "attacking" attacking_type_plural
+
+/* The event body is independent of the mana production and spell filter. */
+/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:WhenSpent{spells:$spent_qualified_spell, body:Program($program)}}}] */
+instructions_mana_spent_passive_program ::= "add" mana_production "." "when" "that" "mana" "is" "spent" "to" "cast" spent_qualified_spell "," program
+
+/* @sem @and($spell_post_base, $spell_shares_commander_type) */
+spent_qualified_spell ::= spell_post_base spell_shares_commander_type

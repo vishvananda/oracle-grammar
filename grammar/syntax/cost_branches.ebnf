@@ -529,3 +529,26 @@ return_duplicate_target ::= return_duplicate_qualified_target | target_permanent
 /* @prefer always */
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($adjective_nontoken, $adjective_nontype)}), index:0} */
 return_duplicate_qualified_target ::= "target" adjective_nontoken "," adjective_nontype "permanent"
+
+/* A bracketed target quality is removed when cleave is paid; the action and
+   target kind remain the same in both independently announced spell branches. */
+/* @sem Ability::CostBranch{keyword:Cleave, cost:$cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun_atomic}), index:0}), regeneration:true}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($quality_unscoped, $noun_atomic)}), index:0}), regeneration:true}}]}})} */
+spell_cleave_destroy_qualified_target ::= "cleave" cost NEWLINE "destroy" "target" "[" quality_unscoped "]" noun_atomic "."
+
+/* Cleaving a qualifier changes only the filter on the same destroyed population. */
+/* @sem Ability::CostBranch{keyword:Cleave, cost:$cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, regeneration:true}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, $modifier_mana_value_bound)}, regeneration:true}}]}})} */
+spell_cleave_destroy_qualified_population ::= "cleave" cost NEWLINE "destroy" "all" filter_plural "[" modifier_mana_value_bound "]" "."
+
+/* The two typed costs prove that the condition names the singleton input
+   of the same behold payment. */
+/* @sem Ability::CostBranch{keyword:AdditionalCost, cost:@agree($behold_branch_header, $beheld_branch_test), paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[...$instructions, Effect{result:@next, operation:$beheld_perpetual_pump}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:$instructions}})} */
+spell_behold_perpetual_branch ::= behold_branch_header NEWLINE instructions "." beheld_branch_test "," beheld_perpetual_pump "."
+
+/* @sem Cost::Cost{parts:[$cost_behold]} */
+behold_branch_header ::= optional_cost_opening cost_behold "."
+
+/* @sem Cost::Cost{parts:[Behold{count:Constant(1), what:$behold_kind}]} */
+beheld_branch_test ::= "if" ("a" | "an") behold_kind "was" "beheld"
+
+/* @sem Operation::CreatePerpetualEffect{objects:One(Query{objects:CostObjects{payment:Branch, component:[0], view:Inputs, phase:Before}, index:0}), changes:[Pump{power:$signed, toughness:$signed_2}]} */
+beheld_perpetual_pump ::= "it" "perpetually" "gets" signed "/" signed

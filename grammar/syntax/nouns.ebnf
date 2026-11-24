@@ -5080,3 +5080,19 @@ modifier_draft_noted_name ::= "with" "a" "name" "you" "noted" "for" "cards" "nam
 /* Each player supplies their own bounded target group. */
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:PerPlayer{players:All, each:UpTo($number)}, filter:AllOf([Not(SameObject(Source)), AnyOf([$noun, $noun_2])])})) */
 per_player_other_union_targets ::= "up" "to" number "other" "target" noun "or" noun "that" "player" "controls"
+
+/* A bounded graveyard target carries its type and exact mana value. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:@in_filter($value)}}, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0} */
+receipt_graveyard_target ::= "up" "to" "one" "target" card_filter "card" "with" "mana" "value" value "from" "your" "graveyard"
+
+/* A population controlled by the next player, relative to the enclosing loop. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([ControlledBy(One(InChosenDirection{from:Bound(0)})), $filter_plural, Not(SameObject($object_ref))])} */
+neighbor_control_population_except ::= "all" filter_plural "other" "than" object_ref "controlled" "by" "the" "next" "player" "in" "the" "chosen" "direction"
+
+/* The comparison refers to the event subject, including its last-known value. */
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:Less, value:ObjectProperty{object:EventSubject, property:ManaValue, information:CurrentOrLastKnown}}} */
+graveyard_card_lesser_event_mana ::= "with" "lesser" "mana" "value"
+
+/* An arbitrary number of controlled noncreature permanents of a stated kind. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:AnyNumber, filter:AllOf([Not(CardType(Creature)), $plural, ControlledBy(One(AbilityController))])})) */
+any_number_controlled_noncreature_targets ::= "any" "number" "of" "target" "noncreature" plural "you" "control"

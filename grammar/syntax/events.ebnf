@@ -328,6 +328,7 @@ event_damage_object ::= event_object "deals" "damage" "to" ("a" | "an") filter_p
 /* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$event_singular_subject, recipients:Any, kind:Any, grouping:Source, subject:Source}) */
 event_damage ::= event_singular_subject "deals" "damage"
 
+/* @prefer always */
 /* @sem EventSpec::@either_event(EventSpec::ZoneChange{objects:SameObject(ObjectRef::Source), to:Battlefield}, EventSpec::ZoneChange{objects:$event_another, to:Battlefield}) */
 event_self_or_enters ::= self_text "or" event_another "enters"
 
@@ -3815,7 +3816,7 @@ shared_pair_event_clauses ::= event_clause "and" "whenever" event_you_draw_ordin
 /* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$receipt_followup_program} */
 triggered_receipt_followup ::= event_clause "," receipt_followup_program
 
-receipt_followup_program ::= optional_mill_receipt_return_program | returned_target_perpetual_program | each_graveyard_exile_reflexive_program | named_exile_search_permission_program | exile_card_suspend_program | hand_exile_draw_play_program | face_down_exile_look_play_program | optional_exile_copy_quoted_program | returned_target_cast_grant_it
+receipt_followup_program ::= tap_selected_receipt_pump_program | optional_mill_receipt_return_program | returned_target_perpetual_program | each_graveyard_exile_reflexive_program | named_exile_search_permission_program | exile_card_suspend_program | hand_exile_draw_play_program | face_down_exile_look_play_program | optional_exile_copy_quoted_program | returned_target_cast_grant_it
 
 /* A card entering its owner’s graveyard from that owner’s library. */
 /* @sem EventSpec::ZoneChange{objects:AllOf([$library_to_graveyard_card_type, OwnedBy(One(AbilityController))]), from:Library, to:Graveyard} */
@@ -8010,3 +8011,21 @@ cast_spell_described_an ::= "an" spell_adjectives "spell" cast_spell_three_mana_
 /* Compose an event with the draft and its receipt-bound perpetual grants. */
 /* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:Program{instructions:$instructions_draft_cast_grants}} */
 triggered_draft_cast_grants ::= event_clause "," instructions_draft_cast_grants
+
+/* The commander remains the ability controller’s owned commander, regardless of who casts the spell. */
+/* @sem ObjectFilter::SharesWithAny{property:CreatureTypes, with:AnyZone(AllOf([State(Commander), OwnedBy(One(AbilityController))]))} */
+spell_shares_commander_type ::= "that" "shares" "a" "creature" "type" "with" "your" "commander"
+
+/* A batch of other controlled entrants can match any of four subtypes. */
+/* @sem ObjectFilter::AnyOf([$plural_subtype_word, $plural_subtype_word_2, $plural_subtype_word_3, $plural_subtype_word_4]) */
+four_plural_subtypes_and_or ::= plural_subtype_word "," plural_subtype_word "," plural_subtype_word "," "and" "/" "or" plural_subtype_word
+
+/* @sem EventSpec::Batch{event:ZoneChange{objects:AllOf([Not(SameObject(Source)), $four_plural_subtypes_and_or, ControlledBy(One(AbilityController))]), to:Battlefield}, per:Whole} */
+whenever_other_four_subtypes_enter ::= "whenever" "one" "or" "more" "other" four_plural_subtypes_and_or "you" "control" "enter"
+
+/* The anaphoric condition is scoped to the opponent whose turn began. */
+/* @sem Ability::Triggered{event:$opponents_turn_event, intervening_if:$opponent_turn_cast_threshold, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence} */
+opponent_turn_cast_threshold_trigger ::= "at" opponents_turn_event "," "if" opponent_turn_cast_threshold "," program_sentence
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$operation_optional_duplicate_program} */
+triggered_optional_duplicate_program ::= event_clause "," operation_optional_duplicate_program
