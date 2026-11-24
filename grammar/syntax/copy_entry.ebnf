@@ -5,8 +5,7 @@ entry_copy_ability ::= "you" "may" "have" self_explicit_ref "enter" "as" entry_c
 /* Both changes belong to one optional entry replacement. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:$entry_copy_tapped_actions}}]}}) */
 entry_copy_tapped_ability ::= "you" "may" "have" self_explicit_ref "enter" entry_copy_tapped_actions
-/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_battlefield_explicit, exceptions:[]})}}, Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}] */
-entry_copy_tapped_actions ::= "tapped" "as" "a" "copy" "of" entry_copy_battlefield_explicit "."
+entry_copy_tapped_actions ::= entry_copy_tapped_plain | entry_copy_tapped_except
 entry_copy_objects ::= entry_copy_battlefield | entry_copy_graveyard_any | entry_copy_graveyard_arrived | entry_copy_exile_counter | entry_copy_your_graveyard_from_library
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_choice} */
 entry_copy_battlefield ::= entry_copy_choice
@@ -50,7 +49,7 @@ copy_exception_plain_then_quote ::= copy_exception_plain "and" copy_exceptions_c
 /* @sem Vec<CopyException>::[$copy_granted_sentence, ...$copy_exceptions_closed] */
 copy_exception_quote_more ::= copy_granted_sentence ("↓")? "and" copy_exceptions_closed
 
-copy_exception_plain ::= copy_remove_current | copy_add_legendary_retained | copy_add_legendary | copy_self_name | copy_named_name | copy_add_creature_type | copy_keyword_ability | copy_remove_legendary | token_copy_add_artifact | copy_has_current | copy_token_keyword | copy_add_creature_type_explicit | copy_add_legendary_snow_retained
+copy_exception_plain ::= copy_add_enchantment_type | copy_remove_current | copy_add_legendary_retained | copy_add_legendary | copy_self_name | copy_named_name | copy_add_creature_type | copy_keyword_ability | copy_remove_legendary | token_copy_add_artifact | copy_has_current | copy_token_keyword | copy_add_creature_type_explicit | copy_add_legendary_snow_retained
 
 /* @sem CopyException::AddCreatureTypes($becomes_types) */
 copy_add_creature_type ::= "it's" ("a" | "an") becomes_types "in" "addition" "to" "its" "other" "types"
@@ -381,10 +380,12 @@ instructions_then_optional_hand_exile_copy ::= clause "." "then" instructions_op
 copy_creature_stats_color_keyword ::= "it's" "a" value "/" value token_colors token_subtypes "creature" "with" keyword_value
 
 /* The copied permanent keeps its types while gaining the stated card type. */
+/* @prefer always */
 /* @sem Vec<CopyException>::[CopyException::AddCardTypes([$only_card_type])] */
 entry_copy_add_card_type_tail ::= "," "except" "it's" only_card_type "in" "addition" "to" "its" "other" "types" "."
 
 /* An explicit battlefield choice composes with the retained type. */
+/* @prefer always */
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_any}, exceptions:$entry_copy_add_card_type_tail})}}] */
 entry_copy_added_type_actions ::= "a" "copy" "of" entry_copy_any entry_copy_add_card_type_tail
 
@@ -437,3 +438,14 @@ entry_copy_holder_stat_actions ::= "a" "copy" "of" entry_copy_battlefield_explic
 /* Independent copy exceptions retain both the creature subtype and card types. */
 /* @sem Vec<CopyException>::[CopyException::RemoveSupertypes([Legendary]), CopyException::AddCreatureTypes($becomes_types), CopyException::AddCardTypes([Artifact, Creature])] */
 copy_nonlegendary_artifact_subtype ::= "it's" "not" "legendary" "and" "it's" "a" becomes_types "artifact" "creature" "in" "addition" "to" "its" "other" "types"
+
+/* A copied object retains its other card types. */
+/* @sem CopyException::AddCardTypes([Enchantment]) */
+copy_add_enchantment_type ::= "it's" "an" "enchantment" "in" "addition" "to" "its" "other" "types"
+
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_battlefield_explicit, exceptions:[]})}}, Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}] */
+entry_copy_tapped_plain ::= "tapped" "as" "a" "copy" "of" entry_copy_battlefield_explicit "."
+
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_battlefield_explicit, exceptions:$copy_exceptions_sentence})}}, Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}] */
+entry_copy_tapped_except ::= "tapped" "as" "a" "copy" "of" entry_copy_battlefield_explicit "," "except" copy_exceptions_sentence

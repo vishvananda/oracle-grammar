@@ -51,7 +51,7 @@ conditional_creation_operation ::= create_base | create_tapped_base | create_att
 conditional_token_followups_one ::= conditional_token_followup
 /* @sem Instruction::[$conditional_token_followup, ...$conditional_token_followups] */
 conditional_token_followups_more ::= conditional_token_followup "." conditional_token_followups
-conditional_token_followups ::= conditional_token_grant_sacrifice | conditional_token_grant_exile | conditional_token_followups_one | conditional_token_followups_more
+conditional_token_followups ::= conditional_token_gains_exile | conditional_token_grant_sacrifice | conditional_token_grant_exile | conditional_token_followups_one | conditional_token_followups_more
 
 conditional_token_followup ::= conditional_token_change | conditional_token_grant | conditional_token_cleanup
 
@@ -2090,3 +2090,48 @@ explicit_token_ravage ::= "Ravage"
 
 /* @sem TokenName::Explicit(Laserbeak) */
 explicit_token_laserbeak ::= "Laserbeak"
+
+/* Both followups refer to the immediately created token's receipt. */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($created_ordinary_singular), changes:$grants, duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:$created_ordinary_singular_2, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}] */
+conditional_token_gains_exile ::= created_ordinary_singular "gains" grants "." "exile" created_ordinary_singular "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* A copy's replacement characteristics and keyword retain independent operands. */
+/* @sem Vec<CopyException>::[...$copy_token_characteristics, CopyException::AddAbilities([Keyword($keyword_value)])] */
+copy_characteristics_with_keyword ::= copy_token_characteristics "with" keyword_value
+
+/* Copy creation retains the copied object and its replacement characteristics. */
+/* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:$copy_characteristics_with_keyword}} */
+attacking_copy_characteristics_spec ::= counter_amount "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" object_ref "," "except" copy_characteristics_with_keyword
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[$attacking_copy_characteristics_spec], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_attacking_copy_with_characteristics ::= "create" attacking_copy_characteristics_spec
+
+/* The created permanent must have the named subtype. */
+/* @sem Instruction::[Effect{result:@next, operation:PutCountersEach{amount:$created_plural_counter_number, kind:Named(LoreCounter), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([InSet($created_ordinary_singular), Subtype(Saga)])}, up_to:true}}] */
+clause_created_if_subtype_counters ::= "if" "it's" "a" "Saga" "," "put" "up" "to" created_plural_counter_number "lore" "counters" "on" created_ordinary_singular
+
+/* The delayed sacrifice keeps the token receipt and the controller's end step. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:One(AbilityController)}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:$created_ordinary_singular}}]}}}] */
+clause_created_sacrifice_your_next_end ::= "sacrifice" created_ordinary_singular "at" "the" "beginning" "of" "your" "next" "end" "step"
+
+created_plural_counter_number ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n11 | n12 | n13 | n14 | n15 | n20 | n30 | number_hundred
+
+/* An exile selection and its successful payment govern both token creation and
+   the following sentence about the created token. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$cost_exile_permanent]}, optional:false}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[$conditional_token_creation, ...$conditional_token_followups]}, otherwise:Program{}}] */
+clause_exile_payment_token_followups ::= cost_exile_permanent "." "if" "you" "do" "," conditional_token_creation "." conditional_token_followups
+
+/* Bind the destruction and its counted Before receipt in both directions. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$destroy}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Matching{objects:Transition{result:@marked, phase:Before}, filter:$prior_controlled_nontoken_filter}), words:CreatingEffect, recipe:$singular_counted_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}} */
+spell_destroy_prior_controlled_tokens ::= destroy "." NEWLINE? "then" "create" "a" singular_counted_token_recipe "for" "each" prior_controlled_nontoken_filter "that" "was" "destroyed" "this" "way" "."
+
+/* The final period belongs to the quoted ability; its holder is the token. */
+/* @sem TokenRecipe::@token_abilities($token_recipe_base, $chapter_quoted_token_abilities) */
+token_recipe_final_quote ::= token_recipe_base "with" chapter_quoted_token_abilities
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountPlayers($players_singular), words:CreatingEffect, recipe:$token_recipe_final_quote}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+clause_per_player_quoted_token ::= "for" players_singular "," "you" "create" "a" token_recipe_final_quote
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$clause_per_player_quoted_token}} */
+spell_per_player_quoted_token ::= clause_per_player_quoted_token

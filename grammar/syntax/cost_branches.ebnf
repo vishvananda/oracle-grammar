@@ -53,8 +53,7 @@ kicker_override_both ::= instructions "." NEWLINE? kicker_override NEWLINE? inst
    sentence can still name that sentence's announced target. */
 /* @sem Instruction::[If{condition:$condition, then:Program{instructions:$kicker_replacement_clause}, otherwise:Program{instructions:$clause}}] */
 kicker_override ::= clause "." NEWLINE? "if" condition "," kicker_replacement_clause "."
-/* @sem $clause */
-kicker_replacement_clause ::= "instead" clause | clause "instead"
+kicker_replacement_clause ::= kicker_replacement_standard | kicker_replacement_counted_search
 
 /* Entwine changes how many modes are selected; each branch retains the same
    independently scoped mode programs and target announcements. */
@@ -259,6 +258,7 @@ retirement_singular_gain ::= "gains" grants
 
 /* A promised gift is fixed at casting time. The repeated source denotes
    the same object in both sentences. */
+/* @prefer always */
 /* @sem Program::Program{instructions:[If{condition:$condition_gift_promised, then:Program{instructions:[Effect{result:@next, operation:DealDamageParts{source:Source, parts:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), amount:$number}, _{recipients:Players(One(ControllerOf(Target{slot:@last_slot, index:0}))), amount:$number_2}], preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One(Target{slot:@last_slot, index:0})), amount:$number, preventable:true}}]}}]} */
 conditional_damage_to_creature_controller ::= SELF_NAME "deals" number "damage" "to" "target" "creature" "." "if" condition_gift_promised "," SELF_NAME "also" "deals" number "damage" "to" "that" "creature's" "controller" "."
 
@@ -456,6 +456,7 @@ seek_conditional_put_tapped ::= "if" condition "," "put" current_card_ref "onto"
 seek_conditional_put_untapped ::= "if" condition "," "put" current_card_ref "onto" "the" "battlefield"
 
 /* Both parts are one damage event in the paid branch. */
+/* @prefer always */
 /* @sem Program::Program{instructions:[If{condition:$condition_cast_kicked, then:Program{instructions:[Effect{result:@next, operation:DealDamageParts{source:Source, parts:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun}), index:0})), amount:$number}, _{recipients:$recipients_player_or_walker, amount:$number_2}], preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One(Target{slot:@last_slot, index:0})), amount:$number, preventable:true}}]}}]} */
 kicker_conditional_extra_target_damage ::= SELF_NAME "deals" number "damage" "to" "target" noun "." "if" condition_cast_kicked "," "it" "also" "deals" number "damage" "to" recipients_player_or_walker "."
 
@@ -485,3 +486,10 @@ modified_sacrifice_choice ::= "sacrifice" "a" filter_head "or" "sacrifice" "a" "
 
 /* @sem Ability::CostOptions{keyword:AdditionalCostOption, options:[[_{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($modified_sacrifice_choice, $filter_head)}, choose:Exactly(Constant(1))}]}, @scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$destroy}]}})], [_{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($modified_sacrifice_choice, $filter_head), Modified])}, choose:Exactly(Constant(1))}]}, @scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$destroy}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}]}})]]} */
 spell_modified_sacrifice_choice ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," modified_sacrifice_choice "." NEWLINE destroy "." "if" "the" "modified" filter_head "was" "sacrificed" "," "draw" card_count "."
+
+/* @sem $clause */
+kicker_replacement_standard ::= "instead" clause | clause "instead"
+
+/* A replacement search keeps its own selection and follow-up episode. */
+/* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:$filter_phrase, count:UpTo($value)}]}}, ...$search_plural_follow] */
+kicker_replacement_counted_search ::= "instead" "search" "your" "library" "for" value filter_phrase "cards" search_plural_follow

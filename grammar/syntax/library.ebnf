@@ -1,7 +1,7 @@
 /* Searching and inspecting a library. */
 
 /* What was found stays the referent of `it` until the search is over. */
-clause_search ::= clause_search_reveal_split_plural_tapped_hand | clause_search_repeat_values | clause_search_player_margin_split | clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_pair_those | clause_search_reveal_branch | clause_search_reveal_named_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each | clause_search_conditional_additional | clause_search_exile_create_tokens | clause_search_keyword_graveyard | clause_search_five_choices | clause_search_then_operation | clause_search_if_found | clause_search_sacrificed_reveal | clause_random_search | clause_search_named_population | clause_search_attacking_where | clause_search_single_sentence_hand | clause_search_instead_reveal | clause_search_reveal_distinct_random | search_two_zones_exile_rest_reorder | clause_search_enchant_attached | clause_search_reveal_opponent_partition | clause_search_four_choices | clause_search_choices_reveal_hand | clause_search_more_players_split | clause_search_opponent_graveyard_hand | clause_search_reveal_value_route
+clause_search ::= clause_search_reveal_split_plural_tapped_hand | clause_search_repeat_values | clause_search_player_margin_split | clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_pair_those | clause_search_reveal_branch | clause_search_reveal_named_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each | clause_search_conditional_additional | clause_search_exile_create_tokens | clause_search_keyword_graveyard | clause_search_five_choices | clause_search_then_operation | clause_search_if_found | clause_search_sacrificed_reveal | clause_random_search | clause_search_named_population | clause_search_attacking_where | clause_search_single_sentence_hand | clause_search_instead_reveal | clause_search_reveal_distinct_random | search_two_zones_exile_rest_reorder | clause_search_enchant_attached | clause_search_reveal_opponent_partition | clause_search_four_choices | clause_search_choices_reveal_hand | clause_search_more_players_split | clause_search_opponent_graveyard_hand | clause_search_reveal_value_route | clause_search_single_cast | clause_search_each_type
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
 clause_search_general ::= search search_follow
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_plural}, ...$search_plural_follow] */
@@ -92,7 +92,7 @@ mill_take_modified ::= "a" "card" modifier
 /* What a search looks for: one find clause. */
 search_choice ::= search_choice_sacrificed_creature_name | search_choice_shared_color | search_choice_filtered | search_choice_any | search_choice_modified | search_choice_many | search_choice_many_any | search_named_one | search_named_many | search_choice_many_where | search_choice_basic_land_type | search_choice_enchant_host | search_choice_could_enchant
 /* An unrestricted plural choice composes with the ordinary search follow-ups. */
-search_choice_any_number ::= search_choice_any_number_filtered | search_choice_any_number_colorless | search_choice_prior_card_name
+search_choice_any_number ::= search_choice_any_number_filtered | search_choice_any_number_colorless | search_choice_prior_card_name | search_choice_any_number_total_mana
 
 /* The count's definition follows the cards it counts. */
 /* @sem SearchChoice::SearchChoice{filter:$search_filter_many, count:UpTo($value)} */
@@ -162,7 +162,7 @@ search_either_one ::= "and" found_action
 /* @sem Instruction::[Effect{result:@next, operation:$found_action}, Effect{result:@next, operation:$found_action_2}] */
 search_either_two ::= "," found_action "," ("and" | "then") found_action
 
-search_filter ::= search_filter_four_keywords | search_filter_permanent_kind | search_filter_subtype_list | search_filter_plain | search_filter_modified | search_filter_either | search_filter_either_bare | search_filter_distinct_controlled_name | search_filter_shared_object_name | search_filter_keyword_alternative | search_filter_basic_plains_list | search_filter_no_abilities | search_filter_mana_ceiling
+search_filter ::= search_filter_four_keywords | search_filter_permanent_kind | search_filter_subtype_list | search_filter_plain | search_filter_modified | search_filter_either | search_filter_either_bare | search_filter_distinct_controlled_name | search_filter_shared_object_name | search_filter_keyword_alternative | search_filter_basic_plains_list | search_filter_no_abilities | search_filter_mana_ceiling | search_filter_three_repeated
 
 /* "A basic land card or a Desert card": either kind, each with its own noun. */
 /* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
@@ -316,8 +316,8 @@ rest_other_bottom ::= "the" "other" "on" "the" "bottom" "of" "your" "library"
 
 look_rest ::= rest_bottom | rest_other_bottom | rest_graveyard | rest_top
 
-/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($look_hand_count), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Instruction::Effect{result:@next, operation:$look_rest}] */
-look_put_split ::= "put" look_hand_count "into" "your" "hand" "and" look_rest
+/* @sem Instruction::[...$look_put_hand, Instruction::Effect{result:@next, operation:$look_rest}] */
+look_put_split ::= look_put_hand "and" look_rest
 
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$look_top}, ...$look_put_split] */
 instructions_look_put ::= ("you")? look_top "." look_put_split
@@ -337,7 +337,7 @@ look_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
 /* Looking at or revealing the top of your library, taking some of those cards and
    putting the rest away. The take chooses from the observed cards still in the
    library; the rest excludes what the move took. Later sentences follow the block. */
-instructions_dig ::= dig_conditional_reveal_selection | reveal_until_stat_reorder | grouped_reveal_opponent_partition | reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split | dig_reveal_required_hand_miss | sacrifice_count_reveal_partition | target_player_look_graveyard | foreign_look_graveyard_partition | dig_reveal_hand_graveyard_if | look_defined_take_shuffle | reveal_selected_hand | reveal_alternating_partition | reveal_alternating_rest_partition | reveal_until_all_observed | instructions_player_reveal_test_move | instructions_may_reveal_shuffle | dig_hand_grave_max_life | observed_exile_face_piles_group | instructions_exile_until_count_entry | shared_optional_payment_if_done | shared_reveal_until_entry_graveyard | instructions_player_reveal_choose_rest | exile_until_cast_value_otherwise_hand | look_hand_library_population_more | look_hand_library_population | player_reveal_entry_value_remainder
+instructions_dig ::= dig_conditional_reveal_selection | reveal_until_stat_reorder | grouped_reveal_opponent_partition | reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split | dig_reveal_required_hand_miss | sacrifice_count_reveal_partition | target_player_look_graveyard | foreign_look_graveyard_partition | dig_reveal_hand_graveyard_if | look_defined_take_shuffle | reveal_selected_hand | reveal_alternating_partition | reveal_alternating_rest_partition | reveal_until_all_observed | instructions_player_reveal_test_move | instructions_may_reveal_shuffle | dig_hand_grave_max_life | observed_exile_face_piles_group | instructions_exile_until_count_entry | shared_optional_payment_if_done | shared_reveal_until_entry_graveyard | instructions_player_reveal_choose_rest | exile_until_cast_value_otherwise_hand | look_hand_library_population_more | look_hand_library_population | player_reveal_entry_value_remainder | look_put_more
 
 /* A graveyard split may precede an independent instruction. */
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_hand_graveyard_split, ...$instructions] */
@@ -359,7 +359,7 @@ dig_block_untaken ::= dig_look_split "." dig_untaken_if
 /* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Union([Transition{result:@back(2), phase:Before}])), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
 dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
 
-dig_block ::= dig_look_choice_entry_graveyard | reveal_cast_types_partition | reveal_until_optional_entry_shuffle | dig_reveal_shared_split | reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter | dig_look_cloak | dig_look_plot | dig_defined_reveal_cast | dig_reveal_all_hand | reveal_until_entry_or_hand_remainder | dig_reveal_selected_split | dig_look_payment_partition | dig_reveal_distinct_choice | dig_look_conditional_choice | dig_look_entry_duplicate
+dig_block ::= dig_look_choice_entry_graveyard | reveal_cast_types_partition | reveal_until_optional_entry_shuffle | dig_reveal_shared_split | reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter | dig_look_cloak | dig_look_plot | dig_defined_reveal_cast | dig_reveal_all_hand | reveal_until_entry_or_hand_remainder | dig_reveal_selected_split | dig_look_payment_partition | dig_reveal_distinct_choice | dig_look_conditional_choice | dig_look_entry_duplicate | dig_look_hand_exile
 
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_split] */
 dig_look_split ::= look_top "." dig_follow_split
@@ -790,7 +790,7 @@ named_search_upto ::= "up" "to" number
 named_search_any ::= "any" "number" "of"
 
 /* Card targets keep their graveyard domain, quantity and owner restrictions. */
-graveyard_target_cards ::= graveyard_modified_any_many | graveyard_distinct_values_many | graveyard_typed_modified_many | graveyard_budget_one | graveyard_budget_many | graveyard_any_one | graveyard_any_many | graveyard_typed_one | graveyard_typed_many
+graveyard_target_cards ::= graveyard_different_names_typed_many | graveyard_modified_any_many | graveyard_distinct_values_many | graveyard_typed_modified_many | graveyard_budget_one | graveyard_budget_many | graveyard_any_one | graveyard_any_many | graveyard_typed_one | graveyard_typed_many
     | graveyard_common_any_one | graveyard_common_any_many | graveyard_common_typed_one | graveyard_common_typed_many
     | graveyard_target_owner_one | graveyard_target_owner_typed_one
 
@@ -1083,8 +1083,9 @@ then_players_shuffle ::= "then" players_singular "shuffles"
 /* The where clause owns the observed program, including later X selections.
    Bind a repeated value before looking, while preserving the look mark and
    every selection and move receipt. */
-/* @sem @where(Program::Program{instructions:[Effect{result:@mark, operation:$look_top}, ...$look_where_follow]}, $value) */
-program_look_where ::= ("you")? look_top "," "where" "X" "is" value "." look_where_follow
+/* The definition is scoped to this look, leaving other uses of values unchanged. */
+/* @sem @where(Program::Program{instructions:[Effect{result:@mark, operation:$look_top}, ...$look_where_follow]}, $look_where_value) */
+program_look_where ::= ("you")? look_top "," "where" "X" "is" look_where_value "." look_where_follow
 
 look_where_follow ::= look_put_split | dig_follow | look_cast_split | look_top_split | look_top_condition_split | look_exile_cast_split
 
@@ -3901,8 +3902,8 @@ seek_mana_value_greater ::= "greater" "than" live_card_count_value
 live_card_count_value ::= "the" "number" "of" card_population_plain
 
 /* The optional reveal and its conditional move share the same top-card query. */
-/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:_{instructions:[If{condition:Compare{left:CountObjects(Matching{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:_{}}]}, otherwise:_{}}] */
-instructions_optional_top_reveal_move ::= "you" "may" "reveal" "the" "top" "card" "of" "your" "library" "." "if" top_reveal_quality "is" "revealed" "this" "way" "," "put" "it" "onto" "the" "battlefield" "tapped"
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:_{instructions:[If{condition:Compare{left:CountObjects(Matching{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:$optional_reveal_destination, qualifiers:[]}}]}, otherwise:_{}}]}, otherwise:_{}}] */
+instructions_optional_top_reveal_move ::= "you" "may" "reveal" "the" "top" "card" "of" "your" "library" "." "if" top_reveal_quality "is" "revealed" "this" "way" "," "put" "it" optional_reveal_destination
 
 /* One revealed card can satisfy any of the independently named alternatives. */
 reveal_until_card ::= reveal_until_single_card | reveal_until_companion_card_union | reveal_until_shared_creature_type | reveal_until_shared_creature_type_an
@@ -7221,3 +7222,137 @@ instructions_player_exile_until_free_cast ::= player_ref "exiles" "cards" "from"
    your control preserves both the library owner and your entry control. */
 /* @sem Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($zone_that_player)}, kind:Card, filter:Any}, count:$card_count, from:Top}, destination:Battlefield{controller:Player(AbilityController), arrival:$milled_face_down_arrival}, qualifiers:[]} */
 put_top_player_library_face_down ::= "put" "the" "top" card_count "of" zone_that_player "library" "onto" "the" "battlefield" milled_face_down_arrival
+
+look_where_value ::= value | look_where_creature_types
+
+/* @sem Expr::CountDistinct{objects:$affected, property:CreatureTypes} */
+look_where_creature_types ::= "the" "number" "of" "creature" "types" "among" affected
+
+/* A single library search supplies the card cast before its controller shuffles. */
+/* @sem Instruction::[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Selected(@marked), count:Exactly(Constant(1)), terms:_{cost:Free}}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+search_cast_selected_then_shuffle ::= "and" "cast" "that" "card" "without" "paying" "its" "mana" "cost" "." "then" "shuffle"
+
+/* @sem Instruction::[Effect{result:@mark, operation:$search_single_library}, ...$search_cast_selected_then_shuffle] */
+clause_search_single_cast ::= search_single_library search_cast_selected_then_shuffle
+
+/* Shuffle private zones and owned permanents as one action. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Union([Zone{scope:Players{zone:$your_zone, players:One(AbilityController)}, kind:Card, filter:Any}, Zone{scope:Players{zone:$your_zone_2, players:One(AbilityController)}, kind:Card, filter:Any}, Zone{scope:Shared(Battlefield), kind:Permanent, filter:OwnedBy(One(AbilityController))}]), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+clause_shuffle_own_zones_and_permanents ::= "shuffle" your_zone "," your_zone "," "and" "all" "permanents" "you" "own" "into" "your" "library"
+
+/* A required selection from an observed library slice, retaining the move's
+   before receipt when the remainder goes to exile. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($number), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+observed_number_hand_bare ::= "put" number "into" "your" "hand"
+
+/* @sem Instruction::Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}} */
+observed_hand_rest_exile ::= "and" "exile" "the" "rest"
+
+/* This operation is scoped by the activation below: component 2 is the
+   unique singleton creature sacrifice, including during inverse printing. */
+/* @sem Operation::Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[2], view:Inputs, phase:Before}, index:0}, property:$receipt_stat, information:CurrentOrLastKnown}, from:Top}} */
+reveal_activation_sacrifice_stat ::= "reveal" "a" "number" "of" "cards" "from" "the" "top" "of" "your" "library" "equal" "to" "the" "sacrificed" "creature's" receipt_stat
+
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_activation_sacrifice_stat}, ...$observed_number_hand_bare, $observed_hand_rest_exile] */
+activation_sacrifice_reveal_partition ::= reveal_activation_sacrifice_stat "." observed_number_hand_bare observed_hand_rest_exile
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $cost_tap, $cost_single_creature_sacrifice]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$activation_sacrifice_reveal_partition}} */
+activated_sacrifice_reveal_partition ::= cost_mana "," cost_tap "," "↑" cost_single_creature_sacrifice ":" activation_sacrifice_reveal_partition "."
+
+/* The observation, chosen hand movement, and its remaining library cards share one scope. */
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top_spelled_count}, ...$look_choose_them_hand, $look_rest_exile_and] */
+dig_look_hand_exile ::= look_top_spelled_count "," look_choose_them_hand "," look_rest_exile_and
+
+/* @sem Instruction::Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}} */
+look_rest_exile_and ::= "and" "exile" "the" "rest"
+
+/* @prefer always */
+/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}} */
+optional_reveal_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
+
+/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
+optional_reveal_hand ::= "into" "your" "hand"
+
+optional_reveal_destination ::= optional_reveal_battlefield_tapped | optional_reveal_hand
+
+/* The observation belongs to the revealed hand card, while the following
+   search actions keep the search selection as their referent. */
+/* @sem Instruction::[Effect{result:@next, operation:RevealFromHand{actor:One(AbilityController), cards:$a_card, count:Constant(1)}}, Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:SharesNameWithAny(Observed(@prior)), count:UpTo(Constant(1))}]}}, ...$search_follow] */
+reveal_hand_same_name_search ::= "reveal" a_card "from" "your" "hand" "." "search" "your" "library" "for" "a" "card" "with" "the" "same" "name" "as" "that" "card" search_follow
+
+/* A postposed condition replaces the entire preceding instruction sequence. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition, then:Program{instructions:$replacement_search}, otherwise:Program{instructions:$reveal_hand_same_name_search}}]}} */
+spell_reveal_search_instead ::= reveal_hand_same_name_search "." NEWLINE "if" condition "," "instead" replacement_search "."
+
+replacement_search ::= clause_search_general | replacement_counted_search
+
+/* @sem Instruction::[Effect{result:@mark, operation:$search_counted}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+replacement_counted_search ::= search_counted "," "put" "them" "into" "your" "hand" "," "then" "shuffle"
+
+/* Keep the reveal, battlefield move and randomized remainder together: the
+   remainder excludes the actual movement receipt, not a fresh filter query. */
+/* @sem Instruction::[Effect{result:@next, operation:$reveal_top}, Effect{result:@next, operation:Move{objects:Matching{objects:InZone{objects:Observed(@prior), zone:Library}, filter:CardType(Land)}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@back(3)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:Random}}] */
+reveal_lands_tapped_remainder ::= reveal_top "." "put" "all" "land" "cards" "from" "among" "them" "onto" "the" "battlefield" "tapped" "and" "the" "rest" "on" "the" "bottom" "of" "your" "library" "in" "a" "random" "order"
+
+/* The follow-up refers to the battlefield arrivals of that exact move. */
+/* @sem Condition::Compare{left:CountObjects(Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AnyOf([$card_word, $card_word_2])}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}} */
+condition_revealed_lands_graveyard ::= "there" "are" count "or" "more" card_word "and" "/" "or" card_word "cards" "in" "your" "graveyard"
+
+/* @prefer always */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$reveal_lands_tapped_remainder, If{condition:$condition_revealed_lands_graveyard, then:Program{instructions:[Effect{result:@next, operation:SetTapped{objects:Transition{result:@back(3), phase:After}, tapped:false}}]}, otherwise:Program{}}]}} */
+spell_revealed_lands_untap ::= reveal_lands_tapped_remainder "." NEWLINE "if" condition_revealed_lands_graveyard "," "untap" "those" "lands" "."
+
+/* @sem Operation::@search_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}) */
+found_plural_battlefield_those ::= "put" "those" "cards" "onto" "the" "battlefield"
+
+/* Each-type searches share the selection and ordinary plural continuations. */
+/* @sem Instruction::[Effect{result:@mark, operation:$search_each_type}, ...$search_each_type_follow] */
+clause_search_each_type ::= search_each_type search_each_type_follow
+
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_each_basic_type]} */
+search_each_type ::= "search" "your" "library" "for" search_choice_each_basic_type
+
+search_each_type_follow ::= search_each_type_those | search_plural_follow
+
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:$found_plural_battlefield_those}, ...$search_shuffle] */
+search_each_type_those ::= "," found_plural_battlefield_those search_shuffle
+
+/* @sem SearchChoice::SearchChoice{filter:$filter_phrase, count:AnyNumber, constraints:[OneForEach([Subtype(Plains), Subtype(Island), Subtype(Swamp), Subtype(Mountain), Subtype(Forest)])]} */
+search_choice_each_basic_type ::= "a" filter_phrase "card" "of" "each" "basic" "land" "type"
+
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($look_hand_count), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+look_put_hand ::= "put" look_hand_count "into" "your" "hand"
+
+/* @sem Instruction::[...$look_put_hand, Instruction::Effect{result:@next, operation:$rest_bottom}] */
+look_put_split_ordered ::= look_put_hand "and" rest_bottom
+
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_put_split_ordered] */
+look_put_ordered ::= look_top "." look_put_split_ordered
+
+/* A look-and-hand split can be followed by an independent life change. */
+/* @sem Instruction::[...$look_put_ordered, ...$clause_you_life] */
+look_put_more ::= look_put_ordered "." clause_you_life
+
+/* Each alternative independently describes the same single card. */
+/* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2, $card_filter_3]) */
+search_filter_three_repeated ::= card_filter "card" "," "a" card_filter "card" "," "or" "a" card_filter "card"
+
+/* @sem SearchChoice::SearchChoice{filter:$filter_phrase, count:AnyNumber, constraints:[TotalProperty{property:ManaValue, comparison:LessOrEqual, amount:$value}]} */
+search_choice_any_number_total_mana ::= "any" "number" "of" filter_phrase "cards" "with" "total" "mana" "value" value "or" "less"
+
+/* The declined draw and its mill are scoped together with the loss measured
+   from those milled cards; the opponent and both quantities remain operands. */
+/* @sem Vec<Instruction>::[Effect{result:@mark, operation:PayCost{player:$target_opponent, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}]}}]}, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:[Effect{result:@next, operation:Mill{players:One(AbilityController), amount:$value_counters_on_object}}, Effect{result:@next, operation:LoseLife{players:One(Target{slot:@last_slot, index:0}), amount:Earlier{what:Milled, measure:Total(ManaValue)}}}]}, otherwise:Program{}}] */
+instructions_opponent_draw_or_mill_loss ::= target_opponent "may" "have" "you" "draw" card_count "." "if" "that" "player" "doesn't" "," "you" "mill" "X" "cards" "," "where" "X" "is" value_counters_on_object "," "and" "that" "player" "loses" "life" "equal" "to" "the" "total" "mana" "value" "of" "those" "cards"
+
+/* Distinct names constrain the announced cards, independently of their destination. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:$graveyard_plural_count, filter:@and($card_filter, $graveyard_scope), constraints:[DifferentNames]})) */
+graveyard_different_names_typed_many ::= graveyard_plural_count "target" card_filter "cards" "with" "different" "names" graveyard_scope
+
+/* Exile through a matching card and move that exact arrival to its owner's hand. */
+/* @sem Instruction::[Effect{result:@next, operation:RevealUntil{library:AbilityController, filter:$card_filter, count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Observed(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@mark, operation:Move{objects:InZone{objects:One(Query{objects:Matching{objects:Transition{result:@prior, phase:After}, filter:$card_filter}, index:0}), zone:Exile}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+exile_until_card_to_hand ::= "exile" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "exile" "a" card_filter "card" "," "then" "put" "that" "card" "into" "your" "hand"
+
+/* The condition and damage both count the hand arrival of this producer. */
+/* @sem Instruction::[Repeatable{instructions:[...$exile_until_card_to_hand, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:Property{property:ManaValue, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:_{instructions:[Effect{result:@next, operation:RepeatProcess}]}, otherwise:_{}}]}, Effect{result:@next, operation:DealDamage{source:$object_ref, recipients:Players(One(AbilityController)), amount:Multiply($value_2, CountObjects(Transition{result:@marked, phase:After})), preventable:true}}] */
+instructions_exile_until_hand_repeat_damage ::= exile_until_card_to_hand "." "if" "the" "card's" "mana" "value" "is" value "or" "greater" "," "repeat" "this" "process" "." object_ref "deals" value "damage" "to" "you" "for" "each" "card" "put" "into" "your" "hand" "this" "way"

@@ -38,6 +38,7 @@ chapter_3_4 ::= "III" "," "IV" "—" chapter_program "."
 /* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(4), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(5), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program})] */
 chapter_4_5 ::= "IV" "," "V" "—" chapter_program "."
 /* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(1), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(3), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program})] */
+/* @prefer always */
 chapter_1_2_3 ::= "i" "," "II" "," "III" "—" chapter_program "."
 /* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(3), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(4), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program})] */
 chapter_2_3_4 ::= "II" "," "III" "," "IV" "—" chapter_program "."
@@ -52,7 +53,7 @@ chapter_1_2_3_4 ::= "i" "," "II" "," "III" "," "IV" "—" chapter_program "."
 /* These observed chapter flavor headings have no rules meaning. The Roman
    chapter list remains outside this wrapper and retains every trigger number.
    Unknown/mechanical headings are never discarded by dash syntax. */
-chapter_program ::= chapter_linked_face_down_arrival | chapter_target_mill_exile_graveyard | chapter_defined_token_damage | chapter_counter_creatures_one | chapter_counter_creatures_many | chapter_repeat_mill_common_type | chapter_exile_copy_cards | chapter_draw_and_life | chapter_capped_return_type | chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast | chapter_optional_discard_draw_receipt | chapter_temporary_attack_pump | chapter_discard_investigate | chapter_draw_controlled_unowned | chapter_each_choose_destroy | chapter_exile_targets_gain_per_type | chapter_return_union_card_hand | chapter_domain_pump_keyword | chapter_players_get_counters | chapter_counter_total_tokens | chapter_controlled_either_counters | chapter_mill_then_exile_each_graveyard | chapter_linked_exile_cast_any_color | chapter_opponent_animation | chapter_created_token_keyword | chapter_destroy_transform | chapter_attack_you_cost | chapter_named_tokens_opponent_control_count | chapter_copy_flavor | chapter_draw_each_lose | chapter_create_per_source_counter | chapter_mana_cost_search | chapter_each_player_exile_until
+chapter_program ::= chapter_linked_face_down_arrival | chapter_target_mill_exile_graveyard | chapter_defined_token_damage | chapter_counter_creatures_one | chapter_counter_creatures_many | chapter_repeat_mill_common_type | chapter_exile_copy_cards | chapter_draw_and_life | chapter_capped_return_type | chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast | chapter_optional_discard_draw_receipt | chapter_temporary_attack_pump | chapter_discard_investigate | chapter_draw_controlled_unowned | chapter_each_choose_destroy | chapter_exile_targets_gain_per_type | chapter_return_union_card_hand | chapter_domain_pump_keyword | chapter_players_get_counters | chapter_counter_total_tokens | chapter_controlled_either_counters | chapter_mill_then_exile_each_graveyard | chapter_linked_exile_cast_any_color | chapter_opponent_animation | chapter_created_token_keyword | chapter_destroy_transform | chapter_attack_you_cost | chapter_named_tokens_opponent_control_count | chapter_copy_flavor | chapter_draw_each_lose | chapter_create_per_source_counter | chapter_mana_cost_search | chapter_each_player_exile_until | chapter_mana_exile_return | chapter_created_grant_counter_cleanup | chapter_hand_rule_sequence | chapter_optional_hand_cast_sequence | chapter_return_negated_program | chapter_loyalty_activation_turn | chapter_choose_card_name | chapter_chosen_name_cast_trigger | chapter_look_library_tops
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$mana_add_counted}]} */
 chapter_counted_mana ::= mana_add_counted
@@ -434,3 +435,55 @@ chapter_target_mill_exile_graveyard ::= target_player "mills" card_count "," "th
 /* The linked population enters under the ability controller, with the printed face-down characteristics. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$noun, ExiledWith(Source)])}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[FaceDownAs(_{power:$number_digits, toughness:$number_digits_2, creature_type:@subtype_name($subtype), artifact:true})]}}, qualifiers:[]}}]} */
 chapter_linked_face_down_arrival ::= "put" "all" noun "cards" "exiled" "with" "this" "enchantment" "onto" "the" "battlefield" "face" "down" "under" "your" "control" "." "they're" number_digits "/" number_digits subtype "artifact" "creatures"
+
+/* A single created object is the antecedent of all three follow-ups. */
+/* @sem Program::Program{instructions:[...$clause_imperative, ...$clause_created_gains, ...$clause_created_if_subtype_counters, ...$clause_created_sacrifice_your_next_end]} */
+/* @prefer always */
+chapter_created_grant_counter_cleanup ::= clause_imperative "." clause_created_gains "." clause_created_if_subtype_counters "." clause_created_sacrifice_your_next_end
+
+/* Scope comma-separated mana spelling to the chapter's ordered program. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$saga_mana_comma_list}}, ...$instructions_exile_source_return]} */
+/* @prefer always */
+chapter_mana_exile_return ::= "add" saga_mana_comma_list "." instructions_exile_source_return
+
+/* @sem ManaProduction::All([$mana_bundle, ...$saga_mana_comma_tail]) */
+saga_mana_comma_list ::= mana_bundle "," saga_mana_comma_tail
+
+/* @sem ManaProduction::[$mana_bundle] */
+saga_mana_comma_last ::= "and" mana_bundle
+
+/* @sem ManaProduction::[$mana_bundle, ...$saga_mana_comma_tail] */
+saga_mana_comma_more ::= mana_bundle "," saga_mana_comma_tail
+
+saga_mana_comma_tail ::= saga_mana_comma_last | saga_mana_comma_more
+
+/* These chapter sequences combine reusable instructions without widening the ordinary clause dispatch. */
+/* @sem Program::Program{instructions:[...$clause, ...$hand_rule_controlled]} */
+chapter_hand_rule_sequence ::= clause sequencer hand_rule_controlled
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Unlimited))], duration:WhileControlled{player:AbilityController, object:Source}, evaluation:LiveObjects}}] */
+hand_rule_controlled ::= "you" "have" "no" "maximum" "hand" "size" "for" "as" "long" "as" "you" "control" self_explicit_ref
+
+/* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$cast_free_hand_plural}]}}, ...$instructions]} */
+chapter_optional_hand_cast_sequence ::= cast_free_hand_plural sequencer instructions
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$return_negated_permanents}]} */
+chapter_return_negated_program ::= return_negated_permanents
+
+/* @prefer always */
+/* @sem Operation::Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$subtype_negated, $plural])}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+return_negated_permanents ::= "return" "all" subtype_negated plural "to" "their" "owners'" "hands"
+
+/* The controller receives extra activations of abilities on the named population. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(ActivationGrant{abilities:AllOf([OnStack(Loyalty), AbilityOf($filter_plural)]), grant:AdditionalTimes(Constant(1))})], duration:$this_duration, evaluation:LiveObjects}}]} */
+chapter_loyalty_activation_turn ::= "you" "may" "activate" "the" "loyalty" "abilities" "of" filter_plural "twice" this_duration "rather" "than" "only" "once"
+
+/* Shared chapter programs keep each operation and its operands in its own scope. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$choose_a_card_name}]} */
+chapter_choose_card_name ::= choose_a_card_name
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTrigger{event:Spell{event:Cast, players:One(AbilityController), spells:Chosen(CardName)}, duration:$this_duration, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}]}, once:true}}]} */
+chapter_chosen_name_cast_trigger ::= "when" "you" "cast" "a" "spell" "with" "the" "chosen" "name" "for" "the" "first" "time" this_duration "," "draw" card_count
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:LookAt{player:AbilityController, objects:$library_tops}}]} */
+chapter_look_library_tops ::= "look" "at" library_tops
