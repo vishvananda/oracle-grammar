@@ -40,7 +40,7 @@ cost_symbols ::= cost_mana | cost_tap | cost_untap_symbol
 cost_words ::= mined_cost | cost_words_owned
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
-cost_words_owned ::= cost_behold_chosen_creatures | cost_reveal_self_hand | cost_words_activation | cost_sacrifice_type_or_subtype
+cost_words_owned ::= cost_behold_chosen_creatures | cost_reveal_self_hand | cost_words_activation | cost_sacrifice_type_or_subtype | cost_sacrifice_referred_quantity
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -224,7 +224,7 @@ mana_symbols_one ::= mana_symbol
 mana_symbols_more ::= mana_symbol mana_symbols
 
 mana_symbol ::= mana_colorless | mana_generic | mana_white | mana_blue | mana_black | mana_red | mana_green | mana_x | mana_snow
-    | mana_hybrid | mana_phyrexian
+    | mana_hybrid | mana_monocolored_hybrid | mana_phyrexian
 
 /* @sem ManaSymbol::Snow */
 mana_snow ::= "{S}"
@@ -2659,7 +2659,7 @@ activation_cost_part_later ::= cost_symbols | activation_cost_word_later
 /* @sem $activation_cost_words */
 activation_cost_word_later ::= "↑" activation_cost_words
 
-activation_cost_words ::= mined_cost | cost_words_activation
+activation_cost_words ::= mined_cost | cost_words_activation | casting_keyword_choice_part
 
 free_cast_condition ::= condition | condition_cast_opponent_and
 
@@ -2742,3 +2742,24 @@ program_singular_effect_unless_any_payment ::= referenced_singular_temporary_pum
 /* Keep the receipt-based program within its activation frame. */
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:$untap_receipt_followup_program} */
 activated_untap_receipt_followup ::= cost ":" untap_receipt_followup_program activation_limits "."
+
+/* The complete pair proves the measured creature is this casting payment. */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[$receipt_cast_sacrifice_creature]}, optional:false, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$gain_life_casting_sacrificed_stat}]}}] */
+line_casting_sacrifice_gain_life ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," receipt_cast_sacrifice_creature "." NEWLINE gain_life_casting_sacrificed_stat "."
+
+/* The referred quantity is bound in the enclosing event or prior instruction. */
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly(@that_many)} */
+cost_sacrifice_referred_quantity ::= "sacrifice" "that" "many" filter_plural
+
+/* The second component selects one other controlled nontoken creature. */
+/* @sem Cost::Cost{parts:[Mana($mana_symbols), Move{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject(Source)), ObjectFilter::Not(Token), $filter_phrase, ObjectFilter::CardType(Creature), ObjectFilter::ControlledBy(One(AbilityController)))}, choose:Exactly(Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]} */
+/* @prefer always */
+cost_mana_exile_other_creature ::= mana_symbols "," "↑" "exile" "another" "nontoken" filter_phrase "creature" "you" "control"
+
+/* The copy refers to the arrival of the second component of this cost. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost_mana_exile_other_creature, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$copy_paid_creature_with_ability}]}} */
+/* @prefer always */
+activated_exile_creature_copy ::= cost_mana_exile_other_creature ":" copy_paid_creature_with_ability
+
+/* @sem ManaSymbol::MonocoloredHybrid($mana_letter) */
+mana_monocolored_hybrid ::= "{" "2" "/" mana_letter "}"

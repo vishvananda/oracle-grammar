@@ -231,7 +231,7 @@ copy_exception_oxford_more ::= copy_exception_plain "," "and" copy_exceptions_pl
 /* @sem CopyException::AddSupertypes([Legendary]) */
 copy_add_legendary_retained ::= "it's" "legendary" "in" "addition" "to" "its" "other" "types"
 
-entry_copy_actions ::= entry_copy_conditional_actions | entry_copy_plain_actions | entry_copy_added_type_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many | entry_copy_creature_keep_color | entry_copy_artifact_keep_color
+entry_copy_actions ::= entry_copy_holder_stat_actions | entry_copy_conditional_actions | entry_copy_plain_actions | entry_copy_added_type_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many | entry_copy_creature_keep_color | entry_copy_artifact_keep_color
 
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_objects, exceptions:$entry_copy_tail})}}] */
 entry_copy_plain_actions ::= "a" "copy" "of" entry_copy_objects entry_copy_tail
@@ -409,3 +409,27 @@ copy_stats_added_creature_types ::= "it's" "a" token_stat "/" token_stat becomes
 /* The three copiable characteristics retain independent current operands. */
 /* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$value, toughness:$value_2}, CopyException::Colors{mode:Add, colors:Listed([$mana_color_word])}, CopyException::AddCreatureTypes($becomes_types)] */
 copy_added_colored_stats_types ::= "it's" "a" value "/" value mana_color_word becomes_types "in" "addition" "to" "its" "other" "colors" "and" "types"
+
+/* Added creature characteristics retain the copied card’s other types. */
+/* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$value, toughness:$value_2}, CopyException::Colors{mode:Set, colors:Listed($token_colors)}, CopyException::AddCreatureTypes($becomes_types), CopyException::AddCardTypes([Creature])] */
+copy_added_colored_creature_stats ::= "it's" "a" value "/" value token_colors becomes_types "creature" "in" "addition" "to" "its" "other" "types"
+
+/* The quoted activation belongs to the copied holder. Its cost and both
+   statistic operands remain independent. */
+/* @prefer always */
+/* @sem Vec<CopyException>::[AddAbilities([@scope($copy_holder_stat_activation)])] */
+copy_holder_stat_exception ::= "it" "has" '"' copy_holder_stat_activation '"'
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[SetBasePowerToughness{power:$copy_holder_stat_value, toughness:$copy_holder_stat_value_2}], duration:Indefinite, evaluation:Snapshot}}]}} */
+copy_holder_stat_activation ::= cost ":" "this" "creature" "has" "base" "power" "and" "toughness" copy_holder_stat_value "/" copy_holder_stat_value "."
+
+copy_holder_stat_value ::= value | copy_holder_chosen_number
+
+/* @sem Expr::ChosenNumber */
+copy_holder_chosen_number ::= "the" "chosen" "number"
+
+/* This form retains the explicitly stated battlefield population when the
+   copy receives a holder-scoped base-stat activation. */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_battlefield_explicit, exceptions:$copy_holder_stat_exception})}}] */
+entry_copy_holder_stat_actions ::= "a" "copy" "of" entry_copy_battlefield_explicit "," "except" copy_holder_stat_exception

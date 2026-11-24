@@ -281,7 +281,7 @@ then_condition_plain ::= then_condition_body
 then_condition_where ::= then_condition_plain "," "where" "X" "is" value
 /* @sem Program::@where_snapshot($then_condition_plain, $value) */
 then_condition_where_snapshot ::= then_condition_plain "," "where" "X" "is" value
-then_condition_body ::= conditional_put_current_tapped | conditional_put_current | clause_conditional_attach_chosen | then_condition_also | conditional_top_card_permission | conjoined | clause_conditional_closed | instructions_reveal_until
+then_condition_body ::= conditional_put_current_tapped | conditional_put_current | clause_conditional_attach_chosen | then_condition_also | conditional_top_card_permission | conjoined | clause_conditional_closed | instructions_reveal_until | conditional_static_changes_indefinite
 
 /* A postposed condition tests at resolution, even as a trigger's first instruction. */
 /* @sem Instruction::[@resolution(Instruction::If{condition:$condition, then:Program{instructions:$condition_consequent}, otherwise:Program{}})] */
@@ -2561,8 +2561,9 @@ prevented_color_damage ::= self_ref "deals" "that" "much" "damage" "to" "the" "s
 prevented_color_life ::= "you" "gain" "that" "much" "life"
 
 /* A resolving source choice and a bounded redirect share their operands. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($next_chosen_sources), count:Exactly($counter_amount)}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:$next_chosen_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($number), duration:$this_duration, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage($recipients)}}]}}}] */
-instructions_chosen_damage_redirect ::= "the" "next" number "damage" "that" counter_amount next_chosen_sources "would" "deal" next_chosen_to this_duration "is" "dealt" "to" recipients "instead"
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:$resolving_damage_source_choice}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:$next_chosen_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($number), duration:$this_duration, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage($recipients)}}]}}}] */
+instructions_chosen_damage_redirect ::= "the" "next" number "damage" "that" resolving_damage_source_choice "would" "deal" next_chosen_to this_duration "is" "dealt" "to" recipients "instead"
 
 /* Replacement prefixes compose with a scoped library observation and its split. */
 /* @sem Ability::Replacement{active:Battlefield, event:$draw_event, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, ...$look_put_then_body]}} */
@@ -4002,3 +4003,26 @@ entry_counter_list_three ::= "with" entry_counter_item "," entry_counter_item ",
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_counter_item}, Effect{result:@next, operation:$entry_counter_item_2}, Effect{result:@next, operation:$entry_counter_item_3}, Effect{result:@next, operation:$entry_counter_item_4}]} */
 entry_counter_list_four ::= "with" entry_counter_item "," entry_counter_item "," entry_counter_item "," "and" entry_counter_item "on" "it"
+
+/* Compose an entry replacement from its subject and its counter modification. */
+/* @sem Ability::Replacement{active:Battlefield, event:$each_filtered_entry_event, body:Program{instructions:[Effect{result:@next, operation:$entry_additional_counter_per_history}]}} */
+each_filtered_entry_replacement ::= each_filtered_entry_event entry_additional_counter_per_history "."
+
+/* @sem ReplacementEvent::Enter{objects:$filter_phrase} */
+each_filtered_entry_event ::= "each" filter_phrase "enters"
+
+/* @sem Operation::ModifyEvent{change:AddCounters{kind:$counter_kind, amount:$controlled_entry_history_count}} */
+entry_additional_counter_per_history ::= "with" "an" "additional" counter_kind "counter" "on" "it" "for" "each" controlled_entry_history_count
+
+/* @sem Expr::EventHistory{event:ZoneChange{objects:AllOf([$filter_phrase, ControlledBy(One(AbilityController))]), to:Battlefield}, window:ThisTurn, measure:Occurrences} */
+controlled_entry_history_count ::= filter_phrase "that" "entered" "the" "battlefield" "under" "your" "control" "this" "turn"
+
+/* A chosen damage source is a resolving choice, shared across damage windows. */
+/* @sem Operation::ChooseObjects{player:AbilityController, objects:DamageSources($next_chosen_sources), count:Exactly($counter_amount)} */
+resolving_damage_source_choice ::= counter_amount next_chosen_sources
+
+/* @sem EventSpec::Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:Objects(SameObject($object_ref)), kind:Any, grouping:SourceRecipient, subject:Recipient}) */
+chosen_damage_to_object ::= "all" "damage" "that" "would" "be" "dealt" "to" object_ref
+
+/* @sem Instruction::[Effect{result:@next, operation:$resolving_damage_source_choice}, Effect{result:@next, operation:CreateReplacement{event:$chosen_damage_to_object, limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage($redirect_destination)}}]}}}] */
+instructions_all_chosen_damage_redirect ::= chosen_damage_to_object this_duration "by" resolving_damage_source_choice "is" "dealt" "to" redirect_destination "instead"

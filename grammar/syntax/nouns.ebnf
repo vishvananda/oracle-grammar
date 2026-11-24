@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= enchanted_creature_and_attached_population | objects_each_that_crewed_this_turn | objects_targets_common_creature_type | objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set | objects_target_total_budget | objects_up_to_sticker_letters | objects_it_and_target | graveyard_cards_arrived_battlefield_this_turn | same_name_graveyard_battlefield_population | personal_graveyard_named_cards | chosen_filtered_graveyard_cards | controlled_population_with_two_exceptions | objects_any_targets_different_controllers | opponents_private_zone_population | objects_self_and_plural
+object_set ::= enchanted_creature_and_attached_population | objects_each_that_crewed_this_turn | objects_targets_common_creature_type | objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set | objects_target_total_budget | objects_up_to_sticker_letters | objects_it_and_target | graveyard_cards_arrived_battlefield_this_turn | same_name_graveyard_battlefield_population | personal_graveyard_named_cards | chosen_filtered_graveyard_cards | controlled_population_with_two_exceptions | objects_any_targets_different_controllers | opponents_private_zone_population | objects_self_and_plural | objects_each_entered_under_you_this_turn
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -1713,7 +1713,7 @@ put_exiled_plural_objects ::= "the" "cards" "exiled" "with" object_ref
 /* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:$filter_phrase} */
 return_all_graveyard_population ::= "all" filter_phrase "cards" "from" "all" "graveyards"
 
-return_personal_graveyard_population ::= lesser_event_toughness_graveyard_population | lesser_event_toughness_graveyard_population_plural | personal_graveyard_power_population | personal_graveyard_same_name_population | personal_graveyard_named_target_population
+return_personal_graveyard_population ::= personal_graveyard_mana_value_population | lesser_event_toughness_graveyard_population | lesser_event_toughness_graveyard_population_plural | personal_graveyard_power_population | personal_graveyard_same_name_population | personal_graveyard_named_target_population
 
 /* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:@and($filter_phrase, ObjectFilter::Property{property:Power, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}})} */
 personal_graveyard_power_population ::= "all" filter_phrase "cards" "with" "power" value "or" "less" "from" "your" "graveyard"
@@ -3743,7 +3743,7 @@ objects_up_to_sticker_letters ::= "up" "to" "X" "target" filter_plural "," "wher
 /* @sem Expr::Stickers{objects:One($object_ref), measure:Letter(Term{family:Letter, form:SingleLetter, operands:[$sticker_count_letter]})} */
 sticker_letter_count ::= "the" "number" "of" sticker_count_letter "in" "name" "stickers" "on" object_ref
 
-sticker_count_letter ::= sticker_letter_u | sticker_letter_a
+sticker_count_letter ::= sticker_letter_u | sticker_letter_a | sticker_letter_o
 
 /* @sem Operand::Text(U) */
 sticker_letter_u ::= "u's"
@@ -4520,3 +4520,41 @@ return_shared_type_count ::= return_shared_type_words | number_digits | number_x
 
 /* @prefer always */
 return_shared_type_words ::= number_words
+
+/* The card type and mana-value bound independently constrain this graveyard population. */
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}])} */
+personal_graveyard_mana_value_population ::= "all" filter_phrase "cards" "with" "mana" "value" value "or" "less" "from" "your" "graveyard"
+
+/* A choice between a filtered card and a card bearing a keyword family. */
+/* @sem ObjectFilter::@or($filter_phrase, $modifier_with_keyword_family) */
+card_filter_or_keyword_family ::= "a" filter_phrase "card" "or" "a" "card" modifier_with_keyword_family
+
+/* Three alternative subtypes share the creature card type. */
+/* @sem @and(ObjectFilter::AnyOf([$subtype, $attack_entry_middle_subtype, $subtype_2]), ObjectFilter::CardType(Creature)) */
+attack_entry_creature_filter ::= subtype "," attack_entry_middle_subtype "," "or" subtype "creature"
+
+attack_entry_middle_subtype ::= subtype | attack_entry_middle_zombie
+
+/* A capitalized Zombie after a comma carries the tokenizer's case mark. */
+/* @sem ObjectFilter::Subtype(Zombie) */
+attack_entry_middle_zombie ::= "↑" "zombie"
+
+/* @sem Operand::Text(O) */
+sticker_letter_o ::= "o's"
+
+/* A plural battlefield population with a separately composed stat test. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, $modifier_stat_compared])} */
+compared_battlefield_population ::= "all" filter_plural modifier_stat_compared
+
+/* A historical entry qualifies each current battlefield object independently of the action's other operands. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, ObjectFilter::Condition(Compare{left:EventHistory{event:ZoneChange{objects:AllOf([SameObject(Candidate), ControlledBy(One(AbilityController))]), to:Battlefield}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}))} */
+objects_each_entered_under_you_this_turn ::= "each" filter_phrase "that" "entered" "the" "battlefield" "under" "your" "control" "this" "turn"
+
+/* The named player owns this graveyard population. */
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One($zone_that_player)}, kind:Card, filter:Any} */
+referenced_player_graveyard_population ::= zone_that_player "graveyard"
+
+/* The crewed object is resolved before introducing the target.  This phrase is
+   opt-in for contexts where the prior event supplies its antecedent. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, $filter_that_crewed_this_turn])}), index:0} */
+target_that_crewed_event_subject ::= "target" noun filter_that_crewed_this_turn

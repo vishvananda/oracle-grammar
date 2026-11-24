@@ -9,7 +9,7 @@ chapters_one ::= chapter_first
 /* @sem Ability::[...$chapter_first, ...$chapter_tail] */
 chapters_more ::= chapter_first NEWLINE chapter_tail
 
-chapter_first ::= chapter_1_2_closed_activation | chapter_1_final_quoted_grant | chapter_1_2_3_4_5_6 | chapter_1_quoted_token | chapter_1_modal | chapter_1_2_modal | chapter_1_2_3_modal | chapter_1_2_3_4_modal | chapter_1 | chapter_1_2 | chapter_1_2_3 | chapter_1_2_3_4
+chapter_first ::= chapter_1_operation_quoted_token | chapter_1_2_closed_activation | chapter_1_final_quoted_grant | chapter_1_2_3_4_5_6 | chapter_1_quoted_token | chapter_1_modal | chapter_1_2_modal | chapter_1_2_3_modal | chapter_1_2_3_4_modal | chapter_1 | chapter_1_2 | chapter_1_2_3 | chapter_1_2_3_4
 
 chapter_tail ::= chapter_next_entry_then_transform | chapter | chapter_tail_more
 
@@ -52,7 +52,7 @@ chapter_1_2_3_4 ::= "i" "," "II" "," "III" "," "IV" "—" chapter_program "."
 /* These observed chapter flavor headings have no rules meaning. The Roman
    chapter list remains outside this wrapper and retains every trigger number.
    Unknown/mechanical headings are never discarded by dash syntax. */
-chapter_program ::= chapter_defined_token_damage | chapter_counter_creatures_one | chapter_counter_creatures_many | chapter_repeat_mill_common_type | chapter_exile_copy_cards | chapter_draw_and_life | chapter_capped_return_type | chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast | chapter_optional_discard_draw_receipt | chapter_temporary_attack_pump | chapter_discard_investigate | chapter_draw_controlled_unowned | chapter_each_choose_destroy | chapter_exile_targets_gain_per_type | chapter_return_union_card_hand | chapter_domain_pump_keyword | chapter_players_get_counters | chapter_counter_total_tokens | chapter_controlled_either_counters | chapter_mill_then_exile_each_graveyard | chapter_linked_exile_cast_any_color | chapter_opponent_animation | chapter_created_token_keyword | chapter_destroy_transform | chapter_attack_you_cost | chapter_named_tokens_opponent_control_count
+chapter_program ::= chapter_defined_token_damage | chapter_counter_creatures_one | chapter_counter_creatures_many | chapter_repeat_mill_common_type | chapter_exile_copy_cards | chapter_draw_and_life | chapter_capped_return_type | chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast | chapter_optional_discard_draw_receipt | chapter_temporary_attack_pump | chapter_discard_investigate | chapter_draw_controlled_unowned | chapter_each_choose_destroy | chapter_exile_targets_gain_per_type | chapter_return_union_card_hand | chapter_domain_pump_keyword | chapter_players_get_counters | chapter_counter_total_tokens | chapter_controlled_either_counters | chapter_mill_then_exile_each_graveyard | chapter_linked_exile_cast_any_color | chapter_opponent_animation | chapter_created_token_keyword | chapter_destroy_transform | chapter_attack_you_cost | chapter_named_tokens_opponent_control_count | chapter_copy_flavor | chapter_draw_each_lose
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$mana_add_counted}]} */
 chapter_counted_mana ::= mana_add_counted
@@ -331,3 +331,36 @@ chapter_named_tokens_opponent_control_count ::= "create" "X" token_named_recipe 
 /* The matching binding counts each opponent once, independent of creature count. */
 /* @sem Expr::CountPlayers(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Controls{player:Bound(0), filter:AllOf([$noun, Property{property:Power, test:Compare{comparison:GreaterOrEqual, value:$number_digits}}]), minimum:1}}])) */
 opponents_control_threshold_count ::= "the" "number" "of" "opponents" "who" "control" "a" noun "with" "power" number_digits "or" "greater"
+
+/* The heading and copy count agree; the unqualified spell union and duration
+   remain current operands of the delayed trigger. */
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTrigger{event:Spell{event:Cast, players:One(AbilityController), spells:$saga_copy_spell_filter}, duration:$this_duration, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventSubject, times:@agree($saga_copy_heading, $saga_copy_consequence), targets:May}}]}, once:true}}]} */
+chapter_copy_flavor ::= saga_copy_heading "—" "when" "you" "next" "cast" saga_copy_spell_filter this_duration "," saga_copy_consequence
+
+/* @sem $spell_adjective_either */
+saga_copy_spell_filter ::= "an" spell_adjective_either "spell"
+
+saga_copy_heading ::= saga_copy_double | saga_copy_triple
+
+/* @sem Expr::Constant(1) */
+saga_copy_double ::= "double"
+
+/* @sem Expr::Constant(2) */
+saga_copy_triple ::= "triple"
+
+saga_copy_consequence ::= saga_copy_it_once | saga_copy_it_twice
+
+/* @sem Expr::Constant(1) */
+saga_copy_it_once ::= "copy" "it" "." "you" "may" "choose" "new" "targets" "for" "the" "copy"
+
+/* @sem Expr::Constant(2) */
+saga_copy_it_twice ::= "copy" "it" "twice" "." "you" "may" "choose" "new" "targets" "for" "the" "copies"
+
+/* The quoted token supplies its own closing punctuation. */
+/* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(1), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_operation_quoted_token})] */
+chapter_1_operation_quoted_token ::= "i" "—" chapter_operation_quoted_token
+
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:LoseLife{players:All, amount:$number}}]} */
+chapter_draw_each_lose ::= "you" "draw" card_count "and" "each" "player" "loses" number "life"

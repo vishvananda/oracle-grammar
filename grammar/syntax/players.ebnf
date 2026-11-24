@@ -84,7 +84,7 @@ player_prohibition ::= player_prohibited_action
 /* @sem Change::[...$player_prohibition, ...$player_prohibitions] */
 player_prohibitions_more ::= player_prohibition ("or" | "and") player_prohibitions
 
-continuous_player_prohibition ::= continuous_repeated_controller_prohibitions | continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn | continuous_only_player_actions
+continuous_player_prohibition ::= continuous_repeated_controller_prohibitions | continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn | continuous_only_player_actions | continuous_player_prohibition_rest_game
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_rule_subject), changes:$player_prohibitions, duration:$duration, evaluation:LiveObjects} */
 continuous_player_prohibition_last ::= player_rule_subject "can't" player_prohibitions duration
@@ -731,3 +731,15 @@ player_decision_ability ::= "the" players_singular "chooses" player_decision_cha
 
 /* @sem Change::[PlayerRule(Decides(HowCreaturesBlock($filter_phrase)))] */
 player_decision_changes ::= "how" "each" filter_phrase "blocks" "each" "combat"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_rule_subject), changes:$player_prohibitions, duration:Indefinite, evaluation:LiveObjects} */
+continuous_player_prohibition_rest_game ::= player_rule_subject "can't" player_prohibitions "for" "the" "rest" "of" "the" "game"
+
+/* A final game-long player restriction can occupy its own spell paragraph. */
+/* @prefer always */
+/* @sem Ability::[Spell{announcement:@announcement, body:Program{instructions:[...$rest_game_prior_sentences, Effect{result:@next, operation:$continuous_player_prohibition_rest_game}]}}] */
+line_spell_rest_game_restriction ::= rest_game_prior_sentences "." NEWLINE continuous_player_prohibition_rest_game "."
+
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $draw_base)}, ...$clause, ...$instructions] */
+rest_game_prior_sentences ::= draw_base "." clause "." instructions

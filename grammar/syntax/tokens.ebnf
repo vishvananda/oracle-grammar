@@ -115,9 +115,9 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= named_legendary_equipment_token | token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal | token_named_equal_vote_total | token_variable_square_product
+token_group ::= named_legendary_equipment_token | token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal | token_named_equal_vote_total | token_variable_square_product | token_defined_named_graveyard
 
-token_copy ::= token_copy_characteristics_it | token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle | token_copy_random_mana_card | token_copy_characteristics
+token_copy ::= token_copy_characteristics_it | token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle | token_copy_random_mana_card | token_copy_characteristics | token_copy_characteristics_target
 
 /* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
 token_copy_plain ::= token_copy_quantity object_ref
@@ -227,7 +227,7 @@ token_toxic ::= "toxic" number
 /* @sem Ability::@holder($token_ability_body) */
 token_quoted ::= '"' token_ability_body '"'
 
-token_ability_body ::= token_entry_damage_quoted | static_ability | max_speed_ability | token_ability_sentence | keyword_ability | mined_ability | token_labelled_keyword
+token_ability_body ::= token_entry_damage_quoted | static_ability | max_speed_ability | token_ability_sentence | keyword_ability | mined_ability | token_labelled_keyword | token_cannot_be_enchanted
 
 /* A characteristic-defining ability here describes the token itself. */
 /* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(ObjectRef::Source)), changes:[Change::SetBasePowerToughness{power:$value, toughness:$value}]} */
@@ -1907,3 +1907,47 @@ token_variable_square_product ::= "an" "X" "/" "X" token_colors token_subtypes t
 /* A later temporary grant refers to the preceding created object. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($created_gains_subject), changes:$grants, duration:$duration, evaluation:Snapshot}}] */
 clause_created_gains_duration ::= created_gains_subject "gains" grants duration
+
+/* A token's own quoted restriction is intrinsic to that token. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(Source)), changes:[Rule(Prohibit(BeAttachedBy{attachments:Subtype(Aura)}))]} */
+token_cannot_be_enchanted ::= "this" "token" "can't" "be" "enchanted" "."
+
+/* @sem TokenRecipe::@token_abilities($token_recipe_plain, $token_abilities) */
+token_recipe_each_have ::= token_recipe_plain "." "they" "each" "have" token_abilities
+
+/* The count is explicitly tied to this removal payment's first component. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$cost_remove_any_counters]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:PaidCountersRemoved{payment:Resolution(@marked), component:[0]}, words:CreatingEffect, recipe:$token_recipe_each_have}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}]} */
+paid_removed_counters_tokens ::= "you" "may" cost_remove_any_counters "." "if" "you" "do" "," "create" "that" "many" token_recipe_each_have
+
+/* The subject creates a tapped token attacking the explicitly named player. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[$token_group_tapped], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{player:EventOtherPlayer}]}}) */
+create_tapped_attacking_player_third ::= "creates" token_group_tapped "that's" "attacking" "that" "opponent"
+
+/* Independent operations precede a token whose quoted ability closes the sentence. */
+chapter_operation_quoted_token ::= chapter_phase_union_then_token | chapter_generic_operation_then_token
+
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$chapter_phase_union}, Effect{result:@next, operation:$chapter_quoted_token_creation}]} */
+chapter_phase_union_then_token ::= chapter_phase_union "." chapter_quoted_token_creation
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$operation}, Effect{result:@next, operation:$chapter_quoted_token_creation}]} */
+chapter_generic_operation_then_token ::= operation "." chapter_quoted_token_creation
+
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$plural, $plural_2])}} */
+chapter_phase_union ::= "all" plural "and" plural "phase" "out"
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:@token_abilities($token_recipe_plain, $chapter_quoted_token_abilities)}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
+chapter_quoted_token_creation ::= "create" token_amount token_recipe_plain "with" chapter_quoted_token_abilities
+
+/* Named cards are counted in the specified owner’s graveyard. Keep this
+   token-specific alternative out of unrelated count and payment phrases. */
+/* @sem TokenSpec::TokenSpec{amount:$token_count_named_graveyard, words:CreatingEffect, recipe:$token_recipe} */
+/* @prefer always */
+token_defined_named_graveyard ::= "a" token_recipe "for" "each" token_count_named_graveyard
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:$modifier_referenced_name}) */
+token_count_named_graveyard ::= "card" modifier_referenced_name "in" zone_owner "graveyard"
+
+/* A targeted object can supply a copy's replacement characteristics. */
+/* @sem TokenSpec::TokenSpec{amount:$token_copy_single, words:CreatingEffect, recipe:Copy{object:$target_object, exceptions:$copy_token_characteristics}} */
+token_copy_characteristics_target ::= token_copy_single target_object "," "except" copy_token_characteristics
