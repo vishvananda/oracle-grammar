@@ -1027,7 +1027,7 @@ replacement_outgoing_object ::= object_ref "would" "deal"
 /* @sem ReplacementEvent::Damage(_{source_kind:Any, sources:AllOf([$filter_phrase, ControlledBy(One(AbilityController))]), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}) */
 replacement_outgoing_controlled ::= "that" filter_phrase "sources" "you" "control" "would" "deal"
 
-replacement_outgoing_damage ::= replacement_outgoing_object | replacement_outgoing_controlled
+replacement_outgoing_damage ::= replacement_outgoing_object | replacement_outgoing_controlled | replacement_outgoing_chosen_sources
 
 /* The same object identifies the redirected damage and its controller. */
 /* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage(Players(One(ControllerOf($object_ref))))}}]}} */
@@ -4026,3 +4026,12 @@ chosen_damage_to_object ::= "all" "damage" "that" "would" "be" "dealt" "to" obje
 
 /* @sem Instruction::[Effect{result:@next, operation:$resolving_damage_source_choice}, Effect{result:@next, operation:CreateReplacement{event:$chosen_damage_to_object, limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage($redirect_destination)}}]}}}] */
 instructions_all_chosen_damage_redirect ::= chosen_damage_to_object this_duration "by" resolving_damage_source_choice "is" "dealt" "to" redirect_destination "instead"
+
+/* The source controller and chosen-type qualifier remain separate operands. */
+/* @sem ReplacementEvent::Damage(_{source_kind:Any, sources:$outgoing_qualified_sources, recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}) */
+replacement_outgoing_chosen_sources ::= "that" outgoing_qualified_sources "would" "deal"
+
+/* @sem ObjectFilter::@and($outgoing_source_controller, $modifier_chosen_type) */
+outgoing_qualified_sources ::= "sources" outgoing_source_controller modifier_chosen_type
+
+outgoing_source_controller ::= modifier_you_control | modifier_not_controlled

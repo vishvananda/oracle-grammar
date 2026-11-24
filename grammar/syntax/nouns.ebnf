@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= enchanted_creature_and_attached_population | objects_each_that_crewed_this_turn | objects_targets_common_creature_type | objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set | objects_target_total_budget | objects_up_to_sticker_letters | objects_it_and_target | graveyard_cards_arrived_battlefield_this_turn | same_name_graveyard_battlefield_population | personal_graveyard_named_cards | chosen_filtered_graveyard_cards | controlled_population_with_two_exceptions | objects_any_targets_different_controllers | opponents_private_zone_population | objects_self_and_plural | objects_each_entered_under_you_this_turn
+object_set ::= enchanted_creature_and_attached_population | objects_each_that_crewed_this_turn | objects_targets_common_creature_type | objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set | objects_target_total_budget | objects_up_to_sticker_letters | objects_it_and_target | graveyard_cards_arrived_battlefield_this_turn | same_name_graveyard_battlefield_population | personal_graveyard_named_cards | chosen_filtered_graveyard_cards | controlled_population_with_two_exceptions | objects_any_targets_different_controllers | opponents_private_zone_population | objects_self_and_plural | objects_each_entered_under_you_this_turn | objects_targets_and_attached
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -287,7 +287,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_attacking_creature | named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_saddler_of_event_subject | target_controller_controls_land | target_extreme_battlefield | target_controlled_kind_union | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled | target_blocking_controlled | target_opponent_choice_controlled
+target_object ::= target_saddler_of_event_subject | target_controller_controls_land | target_extreme_battlefield | target_controlled_kind_union | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled | target_blocking_controlled | target_opponent_choice_controlled | target_attacked_this_turn
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -4558,3 +4558,28 @@ referenced_player_graveyard_population ::= zone_that_player "graveyard"
    opt-in for contexts where the prior event supplies its antecedent. */
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, $filter_that_crewed_this_turn])}), index:0} */
 target_that_crewed_event_subject ::= "target" noun filter_that_crewed_this_turn
+
+/* A plural battlefield population with a separately stated excluded quality. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, Not($quality_unscoped)])} */
+exile_excluded_quality_population ::= "all" filter_plural "that" "aren't" quality_unscoped
+
+/* The history test applies to the candidate selected by this target. Keeping
+   it on the target phrase avoids changing attack-occurrence count operands. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:@and($filter_phrase, $object_attacked_turn)}), index:0} */
+target_attacked_this_turn ::= "target" filter_phrase "that" object_attacked_turn
+
+/* The amount, alternative spell qualities, and controller are separate operands. */
+controlled_spell_cost_selection ::= controlled_spell_cost_one | controlled_spell_cost_many
+
+/* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Shared(Stack), kind:Spell, filter:AllOf([$controlled_spell_cost_filter, ControlledBy(One(AbilityController))])}, choose:Exactly($counter_a)} */
+controlled_spell_cost_one ::= counter_a controlled_spell_cost_filter "spell" "you" "control"
+
+/* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Shared(Stack), kind:Spell, filter:AllOf([$controlled_spell_cost_filter, ControlledBy(One(AbilityController))])}, choose:Exactly(@plural_amount($number_words))} */
+controlled_spell_cost_many ::= number_words controlled_spell_cost_filter "spells" "you" "control"
+
+/* @sem ObjectFilter::AnyOf([$spell_adjective, $spell_adjective_2]) */
+controlled_spell_cost_filter ::= spell_adjective "or" spell_adjective
+
+/* The attached population refers to the very same target group. */
+/* @sem ObjectSet::Union([Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:AnyNumber, filter:$plural})), Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, AttachedTo(InSet(Targets(@last_slot)))])}]) */
+objects_targets_and_attached ::= "any" "number" "of" "target" plural "and" "all" filter_plural "attached" "to" "them"

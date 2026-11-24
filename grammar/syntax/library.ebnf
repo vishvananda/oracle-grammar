@@ -1,7 +1,7 @@
 /* Searching and inspecting a library. */
 
 /* What was found stays the referent of `it` until the search is over. */
-clause_search ::= clause_search_repeat_values | clause_search_player_margin_split | clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_reveal_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each | clause_search_conditional_additional | clause_search_exile_create_tokens | clause_search_keyword_graveyard | clause_search_five_choices | clause_search_then_operation | clause_search_if_found | clause_search_sacrificed_reveal | clause_random_search | clause_search_named_population | clause_search_attacking_where | clause_search_single_sentence_hand | clause_search_instead_reveal | clause_search_reveal_distinct_random | search_two_zones_exile_rest_reorder | clause_search_enchant_attached | clause_search_reveal_opponent_partition | clause_search_four_choices | clause_search_choices_reveal_hand | clause_search_more_players_split | clause_search_opponent_graveyard_hand
+clause_search ::= clause_search_repeat_values | clause_search_player_margin_split | clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_pair_those | clause_search_reveal_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each | clause_search_conditional_additional | clause_search_exile_create_tokens | clause_search_keyword_graveyard | clause_search_five_choices | clause_search_then_operation | clause_search_if_found | clause_search_sacrificed_reveal | clause_random_search | clause_search_named_population | clause_search_attacking_where | clause_search_single_sentence_hand | clause_search_instead_reveal | clause_search_reveal_distinct_random | search_two_zones_exile_rest_reorder | clause_search_enchant_attached | clause_search_reveal_opponent_partition | clause_search_four_choices | clause_search_choices_reveal_hand | clause_search_more_players_split | clause_search_opponent_graveyard_hand
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
 clause_search_general ::= search search_follow
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_plural}, ...$search_plural_follow] */
@@ -2011,7 +2011,7 @@ search_shuffle_top_the_card ::= "," "then" "shuffle" "and" "put" "the" "card" "o
 /* @sem Instruction::[Effect{result:@mark, operation:$search_library_pair}, ...$search_plural_follow] */
 clause_search_library_pair ::= search_library_pair search_plural_follow
 
-search_library_pair ::= search_library_pair_and | search_library_pair_and_or
+search_library_pair ::= search_library_pair_and | search_library_pair_and_or | search_library_basic_pair
 
 /* @sem SearchChoice::SearchChoice{filter:$subtype, count:UpTo(Constant(1))} */
 search_pair_subtype_choice ::= ("a" | "an") subtype "card"
@@ -6886,3 +6886,19 @@ aura_entry_cast_capped_search ::= "whenever" "an" "Aura" "you" "control" "enters
 
 /* @sem Instruction::[Effect{result:@next, operation:$found_battlefield_attached_that_card}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
 aura_search_follow ::= "," found_battlefield_attached_that_card "," "then" "shuffle"
+
+/* Keep the payment, counted library movement and permission together so the
+   receipt and its exile destination are proved in both directions. */
+/* @sem Instruction::[Effect{result:@next, operation:PayAnyAmount{actor:One(AbilityController), resource:Energy}}, If{condition:Compare{left:Performed(@last_result), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:[Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Performed(@back(3)), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:Either, cards:Transition{result:@prior, phase:After}, count:Exactly(Constant(1)), cost:Free}}]}}]}, otherwise:_{}}] */
+instructions_energy_paid_exile_play ::= "pay" "any" "amount" "of" "{E}" "." "if" "you" "paid" "one" "or" "more" "{E}" "this" "way" "," "shuffle" "your" "library" "," "then" "exile" "that" "many" "cards" "from" "the" "top" "." "you" "may" "play" "one" "of" "those" "cards" "without" "paying" "its" "mana" "cost"
+
+/* Two independent basic subtype choices, each retaining its own filter. */
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_basic_pair_choice, $search_basic_pair_choice_2]} */
+search_library_basic_pair ::= "search" "your" "library" "for" search_basic_pair_choice "and" search_basic_pair_choice
+
+/* @sem SearchChoice::SearchChoice{filter:AllOf([Supertype(Basic), $subtype]), count:UpTo(Constant(1))} */
+search_basic_pair_choice ::= "a" "basic" subtype "card"
+
+/* The selection from this search supplies both the reveal and the move. */
+/* @sem Instruction::[Effect{result:@mark, operation:$search_library_basic_pair}, ...$search_those_reveal_hand_follow] */
+clause_search_pair_those ::= search_library_basic_pair "," search_those_reveal_hand_follow

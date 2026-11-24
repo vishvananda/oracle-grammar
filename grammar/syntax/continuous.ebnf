@@ -606,7 +606,7 @@ static_negative_x ::= "-" "X"
 clause_perpetual_card_changes ::= object_ref "perpetually" static_changes
 
 static_changes ::= perpetual_type_pump_keyword | static_retained_land_creature_stats | static_pump_protection_types_keeps | static_artifact_base_keyword_loss | shared_base_keyword | shared_artifact_stat_type | shared_base_keywords | shared_base_keywords_named | static_pump_keyword_color_type | static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature | retained_plural_animation | static_base_and_retained_types | static_base_grant_and_retained_types | static_base_keyword_color_type | retained_colored_land_animation | retained_colored_typed_land_animation | retained_colored_dual_animation | static_pump_and_added_names | sticker_pump_changes | static_base_keyword_other_loss | shared_loss_and_creature_form | static_pump_and_retained_artifact | shared_loss_counter_creature_form | static_pump_and_protection_list
-static_changes_plain ::= static_changes_last_chosen_protection | static_changes_protection_keeps | static_change | static_changes_and
+static_changes_plain ::= static_changes_last_chosen_protection | static_changes_protection_keeps | static_change | static_changes_and | retained_keyword_and_added_color_type
 
 /* @sem Instruction::[Effect{result:@next, operation:$copy_effect_duration}] */
 clause_copy_for_duration ::= copy_effect_duration
@@ -1291,7 +1291,7 @@ static_quoted_grant ::= affected static_changes_closed
 
 /* A change list whose last change grants a quoted ability: "gets +2/+2 and has flying
    and "{R}: …"". Its quote closes the sentence. */
-static_changes_closed ::= static_color_and_closed_grants | static_changes_closed_has | static_changes_closed_have | static_changes_closed_more | static_base_closed_grants | static_base_closed_grants_oxford | static_color_closed_more
+static_changes_closed ::= static_base_power_closed_grant | static_color_and_closed_grants | static_changes_closed_has | static_changes_closed_have | static_changes_closed_more | static_base_closed_grants | static_base_closed_grants_oxford | static_color_closed_more
 /* @sem $closed_grants */
 static_changes_closed_has ::= "has" closed_grants
 /* @sem $closed_grants */
@@ -4225,6 +4225,7 @@ stored_results_same_count ::= "the" "greatest" "number" "of" "stored" "results" 
 change_pump_stored_results ::= "gets" "+" "X" "/" "+" "X" "," "where" "X" "is" stored_results_same_count
 
 /* This scoped sequence retains the independently editable bonus, keyword, color and subtype. */
+/* @prefer always */
 /* @sem Change::[...$singular_pump, ...$singular_keyword_grant, ...$retained_color_creature_type] */
 static_pump_keyword_color_type ::= singular_pump "," singular_keyword_grant "," "and" retained_color_creature_type
 
@@ -10686,3 +10687,31 @@ rule_changes_attached_activation ::= rule_change "and" attached_activation_prohi
 /* @prefer always */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($subtype_tokens, $modifier_you_control)}), changes:$grant_two} */
 static_subtype_token_grant_pair ::= subtype_tokens modifier_you_control "have" grant_two "."
+
+/* A granted keyword survives removal of the object's other abilities. */
+/* @sem Change::[RemoveAllAbilities, GrantKeyword($keyword_value)] */
+retained_keyword_after_loss ::= "has" keyword_value "," "loses" "all" "other" "abilities"
+
+/* The retained keyword and added color/type compose as a punctuated change list. */
+/* @prefer always */
+/* @sem Change::[...$retained_keyword_after_loss, ...$retained_color_creature_type] */
+retained_keyword_and_added_color_type ::= retained_keyword_after_loss "," "and" retained_color_creature_type
+
+/* A base-power change and a quoted grant are independent changes. */
+/* @sem Change::[SetPower($value)] */
+static_base_power_change ::= "has" "base" "power" value
+
+/* @sem Change::[...$static_base_power_change, ...$base_power_closed_grants] */
+static_base_power_closed_grant ::= static_base_power_change "and" "has" base_power_closed_grants
+
+base_power_closed_grants ::= closed_grants | closed_holder_unless_trigger
+
+/* The quoted trigger retains its own holder, event, condition, and program. */
+/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, intervening_if:$condition, limits:_{}, announcement:@announcement, body:$program_each_opponent_token_creation})) */
+shared_granted_if_opponent_tokens ::= '"' event_clause "," "if" condition "," program_each_opponent_token_creation "." '"'
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($owned_commander_plural), changes:[$shared_granted_if_opponent_tokens]} */
+owned_commander_granted_if_opponent_tokens ::= owned_commander_plural "have" shared_granted_if_opponent_tokens
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$switch_characteristics, duration:$duration, evaluation:Snapshot} */
+switch_affected_characteristics ::= "switch" affected "'s" switch_characteristics duration
