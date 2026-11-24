@@ -1,0 +1,1519 @@
+{
+  "family": "Chosen creatures and next-turn attack restriction",
+  "cases": [
+    {
+      "name": "Oracle en-Vec",
+      "text": "{T}: Target opponent chooses any number of creatures they control. During that player's next turn, the chosen creatures attack if able, and other creatures can't attack. At the beginning of that turn's end step, destroy each of the chosen creatures that didn't attack this turn. Activate only during your turn.",
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": {
+                "kind": "PlayerIsActive",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              },
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseObjects",
+                      "args": {
+                        "player": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        },
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Target",
+                                      "args": {
+                                        "slot": 0,
+                                        "index": 0
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "count": "AnyNumber",
+                        "constraints": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "MustAttack": {
+                                "attackers": {
+                                  "kind": "InSet",
+                                  "args": {
+                                    "kind": "Selected",
+                                    "args": 0
+                                  }
+                                },
+                                "defenders": "Any",
+                                "count": null
+                              }
+                            }
+                          },
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "Prohibit": {
+                                "AttackWith": {
+                                  "kind": "Not",
+                                  "args": {
+                                    "kind": "InSet",
+                                    "args": {
+                                      "kind": "Selected",
+                                      "args": 0
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "DuringNextTurn": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateDelayedTrigger",
+                      "args": {
+                        "event": {
+                          "Turn": {
+                            "point": "EndStepBegins",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "start": "Immediately",
+                        "expires": null,
+                        "intervening_if": null,
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 2,
+                                "operation": {
+                                  "kind": "Destroy",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Shared": "Battlefield"
+                                        },
+                                        "kind": "Permanent",
+                                        "filter": {
+                                          "kind": "AllOf",
+                                          "args": [
+                                            {
+                                              "kind": "InSet",
+                                              "args": {
+                                                "kind": "Selected",
+                                                "args": 0
+                                              }
+                                            },
+                                            {
+                                              "kind": "Condition",
+                                              "args": {
+                                                "kind": "Not",
+                                                "args": {
+                                                  "kind": "Compare",
+                                                  "args": {
+                                                    "left": {
+                                                      "kind": "EventHistory",
+                                                      "args": {
+                                                        "event": {
+                                                          "Object": {
+                                                            "event": "Attacks",
+                                                            "objects": {
+                                                              "kind": "SameObject",
+                                                              "args": {
+                                                                "kind": "Candidate"
+                                                              }
+                                                            }
+                                                          }
+                                                        },
+                                                        "window": "ThisTurn",
+                                                        "measure": "Occurrences"
+                                                      }
+                                                    },
+                                                    "test": {
+                                                      "kind": "Compare",
+                                                      "args": {
+                                                        "comparison": "GreaterOrEqual",
+                                                        "value": {
+                                                          "kind": "Constant",
+                                                          "args": 1
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    },
+                                    "regeneration": true
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Oracle en-Vec",
+      "text": "{T}: Target opponent chooses any number of creatures they control. During that player's next turn, the chosen creatures attack if able, and other creatures can't attack. At the beginning of that turn's end step, destroy each of the chosen creatures that didn't attack two or more times this turn. Activate only during your turn.",
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": {
+                "kind": "PlayerIsActive",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              },
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseObjects",
+                      "args": {
+                        "player": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        },
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Target",
+                                      "args": {
+                                        "slot": 0,
+                                        "index": 0
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "count": "AnyNumber",
+                        "constraints": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "MustAttack": {
+                                "attackers": {
+                                  "kind": "InSet",
+                                  "args": {
+                                    "kind": "Selected",
+                                    "args": 0
+                                  }
+                                },
+                                "defenders": "Any",
+                                "count": null
+                              }
+                            }
+                          },
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "Prohibit": {
+                                "AttackWith": {
+                                  "kind": "Not",
+                                  "args": {
+                                    "kind": "InSet",
+                                    "args": {
+                                      "kind": "Selected",
+                                      "args": 0
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "DuringNextTurn": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateDelayedTrigger",
+                      "args": {
+                        "event": {
+                          "Turn": {
+                            "point": "EndStepBegins",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "start": "Immediately",
+                        "expires": null,
+                        "intervening_if": null,
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 2,
+                                "operation": {
+                                  "kind": "Destroy",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Shared": "Battlefield"
+                                        },
+                                        "kind": "Permanent",
+                                        "filter": {
+                                          "kind": "AllOf",
+                                          "args": [
+                                            {
+                                              "kind": "InSet",
+                                              "args": {
+                                                "kind": "Selected",
+                                                "args": 0
+                                              }
+                                            },
+                                            {
+                                              "kind": "Condition",
+                                              "args": {
+                                                "kind": "Not",
+                                                "args": {
+                                                  "kind": "Compare",
+                                                  "args": {
+                                                    "left": {
+                                                      "kind": "EventHistory",
+                                                      "args": {
+                                                        "event": {
+                                                          "Object": {
+                                                            "event": "Attacks",
+                                                            "objects": {
+                                                              "kind": "SameObject",
+                                                              "args": {
+                                                                "kind": "Candidate"
+                                                              }
+                                                            }
+                                                          }
+                                                        },
+                                                        "window": "ThisTurn",
+                                                        "measure": "Occurrences"
+                                                      }
+                                                    },
+                                                    "test": {
+                                                      "kind": "Compare",
+                                                      "args": {
+                                                        "comparison": "GreaterOrEqual",
+                                                        "value": {
+                                                          "kind": "Constant",
+                                                          "args": 2
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    },
+                                    "regeneration": true
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Oracle en-Vec",
+      "text": "{T}: Target opponent chooses any number of creatures they control. During that player's next turn, the chosen creatures attack if able, and other creatures can't attack. At the beginning of that turn's end step, destroy each of the chosen creatures that didn't attack last turn. Activate only during your turn.",
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": {
+                "kind": "PlayerIsActive",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              },
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseObjects",
+                      "args": {
+                        "player": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        },
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Target",
+                                      "args": {
+                                        "slot": 0,
+                                        "index": 0
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "count": "AnyNumber",
+                        "constraints": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "MustAttack": {
+                                "attackers": {
+                                  "kind": "InSet",
+                                  "args": {
+                                    "kind": "Selected",
+                                    "args": 0
+                                  }
+                                },
+                                "defenders": "Any",
+                                "count": null
+                              }
+                            }
+                          },
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "Prohibit": {
+                                "AttackWith": {
+                                  "kind": "Not",
+                                  "args": {
+                                    "kind": "InSet",
+                                    "args": {
+                                      "kind": "Selected",
+                                      "args": 0
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "DuringNextTurn": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateDelayedTrigger",
+                      "args": {
+                        "event": {
+                          "Turn": {
+                            "point": "EndStepBegins",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "start": "Immediately",
+                        "expires": null,
+                        "intervening_if": null,
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 2,
+                                "operation": {
+                                  "kind": "Destroy",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Shared": "Battlefield"
+                                        },
+                                        "kind": "Permanent",
+                                        "filter": {
+                                          "kind": "AllOf",
+                                          "args": [
+                                            {
+                                              "kind": "InSet",
+                                              "args": {
+                                                "kind": "Selected",
+                                                "args": 0
+                                              }
+                                            },
+                                            {
+                                              "kind": "Condition",
+                                              "args": {
+                                                "kind": "Not",
+                                                "args": {
+                                                  "kind": "Compare",
+                                                  "args": {
+                                                    "left": {
+                                                      "kind": "EventHistory",
+                                                      "args": {
+                                                        "event": {
+                                                          "Object": {
+                                                            "event": "Attacks",
+                                                            "objects": {
+                                                              "kind": "SameObject",
+                                                              "args": {
+                                                                "kind": "Candidate"
+                                                              }
+                                                            }
+                                                          }
+                                                        },
+                                                        "window": "LastTurn",
+                                                        "measure": "Occurrences"
+                                                      }
+                                                    },
+                                                    "test": {
+                                                      "kind": "Compare",
+                                                      "args": {
+                                                        "comparison": "GreaterOrEqual",
+                                                        "value": {
+                                                          "kind": "Constant",
+                                                          "args": 1
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    },
+                                    "regeneration": true
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Oracle en-Vec",
+      "text": "{T}: Target opponent chooses any number of lands they control. During that player's next turn, the chosen creatures attack if able, and other creatures can't attack. At the beginning of that turn's end step, destroy each of the chosen creatures that didn't attack this turn. Activate only during your turn.",
+      "reject": true
+    },
+    {
+      "name": "Oracle en-Vec",
+      "text": "{T}: Target opponent chooses any number of creatures they control. During that player's next turn, the chosen creatures attack if able, and other creatures can't attack. At the beginning of that turn's end step, destroy each of the chosen creatures that didn't attack two or more times this turn. Activate only during your turn.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Wizard"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          1,
+          1
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": {
+                "kind": "PlayerIsActive",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              },
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseObjects",
+                      "args": {
+                        "player": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        },
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Target",
+                                      "args": {
+                                        "slot": 0,
+                                        "index": 0
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "count": "AnyNumber",
+                        "constraints": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "MustAttack": {
+                                "attackers": {
+                                  "kind": "InSet",
+                                  "args": {
+                                    "kind": "Selected",
+                                    "args": 0
+                                  }
+                                },
+                                "defenders": "Any",
+                                "count": null
+                              }
+                            }
+                          },
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "Prohibit": {
+                                "AttackWith": {
+                                  "kind": "Not",
+                                  "args": {
+                                    "kind": "InSet",
+                                    "args": {
+                                      "kind": "Selected",
+                                      "args": 0
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "DuringNextTurn": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateDelayedTrigger",
+                      "args": {
+                        "event": {
+                          "Turn": {
+                            "point": "EndStepBegins",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "start": "Immediately",
+                        "expires": null,
+                        "intervening_if": null,
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 2,
+                                "operation": {
+                                  "kind": "Destroy",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Shared": "Battlefield"
+                                        },
+                                        "kind": "Permanent",
+                                        "filter": {
+                                          "kind": "AllOf",
+                                          "args": [
+                                            {
+                                              "kind": "InSet",
+                                              "args": {
+                                                "kind": "Selected",
+                                                "args": 0
+                                              }
+                                            },
+                                            {
+                                              "kind": "Condition",
+                                              "args": {
+                                                "kind": "Not",
+                                                "args": {
+                                                  "kind": "Compare",
+                                                  "args": {
+                                                    "left": {
+                                                      "kind": "EventHistory",
+                                                      "args": {
+                                                        "event": {
+                                                          "Object": {
+                                                            "event": "Attacks",
+                                                            "objects": {
+                                                              "kind": "SameObject",
+                                                              "args": {
+                                                                "kind": "Candidate"
+                                                              }
+                                                            }
+                                                          }
+                                                        },
+                                                        "window": "ThisTurn",
+                                                        "measure": "Occurrences"
+                                                      }
+                                                    },
+                                                    "test": {
+                                                      "kind": "Compare",
+                                                      "args": {
+                                                        "comparison": "GreaterOrEqual",
+                                                        "value": {
+                                                          "kind": "Constant",
+                                                          "args": 2
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    },
+                                    "regeneration": true
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Oracle en-Vec",
+      "text": "{T}: Target opponent chooses any number of creatures they control. During that player's next turn, the chosen creatures attack if able, and other creatures can't attack. At the beginning of that turn's end step, destroy each of the chosen creatures that didn't attack last turn. Activate only during your turn.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Wizard"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          1,
+          1
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": {
+                "kind": "PlayerIsActive",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              },
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseObjects",
+                      "args": {
+                        "player": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        },
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Target",
+                                      "args": {
+                                        "slot": 0,
+                                        "index": 0
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "count": "AnyNumber",
+                        "constraints": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "MustAttack": {
+                                "attackers": {
+                                  "kind": "InSet",
+                                  "args": {
+                                    "kind": "Selected",
+                                    "args": 0
+                                  }
+                                },
+                                "defenders": "Any",
+                                "count": null
+                              }
+                            }
+                          },
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "Prohibit": {
+                                "AttackWith": {
+                                  "kind": "Not",
+                                  "args": {
+                                    "kind": "InSet",
+                                    "args": {
+                                      "kind": "Selected",
+                                      "args": 0
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "DuringNextTurn": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateDelayedTrigger",
+                      "args": {
+                        "event": {
+                          "Turn": {
+                            "point": "EndStepBegins",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "start": "Immediately",
+                        "expires": null,
+                        "intervening_if": null,
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 2,
+                                "operation": {
+                                  "kind": "Destroy",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Shared": "Battlefield"
+                                        },
+                                        "kind": "Permanent",
+                                        "filter": {
+                                          "kind": "AllOf",
+                                          "args": [
+                                            {
+                                              "kind": "InSet",
+                                              "args": {
+                                                "kind": "Selected",
+                                                "args": 0
+                                              }
+                                            },
+                                            {
+                                              "kind": "Condition",
+                                              "args": {
+                                                "kind": "Not",
+                                                "args": {
+                                                  "kind": "Compare",
+                                                  "args": {
+                                                    "left": {
+                                                      "kind": "EventHistory",
+                                                      "args": {
+                                                        "event": {
+                                                          "Object": {
+                                                            "event": "Attacks",
+                                                            "objects": {
+                                                              "kind": "SameObject",
+                                                              "args": {
+                                                                "kind": "Candidate"
+                                                              }
+                                                            }
+                                                          }
+                                                        },
+                                                        "window": "LastTurn",
+                                                        "measure": "Occurrences"
+                                                      }
+                                                    },
+                                                    "test": {
+                                                      "kind": "Compare",
+                                                      "args": {
+                                                        "comparison": "GreaterOrEqual",
+                                                        "value": {
+                                                          "kind": "Constant",
+                                                          "args": 1
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    },
+                                    "regeneration": true
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

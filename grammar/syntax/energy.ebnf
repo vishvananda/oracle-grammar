@@ -179,3 +179,11 @@ energy_excess_history_amount ::= "X" "{" "E" "}" "," "where" "X" "is" "that" "ex
 
 /* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$energy_excess_history_amount}} */
 energy_get_excess_history ::= "get" energy_excess_history_amount
+
+/* Keep the payment and both consumers with the hand-exile producer: the
+   permission refers to that move, while the draw and threshold use payment. */
+/* @sem Instruction::[Effect{result:@next, operation:PayAnyAmount{actor:One(AbilityController), resource:Energy}}, ForEachPlayer{players:All, binding:0, body:_{instructions:[Optional{decider:Bound(0), body:_{instructions:[Effect{result:@next, operation:Move{objects:Zone(_{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Draw{players:One(Bound(0)), amount:Performed(@back(3))}}]}}]}}, If{condition:Compare{left:Performed(@back(3)), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([OwnedBy(One(AbilityController)), InSet(Transition{result:@back(3), phase:After})])}), from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects}}]}, otherwise:_{}}] */
+energy_payment_hand_exchange_permission ::= "you" "may" "pay" "any" "amount" "of" "{" "E" "}" "." NEWLINE "each" "player" "may" "exile" "their" "hand" "and" "draw" "a" "number" "of" "cards" "equal" "to" "the" "amount" "of" "{" "E" "}" "paid" "this" "way" "." "if" number "or" "more" "{" "E" "}" "was" "paid" "this" "way" "," "you" "may" "play" "cards" "you" "own" "exiled" "this" "way" duration
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$energy_tax_prefix}, ...$energy_payment_hand_exchange_permission]}} */
+spell_energy_hand_exchange ::= energy_tax_prefix "," "then" energy_payment_hand_exchange_permission "."

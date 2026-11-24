@@ -165,7 +165,7 @@ replacement_draw_empty_before ::= "if" draw_event "while" "your" "library" "has"
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= shield_next_prevent_tokens | redirect_unblocked_combat_timed | next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late | prevent_next_granting_spell | redirect_all_to_by_permanents | prevent_next_with_receipt_shared
+prevent_clause ::= shield_next_prevent_tokens | redirect_unblocked_combat_timed | next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late | prevent_next_granting_spell | redirect_all_to_by_permanents | prevent_next_with_receipt_shared | prevent_next_defined_receipt
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -480,7 +480,7 @@ replacement_prevent_self_deals ::= "prevent" "all" "damage" "that" self_ref "wou
 /* @sem Ability::Replacement{active:Battlefield, event:Either([Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient})]), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
 replacement_prevent_to_and_by ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" "and" "dealt" "by" object_ref "."
 
-prevent_by_permanents ::= prevent_by_group | prevent_by_object
+prevent_by_permanents ::= prevent_by_group | prevent_by_object | prevent_by_group_except
 /* @sem ObjectFilter::$filter_plural */
 prevent_by_group ::= filter_plural
 /* @sem ObjectFilter::SameObject($object_ref) */
@@ -2334,7 +2334,7 @@ damage_dealt_noncombat_event ::= "noncombat" "damage" "would" "be" "dealt" "to" 
 /* @sem Ability::Replacement{active:Battlefield, event:$prevention_followup_event, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, ...$prevention_followup]}} */
 replacement_prevention_followup ::= "if" prevention_followup_event "," "prevent" "that" "damage" prevention_followup "."
 
-prevention_followup_event ::= damage_dealt_event | damage_dealt_noncombat_event | controlled_spell_damage_event | damage_dealt_combat_event
+prevention_followup_event ::= damage_dealt_event | damage_dealt_noncombat_event | controlled_spell_damage_event | damage_dealt_combat_event | prevention_controlled_source_event
 
 /* @sem Instruction::[Effect{result:@next, operation:Mill{players:One(AbilityController), amount:Multiply([$prevention_mill_factor, EventAmount])}}] */
 prevention_followup_mill ::= "and" "mill" prevention_mill_factor "that" "many" "cards"
@@ -2345,7 +2345,7 @@ prevention_followup_life ::= "." "you" "gain" "life" "equal" "to" "the" "damage"
 /* @sem Instruction::[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Source)), kind:$counter_kind, amount:EventAmount}]}}] */
 prevention_followup_counters ::= "." "put" "a" counter_kind "counter" "on" "this" "creature" "for" "each" "1" "damage" "prevented" "this" "way"
 
-prevention_followup ::= prevention_followup_mill | prevention_followup_life | prevention_followup_counters | prevention_followup_token | prevention_followup_exile_library
+prevention_followup ::= prevention_followup_mill | prevention_followup_life | prevention_followup_counters | prevention_followup_token | prevention_followup_exile_library | prevention_followup_players_mill
 
 /* @sem Expr::Constant(2) */
 prevention_mill_factor ::= "twice"
@@ -4241,3 +4241,23 @@ linked_exile_return_destination ::= linked_exile_return_battlefield | linked_oth
 
 /* @sem MovementDestination::Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
 linked_exile_return_battlefield ::= "to" "the" "battlefield" "under" "its" "owner's" "control"
+
+/* The damage source, kind, recipient, and milling players remain independent. */
+/* @sem ReplacementEvent::Damage(_{source_kind:Any, sources:$prevention_controlled_source, recipients:$replacement_damage_to, kind:$event_damage_kind, grouping:SourceRecipient, subject:Recipient}) */
+prevention_controlled_source_event ::= prevention_controlled_source "would" "deal" event_damage_kind "to" replacement_damage_to
+
+prevention_controlled_source ::= source_yours | source_opponents | source_color_yours
+
+/* The amount is the result of the adjacent prevention, not the proposed event. */
+/* @sem Instruction::[Effect{result:@next, operation:Mill{players:$players_singular, amount:Performed(@prior)}}] */
+prevention_followup_players_mill ::= "and" players_singular "mills" "that" "many" "cards"
+
+/* The guarded follow-up consumes this shield's prevention result. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:$prevent_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($value_devotion), duration:$this_duration, body:$prevent_guarded_damage_body} */
+prevent_next_defined_receipt ::= "prevent" "the" "next" "X" prevent_damage "that" "would" "be" "dealt" "to" prevent_to this_duration "," "where" "X" "is" value_devotion "." prevent_guarded_damage_body
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, If{condition:Compare{left:Performed(@last_result), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:$recipients, amount:Performed(@prior), preventable:true}}]}, otherwise:Program{}}]} */
+prevent_guarded_damage_body ::= "if" "damage" "is" "prevented" "this" "way" "," self_explicit_ref "deals" "that" "much" "damage" "to" recipients
+
+/* @sem ObjectFilter::AllOf([$filter_plural, Not($filter_plural_2)]) */
+prevent_by_group_except ::= filter_plural "other" "than" filter_plural

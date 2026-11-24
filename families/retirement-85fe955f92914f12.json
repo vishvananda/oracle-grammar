@@ -1,0 +1,1456 @@
+{
+  "family": "retirement-85fe955f92914f12",
+  "cases": [
+    {
+      "name": "Yusri, Fortune's Flame",
+      "text": "Whenever Yusri attacks, choose a number between 1 and 5. Flip that many coins. For each flip you win, draw a card. For each flip you lose, Yusri deals 2 damage to you. If you won five flips this way, you may cast spells from your hand this turn without paying their mana costs.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Object": {
+                "event": "Attacks",
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseValue",
+                      "args": {
+                        "choosers": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "kind": "Number",
+                        "terms": {
+                          "options": [
+                            {
+                              "kind": "Integer",
+                              "args": 1
+                            },
+                            {
+                              "kind": "Integer",
+                              "args": 5
+                            }
+                          ],
+                          "except": [],
+                          "count": {
+                            "Exactly": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "secret": false,
+                          "unchosen": false,
+                          "random": false,
+                          "ordered": false
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "FlipCoins",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "count": {
+                          "kind": "ChosenNumber"
+                        },
+                        "protocol": "Called"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "CountCoinOutcomes",
+                          "args": {
+                            "source": "Latest",
+                            "outcome": "Won"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "amount": {
+                          "kind": "Multiply",
+                          "args": [
+                            {
+                              "kind": "Constant",
+                              "args": 2
+                            },
+                            {
+                              "kind": "CountCoinOutcomes",
+                              "args": {
+                                "source": "Latest",
+                                "outcome": "Lost"
+                              }
+                            }
+                          ]
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountCoinOutcomes",
+                          "args": {
+                            "source": "Latest",
+                            "outcome": "Won"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 5
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermissionWith": {
+                                        "permission": {
+                                          "PlayPermission": {
+                                            "cards": {
+                                              "kind": "Zone",
+                                              "args": {
+                                                "scope": {
+                                                  "Players": {
+                                                    "zone": "Hand",
+                                                    "players": {
+                                                      "kind": "One",
+                                                      "args": {
+                                                        "kind": "Affected"
+                                                      }
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "Card",
+                                                "filter": {
+                                                  "kind": "Any"
+                                                }
+                                              }
+                                            },
+                                            "from": "Hand",
+                                            "action": "CastSpell",
+                                            "filter": {
+                                              "kind": "Any"
+                                            }
+                                          }
+                                        },
+                                        "terms": {
+                                          "limit": null,
+                                          "during": null,
+                                          "cost": "Free",
+                                          "spend_as": null,
+                                          "into_exile": false,
+                                          "condition": null,
+                                          "effects": [],
+                                          "flash": false,
+                                          "may_look": false,
+                                          "then": null,
+                                          "face_down": null
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true,
+      "readings": 1
+    },
+    {
+      "name": "Yusri, Fortune's Flame",
+      "text": "Whenever Yusri attacks, choose a number between 1 and 5. Flip that many coins. For each flip you win, draw a card. For each flip you lose, Yusri deals 3 damage to you. If you won five flips this way, you may cast spells from your hand this turn without paying their mana costs.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Object": {
+                "event": "Attacks",
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseValue",
+                      "args": {
+                        "choosers": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "kind": "Number",
+                        "terms": {
+                          "options": [
+                            {
+                              "kind": "Integer",
+                              "args": 1
+                            },
+                            {
+                              "kind": "Integer",
+                              "args": 5
+                            }
+                          ],
+                          "except": [],
+                          "count": {
+                            "Exactly": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "secret": false,
+                          "unchosen": false,
+                          "random": false,
+                          "ordered": false
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "FlipCoins",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "count": {
+                          "kind": "ChosenNumber"
+                        },
+                        "protocol": "Called"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "CountCoinOutcomes",
+                          "args": {
+                            "source": "Latest",
+                            "outcome": "Won"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "amount": {
+                          "kind": "Multiply",
+                          "args": [
+                            {
+                              "kind": "Constant",
+                              "args": 3
+                            },
+                            {
+                              "kind": "CountCoinOutcomes",
+                              "args": {
+                                "source": "Latest",
+                                "outcome": "Lost"
+                              }
+                            }
+                          ]
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountCoinOutcomes",
+                          "args": {
+                            "source": "Latest",
+                            "outcome": "Won"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 5
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermissionWith": {
+                                        "permission": {
+                                          "PlayPermission": {
+                                            "cards": {
+                                              "kind": "Zone",
+                                              "args": {
+                                                "scope": {
+                                                  "Players": {
+                                                    "zone": "Hand",
+                                                    "players": {
+                                                      "kind": "One",
+                                                      "args": {
+                                                        "kind": "Affected"
+                                                      }
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "Card",
+                                                "filter": {
+                                                  "kind": "Any"
+                                                }
+                                              }
+                                            },
+                                            "from": "Hand",
+                                            "action": "CastSpell",
+                                            "filter": {
+                                              "kind": "Any"
+                                            }
+                                          }
+                                        },
+                                        "terms": {
+                                          "limit": null,
+                                          "during": null,
+                                          "cost": "Free",
+                                          "spend_as": null,
+                                          "into_exile": false,
+                                          "condition": null,
+                                          "effects": [],
+                                          "flash": false,
+                                          "may_look": false,
+                                          "then": null,
+                                          "face_down": null
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true,
+      "readings": 1
+    },
+    {
+      "name": "Yusri, Fortune's Flame",
+      "text": "Whenever Yusri attacks, choose a number between 1 and 5. Flip that many coins. For each flip you win, draw a card. For each flip you lose, Yusri deals 2 damage to you. If you won four flips this way, you may cast spells from your hand this turn without paying their mana costs.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Object": {
+                "event": "Attacks",
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseValue",
+                      "args": {
+                        "choosers": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "kind": "Number",
+                        "terms": {
+                          "options": [
+                            {
+                              "kind": "Integer",
+                              "args": 1
+                            },
+                            {
+                              "kind": "Integer",
+                              "args": 5
+                            }
+                          ],
+                          "except": [],
+                          "count": {
+                            "Exactly": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "secret": false,
+                          "unchosen": false,
+                          "random": false,
+                          "ordered": false
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "FlipCoins",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "count": {
+                          "kind": "ChosenNumber"
+                        },
+                        "protocol": "Called"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "CountCoinOutcomes",
+                          "args": {
+                            "source": "Latest",
+                            "outcome": "Won"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "amount": {
+                          "kind": "Multiply",
+                          "args": [
+                            {
+                              "kind": "Constant",
+                              "args": 2
+                            },
+                            {
+                              "kind": "CountCoinOutcomes",
+                              "args": {
+                                "source": "Latest",
+                                "outcome": "Lost"
+                              }
+                            }
+                          ]
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountCoinOutcomes",
+                          "args": {
+                            "source": "Latest",
+                            "outcome": "Won"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 4
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermissionWith": {
+                                        "permission": {
+                                          "PlayPermission": {
+                                            "cards": {
+                                              "kind": "Zone",
+                                              "args": {
+                                                "scope": {
+                                                  "Players": {
+                                                    "zone": "Hand",
+                                                    "players": {
+                                                      "kind": "One",
+                                                      "args": {
+                                                        "kind": "Affected"
+                                                      }
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "Card",
+                                                "filter": {
+                                                  "kind": "Any"
+                                                }
+                                              }
+                                            },
+                                            "from": "Hand",
+                                            "action": "CastSpell",
+                                            "filter": {
+                                              "kind": "Any"
+                                            }
+                                          }
+                                        },
+                                        "terms": {
+                                          "limit": null,
+                                          "during": null,
+                                          "cost": "Free",
+                                          "spend_as": null,
+                                          "into_exile": false,
+                                          "condition": null,
+                                          "effects": [],
+                                          "flash": false,
+                                          "may_look": false,
+                                          "then": null,
+                                          "face_down": null
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true,
+      "readings": 1
+    },
+    {
+      "name": "Yusri, Fortune's Flame",
+      "text": "Whenever Yusri attacks, choose a number between 1 and 5. Flip a coin. For each flip you win, draw a card. For each flip you lose, Yusri deals 2 damage to you. If you won five flips this way, you may cast spells from your hand this turn without paying their mana costs.",
+      "reject": true
+    },
+    {
+      "name": "Yusri, Fortune's Flame",
+      "text": "Flying\nWhenever Yusri attacks, choose a number between 1 and 5. Flip that many coins. For each flip you win, draw a card. For each flip you lose, Yusri deals 3 damage to you. If you won five flips this way, you may cast spells from your hand this turn without paying their mana costs.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Efreet"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Object": {
+                "event": "Attacks",
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseValue",
+                      "args": {
+                        "choosers": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "kind": "Number",
+                        "terms": {
+                          "options": [
+                            {
+                              "kind": "Integer",
+                              "args": 1
+                            },
+                            {
+                              "kind": "Integer",
+                              "args": 5
+                            }
+                          ],
+                          "except": [],
+                          "count": {
+                            "Exactly": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "secret": false,
+                          "unchosen": false,
+                          "random": false,
+                          "ordered": false
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "FlipCoins",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "count": {
+                          "kind": "ChosenNumber"
+                        },
+                        "protocol": "Called"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "CountCoinOutcomes",
+                          "args": {
+                            "source": "Latest",
+                            "outcome": "Won"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "amount": {
+                          "kind": "Multiply",
+                          "args": [
+                            {
+                              "kind": "Constant",
+                              "args": 3
+                            },
+                            {
+                              "kind": "CountCoinOutcomes",
+                              "args": {
+                                "source": "Latest",
+                                "outcome": "Lost"
+                              }
+                            }
+                          ]
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountCoinOutcomes",
+                          "args": {
+                            "source": "Latest",
+                            "outcome": "Won"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 5
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermissionWith": {
+                                        "permission": {
+                                          "PlayPermission": {
+                                            "cards": {
+                                              "kind": "Zone",
+                                              "args": {
+                                                "scope": {
+                                                  "Players": {
+                                                    "zone": "Hand",
+                                                    "players": {
+                                                      "kind": "One",
+                                                      "args": {
+                                                        "kind": "Affected"
+                                                      }
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "Card",
+                                                "filter": {
+                                                  "kind": "Any"
+                                                }
+                                              }
+                                            },
+                                            "from": "Hand",
+                                            "action": "CastSpell",
+                                            "filter": {
+                                              "kind": "Any"
+                                            }
+                                          }
+                                        },
+                                        "terms": {
+                                          "limit": null,
+                                          "during": null,
+                                          "cost": "Free",
+                                          "spend_as": null,
+                                          "into_exile": false,
+                                          "condition": null,
+                                          "effects": [],
+                                          "flash": false,
+                                          "may_look": false,
+                                          "then": null,
+                                          "face_down": null
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Yusri, Fortune's Flame",
+      "text": "Flying\nWhenever Yusri attacks, choose a number between 1 and 5. Flip that many coins. For each flip you win, draw a card. For each flip you lose, Yusri deals 2 damage to you. If you won four flips this way, you may cast spells from your hand this turn without paying their mana costs.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Efreet"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Object": {
+                "event": "Attacks",
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseValue",
+                      "args": {
+                        "choosers": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "kind": "Number",
+                        "terms": {
+                          "options": [
+                            {
+                              "kind": "Integer",
+                              "args": 1
+                            },
+                            {
+                              "kind": "Integer",
+                              "args": 5
+                            }
+                          ],
+                          "except": [],
+                          "count": {
+                            "Exactly": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "secret": false,
+                          "unchosen": false,
+                          "random": false,
+                          "ordered": false
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "FlipCoins",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "count": {
+                          "kind": "ChosenNumber"
+                        },
+                        "protocol": "Called"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "CountCoinOutcomes",
+                          "args": {
+                            "source": "Latest",
+                            "outcome": "Won"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "amount": {
+                          "kind": "Multiply",
+                          "args": [
+                            {
+                              "kind": "Constant",
+                              "args": 2
+                            },
+                            {
+                              "kind": "CountCoinOutcomes",
+                              "args": {
+                                "source": "Latest",
+                                "outcome": "Lost"
+                              }
+                            }
+                          ]
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountCoinOutcomes",
+                          "args": {
+                            "source": "Latest",
+                            "outcome": "Won"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 4
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermissionWith": {
+                                        "permission": {
+                                          "PlayPermission": {
+                                            "cards": {
+                                              "kind": "Zone",
+                                              "args": {
+                                                "scope": {
+                                                  "Players": {
+                                                    "zone": "Hand",
+                                                    "players": {
+                                                      "kind": "One",
+                                                      "args": {
+                                                        "kind": "Affected"
+                                                      }
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "Card",
+                                                "filter": {
+                                                  "kind": "Any"
+                                                }
+                                              }
+                                            },
+                                            "from": "Hand",
+                                            "action": "CastSpell",
+                                            "filter": {
+                                              "kind": "Any"
+                                            }
+                                          }
+                                        },
+                                        "terms": {
+                                          "limit": null,
+                                          "during": null,
+                                          "cost": "Free",
+                                          "spend_as": null,
+                                          "into_exile": false,
+                                          "condition": null,
+                                          "effects": [],
+                                          "flash": false,
+                                          "may_look": false,
+                                          "then": null,
+                                          "face_down": null
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
