@@ -703,3 +703,231 @@ reading. No reference update or AST schema change was needed for this fix.
 - Faces (4): Coram, the Undertaker, Sleuth Instructor, Volcano Hellion, Volo, Guide to Monsters
 - Evidence: Volo tests creature types rather than colors; Volcano Hellion says "The damage can't be prevented"; Coram permits both playing a land AND casting a spell each turn; Sleuth Instructor is one ability with "This ability triggers only once."
 
+### U0105: Preserve 'for as long as you control this creature' controller condition instead of WhileOnBattlefield
+- Faces (3): Aegis Angel, Kyodai, Soul of Kamigawa, Thancred Waters
+- Evidence: Oracle text for Aegis Angel, Kyodai, Soul of Kamigawa, and Thancred Waters states 'gains indestructible for as long as you control [self]'; frozen gold emitted WhileOnBattlefield(Source) without the controller check.
+
+### U0106: Execute 'Tap target creature.' unconditionally before metalcraft exile on Dispatch
+- Faces (1): Dispatch
+- Evidence: Dispatch reads 'Tap target creature. If you control three or more artifacts, exile that creature.'; frozen gold placed SetTapped only in the otherwise branch, failing to tap before exiling when metalcraft is active.
+
+### U0107: Include 'that player controls' on Mordant Dragon's combat-damage trigger target
+- Faces (1): Mordant Dragon
+- Evidence: Mordant Dragon reads 'deal that much damage to target creature that player controls.'; frozen gold omitted ControlledBy(EventSubject), permitting targeting any creature.
+
+### U0108: Use Affected exclusion and Creature blocker filter on Nephilim Epochal
+- Faces (1): Nephilim Epochal
+- Evidence: Nephilim Epochal reads 'Nephilim you control get +1/+1 for each other Nephilim you control and can't be blocked by monocolored creatures.'; frozen gold excluded Source instead of Affected and omitted CardType(Creature) on the blocker filter.
+
+### U0109: Normalize 'third from the top' library position to Constant(3) on Teferi, Hero of Dominaria
+- Faces (1): Teferi, Hero of Dominaria
+- Evidence: Teferi's [-3] reads 'Put target nonland permanent into its owner's library third from the top.'; frozen gold emitted unsimplified Add(Constant(2), Constant(1)) instead of Constant(3).
+
+### U0110: Fix Sarulf, Realm Eater mana value comparison from Less to LessOrEqual
+- Faces (1): Sarulf, Realm Eater
+- Evidence: Sarulf, Realm Eater says "exile each other nonland permanent with mana value less than or equal to the number of counters removed this way" (Comparison::LessOrEqual), whereas MTGish exported Comparison::Less.
+
+### U0111: Restore AddCurrentAbility copy exception on Court of Vantress
+- Faces (1): Court of Vantress
+- Evidence: Court of Vantress says "you may have this enchantment become a copy of it, except it has this ability" (CopyException::AddCurrentAbility), whereas MTGish exported an empty exceptions list.
+
+### U0112: Restore SharesNameWith predicate on Legion's End battlefield exile clause
+- Faces (1): Legion's End
+- Evidence: Legion's End says "all other creatures that player controls with the same name as that creature", whereas MTGish omitted SharesNameWith(Target(0, 0)) from the battlefield permanent filter.
+
+### U0113: Fix swapped Repeat.times and Incubate.amount on Progenitor Exarch
+- Faces (1): Progenitor Exarch
+- Evidence: Progenitor Exarch says "When this creature enters, incubate 3 X times" (times=CastX(EventSubject), amount=Constant(3)), whereas MTGish swapped the two operands (same upstream bug fixed on The Argent Etchings and Glistening Dawn in U0099).
+
+### U0114: Restore CardType(Creature) on Malik, Grim Manipulator secret choice pool
+- Faces (1): Malik, Grim Manipulator
+- Evidence: Malik, Grim Manipulator says "you and target opponent each secretly choose a creature that player controls", whereas MTGish omitted CardType(Creature) from the choice-pool filter.
+
+### U0115: Restore CardType(Land) on Tunnel Ignus intervening-if entry history filter
+- Faces (1): Tunnel Ignus
+- Evidence: Tunnel Ignus says "if that player had another land enter the battlefield under their control this turn", whereas MTGish omitted CardType(Land) from the historical ZoneChange object filter. PlayerRef::EventSubject correctly names the opponent under whose control the triggering land entered.
+
+### U0116: Restrict Chandra's Phoenix planeswalker damage trigger recipients to opponents
+- Faces (1): Chandra's Phoenix
+- Evidence: Chandra's Phoenix says "Whenever an opponent is dealt damage by a red instant or sorcery spell you control or by a red planeswalker you control", so both branches require opponent recipients (OpponentsOf(AbilityController)), whereas MTGish exported Players(All) on the planeswalker branch.
+
+### U0117: Negate Thirsting Axe end-step combat-damage intervening-if predicate
+- Faces (1): Thirsting Axe
+- Evidence: Thirsting Axe says "At the beginning of your end step, if equipped creature didn't deal combat damage to a creature this turn, sacrifice it", whereas MTGish exported the unnegated >= 1 occurrence check.
+
+### U0118: Model Vhati il-Dal power-or-toughness resolution choice as ChooseOne
+- Faces (1): Vhati il-Dal
+- Evidence: Vhati il-Dal says "Until end of turn, target creature has base power 1 or base toughness 1" (a resolution-time choice between SetPower(1) and SetToughness(1)), whereas MTGish unconditionally applied both SetPower(1) and SetToughness(1).
+
+### U0119: Move Gilded Ambusher damage inside ForEachPlayer targeting each opponent (Bound(0))
+- Faces (1): Gilded Ambusher
+- Evidence: Gilded Ambusher says "each opponent exiles a nonland, nontoken permanent they control and a random nonland card from their library, then Gilded Ambusher deals damage to them equal to the total mana value of the cards exiled this way", whereas MTGish placed DealDamage outside the opponent loop with recipient AbilityController instead of Bound(0) inside the loop.
+
+### U0120: Fix Urge to Feed counter placement to put one +1/+1 counter on each tapped Vampire
+- Faces (1): Urge to Feed
+- Evidence: Urge to Feed says "You may tap any number of untapped Vampire creatures you control. If you do, put a +1/+1 counter on each of those Vampires", whereas MTGish put CountObjects(tapped) counters on Target(0, 0) instead of 1 counter on each tapped Vampire (Transition(result=2, phase=Before)).
+
+### U0121: Fix Urza, Lord Protector meld condition filter from Creature to Artifact
+- Faces (1): Urza, Lord Protector
+- Evidence: Urza, Lord Protector says "If you both own and control Urza, Lord Protector and an artifact named The Mightstone and Weakstone", and the exile choice already filters by CardType(Artifact), whereas MTGish exported CardType(Creature) in the condition.
+
+### U0122: Run Hex, Kellan's Companion's battlefield exile check after the perpetual pump instead of inside the non-battlefield branch.
+- Faces (1): Hex, Kellan's Companion
+- Evidence: Hex, Kellan's Companion says "if Hex is on the battlefield or in exile, it perpetually gets +1/+1. Then if it's on the battlefield, exile it with a fetch counter on it." The frozen export split on InZone(Battlefield) and placed the follow-up If(InZone(Battlefield), Move(Exile)) inside the otherwise branch (not on the battlefield), making the exile dead code when Hex is on the battlefield.
+
+### U0123: Allow Yuna's Decision's first mode to put up to one creature card and/or one land card from hand onto the battlefield via OneForEach.
+- Faces (1): Yuna's Decision
+- Evidence: Yuna's Decision's first mode says "you may put a creature card and/or a land card from your hand onto the battlefield." The frozen export used ChooseObjects with count AsManyAsCan(1) and no constraints, allowing only one card total rather than up to one creature card and up to one land card. Match Michelangelo, Improviser (U0102) using WithSelections with UpTo(2) and OneForEach([CardType(Creature), CardType(Land)]).
+
+### U0124: Use CreatureTypeWord vocabulary operands in Artificial Evolution's ReplaceWord instead of ColorWord.
+- Faces (1): Artificial Evolution
+- Evidence: Artificial Evolution says "Change the text of target spell or permanent by replacing all instances of one creature type with another. The new creature type can't be Wall." Both implied modes correctly choose two CreatureTypes (except Wall), but their ReplaceWord operands erroneously referenced ColorWord::TheFirstChosenColorWord / ColorWord::TheSecondChosenColorWord instead of CreatureTypeWord::TheFirstChosenCreatureType / CreatureTypeWord::TheSecondChosenCreatureType (paralleling LandTypeWord::TheFirstChosenLandType / TheSecondChosenLandType on Magical Hack and Spectral Shift).
+
+### U0125: Reveal the drafted card (result 3) rather than the earlier hand reveal (result 0) on Break Expectations.
+- Faces (1): Break Expectations
+- Evidence: Break Expectations says "If a card was exiled this way, that player drafts a card from Break Expectations's spellbook and reveals it." The frozen export referenced Recorded(0) (the cards revealed from the target player's hand in instruction 0) instead of Recorded(3) (the card drafted in instruction 3).
+
+### U0126: Enforce OneForEach([Subtype(Saga), CardType(Land)]) on Eivor, Wolf-Kissed's milled-card entry choice.
+- Faces (1): Eivor, Wolf-Kissed
+- Evidence: Eivor, Wolf-Kissed says "You may put a Saga card and/or a land card from among them onto the battlefield." The frozen export used UpTo(2) with empty constraints over AnyOf([Saga, Land]), permitting two Sagas or two lands. Match Michelangelo, Improviser (U0102) with OneForEach([Subtype(Saga), CardType(Land)]) over Recorded(0).
+
+### U0127: Guard Enigma Sphinx Avatar's bottom-of-library placement with If(Not(PaymentChosen)) on the optional free play.
+- Faces (1): Enigma Sphinx Avatar
+- Evidence: Enigma Sphinx Avatar says "You may play that card without paying its mana cost. If you don't, put that card on the bottom of your library." The frozen export placed an unconditional ReorderLibrary after PlayCards with no conditional branch. Wrap the optional PlayCards in PayCost(optional:true, PlayerAction) and guard ReorderLibrary with If(Not(PaymentChosen(1))), matching Breaching Dragonstorm, Chandra, Torch of Defiance, and Vaan, Street Thief.
+
+### U0128: Enforce OneForEach across mana values 1, 2, and 3 on Gruesome Menagerie.
+- Faces (1): Gruesome Menagerie
+- Evidence: Gruesome Menagerie says "Choose a creature card with mana value 1 in your graveyard, then do the same for creature cards with mana value 2 and 3. Return those cards to the battlefield." The frozen export used UpTo(3) with empty constraints over AnyOf([MV 1, MV 2, MV 3]), permitting multiple cards of the same mana value. Enforce OneForEach across the three filters over Zone(Graveyard, Any).
+
+### U0129: Restore CardType(Creature) and ControlledBy(One(Bound(0))) to Highcliff Felidar's greatest-power selection filter.
+- Faces (1): Highcliff Felidar
+- Evidence: Highcliff Felidar says "for each opponent, choose a creature with the greatest power among creatures that player controls. Destroy those creatures." The frozen export's ChooseObjects filter checked only Power == Maximum(...) and omitted both CardType(Creature) and ControlledBy(One(Bound(0))), allowing selection of permanents controlled by other players. Match Summon: Valefor's per-player maximum ChooseObjects filter.
+
+### U0130: Check Observed(0) instead of recounting the opponent's post-discard hand on Mind Spike.
+- Faces (1): Mind Spike
+- Evidence: Mind Spike says "Target opponent reveals each noncreature, nonland card in their hand. You choose a card revealed this way. That player discards that card. You lose 2 life. If they didn't reveal a card this way, you draw a card." The frozen export counted current noncreature, nonland cards in the opponent's hand after the discard, causing a draw whenever the opponent had revealed and discarded their sole matching card. Count Observed(0) from the Reveal instruction instead.
+
+### U0131: Include all four chosen permanents (results 0, 2, 4, 6) in Nature Demands an Offering's shuffle player filter.
+- Faces (1): Nature Demands an Offering
+- Evidence: Nature Demands an Offering says "target opponent chooses a creature you don't control and puts it on top of its owner's library, then repeats this process for an artifact, an enchantment, and a land. Then the owner of each permanent chosen this way shuffles." The frozen export checked only Recorded(6) (the land), omitting the chosen creature (0), artifact (2), and enchantment (4). Union all four Recorded receipts.
+
+### U0132: Count nonland cards exiled across all three Repeatable exile steps (results 0, 1, 2) on Rally the Horde.
+- Faces (1): Rally the Horde
+- Evidence: Rally the Horde exiles the top card of your library three times per iteration, repeats if the third isn't a land, then creates a 1/1 red Warrior token "for each nonland card exiled this way." The frozen export counted only Transition(result: 2, After), dropping cards exiled by steps 0 and 1. Union Transition(0, After), Transition(1, After), and Transition(2, After).
+
+### U0133: Put Retribution's -1/-1 counter on the unsacrificed target creature via Difference(Targets(0), Transition(0, Before)).
+- Faces (1): Retribution
+- Evidence: Retribution says "Choose two target creatures controlled by the same opponent. That player chooses and sacrifices one of those creatures. Put a -1/-1 counter on the other." The frozen export put counters on Targets(0) (both targets) rather than Difference(Targets(0), Transition(result: 0, phase: Before)).
+
+### U0134: Exile the top card of the playing player (Affected) library rather than AbilityController on Share the Spoils.
+- Faces (1): Share the Spoils
+- Evidence: Share the Spoils reads "During each player's turn, that player may play a land or cast a spell from among cards exiled with this enchantment ... When they do, exile the top card of their library." The static effect affects Players(All) and already uses One(Affected) for during; frozen gold wrongly used One(AbilityController) for the library owner in the triggered effect.
+
+### U0135: Grant suspend to both cards exiled by Sinister Concierge (self cost and target) that do not already have suspend.
+- Faces (1): Sinister Concierge
+- Evidence: Sinister Concierge reads "you may exile it and put three time counters on it. If you do, exile up to one target creature and put three time counters on it. Each card exiled this way that doesn't have suspend gains suspend." Frozen gold granted suspend only to Transition(1, After), omitting Sinister Concierge itself (CostObjects(Resolution(0), [0], Performed, After)) and omitting the Not(HasKeywordFamily(Suspend)) filter.
+
+### U0136: Guard Systems Override delayed counter-removal trigger on actually putting charge counters (If you do).
+- Faces (1): Systems Override
+- Evidence: Systems Override reads "If it's a Spacecraft, put ten charge counters on it. If you do, remove ten charge counters from it at the beginning of the next end step." Frozen gold created the delayed trigger unconditionally inside the Spacecraft branch without checking Performed(3) > 0.
+
+### U0137: Reveal the chosen creature cards in both branches of Thunderous Debut before checking bargain.
+- Faces (1): Thunderous Debut
+- Evidence: Thunderous Debut reads "Look at the top twenty cards of your library. You may reveal up to two creature cards from among them. If this spell was bargained, put the revealed cards onto the battlefield. Otherwise, put the revealed cards into your hand. Then shuffle." Frozen gold duplicated LookAt/ChooseObjects/Shuffle under If(Bargained) and omitted Reveal in the bargained branch (and added destination CanMoveTo constraints before revealing).
+
+### U0138: Condition each player choice on Two Streams Facility chaos trigger on their previous choice so green anchor and red waterfall swap.
+- Faces (1): Two Streams Facility
+- Evidence: Two Streams Facility AB[3] reads "Whenever chaos ensues, each player who last chose green anchor chooses red waterfall, and vice versa." Frozen gold copied AB[0] unrestricted ChooseValue([Green Anchor, Red Waterfall]) with no VotedFor condition.
+
+### U0139: Guard Unlucky Cabbage Merchant bottoming itself and shuffling on actually searching (If you search your library this way).
+- Faces (1): Unlucky Cabbage Merchant
+- Evidence: Unlucky Cabbage Merchant reads "you may search your library for a basic land card and put it onto the battlefield tapped. If you search your library this way, put this creature on the bottom of its owner's library, then shuffle." Frozen gold placed Move(Source -> Bottom) and Shuffle unconditionally outside Optional, so declining the search still bottomed the creature and shuffled.
+
+### U0140: Move the revealed creature card into hand in Whiskervale Forerunner off-turn branch before reordering the rest.
+- Faces (1): Whiskervale Forerunner
+- Evidence: Whiskervale Forerunner reads "You may put it onto the battlefield if it's your turn. If you don't put it onto the battlefield, put it into your hand. Put the rest on the bottom of your library in a random order." In the PlayerIsActive otherwise branch (not your turn), frozen gold ran only ReorderLibrary on all Observed(0) cards and dropped moving Selected(1) into hand.
+
+### U0141: Restrict Glen Elendra second target controller history predicate to Combat damage instead of Any damage.
+- Faces (1): Glen Elendra
+- Evidence: Glen Elendra reads "exchange control of target creature you control that dealt combat damage to a player this combat and target creature that player controls." Target 0 uses Damage(kind: Combat), while frozen gold Target 1 wrongly used Damage(kind: Any).
+
+### U0142: Test that the countered ability came from a permanent and destroy SourceOf(Recorded(0)) on Green Slime.
+- Faces (1): Green Slime
+- Evidence: Green Slime reads "counter target activated or triggered ability from an artifact or enchantment source. If a permanent's ability is countered this way, destroy that permanent." Frozen gold tested Matching(Recorded(0), Any) and destroyed Recorded(0) (the stack ability itself) instead of filtering by AbilityOf(InZone(Shared(Battlefield))) and destroying SourceOf(Recorded(0)).
+
+### U0143: Restrict Itazura, Lingering Wick hand choice to exiled cards still in Exile (not cast this way).
+- Faces (1): Itazura, Lingering Wick
+- Evidence: Itazura, Lingering Wick reads "they may cast a spell from among those cards without paying its mana cost. You put a card from among them that wasn't cast this way into your hand." Frozen gold selected from all Transition(0, After) without excluding the cast card; wrapping with InZone(..., Exile) selects only the cards remaining in exile after the optional cast.
+
+### U0144: Require target player to be an opponent before drawing a card on Lucy MacLean, Positively Armed.
+- Faces (1): Lucy MacLean, Positively Armed
+- Evidence: Lucy MacLean, Positively Armed reads "you may have target player other than its controller create a token that's a copy of it, then you draw a card if an opponent created a token this way." Frozen gold checked only PaymentChosen(0), wrongly drawing when AbilityController targeted themselves after an opponent's token entered.
+
+### U0145: Restore target opponent hand Reveal before PlayWith on Mindclaw Shaman
+- Faces (1): Mindclaw Shaman
+- Evidence: Mindclaw Shaman reads 'When this creature enters, target opponent reveals their hand. You may cast an instant or sorcery spell from among those cards without paying its mana cost.'; frozen gold dropped the Reveal instruction entirely and queried the unrevealed hand directly.
+
+### U0146: Scope each player's Fractal token creation and +1/+1 counter placement together on Oversimplify
+- Faces (1): Oversimplify
+- Evidence: Oversimplify reads 'Exile all creatures. Each player creates a 0/0 green and blue Fractal creature token and puts a number of +1/+1 counters on it equal to the total power of creatures they controlled that were exiled this way.'; frozen gold created all players' tokens first and then had each player put counters on every token in Recorded(1) instead of only their own created token.
+
+### U0147: Select up to two lands for the battlefield tapped before moving the remaining land to hand on Viewpoint Synchronization
+- Faces (1): Viewpoint Synchronization
+- Evidence: Viewpoint Synchronization reads 'Search your library for up to three basic land cards and reveal them. Put two of them onto the battlefield tapped and the other into your hand, then shuffle.'; frozen gold chose AsManyAsCan(1) for the hand first and moved the rest to the battlefield, putting a card into hand instead of onto the battlefield whenever two or fewer cards are found.
+
+### U0148: Guard Breeches, the Blastmaker's coin flip and reflexive triggers on paying the optional artifact sacrifice
+- Faces (1): Breeches, the Blastmaker
+- Evidence: Breeches, the Blastmaker reads 'you may sacrifice an artifact. If you do, flip a coin. When you win the flip, ... When you lose the flip, ...'; frozen gold executed FlipCoin and both reflexive triggers unconditionally after the optional PayCost without If(PaymentChosen(0)).
+
+### U0149: Select a contested land controlled by the damaged player instead of the attacking creature's controller on Turf War
+- Faces (1): Turf War
+- Evidence: Turf War reads 'Whenever a creature deals combat damage to a player, if that player controls one or more lands with contested counters on them, that creature's controller gains control of one of those lands of their choice and untaps it.'; frozen gold filtered ChooseObjects by ControlledBy(ControllerOf(Damage(Source))) instead of ControlledBy(EventSubject).
+
+### U0150: Place Unexpected Results' self-return inside the optional land-card branch guarded by revealing a land
+- Faces (1): Unexpected Results
+- Evidence: Unexpected Results reads 'If it's a land card, you may put it onto the battlefield and return Unexpected Results to its owner's hand.' Per Oracle rulings, returning Unexpected Results is part of the optional choice and does not occur if declined or if the library is empty; frozen gold placed Move(Source, OwnersHand) unconditionally in otherwise outside Optional.
+
+### U0151: Grant free-cast permission to the exiled nonland card rather than the first exiled card on Nicol Bolas, God-Pharaoh and Stolen Goods
+- Faces (2): Nicol Bolas, God-Pharaoh, Stolen Goods
+- Evidence: Both faces read 'Target opponent exiles cards from the top of their library until they exile a nonland card. Until end of turn, you may cast that card without paying its mana cost.'; frozen gold emitted Result(1, After, 0) (the first exiled card, a land whenever lands are exiled before the nonland card) instead of Matching(Transition(1, After), Not(CardType(Land))).
+
+### U0152: Fix lost enchant ability domain (graveyard creature card) and delayed sacrifice controller (reanimated creature's controller) on Animate Dead
+- Faces (1): Animate Dead
+- Evidence: Animate Dead loses 'enchant creature card in a graveyard' (not battlefield permanent) and its delayed trigger makes 'that creature's controller' (ControllerOf(Result(1, After, 0))) sacrifice it, not the Aura's controller (ControllerOf(EventSubject)).
+
+### U0153: Measure Equipment's own mana value (Source) instead of equipped creature's (Affected) in Bludgeon Brawl's granted pump
+- Faces (1): Bludgeon Brawl
+- Evidence: Bludgeon Brawl grants '"Equipped creature gets +X/+0," where X is that artifact's mana value.' Inside the granted static ability, Source is the Equipment artifact and Affected is the equipped creature; frozen gold emitted ObjectProperty(object: Affected, property: ManaValue).
+
+### U0154: Take cards from the damaged player's library and put them onto the battlefield under AbilityController's control on Cybership
+- Faces (1): Cybership
+- Evidence: Cybership reads 'Whenever this Vehicle deals combat damage to a player, put the top two cards of that player's library onto the battlefield face down under your control.'; frozen gold took from AbilityController's library and put them onto the battlefield under Owner's control.
+
+### U0155: Modal abilities reading 'choose up to one' permit choosing zero modes (minimum 0, not 1).
+- Faces (5): Dreamshackle Geist, Ertai Resurrected, Hullbreaker Horror, Ravager Wurm, Satsuki, the Living Lore
+- Evidence: Oracle text for Satsuki, the Living Lore, Ertai Resurrected, Hullbreaker Horror, Ravager Wurm, and Dreamshackle Geist reads 'choose up to one —'; frozen gold set ModeCount.minimum to 1 instead of 0.
+
+### U0156: Retain original Target reference for post-destroy controller draw on Ertai Resurrected.
+- Faces (1): Ertai Resurrected
+- Evidence: Ertai Resurrected's second mode reads 'Destroy another target creature or planeswalker. Its controller draws a card.' Per SPEC.md (post-destroy references retain the original target even if destruction fails) and peer cards (Cleansing Wildfire, Faller's Faithful, Geomancer's Gambit, Ob Nixilis, the Hate-Twisted, Price of Freedom), the draw actor is ControllerOf(Target(0, 0)), not Result(0, Before).
+
+### U0157: Preserve player-owner, graveyard-owner, and controller scopes on Rootcoil Creeper, Great Intelligence's Plan, and Death in Heaven.
+- Faces (3): Death in Heaven, Great Intelligence's Plan, Rootcoil Creeper
+- Evidence: Rootcoil Creeper restricts mana to spells cast from your graveyard (One(AbilityController), not All); Great Intelligence's Plan's second villainous-choice option ('or you may cast a spell from your hand') has decider, actor, and hand owner AbilityController rather than Target(0); Death in Heaven's chapter III returns cards 'under your control' (Player(AbilityController), not Owner).
+
+### U0158: Preserve BasePower/BaseToughness checks on Angelic Aberration and NotEqual comparison on Iridian Maelstrom.
+- Faces (2): Angelic Aberration, Iridian Maelstrom
+- Evidence: Angelic Aberration specifies 'each with base power or toughness 1 or less' (BasePower/BaseToughness, not Power/Toughness); Iridian Maelstrom specifies 'that isn't all colors' (NotEqual, not Equal).
+
+### U0159: Preserve explicit CardType(Creature) and controller predicates on High Score, Primal Empathy, Éomer of the Riddermark, Disciples of the Inferno, Shaun, Father of Synths, Szat's Will, and Minas Tirith Garrison.
+- Faces (7): Disciples of the Inferno, High Score, Minas Tirith Garrison, Primal Empathy, Shaun, Father of Synths, Szat's Will, Éomer of the Riddermark
+- Evidence: High Score, Primal Empathy, and Éomer of the Riddermark test controlling a creature with greatest power (preserving CardType(Creature)); Disciples of the Inferno restricts damage sources to 'you control'; Shaun, Father of Synths targets a creature 'you control' (One(AbilityController), not OthersThan); Szat's Will exiles all opponents' graveyards (OpponentsOf scope with filter Any) and counts only creature cards exiled this way; Minas Tirith Garrison taps untapped Humans 'you control'.
+
+### U0160: Correct swapped Attach operands on Ogre Geargrabber, missing counter-unless payment branch on Hope-Ender Coatl, Ability counter kind on Summary Dismissal, and granted Source reference on Essence Leak.
+- Faces (4): Essence Leak, Hope-Ender Coatl, Ogre Geargrabber, Summary Dismissal
+- Evidence: Ogre Geargrabber attaches Target(0) (Equipment) to Source (self), not vice versa; Hope-Ender Coatl counters only if the optional {1} payment is not chosen; Summary Dismissal counters 'all abilities' (kind Ability, not Spell); Essence Leak's granted upkeep ability refers to its own holder's mana cost (ManaCostOf(Source), not AttachedTo(Source)).
+
+### U0161: Preserve active-player turn restrictions on Tifa, Martial Artist and Katara, Water Tribe's Hope.
+- Faces (2): Katara, Water Tribe's Hope, Tifa, Martial Artist
+- Evidence: Tifa, Martial Artist checks 'if it's the first combat phase of your turn' (requiring PlayerIsActive(AbilityController) alongside Window(FirstCombat)); Katara, Water Tribe's Hope states 'Activate only during your turn' (limits.condition PlayerIsActive(AbilityController), not null).
+
