@@ -35,7 +35,7 @@ spell_awaken ::= instructions "." NEWLINE awaken_land "―" keyword_payment
 /* @sem Instruction::Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Awaken{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), index:0}, amount:$number}}} */
 awaken_land ::= "awaken" number
 
-kicker_branch_program ::= seek_conditional_program | search_reveal_chosen_type_paid_destination | kicker_distinct_return_program | kicker_distinct_damage_program | kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception | retirement_target_damage_conditional | retirement_population_override | retirement_population_add_those | retirement_population_add_they | conditional_damage_to_creature_controller | program_discard_maximum_conditional | prevention_target_override_program | kicker_search_either_replacement | kicker_next_cast_conjure_discard | controlled_power_damage_kicked | kicker_population_conditional_additional | kicker_search_battlefield_animation | chosen_creatures_conditional_counter_fight | kicker_destroy_distinct_targets | kicker_conditional_extra_target_damage | conditional_then_opponent_damage_program | kicker_prior_action_spell_damage | kicker_destroy_target_property_damage | kicker_destroy_target_property_damage_target_source | damage_recipient_conditional_program
+kicker_branch_program ::= seek_conditional_program | search_reveal_chosen_type_paid_destination | kicker_distinct_return_program | kicker_distinct_damage_program | kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception | retirement_target_damage_conditional | retirement_population_override | retirement_population_add_those | retirement_population_add_they | conditional_damage_to_creature_controller | program_discard_maximum_conditional | prevention_target_override_program | kicker_search_either_replacement | kicker_next_cast_conjure_discard | controlled_power_damage_kicked | kicker_population_conditional_additional | kicker_search_battlefield_animation | chosen_creatures_conditional_counter_fight | kicker_destroy_distinct_targets | kicker_conditional_extra_target_damage | conditional_then_opponent_damage_program | kicker_prior_action_spell_damage | kicker_destroy_target_property_damage | kicker_destroy_target_property_damage_target_source | damage_recipient_conditional_program | kicker_return_duplicate_program
 /* "Prevent all combat damage that would be dealt this turn. If this spell's additional
    cost was paid, this effect doesn't affect combat damage that would be dealt by red
    creatures": the paid prevention spares damage those sources deal. */
@@ -513,3 +513,19 @@ spell_cleave_counter_qualified ::= "cleave" keyword_payment NEWLINE "counter" "t
    recipient, including when it is not a creature. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$damage_any_target_shared}, If{condition:$condition, then:Program{instructions:$damage_recipient_creature_rider}, otherwise:Program{}}]} */
 damage_recipient_conditional_program ::= damage_any_target_shared "." "if" condition "," damage_recipient_creature_rider "."
+
+/* The returned arrival supplies the duplicate; its conjured arrival receives the grant. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$return_target_to_owner}, If{condition:$condition_cast_kicked, then:Program{instructions:$duplicate_returned_card_perpetual}, otherwise:Program{}}]} */
+kicker_return_duplicate_program ::= return_target_to_owner "." "if" condition_cast_kicked "," duplicate_returned_card_perpetual
+
+/* @sem Operation::Move{objects:One($return_duplicate_target), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+return_target_to_owner ::= "return" return_duplicate_target "to" "its" "owner's" "hand"
+
+/* @sem Instruction::[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Duplicate(One(Result{result:@prior, phase:After, index:0})), count:Constant(1), destination:Hand(CardArrival{counters:[], states:[]})}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$conjured_perpetual_changes}}] */
+duplicate_returned_card_perpetual ::= "conjure" "a" "duplicate" "of" "that" "card" "into" "your" "hand" "." "it" "perpetually" conjured_perpetual_changes
+
+return_duplicate_target ::= return_duplicate_qualified_target | target_permanent
+
+/* @prefer always */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($adjective_nontoken, $adjective_nontype)}), index:0} */
+return_duplicate_qualified_target ::= "target" adjective_nontoken "," adjective_nontype "permanent"

@@ -164,7 +164,7 @@ token_named_tapped ::= token_amount "tapped" token_named_recipe ("token" | "toke
 /* @sem TokenSpec::TokenSpec{amount:$count_each, words:Rules, recipe:$token_named_recipe} */
 token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_each
 
-token_recipe ::= named_snow_artifact_recipe | token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors | token_recipe_basic_land_named | token_recipe_basic_land_named_plural | token_recipe_life_paid_entry | token_recipe_unlocked_doors
+token_recipe ::= named_snow_artifact_recipe | token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors | token_recipe_basic_land_named | token_recipe_basic_land_named_plural | token_recipe_life_paid_entry | token_recipe_unlocked_doors | token_recipe_named_statless_with
 
 token_recipe_base ::= token_recipe_statless_named | token_recipe_statless_named_plural | token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
 
@@ -227,7 +227,7 @@ token_toxic ::= "toxic" number
 /* @sem Ability::@holder($token_ability_body) */
 token_quoted ::= '"' token_ability_body '"'
 
-token_ability_body ::= token_entry_damage_quoted | static_ability | max_speed_ability | token_ability_sentence | keyword_ability | mined_ability | token_labelled_keyword | token_cannot_be_enchanted
+token_ability_body ::= token_entry_damage_quoted | static_ability | max_speed_ability | token_ability_sentence | keyword_ability | mined_ability | token_labelled_keyword | token_cannot_be_enchanted | activated_ability
 
 /* A characteristic-defining ability here describes the token itself. */
 /* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(ObjectRef::Source)), changes:[Change::SetBasePowerToughness{power:$value, toughness:$value}]} */
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_wolves_of_the_hunt | created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite
+created_token_name ::= created_name_wolves_of_the_hunt | created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite | created_name_sword | created_name_cloud_sprite
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -723,7 +723,7 @@ copy_plural_exceptions_one ::= copy_plural_remove_legendary
 /* @sem Vec<CopyException>::[$copy_plural_stats, $copy_plural_remove_legendary_2] */
 copy_plural_exceptions_stats ::= copy_plural_stats "and" copy_plural_remove_legendary_2
 
-copy_plural_exceptions ::= copy_plural_exceptions_one | copy_plural_exceptions_stats
+copy_plural_exceptions ::= copy_plural_exceptions_one | copy_plural_exceptions_stats | copy_plural_creature_stats_two_keywords
 
 /* @sem CopyException::RemoveSupertypes([Legendary]) */
 copy_plural_remove_legendary ::= "they're" "not" "legendary"
@@ -978,8 +978,7 @@ instructions_chosen_creature_token ::= "create" chosen_creature_token
 /* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$token_amount, words:CreatingEffect, recipe:$named_artifact_quoted_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
 instructions_named_artifact_token_quoted ::= "create" token_amount named_artifact_quoted_recipe
 
-/* @sem TokenRecipe::Defined(_{name:Explicit('Etherium Cell'), card_types:[Artifact], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})]}) */
-named_artifact_quoted_recipe ::= "colorless" "artifact" "token" "named" "Etherium" "Cell" "with" '"' cost ":" program "." '"'
+named_artifact_quoted_recipe ::= named_artifact_quoted_etherium | named_snow_quoted_recipe
 
 /* The trailing definition supplies the amount, independently of the token recipe. */
 /* @sem TokenSpec::TokenSpec{amount:$graveyard_hand_library_history, words:CreatingEffect, recipe:$token_recipe} */
@@ -2182,3 +2181,110 @@ token_copy_nonlegendary_singular ::= token_copy_single object_ref "," "except" c
 
 /* @sem TokenName::Explicit(Guenhwyvar) */
 explicit_token_guenhwyvar ::= "Guenhwyvar"
+
+/* @prefer always */
+/* @sem TokenRecipe::Defined(_{name:Explicit('Etherium Cell'), card_types:[Artifact], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})]}) */
+named_artifact_quoted_etherium ::= "colorless" "artifact" "token" "named" "Etherium" "Cell" "with" '"' cost ":" program "." '"'
+
+/* The recipe and quoted ability remain separate from the creating action. */
+/* @sem TokenRecipe::Defined(_{name:Explicit($snow_token_name), colors:$token_colors, supertypes:[Snow], card_types:$token_types, abilities:[@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})]}) */
+named_snow_quoted_recipe ::= token_colors "snow" token_types "token" "named" snow_token_name "with" '"' cost ":" program "." '"'
+
+/* @sem String::'Icy Manalith' */
+snow_token_name ::= "Icy" "Manalith"
+
+/* Copied tokens gain creature type and two independent keyword abilities. */
+/* @sem Vec<CopyException>::[SetPowerToughness{power:$value, toughness:$value_2}, AddCardTypes([Creature]), AddAbilities([Keyword($keyword_value)]), AddAbilities([Keyword($keyword_value_2)])] */
+copy_plural_creature_stats_two_keywords ::= "they're" value "/" value "creatures" "in" "addition" "to" "their" "other" "types" "and" "they" "have" keyword_value "and" keyword_value
+
+/* Named statless tokens retain their own intrinsic abilities. */
+/* @sem TokenRecipe::Defined(_{name:Explicit($created_token_name), colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, abilities:$token_intrinsic_pair}) */
+token_recipe_named_statless_with ::= token_colors token_subtypes token_types "token" "named" created_token_name "with" token_intrinsic_pair
+
+/* @sem String::Sword */
+created_name_sword ::= "Sword"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[Pump{power:$signed, toughness:$signed_2}]} */
+token_equipped_pump ::= "equipped" "creature" "gets" signed "/" signed
+
+/* @sem Ability::@holder($token_equipped_pump) */
+token_quoted_equipped_pump ::= '"' token_equipped_pump '"'
+
+/* @sem Ability::@holder($keyword_equip) */
+token_equip_scoped ::= keyword_equip
+
+/* @sem Ability::[$token_quoted_equipped_pump, $token_equip_scoped] */
+token_intrinsic_pair ::= token_quoted_equipped_pump "and" token_equip_scoped
+
+/* @sem String::'Cloud Sprite' */
+created_name_cloud_sprite ::= "Cloud" "Sprite"
+
+/* Two created tokens are the antecedent of the distributed counter choice. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(2), words:CreatingEffect, recipe:$pair_quoted_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:DuplicateCounters{from:CounterSource::On(Objects($affected)), to:Objects(Created(@marked)), copies:OneOfEachKindDistributed}}] */
+clause_created_pair_counter_kinds ::= "create" "two" pair_quoted_token_recipe "then" "for" "each" "kind" "of" "counter" "among" affected "," "put" "a" "counter" "of" "that" "kind" "on" "either" "of" "those" "tokens"
+
+/* @sem TokenRecipe::@token_abilities($pair_plain_token_recipe, $pair_quoted_static) */
+pair_quoted_token_recipe ::= pair_plain_token_recipe "with" pair_quoted_static
+
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})] */
+pair_quoted_static ::= '"' affected static_changes "." '"'
+
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
+pair_plain_token_recipe ::= token_stat "/" token_stat token_colors token_subtypes token_types "tokens"
+
+/* Keep the anaphor tied to the creature group announced by the preceding grant. */
+/* @sem Instruction::[Effect{result:@next, operation:$target_creatures_each_change}, ...$clause_each_target_role_attached] */
+instructions_target_creatures_role ::= target_creatures_each_change "." clause_each_target_role_attached
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$plural_target_count_any, filter:CardType(Creature)}))), changes:$grants, duration:$duration, evaluation:Snapshot} */
+target_creatures_each_change ::= plural_target_count_any "target" "creatures" "each" "gain" grants duration
+
+/* Each member of the announced target group receives its own Role. */
+/* @sem Instruction::[ForEachObject{objects:Targets(@last_slot), binding:0, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$each_attached_role_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo(Bound(0))]}}}]}}] */
+clause_each_target_role_attached ::= "for" "each" "of" "those" "creatures" "," "create" each_attached_role_token "attached" "to" "it"
+
+each_attached_role_token ::= each_attached_role_one | each_attached_role_many
+
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:Rules, recipe:$role_recipe} */
+each_attached_role_one ::= "a" role_recipe "token"
+
+/* @sem TokenSpec::TokenSpec{amount:$count_plural, words:Rules, recipe:$role_recipe} */
+each_attached_role_many ::= count_plural role_recipe "tokens"
+
+/* A singular defined creature token with intrinsic abilities. */
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2], abilities:$token_abilities}) */
+single_token_recipe_with ::= token_stat "/" token_stat token_colors token_subtypes token_types "token" "with" token_abilities
+
+/* Both branches create the same current recipe, with independent quantities. */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:$plural_token_activated_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_amount_2, words:CreatingEffect, recipe:$plural_token_activated_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}] */
+instructions_conditional_shared_token_recipe ::= "if" condition "," "create" counter_amount plural_token_activated_recipe "otherwise" "," "create" counter_amount "of" "those" "tokens"
+
+/* The following sentence specifies an intrinsic ability of every created token. */
+/* @sem TokenRecipe::@token_abilities($token_recipe_base, $plural_token_activated_abilities) */
+plural_token_activated_recipe ::= token_recipe_base "." "they" "have" '"' plural_token_activated_abilities '"'
+
+/* @sem Ability::[$plural_token_activated_ability] */
+plural_token_activated_abilities ::= plural_token_activated_ability
+
+/* @sem Ability::@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program}) */
+plural_token_activated_ability ::= cost ":" program "."
+
+/* Copy entry counters belong to the token's arrival, not to its copiable values. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[$token_copy_singular], entry:BattlefieldArrival{tapped:false, counters:[[$counter_kind, Constant(1)]], states:[]}}) */
+create_copy_extra_counter ::= "create" token_copy_singular "," "except" "it" "enters" "with" "an" "additional" counter_kind "counter" "on" "it"
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[$token_copy_singular], entry:BattlefieldArrival{tapped:false, counters:[[$counter_kind, $copy_extra_counter_count]], states:[]}}) */
+create_copy_extra_counters ::= "create" token_copy_singular "," "except" "it" "enters" "with" copy_extra_counter_count "additional" counter_kind "counters" "on" "it"
+
+copy_extra_counter_count ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n11 | n12 | n13 | n14 | n15 | n20 | n30 | number_hundred | number_x
+
+/* A single new token enters with counters counted over the existing population. */
+/* @sem BattlefieldArrival::BattlefieldArrival{tapped:false, counters:[[$counter_kind, CountObjects($affected)]], states:[]} */
+token_entry_other_population ::= "the" "token" "enters" "with" "X" counter_kind "counters" "on" "it" "," "where" "X" "is" "the" "number" "of" "other" affected
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe}], entry:$token_entry_other_population}}] */
+instructions_create_single_token_with_entry ::= "create" "a" token_recipe "." token_entry_other_population
+
+/* The delayed sacrifice consumes the result of this single token creation. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$single_copy_token_with_exceptions], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]} */
+program_single_copy_sacrifice_end ::= "create" single_copy_token_with_exceptions "." "sacrifice" "it" "at" "the" "beginning" "of" "the" "next" "end" "step"

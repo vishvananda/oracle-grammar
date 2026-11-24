@@ -2,7 +2,7 @@
    keeps the native absent amount; counted applications retain theirs. */
 keyword_action ::= forage_action | roll_composed_action | investigate_action | populate_action | open_attraction_action | time_travel_action | roll_die_action | additional_combat_phase | additional_combat_and_main_phase | become_monarch | take_initiative | ring_tempts_you | venture_into_dungeon | take_extra_turn | learn_action | end_the_turn | planeswalk_action | reverse_turn_order | amount_keyword_action | you_amount_keyword_action | object_keyword_action | group_keyword_action | skip_next_untap_step | roll_planar_die_action | additional_beginning_phase | additional_phase_after | skip_next_your_part | you_skip_next_your_part | game_outcome | become_day_action | become_night_action | controller_incubates_defined | double_unspent_mana | reorder_own_graveyard | visit_attractions_action | reroll_stored_action
 
-investigate_action ::= investigate_for_each_controlled | investigate_for_population | investigate_for_life_loss | investigate_for_player_count | investigate_once | investigate_twice | investigate_number_times | investigate_that_many_times | investigate_for_population_plain
+investigate_action ::= investigate_for_each_controlled | investigate_for_population | investigate_for_life_loss | investigate_for_player_count | investigate_once | investigate_twice | investigate_number_times | investigate_that_many_times | investigate_for_population_plain | investigate_chosen_players_count
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{}} */
 investigate_once ::= "investigate"
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{times:Constant(2)}} */
@@ -721,3 +721,13 @@ repeat_incubate_cast_x ::= incubate_action "X" "times"
 /* The written die and the reusable rows share a single roll receipt. */
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:Keyword{actor:One(AbilityController), action:KeywordAction::RollDie{sides:20}}}, ...$die_rows]} */
 shared_twenty_sided_die_table ::= "roll" "a" "20" "‑" "sided" "die" "." NEWLINE die_rows
+
+/* The announced player group supplies the antecedent for the count phrase. */
+/* @sem Operation::$investigate_defined_chosen_control_count */
+investigate_chosen_players_count ::= "choose" "any" "number" "of" "target" "players" "." investigate_defined_chosen_control_count
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{times:$chosen_players_controlled_total}} */
+investigate_defined_chosen_control_count ::= "investigate" "X" "times" "," "where" "X" "is" chosen_players_controlled_total
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:All})))])}) */
+chosen_players_controlled_total ::= "the" "total" "number" "of" filter_plural "those" "players" "control"

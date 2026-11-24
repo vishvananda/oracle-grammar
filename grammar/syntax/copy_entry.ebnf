@@ -27,7 +27,7 @@ copy_exceptions_sentence ::= copy_exceptions_period | copy_exceptions_closed
 /* @sem $copy_exceptions_plain */
 copy_exceptions_period ::= copy_exceptions_plain "."
 
-copy_exceptions_plain ::= copy_nonlegendary_artifact_subtype | copy_his_named_stats_keyword_current | copy_creature_stats_color_keyword | copy_stats_artifact_creature_keyword | copy_colored_stats_types | copy_nonlegendary_with_loyalty | copy_artifact_creature_stats_list | copy_keyword_current | copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain | copy_token_stats_ability | copy_food_ability | copy_exception_oxford_more | copy_exception_comma_more | copy_keyword_without_soulbond | copy_not_legendary_and_type | copy_nonlegendary_stats_types | copy_stats_added_creature_types | copy_added_colored_stats_types
+copy_exceptions_plain ::= copy_nonlegendary_artifact_subtype | copy_his_named_stats_keyword_current | copy_creature_stats_color_keyword | copy_stats_artifact_creature_keyword | copy_colored_stats_types | copy_nonlegendary_with_loyalty | copy_artifact_creature_stats_list | copy_keyword_current | copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain | copy_token_stats_ability | copy_food_ability | copy_exception_oxford_more | copy_exception_comma_more | copy_keyword_without_soulbond | copy_not_legendary_and_type | copy_nonlegendary_stats_types | copy_stats_added_creature_types | copy_added_colored_stats_types | copy_retained_color_stats_keywords
 
 /* @sem Vec<CopyException>::[$copy_exception_plain] */
 copy_exception_plain_one ::= copy_exception_plain
@@ -227,10 +227,11 @@ copy_exception_comma_more ::= copy_exception_plain "," copy_exceptions_plain
 /* @sem Vec<CopyException>::[$copy_exception_plain, ...$copy_exceptions_plain] */
 copy_exception_oxford_more ::= copy_exception_plain "," "and" copy_exceptions_plain
 
+/* @prefer always */
 /* @sem CopyException::AddSupertypes([Legendary]) */
 copy_add_legendary_retained ::= "it's" "legendary" "in" "addition" "to" "its" "other" "types"
 
-entry_copy_actions ::= entry_copy_holder_stat_actions | entry_copy_conditional_actions | entry_copy_plain_actions | entry_copy_added_type_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many | entry_copy_creature_keep_color | entry_copy_artifact_keep_color
+entry_copy_actions ::= entry_copy_holder_stat_actions | entry_copy_conditional_actions | entry_copy_plain_actions | entry_copy_added_type_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many | entry_copy_creature_keep_color | entry_copy_artifact_keep_color | entry_copy_conditional_counters_actions
 
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_objects, exceptions:$entry_copy_tail})}}] */
 entry_copy_plain_actions ::= "a" "copy" "of" entry_copy_objects entry_copy_tail
@@ -460,3 +461,31 @@ entry_paid_pair_copy_program ::= "you" "may" entry_exile_pair_payment "." "if" "
 
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_paid_pair_copy_program}) */
 entry_paid_pair_copy_ability ::= "as" object_ref "enters" "," entry_paid_pair_copy_program "."
+
+/* Three or more exceptions retain the explicit battlefield choice and list punctuation. */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_battlefield_explicit, exceptions:$copy_three_closed})}}] */
+entry_copy_battlefield_list_actions ::= "a" "copy" "of" entry_copy_battlefield_explicit "," "except" copy_three_closed
+
+/* @prefer always */
+/* @sem Vec<CopyException>::[$copy_exception_plain, $copy_exception_plain_2, ...$copy_exceptions_closed] */
+copy_three_closed ::= copy_exception_plain "," copy_exception_plain "," "and" copy_exceptions_closed
+
+/* @prefer always */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:$entry_copy_battlefield_list_actions}}]}}) */
+entry_copy_battlefield_list_ability ::= "you" "may" "have" self_explicit_ref "enter" "as" entry_copy_battlefield_list_actions
+
+/* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$value, toughness:$value_2}, CopyException::SetCardTypes([Enchantment, Creature])] */
+copy_enchantment_creature_stats ::= "it's" "a" value "/" value "enchantment" "creature"
+
+/* Both conditional entry modifications inspect this copy selection, not a
+   counter placement result. The producer and consumers share this scope. */
+/* @sem Instruction::[Effect{result:@mark, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_objects, exceptions:[$copy_remove_legendary]})}}, $entry_copy_conditional_counter, $entry_copy_conditional_counter_2] */
+entry_copy_conditional_counters_actions ::= "a" "copy" "of" entry_copy_objects "," "except" entry_copy_conditional_counter "," entry_copy_conditional_counter "," "and" copy_remove_legendary "."
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Recorded(@marked), filter:$filter_phrase}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_copy_conditional_counter ::= "it" "enters" "with" "an" "additional" counter_kind "counter" "on" "it" "if" "it's" "a" filter_phrase
+
+/* The copied creature retains its colors and types while gaining both keywords. */
+/* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$value, toughness:$value_2}, CopyException::Colors{mode:Add, colors:Listed([$token_color])}, CopyException::AddCreatureTypes($token_subtypes), CopyException::AddCardTypes([Creature]), CopyException::AddAbilities([Keyword($keyword_value)]), CopyException::AddAbilities([Keyword($keyword_value_2)])] */
+copy_retained_color_stats_keywords ::= "it's" "a" value "/" value token_color token_subtypes "creature" "in" "addition" "to" "its" "other" "colors" "and" "types" "and" "it" "has" keyword_value "and" keyword_value

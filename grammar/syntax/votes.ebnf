@@ -287,3 +287,23 @@ public_creature_vote_filter ::= "creature" vote_creature_control
 /* Only the adjacent creature ballot proves the winner's creature type. */
 /* @sem Instruction::[...$public_creature_ballot, Effect{result:@next, operation:Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$modifier_vote_winner}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
 instructions_public_creature_vote_exile ::= public_creature_ballot "." "exile" "each" "creature" modifier_vote_winner
+
+/* Secret word choices and their reveal form a reusable ballot. */
+/* @sem Instruction::[ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:_{instructions:[Effect{result:@next, operation:Vote{actor:One(Bound(0)), ballot:Words([$secret_vote_word, $secret_vote_word_2]), secret:true}}]}}, Effect{result:@next, operation:RevealChoices{kind:Word}}] */
+secret_opponent_word_choices ::= "each" "opponent" "secretly" "chooses" secret_vote_word "or" secret_vote_word "," "then" "the" "choices" "are" "revealed"
+
+secret_vote_word ::= vote_word | secret_vote_silence | secret_vote_snitch
+
+/* @sem String::'Silence' */
+secret_vote_silence ::= "silence"
+
+/* @sem String::'Snitch' */
+secret_vote_snitch ::= "snitch"
+
+/* The otherwise condition is the complement of the two preceding tests.
+   Each pronoun's recipients are the voters for that particular option. */
+/* @sem Instruction::[If{condition:AllVotedFor(Word($secret_vote_word)), then:_{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($secret_vote_word)}}), amount:$number, preventable:true}}]}, otherwise:_{}}, If{condition:AllVotedFor(Word($secret_vote_word_2)), then:_{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($secret_vote_word_2)}}), amount:$number_2, preventable:true}}]}, otherwise:_{}}, If{condition:Not(AnyOf([AllVotedFor(Word($secret_vote_word)), AllVotedFor(Word($secret_vote_word_2))])), then:_{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($secret_vote_word_3)}}), amount:$number_3, preventable:true}}]}, otherwise:_{}}] */
+secret_vote_damage_outcomes ::= "if" "each" "opponent" "chose" secret_vote_word "," SELF_NAME "deals" number "damage" "to" "each" "of" "them" "." "if" "each" "opponent" "chose" secret_vote_word "," SELF_NAME "deals" number "damage" "to" "each" "of" "them" "." "otherwise" "," SELF_NAME "deals" number "damage" "to" "each" "opponent" "who" "chose" secret_vote_word
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$secret_opponent_word_choices, ...$secret_vote_damage_outcomes]}} */
+spell_secret_vote_damage ::= secret_opponent_word_choices "." secret_vote_damage_outcomes "."

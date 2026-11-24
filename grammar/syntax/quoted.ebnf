@@ -126,7 +126,7 @@ token_groups_quoted_last ::= "and" token_group_quoted
 /* @sem TokenSpec::[$token_group, ...$token_groups_quoted_tail] */
 token_groups_quoted_more ::= token_group "," token_groups_quoted_tail
 
-token_group_quoted ::= token_plural_copy_granted_quoted | named_legendary_quoted_group | token_named_x_quoted | token_defined_named_after_quoted | token_defined_quoted | token_copy_quoted | token_equal_then_quoted | token_explicit_artifact_quoted | token_defined_named_activation_after | token_death_history_quoted
+token_group_quoted ::= token_plural_copy_granted_quoted | named_legendary_quoted_group | token_named_x_quoted | token_defined_named_after_quoted | token_defined_quoted | token_copy_quoted | token_equal_then_quoted | token_explicit_artifact_quoted | token_defined_named_activation_after | token_death_history_quoted | token_named_following_quoted
 /* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe_quoted} */
 token_defined_quoted ::= token_amount token_recipe_quoted
 
@@ -905,3 +905,15 @@ sacrifice_token_instruction ::= "sacrifice" "this" "token"
 
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:$personal_graveyard_named_target_population, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@prior, phase:After, index:0})), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot}}] */
 return_named_timed_grant ::= "return" personal_graveyard_named_target_population "to" "the" "battlefield" "." "it" "gains" keyword_name duration
+
+/* A named token's following sentence supplies its intrinsic abilities. */
+/* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:@token_abilities($named_following_token_recipe, $named_following_token_abilities)} */
+/* @prefer always */
+token_named_following_quoted ::= token_amount named_following_token_recipe named_following_token_abilities
+
+/* @sem TokenRecipe::Defined{name:Explicit($created_name_cloud_sprite), colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]} */
+named_following_token_recipe ::= token_stat "/" token_stat token_colors token_subtypes token_types "token" "named" created_name_cloud_sprite
+
+/* A token's quoted static ability refers to the token as its own holder. */
+/* @sem Ability::[$keyword_ability, @holder(Ability::Static{kind:Ordinary, affected:Objects(One(Source)), changes:$static_changes})] */
+named_following_token_abilities ::= "." "it" "has" keyword_ability "and" '"' "this" "token" static_changes "." '"'
