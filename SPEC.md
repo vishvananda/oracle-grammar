@@ -232,7 +232,7 @@ history event records the actor; entering under a player's control records the
 controller. Reference preparation uses the owned frozen-schema migration before
 current-epoch amendments, with both parent and face headers upgraded explicitly.
 The immutable source reference and its extraction provenance retain epoch 190;
-the owned model and native outputs use schema 192. Frozen reference migrations
+the owned model and native outputs use schema 193. Frozen reference migrations
 and evidence-backed amendments supply the current comparison contract.
 
 Mana replacement choices retain their complete production, eligible concrete
@@ -247,6 +247,10 @@ records the first public arrival. An object contributes only while it remains
 in that destination; a later move cannot revive the link. `SacrificedAsEntered`
 names the sacrifice associated with the exact entry and acquisition. See
 [the schema-192 issue contracts](docs/reported-issues-20261116.md).
+
+Recorded zone-constrained transitions, cumulative instantiated-shield receipts and
+finite mana-cost spending permissions retain separate typed contracts. See
+[the schema-193 receipt follow-ups](docs/receipt-followups.md).
 
 An immediate choice from a completely revealed hand uses the observation
 receipt, guarded by Hand and that same owner. The owned proof requires adjacent

@@ -9,7 +9,9 @@ fn current_expected(name: &str, mut value: Value, source: &Value) -> Value {
         delta["source_fixture_sha256"],
         source["source_fixture_sha256"]
     );
-    assert_eq!(delta["schema_version"], crate::ir::SCHEMA_VERSION);
+    // This reviewed comparison delta remains a schema-192 fixture even
+    // when the current model advances. Migration already upgrades the cards.
+    assert_eq!(delta["schema_version"], 192);
     for change in delta["changes"].as_array().unwrap() {
         if change["name"] != name {
             continue;

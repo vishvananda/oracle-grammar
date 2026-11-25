@@ -121,6 +121,19 @@ impl<'a> Scope<'a> {
                 }
                 self.count(&Count::Exactly(count.clone()))
             }
+            ObjectSet::TransitionWhere {
+                result, from, to, ..
+            } => {
+                if from.is_none() && to.is_none() {
+                    return Err(
+                        "a constrained transition requires a departure or arrival zone".into(),
+                    );
+                }
+                match self.results.get(&result.0) {
+                    Some(ResultKind::ObjectTransition) => Ok(()),
+                    _ => Err("constrained transition requires an object-transition result".into()),
+                }
+            }
             ObjectSet::Transition { result, .. } => match self.results.get(&result.0) {
                 Some(ResultKind::ObjectTransition) => Ok(()),
                 _ => Err("transition set requires an object-transition result".into()),
@@ -282,6 +295,7 @@ impl<'a> Scope<'a> {
                 ..
             } => self.expr_case_1(expression),
             Expr::DieResult(_) => self.expr_case_1(expression),
+            Expr::DamagePreventedBy(_) => self.expr_case_1(expression),
             Expr::DistributedShare(_) => self.expr_case_1(expression),
             Expr::ExcessDamage { result, to: _ } if self.results.contains_key(&result.0) => {
                 self.expr_case_1(expression)
@@ -481,6 +495,13 @@ impl<'a> Scope<'a> {
                     Err(format!("result {} rolled no die in this scope", result.0))
                 }
             }
+            Expr::DamagePreventedBy(result) => match self.results.get(&result.0) {
+                Some(ResultKind::DamageReplacement) => Ok(()),
+                _ => Err(format!(
+                    "result {} did not create an available damage replacement",
+                    result.0
+                )),
+            },
             Expr::DistributedShare(slot) => match self.slots.get(&slot.0) {
                 Some(target) if target.distribute.is_some() => Ok(()),
                 _ => Err(format!("target slot {} announces no distribution", slot.0)),

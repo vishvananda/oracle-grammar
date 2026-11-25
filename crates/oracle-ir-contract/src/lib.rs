@@ -52,3 +52,7 @@ mod history_windows_tests;
 #[cfg(test)]
 #[path = "tests/reported_issues_20261116.rs"]
 mod reported_issues_20261116;
+
+#[cfg(test)]
+#[path = "tests/receipts_193.rs"]
+mod receipts_193;

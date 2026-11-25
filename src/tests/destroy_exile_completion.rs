@@ -167,15 +167,12 @@ fn entry_exile_is_partial_and_both_counts_filter_actual_recorded_arrivals() {
     assert_eq!(amount["args"]["kind"], "Matching");
     assert_eq!(
         amount["args"]["args"]["filter"],
-        json!({"kind":"InZone","args":{"Shared":"Exile"}})
+        json!({"kind":"AllOf","args":[{"kind":"CardType","args":"Creature"},
+            {"kind":"InZone","args":{"Shared":"Exile"}}]})
     );
     assert_eq!(
-        amount["args"]["args"]["objects"]["args"]["objects"],
+        amount["args"]["args"]["objects"],
         json!({"kind":"Transition","args":{"result":receipt,"phase":"After"}})
-    );
-    assert_eq!(
-        amount["args"]["args"]["objects"]["args"]["filter"],
-        json!({"kind":"CardType","args":"Creature"})
     );
     assert_eq!(
         items[2]["args"]["otherwise"]["instructions"][0]["args"]["operation"]["args"]["change"],

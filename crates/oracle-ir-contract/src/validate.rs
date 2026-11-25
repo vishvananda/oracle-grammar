@@ -23,6 +23,7 @@ enum ResultKind {
     Selection,
     ObjectTransition,
     CreatedObjects,
+    DamageReplacement,
     Mana,
     Coin,
     CoinBatch,

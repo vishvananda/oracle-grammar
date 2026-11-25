@@ -223,10 +223,13 @@ impl<'a> Scope<'a> {
                 }
                 self.operand(abilities)
             }
-            PlayerRule::SpendManaAs { on, .. } => match on {
-                ManaPayment::Anything => Ok(()),
-                ManaPayment::Spells(filter) | ManaPayment::Abilities(filter) => self.filter(filter),
-            },
+            PlayerRule::SpendManaAs { on, .. } => self.mana_payment(on),
+            PlayerRule::SpendManaAsLimited {
+                on,
+                component,
+                uses,
+                ..
+            } => self.limited_spending(on, component, *uses),
             PlayerRule::ActivationCost {
                 abilities, change, ..
             } => {
@@ -262,6 +265,23 @@ impl<'a> Scope<'a> {
             } if colors.is_empty() => Err("empty mana retention colors".into()),
             _ => Ok(()),
         }
+    }
+
+    fn limited_spending(
+        &self,
+        on: &ManaPayment,
+        component: &ManaPaymentComponent,
+        uses: u32,
+    ) -> Result {
+        if uses == 0 {
+            return Err("a limited spending permission needs a positive use count".into());
+        }
+        if matches!(component, ManaPaymentComponent::ManaCost)
+            && !matches!(on, ManaPayment::Spells(_))
+        {
+            return Err("mana-cost-only spending requires a spell payment".into());
+        }
+        self.mana_payment(on)
     }
 
     pub(super) fn protection(&self, protection: &Protection) -> Result {

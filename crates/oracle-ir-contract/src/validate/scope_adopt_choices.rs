@@ -243,6 +243,11 @@ impl<'a> Scope<'a> {
                             | Operation::Reveal { .. }
                             | Operation::RevealUntil { .. }
                             | Operation::RevealUntilGroup { .. } => ResultKind::Observation,
+                            Operation::CreateReplacement { event, .. }
+                                if crate::semantics::replacement_bindings(event).damage =>
+                            {
+                                ResultKind::DamageReplacement
+                            }
                             Operation::Surveil { .. } => ResultKind::Surveil,
                             Operation::Search { .. } => ResultKind::Search,
                             Operation::PayCost { .. } | Operation::PayRepeatedly { .. } => {

@@ -320,7 +320,9 @@ pub enum SelectionConstraint {
     SharesLimitWith(TargetSlot),
     /// Every object has the same set of values of this property.
     AllSameProperty(DistinctProperty),
-    /// Not what an earlier run of the enclosing player loop picked.
+    /// Not what an earlier run of the nearest enclosing choice-gathering
+    /// player or object loop picked. Original object identities are reserved
+    /// across those runs, even when movement is deferred until after the loop.
     Unpicked,
     /// One choice for each type in this domain. An object can fill only one
     /// type's choice, even if it has several of those types.

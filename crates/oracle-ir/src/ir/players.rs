@@ -205,6 +205,17 @@ pub enum PlayerRule {
     },
     /// A rule one or two cards print, with nothing to parameterise.
     Unique(UniquePlayerRule),
+    /// A chosen mana-spending permission with a finite number of eligible
+    /// payments. Each application owns its own remaining-use counter. Choosing
+    /// it for a successfully paid spell consumes one use, independent of the
+    /// spell's zone. It grants no casting permission, timing exception, alternate
+    /// cost or discount. Failed casting attempts do not consume a use.
+    SpendManaAsLimited {
+        spend_as: SpendAs,
+        on: ManaPayment,
+        component: ManaPaymentComponent,
+        uses: u32,
+    },
 }
 
 /// The closed list of player rules specific to one or two cards.
@@ -414,4 +425,14 @@ pub enum SeatSide {
 pub enum Designation {
     Monarch,
     Initiative,
+}
+
+/// Which portion of one eligible payment a spending permission can modify.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManaPaymentComponent {
+    /// The full eligible payment, including mana required by additional costs.
+    EntirePayment,
+    /// Only the spell's mana cost. Additional and alternative costs retain
+    /// ordinary payment rules; this scope is valid only for spell payments.
+    ManaCost,
 }

@@ -24,6 +24,7 @@ pub(super) fn input(version: u32) -> Result<&'static Schema, String> {
     static PREDICATES: OnceLock<Schema> = OnceLock::new();
     static CAPTURE: OnceLock<Schema> = OnceLock::new();
     static CURRENT: OnceLock<Schema> = OnceLock::new();
+    static RECEIPTS_192: OnceLock<Schema> = OnceLock::new();
     match version {
         180 => Ok(OLD.get_or_init(load_180)),
         181 => Ok(COPY.get_or_init(|| {
@@ -138,6 +139,13 @@ pub(super) fn input(version: u32) -> Result<&'static Schema, String> {
             .expect("frozen schema-191 descriptors");
             assert_eq!(value["schema_version"], 191);
             serde_json::from_value(value["schema"].clone()).expect("typed schema-191 descriptors")
+        })),
+        192 => Ok(RECEIPTS_192.get_or_init(|| {
+            let value: serde_json::Value = serde_json::from_str(
+                crate::ir_schema::frozen_json(192).expect("frozen descriptor exists"),
+            )
+            .expect("frozen schema-192 descriptors");
+            serde_json::from_value(value["schema"].clone()).expect("typed schema-192 descriptors")
         })),
         version if version == crate::ir::SCHEMA_VERSION => {
             Ok(CURRENT.get_or_init(|| Schema::of_ir().expect("current IR descriptors")))

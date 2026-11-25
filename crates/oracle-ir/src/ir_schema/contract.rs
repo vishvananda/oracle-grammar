@@ -75,3 +75,29 @@ fn schema_192_appends_variants_without_moving_existing_wire_ordinals() {
         );
     }
 }
+
+#[test]
+fn schema_193_appends_receipt_and_spending_variants_without_moving_wire_ordinals() {
+    let old: serde_json::Value = serde_json::from_str(super::frozen_json(192).unwrap()).unwrap();
+    let old: Schema = serde_json::from_value(old["schema"].clone()).unwrap();
+    let current = Schema::of_ir().unwrap();
+    for name in ["ObjectSet", "Expr", "PlayerRule"] {
+        let super::TypeDef::Enum {
+            variants: before, ..
+        } = &old.types[name]
+        else {
+            panic!("{name} must remain an enum")
+        };
+        let super::TypeDef::Enum {
+            variants: after, ..
+        } = &current.types[name]
+        else {
+            panic!("{name} must remain an enum")
+        };
+        assert_eq!(
+            serde_json::to_value(&after[..before.len()]).unwrap(),
+            serde_json::to_value(before).unwrap(),
+            "{name}: existing wire ordinal changed"
+        );
+    }
+}

@@ -208,3 +208,11 @@ match alone is not proof of the historical or replacement contract.
 Rules basis: [Wizards' 2026-11-06 Comprehensive Rules](https://media.wizards.com/2026/downloads/MagicCompRules%2020261106.txt),
 especially 305.6, 400.7, 607.2c, 607.2g and 607.5. The immutable input rules file
 has SHA-256 `524f5195a1e5f54bb13c735edf399ac717a4458e2713f398d1a3e6877186b829`.
+
+## Remaining follow-ups (schema 193)
+
+The nested Matching proof for #33, actual death receipts and batch returns for
+#36, cumulative shield totals and setup-time delayed triggers for #35, and the
+one-use mana-cost spending permission for #34 are specified in
+[receipt follow-ups](receipt-followups.md). Reference amendments U0185–U0188
+record the exact expected changes; schema migration itself preserves old meaning.

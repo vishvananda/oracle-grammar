@@ -358,6 +358,17 @@ pub enum ObjectSet {
     /// Matching and aggregation use the sacrificed objects' historical views,
     /// interpreting predicates through the consuming source's current words.
     SacrificedAsEntered(ObjectRef),
+    /// Actual recorded zone changes from this result, restricted by departure
+    /// and first arrival zones, then projected to the requested incarnation.
+    /// A replacement redirect affects the recorded arrival; a later movement
+    /// cannot erase the original event. These are receipt predicates, not live
+    /// zone membership tests. At least one zone constraint must be present.
+    TransitionWhere {
+        result: ResultId,
+        phase: ObjectPhase,
+        from: Option<EventZone>,
+        to: Option<EventZone>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

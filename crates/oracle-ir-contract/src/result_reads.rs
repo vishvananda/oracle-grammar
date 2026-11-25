@@ -47,7 +47,7 @@ impl Visitor for Reader {
         true
     }
     fn object_set(&mut self, objects: &ObjectSet) -> bool {
-        if matches!(objects, ObjectSet::Recorded(r) | ObjectSet::Affected(r) | ObjectSet::Transition { result:r, .. } if r.0 == self.result)
+        if matches!(objects, ObjectSet::Recorded(r) | ObjectSet::Affected(r) | ObjectSet::Transition { result:r, .. } | ObjectSet::TransitionWhere { result:r, .. } if r.0 == self.result)
         {
             self.reads.objects = true;
         }

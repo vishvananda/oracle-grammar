@@ -76,7 +76,10 @@ impl<'a> Scope<'a> {
         ) {
             return true;
         }
-        if let ObjectSet::Transition { result, .. } | ObjectSet::Observed(result) = objects {
+        if let ObjectSet::Transition { result, .. }
+        | ObjectSet::TransitionWhere { result, .. }
+        | ObjectSet::Observed(result) = objects
+        {
             return self.singular.contains(&result.0);
         }
         // "The spell cast this way".
@@ -143,9 +146,9 @@ impl<'a> Scope<'a> {
 
     pub(super) fn ordered(&self, objects: &ObjectSet) -> bool {
         match objects {
-            ObjectSet::Observed(result) | ObjectSet::Transition { result, .. } => {
-                self.ordered_results.contains(&result.0)
-            }
+            ObjectSet::Observed(result)
+            | ObjectSet::Transition { result, .. }
+            | ObjectSet::TransitionWhere { result, .. } => self.ordered_results.contains(&result.0),
             ObjectSet::Difference { objects, .. }
             | ObjectSet::Matching { objects, .. }
             | ObjectSet::InZone { objects, .. } => self.ordered(objects),
@@ -165,6 +168,14 @@ impl<'a> Scope<'a> {
     pub(super) fn known_zones(&self, objects: &ObjectSet) -> Option<Vec<EventZone>> {
         match objects {
             ObjectSet::Prepared(binding) => self.prepared.get(&binding.0).cloned().flatten(),
+            ObjectSet::TransitionWhere {
+                phase, from, to, ..
+            } => match phase {
+                ObjectPhase::Before => from,
+                ObjectPhase::After => to,
+            }
+            .clone()
+            .map(|zone| vec![zone]),
             ObjectSet::CostObjects {
                 payment,
                 component,

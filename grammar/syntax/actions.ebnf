@@ -22708,14 +22708,15 @@ destroy_blocked_by_target ::= "destroy" "all" "creatures" "that" "were" "blocked
 
 /* The historical controller is evaluated at the last blocking event, and
    the chosen card enters under its own owner's control. */
-/* @sem Instruction::ForEachObject{objects:Transition{result:@last_result, phase:Before}, binding:0, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Graveyard, players:One(AsOf{moment:LastEvent{event:Pair{event:BecomesBlockedBy, objects:SameObject(Bound(0)), others:SameObject($historical_blocker_subtype)}, window:ThisTurn}, player:ControllerOf(Bound(0))})}, kind:Card, filter:$filter_phrase}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}} */
+/* Glyph of Reincarnation counts actual battlefield-to-graveyard events, reserves distinct choices, then returns the gathered set simultaneously. */
+/* @sem Instruction::[ForEachObject{objects:TransitionWhere{result:@last_result, phase:Before, from:Battlefield, to:Graveyard}, binding:0, body:_{instructions:[Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Graveyard, players:One(AsOf{moment:LastEvent{event:Pair{event:BecomesBlockedBy, objects:SameObject(Bound(0)), others:SameObject($historical_blocker_subtype)}, window:ThisTurn}, player:ControllerOf(Bound(0))})}, kind:Card, filter:$filter_phrase}, count:AsManyAsCan(Constant(1)), constraints:[Unpicked, CanMoveTo{destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}]}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
 return_card_for_destroyed_blocked ::= "for" "each" "creature" "that" "died" "this" "way" "," "put" "a" filter_phrase "card" "from" "the" "graveyard" "of" "the" "player" "who" "controlled" "that" "creature" "the" "last" "time" "it" "became" "blocked" "by" historical_blocker_subtype "onto" "the" "battlefield" "under" "its" "owner's" "control"
 
 /* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::Subtype(@subtype_name($subtype))) */
 historical_blocker_subtype ::= "that" subtype
 
 /* Scope the death receipt to this exact destroy producer. */
-/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$destroy_blocked_by_target}, $return_card_for_destroyed_blocked]}} */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$destroy_blocked_by_target}, ...$return_card_for_destroyed_blocked]}} */
 spell_destroy_blocked_return ::= destroy_blocked_by_target "." return_card_for_destroyed_blocked "."
 
 /* The distribution and its counted antecedent are one bounded phrase. */

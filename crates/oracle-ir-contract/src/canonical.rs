@@ -552,7 +552,7 @@ impl Walker {
                     }
                 }
                 ("ObjectSet", "InZone") => repeated_current_zone(value),
-                ("ObjectSet", "Matching") => sets::matching(value),
+                ("ObjectSet", "Matching") => sets::matching(value, self.keep_order, self.tracing),
                 ("EventSpec", "ZoneChange") => {
                     if value["ZoneChange"]["to"] == "Battlefield" {
                         drop_permanent_types(&mut value["ZoneChange"]["objects"]);
@@ -1029,7 +1029,9 @@ fn flatten(items: &mut Vec<Value>, variant: &str) {
     let mut flat = Vec::with_capacity(items.len());
     for item in items.drain(..) {
         match (item.get("kind").and_then(Value::as_str), item.get("args")) {
-            (Some(kind), Some(Value::Array(inner))) if kind == variant => {
+            (Some(kind), Some(Value::Array(inner)))
+                if kind == variant && item.as_object().is_some_and(|fields| fields.len() == 2) =>
+            {
                 flat.extend(inner.iter().cloned());
             }
             _ => flat.push(item),
@@ -1040,7 +1042,10 @@ fn flatten(items: &mut Vec<Value>, variant: &str) {
 
 /// `All` of nothing but `Any` keeps one, so the list still means `Any`.
 fn drop_identity(items: &mut Vec<Value>) {
-    let any = |item: &Value| item.get("kind").and_then(Value::as_str) == Some("Any");
+    let any = |item: &Value| {
+        item.as_object().is_some_and(|fields| fields.len() == 1)
+            && item.get("kind").and_then(Value::as_str) == Some("Any")
+    };
     if items.iter().any(|item| !any(item)) {
         items.retain(|item| !any(item));
     } else {

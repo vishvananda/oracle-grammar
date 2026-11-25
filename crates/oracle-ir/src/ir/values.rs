@@ -345,6 +345,12 @@ pub enum Expr {
         payment: PaymentRef,
         component: Vec<u32>,
     },
+    /// Total damage prevented over the lifetime of the exact damage replacement
+    /// created by this result, including zero and multiple prevention events.
+    /// Deferred programs capture that instantiated replacement receipt; they
+    /// evaluate its accumulated total when they resolve. This is distinct from
+    /// one event's Performed receipt and from a total over a source's effects.
+    DamagePreventedBy(ResultId),
 }
 
 /// Mana a number or filter reads that did not pay for a whole spell.

@@ -107397,6 +107397,1210 @@
           "to": "CreatedWith"
         }
       ]
+    },
+    {
+      "id": "U0185",
+      "kind": "normalization",
+      "summary": "Combine Frankenstein's Monster's nested matching filters without changing its exile receipt.",
+      "evidence": "Issue #33 follow-up https://github.com/vishvananda/oracle-grammar/issues/33#issuecomment-6934200147. Matching(Matching(S,A),B) and Matching(S,AllOf([A,B])) evaluate the same pure predicates on the same candidate and object view. Preserve Transition(result=1, After), the creature predicate and the Exile arrival guard. This combines predicates only; it does not remove zone qualifications or equate a recorded arrival with current zone membership. The owned canonical reduction is bounded to 64 conjuncts, preserves typed-ID origins and leaves authored print nesting intact.",
+      "changes": [
+        {
+          "face": "Frankenstein's Monster",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            2,
+            "args",
+            "then",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "change",
+            "Entry",
+            "CountersOfChoice",
+            "amount",
+            "args"
+          ],
+          "from": {
+            "kind": "Matching",
+            "args": {
+              "objects": {
+                "kind": "Matching",
+                "args": {
+                  "objects": {
+                    "kind": "Transition",
+                    "args": {
+                      "result": 1,
+                      "phase": "After"
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              },
+              "filter": {
+                "kind": "InZone",
+                "args": {
+                  "Shared": "Exile"
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "Matching",
+            "args": {
+              "objects": {
+                "kind": "Transition",
+                "args": {
+                  "result": 1,
+                  "phase": "After"
+                }
+              },
+              "filter": {
+                "kind": "AllOf",
+                "args": [
+                  {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  {
+                    "kind": "InZone",
+                    "args": {
+                      "Shared": "Exile"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0186",
+      "kind": "correction",
+      "summary": "Use actual death outcomes and simultaneous distinct returns for Glyph of Reincarnation.",
+      "evidence": "Issue #36. CR 700.4 defines dying as battlefield-to-graveyard movement. Record both zones on the destroy receipt before projecting Before identities for historical controller lookup. CR 608.2d restricts legal return choices; reserve distinct identities across the object loop and move the gathered selection once, simultaneously. Spell controller chooses; the last-blocking controller identifies the graveyard; each returned card enters under its owner. Replacement redirection and later movement never become live membership tests.",
+      "changes": [
+        {
+          "face": "Glyph of Reincarnation",
+          "path": [
+            1,
+            "args",
+            "body",
+            "instructions"
+          ],
+          "from": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "Destroy",
+                  "args": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Battlefield"
+                        },
+                        "kind": "Permanent",
+                        "filter": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            },
+                            {
+                              "kind": "Condition",
+                              "args": {
+                                "kind": "Compare",
+                                "args": {
+                                  "left": {
+                                    "kind": "EventHistory",
+                                    "args": {
+                                      "event": {
+                                        "Pair": {
+                                          "event": "BecomesBlockedBy",
+                                          "objects": {
+                                            "kind": "SameObject",
+                                            "args": {
+                                              "kind": "Candidate"
+                                            }
+                                          },
+                                          "others": {
+                                            "kind": "SameObject",
+                                            "args": {
+                                              "kind": "Target",
+                                              "args": {
+                                                "slot": 0,
+                                                "index": 0
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "window": "ThisTurn",
+                                      "measure": "Occurrences"
+                                    }
+                                  },
+                                  "test": {
+                                    "kind": "Compare",
+                                    "args": {
+                                      "comparison": "GreaterOrEqual",
+                                      "value": {
+                                        "kind": "Constant",
+                                        "args": 1
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "regeneration": false
+                  }
+                }
+              }
+            },
+            {
+              "kind": "ForEachObject",
+              "args": {
+                "objects": {
+                  "kind": "Transition",
+                  "args": {
+                    "result": 0,
+                    "phase": "Before"
+                  }
+                },
+                "binding": 0,
+                "body": {
+                  "instructions": [
+                    {
+                      "kind": "Group",
+                      "args": {
+                        "instructions": [
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 1,
+                              "operation": {
+                                "kind": "ChooseObjects",
+                                "args": {
+                                  "player": {
+                                    "kind": "AbilityController"
+                                  },
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Graveyard",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AsOf",
+                                              "args": {
+                                                "moment": {
+                                                  "LastEvent": {
+                                                    "event": {
+                                                      "Pair": {
+                                                        "event": "BecomesBlockedBy",
+                                                        "objects": {
+                                                          "kind": "SameObject",
+                                                          "args": {
+                                                            "kind": "Bound",
+                                                            "args": 0
+                                                          }
+                                                        },
+                                                        "others": {
+                                                          "kind": "SameObject",
+                                                          "args": {
+                                                            "kind": "Target",
+                                                            "args": {
+                                                              "slot": 0,
+                                                              "index": 0
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    },
+                                                    "window": "ThisTurn"
+                                                  }
+                                                },
+                                                "player": {
+                                                  "kind": "ControllerOf",
+                                                  "args": {
+                                                    "kind": "Bound",
+                                                    "args": 0
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "CardType",
+                                        "args": "Creature"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "AsManyAsCan": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    }
+                                  },
+                                  "constraints": []
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 2,
+                              "operation": {
+                                "kind": "Move",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Selected",
+                                    "args": 1
+                                  },
+                                  "destination": {
+                                    "Battlefield": {
+                                      "controller": "Owner",
+                                      "arrival": {
+                                        "controller": null,
+                                        "tapped": false,
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  },
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "Destroy",
+                  "args": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Battlefield"
+                        },
+                        "kind": "Permanent",
+                        "filter": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            },
+                            {
+                              "kind": "Condition",
+                              "args": {
+                                "kind": "Compare",
+                                "args": {
+                                  "left": {
+                                    "kind": "EventHistory",
+                                    "args": {
+                                      "event": {
+                                        "Pair": {
+                                          "event": "BecomesBlockedBy",
+                                          "objects": {
+                                            "kind": "SameObject",
+                                            "args": {
+                                              "kind": "Candidate"
+                                            }
+                                          },
+                                          "others": {
+                                            "kind": "SameObject",
+                                            "args": {
+                                              "kind": "Target",
+                                              "args": {
+                                                "slot": 0,
+                                                "index": 0
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "window": "ThisTurn",
+                                      "measure": "Occurrences"
+                                    }
+                                  },
+                                  "test": {
+                                    "kind": "Compare",
+                                    "args": {
+                                      "comparison": "GreaterOrEqual",
+                                      "value": {
+                                        "kind": "Constant",
+                                        "args": 1
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "regeneration": false
+                  }
+                }
+              }
+            },
+            {
+              "kind": "ForEachObject",
+              "args": {
+                "objects": {
+                  "kind": "TransitionWhere",
+                  "args": {
+                    "result": 0,
+                    "phase": "Before",
+                    "from": "Battlefield",
+                    "to": "Graveyard"
+                  }
+                },
+                "binding": 0,
+                "body": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 1,
+                        "operation": {
+                          "kind": "ChooseObjects",
+                          "args": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Graveyard",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AsOf",
+                                        "args": {
+                                          "moment": {
+                                            "LastEvent": {
+                                              "event": {
+                                                "Pair": {
+                                                  "event": "BecomesBlockedBy",
+                                                  "objects": {
+                                                    "kind": "SameObject",
+                                                    "args": {
+                                                      "kind": "Bound",
+                                                      "args": 0
+                                                    }
+                                                  },
+                                                  "others": {
+                                                    "kind": "SameObject",
+                                                    "args": {
+                                                      "kind": "Target",
+                                                      "args": {
+                                                        "slot": 0,
+                                                        "index": 0
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              "window": "ThisTurn"
+                                            }
+                                          },
+                                          "player": {
+                                            "kind": "ControllerOf",
+                                            "args": {
+                                              "kind": "Bound",
+                                              "args": 0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                }
+                              }
+                            },
+                            "count": {
+                              "AsManyAsCan": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            },
+                            "constraints": [
+                              "Unpicked",
+                              {
+                                "CanMoveTo": {
+                                  "destination": {
+                                    "Battlefield": {
+                                      "controller": "Owner",
+                                      "arrival": {
+                                        "controller": null,
+                                        "tapped": false,
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "Move",
+                  "args": {
+                    "objects": {
+                      "kind": "Selected",
+                      "args": 1
+                    },
+                    "destination": {
+                      "Battlefield": {
+                        "controller": "Owner",
+                        "arrival": {
+                          "controller": null,
+                          "tapped": false,
+                          "counters": [],
+                          "states": []
+                        }
+                      }
+                    },
+                    "qualifiers": []
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U0187",
+      "kind": "correction",
+      "summary": "Register delayed prevention counters once and capture cumulative shield receipts.",
+      "evidence": "Issue #35. The original Oracle sentences register one delayed trigger when the spell resolves, independently of whether the shield ever prevents damage. Only ModifyEvent(PreventDamage) belongs in the callback. The delayed counter amount captures that exact instantiated shield and reads its lifetime prevention total, including zero or multiple events. Preserve the original recipient and creature condition. Performed remains an event-local receipt; PerformedTotal remains a loop aggregate.",
+      "changes": [
+        {
+          "face": "Sacred Boon",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions"
+          ],
+          "from": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateReplacement",
+                  "args": {
+                    "event": {
+                      "Damage": {
+                        "source_kind": "Any",
+                        "sources": {
+                          "kind": "Any"
+                        },
+                        "recipients": {
+                          "Objects": {
+                            "kind": "SameObject",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "kind": "Any",
+                        "grouping": "SourceRecipient",
+                        "subject": "Recipient"
+                      }
+                    },
+                    "limit": {
+                      "TotalDamage": {
+                        "kind": "Constant",
+                        "args": 3
+                      }
+                    },
+                    "duration": "EndOfTurn",
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ModifyEvent",
+                              "args": {
+                                "change": "PreventDamage"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "CreateDelayedTrigger",
+                              "args": {
+                                "event": {
+                                  "Turn": {
+                                    "point": "EndStepBegins",
+                                    "players": {
+                                      "kind": "All"
+                                    }
+                                  }
+                                },
+                                "start": "Immediately",
+                                "expires": null,
+                                "intervening_if": null,
+                                "body": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 1,
+                                        "operation": {
+                                          "kind": "PutCounters",
+                                          "args": {
+                                            "placements": [
+                                              {
+                                                "recipients": {
+                                                  "kind": "Objects",
+                                                  "args": {
+                                                    "kind": "One",
+                                                    "args": {
+                                                      "kind": "Target",
+                                                      "args": {
+                                                        "slot": 0,
+                                                        "index": 0
+                                                      }
+                                                    }
+                                                  }
+                                                },
+                                                "kind": {
+                                                  "PowerToughness": [
+                                                    0,
+                                                    1
+                                                  ]
+                                                },
+                                                "amount": {
+                                                  "kind": "Performed",
+                                                  "args": 0
+                                                },
+                                                "selection": null
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateReplacement",
+                  "args": {
+                    "event": {
+                      "Damage": {
+                        "source_kind": "Any",
+                        "sources": {
+                          "kind": "Any"
+                        },
+                        "recipients": {
+                          "Objects": {
+                            "kind": "SameObject",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "kind": "Any",
+                        "grouping": "SourceRecipient",
+                        "subject": "Recipient"
+                      }
+                    },
+                    "limit": {
+                      "TotalDamage": {
+                        "kind": "Constant",
+                        "args": 3
+                      }
+                    },
+                    "duration": "EndOfTurn",
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ModifyEvent",
+                              "args": {
+                                "change": "PreventDamage"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "CreateDelayedTrigger",
+                  "args": {
+                    "event": {
+                      "Turn": {
+                        "point": "EndStepBegins",
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "start": "Immediately",
+                    "expires": null,
+                    "intervening_if": null,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "PutCounters",
+                              "args": {
+                                "placements": [
+                                  {
+                                    "recipients": {
+                                      "kind": "Objects",
+                                      "args": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "kind": {
+                                      "PowerToughness": [
+                                        0,
+                                        1
+                                      ]
+                                    },
+                                    "amount": {
+                                      "kind": "DamagePreventedBy",
+                                      "args": 2
+                                    },
+                                    "selection": null
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "face": "Scars of the Veteran",
+          "path": [
+            1,
+            "args",
+            "body",
+            "instructions"
+          ],
+          "from": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateReplacement",
+                  "args": {
+                    "event": {
+                      "Damage": {
+                        "source_kind": "Any",
+                        "sources": {
+                          "kind": "Any"
+                        },
+                        "recipients": {
+                          "Target": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        },
+                        "kind": "Any",
+                        "grouping": "SourceRecipient",
+                        "subject": "Recipient"
+                      }
+                    },
+                    "limit": {
+                      "TotalDamage": {
+                        "kind": "Constant",
+                        "args": 7
+                      }
+                    },
+                    "duration": "EndOfTurn",
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ModifyEvent",
+                              "args": {
+                                "change": "PreventDamage"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "If",
+                          "args": {
+                            "condition": {
+                              "kind": "ObjectMatches",
+                              "args": {
+                                "object": {
+                                  "kind": "RecipientObject",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                },
+                                "filter": {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                }
+                              }
+                            },
+                            "then": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 1,
+                                    "operation": {
+                                      "kind": "CreateDelayedTrigger",
+                                      "args": {
+                                        "event": {
+                                          "Turn": {
+                                            "point": "EndStepBegins",
+                                            "players": {
+                                              "kind": "All"
+                                            }
+                                          }
+                                        },
+                                        "start": "Immediately",
+                                        "expires": null,
+                                        "intervening_if": null,
+                                        "body": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 1,
+                                                "operation": {
+                                                  "kind": "PutCounters",
+                                                  "args": {
+                                                    "placements": [
+                                                      {
+                                                        "recipients": {
+                                                          "kind": "Objects",
+                                                          "args": {
+                                                            "kind": "One",
+                                                            "args": {
+                                                              "kind": "RecipientObject",
+                                                              "args": {
+                                                                "slot": 0,
+                                                                "index": 0
+                                                              }
+                                                            }
+                                                          }
+                                                        },
+                                                        "kind": {
+                                                          "PowerToughness": [
+                                                            0,
+                                                            1
+                                                          ]
+                                                        },
+                                                        "amount": {
+                                                          "kind": "Performed",
+                                                          "args": 0
+                                                        },
+                                                        "selection": null
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            "otherwise": {
+                              "instructions": []
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateReplacement",
+                  "args": {
+                    "event": {
+                      "Damage": {
+                        "source_kind": "Any",
+                        "sources": {
+                          "kind": "Any"
+                        },
+                        "recipients": {
+                          "Target": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        },
+                        "kind": "Any",
+                        "grouping": "SourceRecipient",
+                        "subject": "Recipient"
+                      }
+                    },
+                    "limit": {
+                      "TotalDamage": {
+                        "kind": "Constant",
+                        "args": 7
+                      }
+                    },
+                    "duration": "EndOfTurn",
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ModifyEvent",
+                              "args": {
+                                "change": "PreventDamage"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "If",
+              "args": {
+                "condition": {
+                  "kind": "ObjectMatches",
+                  "args": {
+                    "object": {
+                      "kind": "RecipientObject",
+                      "args": {
+                        "slot": 0,
+                        "index": 0
+                      }
+                    },
+                    "filter": {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  }
+                },
+                "then": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 1,
+                        "operation": {
+                          "kind": "CreateDelayedTrigger",
+                          "args": {
+                            "event": {
+                              "Turn": {
+                                "point": "EndStepBegins",
+                                "players": {
+                                  "kind": "All"
+                                }
+                              }
+                            },
+                            "start": "Immediately",
+                            "expires": null,
+                            "intervening_if": null,
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 1,
+                                    "operation": {
+                                      "kind": "PutCounters",
+                                      "args": {
+                                        "placements": [
+                                          {
+                                            "recipients": {
+                                              "kind": "Objects",
+                                              "args": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "RecipientObject",
+                                                  "args": {
+                                                    "slot": 0,
+                                                    "index": 0
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "kind": {
+                                              "PowerToughness": [
+                                                0,
+                                                1
+                                              ]
+                                            },
+                                            "amount": {
+                                              "kind": "DamagePreventedBy",
+                                              "args": 2
+                                            },
+                                            "selection": null
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "otherwise": {
+                  "instructions": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U0188",
+      "kind": "correction",
+      "summary": "Represent North Star as one limited mana-cost spending permission.",
+      "evidence": "Issue #34. The original Oracle wording grants a chosen spending substitution for one spell mana cost this turn. It gives no casting action, zone permission, timing exception, discount or alternative cost. Preserve the affected controller and duration. The permission has its own positive remaining-use count and applies only to the mana-cost component of eligible spells, from any otherwise legal zone. Additional and alternative costs retain normal rules.",
+      "changes": [
+        {
+          "face": "North Star",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "changes",
+            0,
+            "args"
+          ],
+          "from": {
+            "SpecialAction": {
+              "body": {
+                "kind": "Program",
+                "args": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 1,
+                        "operation": {
+                          "kind": "PlayWith",
+                          "args": {
+                            "actor": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            },
+                            "action": "CastSpell",
+                            "cards": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Hand",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            },
+                            "count": {
+                              "Exactly": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            },
+                            "terms": {
+                              "limit": null,
+                              "during": null,
+                              "cost": "Normal",
+                              "spend_as": "AnyType",
+                              "into_exile": false,
+                              "condition": null,
+                              "effects": [],
+                              "flash": false,
+                              "may_look": false,
+                              "then": null,
+                              "face_down": null
+                            },
+                            "group": null
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "cost": null,
+              "limit": {
+                "Total": 1
+              },
+              "during": null,
+              "instant_speed": false
+            }
+          },
+          "to": {
+            "SpendManaAsLimited": {
+              "spend_as": "AnyType",
+              "on": {
+                "Spells": {
+                  "kind": "Any"
+                }
+              },
+              "component": "ManaCost",
+              "uses": 1
+            }
+          }
+        }
+      ]
     }
   ]
 }
