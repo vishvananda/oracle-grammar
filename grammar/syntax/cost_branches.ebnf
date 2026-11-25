@@ -466,6 +466,7 @@ conditional_then_opponent_damage_program ::= "if" condition_cast_kicked "," crea
 
 /* The common prefix is independently bound in each teamwork branch. */
 /* @sem Ability::CostBranch{keyword:Teamwork, cost:Cost{parts:[Teamwork($number)]}, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$clause_top_exile_play_those, ...$clause]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$clause_top_exile_play_those}})} */
+/* @prefer always */
 spell_teamwork_paid_exile_branch ::= "teamwork" NUMBER NEWLINE clause_top_exile_play_those "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," clause "."
 
 /* A kicked spell may add damage to a distinct target after an ordinary action. */
@@ -622,3 +623,12 @@ kicker_exile_top_override_permission ::= exile_top_cards_of_your_library "." "if
 /* A replacement mill counts each affected player's own library. */
 /* @sem Program::Program{instructions:[If{condition:$condition_cast_kicked, then:Program{instructions:$fraction_mill_plural}, otherwise:Program{instructions:$clause}}]} */
 kicker_fraction_mill_override ::= clause "." "if" condition_cast_kicked "," "instead" fraction_mill_plural "."
+
+/* The common program is bound independently in both spell scopes. */
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:Cost{parts:[Teamwork($number)]}, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$teamwork_if_followup]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}})} */
+spell_teamwork_if_paid_branch ::= "teamwork" NUMBER NEWLINE instructions "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," teamwork_if_followup "."
+
+teamwork_if_followup ::= teamwork_if_draw | clause
+
+/* @sem Instruction::[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}] */
+teamwork_if_draw ::= "draw" card_count

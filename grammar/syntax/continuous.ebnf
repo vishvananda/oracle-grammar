@@ -165,7 +165,7 @@ next_upkeep_player ::= zone_your | zone_that_player
 /* A deadline a sentence states after its verb. */
 this_duration ::= this_turn | this_combat
 
-changes ::= changes_artifact_animation_and_pump | changes_pump_and_valued_mechanic | changes_pump_and_creature_types | change | changes_and | changes_comma | changes_keyword_loss_and_creature_types | retained_colored_quoted_regeneration | counted_grant_and_pump
+changes ::= changes_artifact_animation_and_pump | changes_pump_and_valued_mechanic | changes_pump_and_creature_types | change | changes_and | changes_comma | changes_keyword_loss_and_creature_types | retained_colored_quoted_regeneration | counted_grant_and_pump | changes_gains_and_drawn_pump_h3
 
 /* @sem Change::[...$change, ...$changes] */
 changes_and ::= change "and" changes
@@ -389,7 +389,7 @@ rule_changes ::= rule_change | rule_changes_and | rule_changes_attached_activati
 /* @sem Change::[...$rule_change, ...$rule_changes] */
 rule_changes_and ::= rule_change "and" rule_changes
 
-rule_change ::= attack_cost_each_controller | rule_cant_be_blocked_except_union | rule_attack_noted_player | rule_attack_noted_players | rule_cant_phase_out | combat_attack_block_you | combat_attack_block_controller | attack_group_also_rule | attack_planeswalker_only_cost_rule | defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power | rule_cant_be_targeted | rule_prohibit_action | change_only_attack_alone | change_cant_attack_block_extra | attack_group_requirement | attack_you_cost_rule | attack_you_or_planeswalkers_cost_rule | attack_you_pay_cost_rule | block_payment_rule | block_group_rule | block_comparison_rule | rule_blocked_greater_power | change_skip_controllers_untap | rule_block_extra_one | rule_block_extra_many | rule_blocked_chosen_color | rule_attack_scoped_players | block_controller_count_rule | blocked_shared_type_rule | combat_tap_payment_rule | rule_attack_player_unless_history | rule_cant_be_attacked | rule_cant_be_blocked_by_ability_qualified | rule_cant_be_attached_type
+rule_change ::= rule_cant_be_blocked_by_or | attack_cost_each_controller | rule_cant_be_blocked_except_union | rule_attack_noted_player | rule_attack_noted_players | rule_cant_phase_out | combat_attack_block_you | combat_attack_block_controller | attack_group_also_rule | attack_planeswalker_only_cost_rule | defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power | rule_cant_be_targeted | rule_prohibit_action | change_only_attack_alone | change_cant_attack_block_extra | attack_group_requirement | attack_you_cost_rule | attack_you_or_planeswalkers_cost_rule | attack_you_pay_cost_rule | block_payment_rule | block_group_rule | block_comparison_rule | rule_blocked_greater_power | change_skip_controllers_untap | rule_block_extra_one | rule_block_extra_many | rule_blocked_chosen_color | rule_attack_scoped_players | block_controller_count_rule | blocked_shared_type_rule | combat_tap_payment_rule | rule_attack_player_unless_history | rule_cant_be_attacked | rule_cant_be_blocked_by_ability_qualified | rule_cant_be_attached_type
 
 /* A spell is a stack object of kind Spell; "abilities" are every other stack
    object, and an ability "from" a source is an ability of that source. "Spells or
@@ -13154,6 +13154,7 @@ shared_type_other_count ::= "other" filter_phrase "on" "the" "battlefield" "that
 shared_type_scaled_pump ::= "gets" signed "/" signed "for" "each" shared_type_other_count
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_cant_be_blocked_by_union, duration:$duration, evaluation:LiveObjects} */
+/* @prefer always */
 continuous_live_leading_blocker_union ::= duration "," affected rule_cant_be_blocked_by_union
 
 /* @sem Change::[Rule(Prohibit(BeBlocked($blocker_exception_union)))] */
@@ -13303,3 +13304,43 @@ change_colorless_artifact_with_activation_other_abilities ::= "is" "a" "colorles
 
 /* @sem Change::[SetLandType(Vocabulary{family:LandType, form:@subtype_name($basic_land_type_named)})] */
 change_becomes_basic_land_type ::= "becomes" basic_land_type_named
+
+/* Each blocker population retains its own independent filter. */
+/* @sem ObjectFilter::AnyOf([$filter_plural, $filter_plural_2]) */
+blocker_filter_or ::= filter_plural "or" filter_plural
+
+/* @sem Change::[Rule(Prohibit(BeBlocked($blocker_filter_or)))] */
+rule_cant_be_blocked_by_or ::= "can't" "be" "blocked" "by" blocker_filter_or
+
+/* Linked cards share the stated flying ability and the subsequent list. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[GainAbilitiesOf{objects:$shared_keyword_origin, kinds:List([Term{family:CheckHasable, form:Flying}, ...$sharing_kind_tail])}]}) */
+static_exiled_shared_flying ::= "as" "long" "as" shared_keyword_origin "has" "flying" "," affected "has" "flying" "." "the" "same" "is" "true" "for" sharing_kind_tail "."
+
+/* During-turn static paired with joined look-and-play top library static and trailing abilities. */
+/* @sem Ability::[$static_during_turn, Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$top_look_and_play}), ...$abilities] */
+abilities_during_turn_look_and_play_h3 ::= static_during_turn NEWLINE top_look_and_play "." NEWLINE abilities
+
+/* Controlled-host Aura paired with setting the enchanted permanent's creature subtype. */
+/* @sem Ability::[Enchant{hosts:Permanents(AllOf([$filter_phrase, ControlledBy(One(AbilityController))]))}, Ability::Static(_{kind:Ordinary, affected:Objects(One($attached_ref)), changes:[CreatureTypes{mode:Set, types:Listed($becomes_types)}]}), ...$abilities] */
+abilities_enchant_controlled_is_subtype_h3 ::= "enchant" filter_phrase "you" "control" NEWLINE attached_ref "is" "a" becomes_types "." NEWLINE abilities
+
+/* Delve paired with its linked exiled-creature keyword sharing keeps Soulflayer distinct from generic linked-exile sharing. */
+/* @prefer always */
+/* @sem Ability::[$mechanic_delve, $static_delve_shared_keywords] */
+abilities_delve_shared_keywords_h3 ::= mechanic_delve NEWLINE static_delve_shared_keywords
+
+/* Static type addition for other controlled permanents using "other types" wording. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Source)), $filter_plural, ControlledBy(One(AbilityController))])}), changes:[CreatureTypes{mode:Add, types:Listed($cross_creature_types)}]}) */
+static_other_controlled_retained_types_h3 ::= "other" filter_plural "you" "control" "are" cross_creature_types "in" "addition" "to" "their" "other" "types" "."
+
+/* Temporary keyword grant paired with pump scaling with cards drawn this turn. */
+/* @sem Change::[GrantKeyword($keyword_name), Pump{power:@times($signed, $count_each_drawn_card), toughness:@times($signed_2, $count_each_drawn_card)}] */
+changes_gains_and_drawn_pump_h3 ::= "gains" keyword_name "and" "gets" signed "/" signed "for" "each" count_each_drawn_card
+
+/* Optional controlled copy model excluding source. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo($number), filter:AllOf([Not(SameObject(Source)), $noun, ControlledBy(One(AbilityController))])}), index:0} */
+copy_optional_other_controlled_h3 ::= "up" "to" number "other" "target" noun "you" "control"
+
+/* Named copy retaining her name and current ability followed by a counter on her. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($self_ref_named)), changes:[CopyOf{object:$copy_optional_other_controlled_h3, exceptions:[SetName(@card_name), $copy_current_payload]}], duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($self_ref_named)), kind:$counter_kind, amount:$counter_singular_amount}]}}] */
+instructions_named_copy_counter_her_h3 ::= self_ref_named "becomes" "a" "copy" "of" copy_optional_other_controlled_h3 "," "except" "her" "name" "is" SELF_NAME "and" "she" "has" copy_current_payload "." "then" "put" counter_singular_amount counter_kind "counter" "on" "her"

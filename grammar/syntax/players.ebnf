@@ -845,3 +845,16 @@ player_protection_sources ::= players_singular | player_protection_you
 
 /* @sem PlayerSet::One(PlayerRef::AbilityController) */
 player_protection_you ::= "you"
+
+/* Each player has a distinct next turn for spell-level cast prohibitions. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(Bound(0))), changes:$target_repeated_first, duration:DuringNextTurn(Bound(0)), evaluation:LiveObjects}}]}}]}} */
+spell_each_personal_next_turn_prohibition_h3 ::= players_singular "can't" target_repeated_first "during" "that" "player's" "next" "turn" "."
+
+/* Triggered cast restriction through each affected player's next turn. */
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:EffectOn{subject:Players($players_singular), effects:[Filter($next_turn_spell_filter_h3), Vocabulary{family:PlayerEffect, form:CantCastSpells}], until:ThroughNextTurn}}]}} */
+triggered_next_turn_cast_restriction_h3 ::= event_clause "," players_singular "can't" "cast" next_turn_spell_filter_h3 "spells" "during" "that" "player's" "next" "turn" "."
+
+next_turn_spell_filter_h3 ::= next_turn_spell_union_h3 | card_word
+
+/* @sem ObjectFilter::AnyOf([$card_word, $card_word_2]) */
+next_turn_spell_union_h3 ::= card_word "or" card_word

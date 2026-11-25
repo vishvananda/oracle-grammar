@@ -3242,3 +3242,15 @@ cost_remove_counters_and_exile ::= "remove" "X" counter_kind "counters" "from" s
 
 /* @sem $cost_remove_counters_and_exile */
 cost_remove_counters_and_exile_later ::= "↑" cost_remove_counters_and_exile
+
+/* Graveyard activated return tapped followed by either instructions or a perpetual pump, with activation limit. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:$tapped_graveyard_return_continuation_h3}})} */
+activated_tapped_graveyard_return_continuation_limited_h3 ::= cost ":" tapped_graveyard_return_continuation_h3 "." activation_limits "."
+
+tapped_graveyard_return_continuation_h3 ::= tapped_graveyard_return_followup_h3 | tapped_graveyard_return_perpetual_h3
+
+/* @sem Instruction::[Effect{result:@next, operation:$self_return_battlefield_tapped}, ...$instructions] */
+tapped_graveyard_return_followup_h3 ::= self_return_battlefield_tapped "." instructions
+
+/* @sem Instruction::[Effect{result:@next, operation:$self_return_battlefield_tapped}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$returned_perpetual_pump}}] */
+tapped_graveyard_return_perpetual_h3 ::= self_return_battlefield_tapped "." "it" "perpetually" returned_perpetual_pump

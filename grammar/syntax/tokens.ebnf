@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= token_history_quoted_other | named_legendary_equipment_token | token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal | token_named_equal_vote_total | token_variable_square_product | token_defined_named_graveyard | token_copy_stats_added_type | token_named_equal_its_stat | token_defined_live_graveyard_single | token_defined_live_graveyard_plural | token_named_mana_spent_equal | token_defined_equal_opponent_comparison | token_named_equal_nontoken_entries
+token_group ::= token_history_quoted_other | named_legendary_equipment_token | token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal | token_named_equal_vote_total | token_variable_square_product | token_defined_named_graveyard | token_copy_stats_added_type | token_named_equal_its_stat | token_defined_live_graveyard_single | token_defined_live_graveyard_plural | token_named_mana_spent_equal | token_defined_equal_opponent_comparison | token_named_equal_nontoken_entries | token_defined_with_opponent_control_count_h3
 
 token_copy ::= token_copy_enchanted_stats | token_copy_characteristics_it | token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle | token_copy_random_mana_card | token_copy_characteristics | token_copy_characteristics_target | token_copy_nonlegendary_singular | token_copy_half_creature | token_copy_artifact_unpunctuated | token_copy_explicit_token_exception
 
@@ -610,6 +610,7 @@ tn_shard ::= "Shard"
 
 /* The singular token and all three options share this creation receipt. */
 /* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, ChooseOne{decider:AbilityController, options:[Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@marked)), kind:$counter_kind, amount:$counter_amount}]}}]}, Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@marked)), kind:$counter_kind_2, amount:$counter_amount_2}]}}]}, Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@marked)), kind:$counter_kind_3, amount:$counter_amount_3}]}}]}]}] */
+/* @prefer always */
 clause_created_counter_choice ::= "create" "a" token_recipe "." "put" "your" "choice" "of" counter_amount counter_kind "counter" "," counter_amount counter_kind "counter" "," "or" counter_amount counter_kind "counter" "on" "it"
 
 /* The mill operation is part of the same contract as its transition receipt. */
@@ -910,6 +911,7 @@ instructions_mill_exile_stat_token ::= "each" "player" "mills" card_count_many "
 
 /* The delayed sacrifice refers to the tokens created by this instruction. */
 /* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$linked_copy_added_type}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}] */
+/* @prefer always */
 clause_linked_copy_combat_cleanup ::= "create" "a" "tapped" "and" "attacking" linked_copy_added_type "." "sacrifice" "that" "token" "at" "end" "of" "combat"
 
 /* @sem TokenRecipe::Copy{object:Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0}, exceptions:[CopyException::AddCreatureTypes([@subtype_name($creature_subtype)])]} */
@@ -2816,3 +2818,22 @@ token_intrinsic_keyword_equipment ::= keyword_name "," '"' token_equipped_pump_k
 
 /* @sem String::'Goldmeadow Harrier' */
 created_name_goldmeadow_harrier ::= "Goldmeadow" "Harrier"
+
+/* The copy exceptions describe each member of the created attacking batch. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:$copy_exceptions_plain}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_modified_copy_tapped_attacking ::= "create" "a" "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" object_ref "," "except" copy_exceptions_plain
+
+/* X tokens with abilities where X counts opponents controlling more of a population than you. */
+/* @prefer always */
+/* @sem TokenSpec::TokenSpec{amount:$opponents_control_more_count_h3, words:CreatingEffect, recipe:$token_recipe_with} */
+token_defined_with_opponent_control_count_h3 ::= "X" token_recipe_with "," "where" "X" "is" opponents_control_more_count_h3
+
+/* @sem Expr::CountPlayers(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])})}}}])) */
+opponents_control_more_count_h3 ::= "the" "number" "of" "opponents" "who" "control" "more" filter_plural "than" "you"
+
+/* Each player except a referenced player creates tokens. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:OthersThan($player_ref), tokens:$token_groups, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
+each_player_other_than_creates_h3 ::= "each" "player" "other" "than" player_ref "creates" token_groups
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:OthersThan($player_ref), tokens:$token_groups, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
+each_player_except_creates_h3 ::= "each" "player" "except" player_ref "creates" token_groups
