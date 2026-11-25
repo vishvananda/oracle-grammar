@@ -199,3 +199,18 @@ energy_payment_keyword_then ::= clause_before_then "," "then" clause_energy_paym
 /* @prefer always */
 /* @sem Ability::[Spell{announcement:@announcement, body:Program{instructions:[...$energy_payment_keyword_then, ...$root_spell_paragraph_tail]}}] */
 line_energy_payment_keyword_paragraphs ::= energy_payment_keyword_then "." NEWLINE root_spell_paragraph_tail
+
+/* A separately announced optional graveyard target can price a later energy
+   payment by that same card's mana value. */
+/* @sem Expr::ObjectProperty{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:AllOf([AnyOf([$noun, $noun_2]), InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0}, property:ManaValue, information:CurrentOrLastKnown} */
+chosen_graveyard_card_mana_value ::= "choose" "up" "to" "one" "target" noun "or" noun "card" "in" "your" "graveyard"
+
+/* @sem Operation::Move{objects:$affected, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
+return_affected_from_your_graveyard ::= "return" affected "from" "your" "graveyard" "to" "the" "battlefield"
+
+/* The intervening operation and paid action remain independent operands. */
+/* @sem Instruction::[Effect{result:@next, operation:$operation}, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Energy($chosen_graveyard_card_mana_value)]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:$return_affected_from_your_graveyard}]}, otherwise:Program{}}] */
+chosen_card_energy_payment_instructions ::= chosen_graveyard_card_mana_value "." operation "." "then" "you" "may" "pay" "an" "amount" "of" "{E}" "equal" "to" "that" "card's" "mana" "value" "." "if" "you" "do" "," return_affected_from_your_graveyard
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$chosen_card_energy_payment_instructions}} */
+spell_chosen_card_energy_payment ::= chosen_card_energy_payment_instructions "."

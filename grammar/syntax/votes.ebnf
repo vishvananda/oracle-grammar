@@ -307,3 +307,30 @@ secret_vote_damage_outcomes ::= "if" "each" "opponent" "chose" secret_vote_word 
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$secret_opponent_word_choices, ...$secret_vote_damage_outcomes]}} */
 spell_secret_vote_damage ::= secret_opponent_word_choices "." secret_vote_damage_outcomes "."
+
+/* Independent word choices and their subsequent per-chooser outcomes. */
+shared_choice_word ::= vote_word | choice_word | shared_choice_friends | shared_choice_secrets
+
+/* @sem String::'Friends' */
+shared_choice_friends ::= "friends"
+
+/* @sem String::'Secrets' */
+shared_choice_secrets ::= "secrets"
+
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(Bound(0)), kind:Word, terms:_{count:Exactly(Constant(1)), options:[Text($shared_choice_word), Text($shared_choice_word_2), Text($shared_choice_word_3)]}}}]}}] */
+shared_three_word_choices ::= players_singular "chooses" shared_choice_word "," shared_choice_word "," "or" shared_choice_word
+
+/* Each matching player receives one token, and the controller receives one per matching player. */
+/* @sem Instruction::[Effect{result:@next, operation:Together([CreateTokens{players:One(AbilityController), tokens:[_{amount:CountPlayers(Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($shared_choice_word)}}), words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}, CreateTokens{players:Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($shared_choice_word)}}, tokens:[_{amount:Constant(1), words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}])}] */
+shared_choice_named_tokens ::= "for" "each" "player" "who" "chose" shared_choice_word "," "you" "and" "that" "player" "each" "create" "a" token_named_recipe "token"
+
+/* @sem Instruction::[Effect{result:@next, operation:Together([CreateTokens{players:One(AbilityController), tokens:[_{amount:CountPlayers(Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($shared_choice_word)}}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}, CreateTokens{players:Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($shared_choice_word)}}, tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}])}] */
+shared_choice_defined_tokens ::= "for" "each" "player" "who" "chose" shared_choice_word "," "you" "and" "that" "player" "each" "create" "a" token_recipe
+
+/* @sem Instruction::[Effect{result:@next, operation:Together([Draw{players:One(AbilityController), amount:@times($card_count, Expr::CountPlayers(Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($shared_choice_word)}}))}, Draw{players:Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($shared_choice_word)}}, amount:$card_count}])}] */
+shared_choice_draw ::= "for" "each" "player" "who" "chose" shared_choice_word "," "you" "and" "that" "player" "each" "draw" card_count
+
+shared_choice_outcome ::= shared_choice_named_tokens | shared_choice_defined_tokens | shared_choice_draw
+
+/* @sem Program::Program{instructions:[...$shared_three_word_choices, ...$shared_choice_outcome, ...$shared_choice_outcome_2, ...$shared_choice_outcome_3]} */
+shared_choice_three_outcomes ::= shared_three_word_choices "." shared_choice_outcome "." shared_choice_outcome "." shared_choice_outcome

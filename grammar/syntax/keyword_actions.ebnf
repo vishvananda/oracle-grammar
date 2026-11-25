@@ -187,7 +187,7 @@ object_endures ::= object_ref "endures" value
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Saddle{object:$object_ref}} */
 object_becomes_saddled ::= object_ref "becomes" "saddled" "until" "end" "of" "turn"
 
-group_keyword_action ::= turn_target_group_face_down | suspected_population_keyword | prior_group_phases_until | selected_any_keyword_action | selected_single_keyword_action | selected_group_keyword_action | goad_group_reference | goad_created_indefinitely | goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores | turn_all_face_down | detain_each | phase_in_filtered | phase_out_with_phasing | simultaneous_phase_actions | shared_keyword_imperative | shared_opponent_keyword | shared_singular_keyword | detain_target_group | phase_out_chosen_population | each_phases_out | goad_named_for_object | phase_out_composed_population | goad_each_event_player | goad_each
+group_keyword_action ::= turn_target_group_face_down | suspected_population_keyword | prior_group_phases_until | selected_any_keyword_action | selected_single_keyword_action | selected_group_keyword_action | goad_group_reference | goad_created_indefinitely | goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores | turn_all_face_down | detain_each | phase_in_filtered | phase_out_with_phasing | simultaneous_phase_actions | shared_keyword_imperative | shared_keyword_target_group | shared_opponent_keyword | shared_singular_keyword | detain_target_group | phase_out_chosen_population | each_phases_out | goad_named_for_object | phase_out_composed_population | goad_each_event_player | goad_each
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:$affected} */
 affected_phase_out ::= affected "phase" "out"
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Connive, objects:$affected} */
@@ -768,3 +768,139 @@ repeat_incubate_x_twice_where ::= "incubate" "X" "twice" "," "where" "X" "is" va
 /* @prefer always */
 /* @sem Operation::Repeat{times:Constant(2), body:Keyword{actor:One(AbilityController), action:KeywordAction::Incubate{amount:$number_digits}}} */
 repeat_incubate_number_twice ::= "incubate" number_digits "twice"
+
+/* Grouped die tables retain the roll result across each independently resolved row. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$activation_cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$roll_die_action}, ...$grouped_roll_rows]}} */
+activated_grouped_roll_table ::= activation_cost ":" roll_die_action "." NEWLINE grouped_roll_rows
+
+grouped_roll_rows ::= grouped_roll_row_one | grouped_roll_row_more
+
+/* @sem Instruction::[$grouped_roll_row] */
+grouped_roll_row_one ::= grouped_roll_row
+
+/* @sem Instruction::[$grouped_roll_row, ...$grouped_roll_rows] */
+grouped_roll_row_more ::= grouped_roll_row NEWLINE grouped_roll_rows
+
+grouped_roll_row ::= grouped_roll_labeled_exact | grouped_roll_range | grouped_roll_exact | grouped_roll_search_exact
+
+/* @sem Instruction::If{condition:Compare{left:DieResult(@die_roll), test:NumberTest::Compare{comparison:Equal, value:$number}}, then:$program_sentence, otherwise:Program{}} */
+grouped_roll_labeled_exact ::= number "|" "Trapped" "!" "—" program_sentence
+
+/* @sem Instruction::If{condition:AllOf([Compare{left:DieResult(@die_roll), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:DieResult(@die_roll), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:$program_sentence, otherwise:Program{}} */
+grouped_roll_range ::= number "―" number "|" program_sentence
+
+/* @sem Instruction::If{condition:Compare{left:DieResult(@die_roll), test:NumberTest::Compare{comparison:Equal, value:$number}}, then:$program_sentence, otherwise:Program{}} */
+grouped_roll_exact ::= number "|" program_sentence
+
+/* @sem Instruction::If{condition:Compare{left:DieResult(@die_roll), test:NumberTest::Compare{comparison:Equal, value:$number}}, then:Program{instructions:$search_single_test_entry_hand}, otherwise:Program{}} */
+grouped_roll_search_exact ::= number "|" search_single_test_entry_hand "."
+
+/* A single targeted graveyard exile remains the antecedent of each table row;
+   the die is independently addressed by its roll receipt. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$table_exile_graveyard_target}, Effect{result:@next, operation:$roll_die_action}, ...$exile_copy_die_rows]}} */
+activated_exile_copy_die_table ::= cost ":" table_exile_graveyard_target "." roll_die_action "." activation_limits "." NEWLINE exile_copy_die_rows
+
+/* @sem Operation::Move{objects:One($target_card_a_graveyard), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+table_exile_graveyard_target ::= "exile" target_card_a_graveyard
+
+exile_copy_die_rows ::= exile_copy_die_rows_one | exile_copy_die_rows_more
+
+/* @sem Instruction::[$exile_copy_die_row] */
+exile_copy_die_rows_one ::= exile_copy_die_row
+
+/* @sem Instruction::[$exile_copy_die_row, ...$exile_copy_die_rows] */
+exile_copy_die_rows_more ::= exile_copy_die_row NEWLINE exile_copy_die_rows
+
+exile_copy_die_row ::= exile_copy_die_row_range | exile_copy_die_row_exact
+
+/* @sem Instruction::If{condition:AllOf([Compare{left:DieResult(@die_roll), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:DieResult(@die_roll), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:$exile_copy_die_body, otherwise:Program{}} */
+exile_copy_die_row_range ::= number "―" number "|" exile_copy_die_body
+
+/* @sem Instruction::If{condition:Compare{left:DieResult(@die_roll), test:NumberTest::Compare{comparison:Equal, value:$number}}, then:$exile_copy_die_body, otherwise:Program{}} */
+exile_copy_die_row_exact ::= number "|" exile_copy_die_body
+
+exile_copy_die_body ::= exile_copy_die_body_normal | exile_copy_die_body_alternate | exile_copy_die_body_linked
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:One(Result{result:@marked, phase:After, index:0}), times:Constant(1)}}, $copy_cast_normal]} */
+exile_copy_die_body_normal ::= "copy" "that" "card" "." copy_cast_normal "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:One(Result{result:@marked, phase:After, index:0}), times:Constant(1)}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Copies(@prior), count:Exactly(Constant(1)), terms:_{cost:Alternate(Cost{parts:[Mana($mana_symbols)]})}}}]}}]} */
+exile_copy_die_body_alternate ::= "copy" "that" "card" "." "you" "may" "cast" "the" "copy" "by" "paying" mana_symbols "rather" "than" "paying" "its" "mana" "cost" "."
+
+/* @sem Program::Program{instructions:$clause_copy_linked_cards_free} */
+exile_copy_die_body_linked ::= clause_copy_linked_cards_free "."
+
+/* A spell exiled before a die roll supplies both its last-known mana value
+   and the exact exile receipt used by each permission in the result table. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:Move{objects:One($target_stack_spell), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:$roll_die_action}, If{condition:AllOf([Compare{left:Add([DieResult(@last_result), ObjectProperty{object:Target{slot:@last_slot, index:0}, property:ManaValue, information:CurrentOrLastKnown}]), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:Add([DieResult(@last_result), ObjectProperty{object:Target{slot:@last_slot, index:0}, property:ManaValue, information:CurrentOrLastKnown}]), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:Program{instructions:[Effect{result:@next, operation:$exile_table_permission}]}, otherwise:Program{}}, If{condition:Compare{left:Add([DieResult(@prior), ObjectProperty{object:Target{slot:@last_slot, index:0}, property:ManaValue, information:CurrentOrLastKnown}]), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number_3}}, then:Program{instructions:[Effect{result:@next, operation:$exile_table_permission_2}]}, otherwise:Program{}}]}} */
+spell_exiled_die_permission_table ::= "exile" target_stack_spell "," "then" roll_die_action "and" "add" "that" "spell's" "mana" "value" "." NEWLINE number "―" number "|" exile_table_permission "." NEWLINE number "⁺" "|" exile_table_permission "."
+
+exile_table_permission ::= exile_table_permission_spending | exile_table_permission_free
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:$exile_table_spending}})], duration:WhileExiled(Result{result:@marked, phase:After, index:0}), evaluation:LiveObjects} */
+exile_table_permission_spending ::= "you" "may" "cast" "the" "exiled" "card" "for" "as" "long" "as" "it" "remains" "exiled" "," "and" exile_table_spending
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Free}})], duration:WhileExiled(Result{result:@marked, phase:After, index:0}), evaluation:LiveObjects} */
+exile_table_permission_free ::= "you" "may" "cast" "the" "exiled" "card" "without" "paying" "its" "mana" "cost" "for" "as" "long" "as" "it" "remains" "exiled"
+
+exile_table_spending ::= exile_table_spending_that_spell | exile_table_spending_it | exiled_spending_any_type | exiled_spending_colorless
+
+/* @prefer always */
+/* @sem SpendAs::AnyColor */
+exile_table_spending_that_spell ::= "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "that" "spell"
+
+/* @sem SpendAs::AnyColor */
+exile_table_spending_it ::= "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "it"
+
+/* The counted population also supplies the referent of the later row. */
+/* @sem Program::Program{instructions:[...$die_table_head, If{condition:AllOf([Compare{left:Add([DieResult(@marked), CountObjects($counted_graveyard_arrivals)]), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:Add([DieResult(@marked), CountObjects($counted_graveyard_arrivals)]), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:$program_sentence, otherwise:_{}}, If{condition:Compare{left:Add([DieResult(@marked), CountObjects($counted_graveyard_arrivals)]), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number_3}}, then:_{instructions:[Effect{result:@next, operation:Move{objects:$counted_graveyard_arrivals, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:_{}}]} */
+program_counted_graveyard_die_table ::= die_table_head "and" "add" "the" "number" "of" counted_graveyard_arrivals "." NEWLINE number "―" number "|" program_sentence NEWLINE number "⁺" "|" "return" "those" "cards" "from" "your" "graveyard" "to" "the" "battlefield" "."
+
+/* A keyword action applies to each member of the announced target group. */
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:$shared_keyword_verb, objects:$objects_targets_plain} */
+shared_keyword_target_group ::= shared_keyword_verb objects_targets_plain
+
+/* A player's actions and a keyword action form separate spell paragraphs. */
+/* @prefer always */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$clause_third, Effect{result:@next, operation:$shared_keyword_target_group}]}} */
+spell_player_actions_keyword_group ::= clause_third "." NEWLINE shared_keyword_target_group "."
+
+/* A chosen opposing permanent remains the antecedent throughout this die table.
+   The row-specific phrases stay scoped to the table rather than widening actions. */
+/* @sem Program::Program{instructions:[...$chosen_opponent_die_head, ...$chosen_target_die_rows]} */
+program_chosen_target_die_table ::= chosen_opponent_die_head "." NEWLINE chosen_target_die_rows
+
+/* @sem Instruction::[@choose($chosen_opponent_target), ...$die_roll] */
+chosen_opponent_die_head ::= "choose" chosen_opponent_target "," "then" die_roll
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, ControlledBy(OpponentsOf(AbilityController))])}), index:0} */
+chosen_opponent_target ::= "target" noun "an" "opponent" "controls"
+
+chosen_target_die_rows ::= chosen_target_die_rows_one | chosen_target_die_rows_more
+
+/* @sem Instruction::[$chosen_target_die_row] */
+chosen_target_die_rows_one ::= chosen_target_die_row
+
+/* @sem Instruction::[$chosen_target_die_row, ...$chosen_target_die_rows] */
+chosen_target_die_rows_more ::= chosen_target_die_row NEWLINE chosen_target_die_rows
+
+chosen_target_die_row ::= chosen_target_die_range | chosen_target_die_exact
+
+/* @sem Instruction::If{condition:AllOf([Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:$chosen_target_die_sentence, otherwise:_{}} */
+chosen_target_die_range ::= number "―" number "|" chosen_target_die_sentence
+
+/* @sem Instruction::If{condition:Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:Equal, value:$number}}, then:$chosen_target_die_sentence, otherwise:_{}} */
+chosen_target_die_exact ::= number "|" chosen_target_die_sentence
+
+chosen_target_die_sentence ::= chosen_target_return_sentence | chosen_target_library_sentence | chosen_target_gain_sentence | program_sentence
+
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:@owner_return(Operation::Move{objects:One(@it), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]})}]} */
+chosen_target_return_sentence ::= "return" "it" "to" "its" "owner's" "hand" "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:One(@it), destination:$owner_chosen_library_end, qualifiers:[]}}]} */
+chosen_target_library_sentence ::= owner_chosen_library_end "."
+
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(@it)), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot}}]} */
+chosen_target_gain_sentence ::= "gain" "control" "of" "it" duration "."

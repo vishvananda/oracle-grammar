@@ -348,7 +348,7 @@ activated_exile_self_after_limited ::= cost_parts "," "↑" "exile" "this" "card
 activated_self_graveyard_return ::= cost ":" self_graveyard_return "."
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_graveyard_return}]}})} */
 activated_self_graveyard_return_limited ::= cost ":" self_graveyard_return "." activation_limits "."
-self_graveyard_return ::= self_return_battlefield_tapped_attacking | self_return_battlefield_tapped_attacking_counter | self_return_and_optional_card | self_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter | self_return_battlefield_transformed | self_return_battlefield_face_choice | self_return_with_target_tapped
+self_graveyard_return ::= self_return_battlefield_tapped_attacking | self_return_battlefield_tapped_attacking_counter | self_return_and_optional_card | self_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter | self_return_battlefield_tapped_counters | self_return_battlefield_transformed | self_return_battlefield_face_choice | self_return_with_target_tapped
 /* @sem Operation::Move{objects:One($self_ref), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
 self_return_hand ::= "return" self_ref "from" "your" "graveyard" "to" "your" "hand"
 /* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
@@ -360,6 +360,7 @@ self_return_battlefield_attached ::= "return" self_ref "from" "your" "graveyard"
 self_return_battlefield_tapped ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "tapped"
 /* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[[$counter_kind, $entry_counter_amount]], states:[]}}, qualifiers:[]} */
 self_return_battlefield_counter ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "with" entry_counter_amount counter_kind "counter" "on" "it"
+/* @prefer always */
 /* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[[$counter_kind, $entry_counter_amount]], states:[]}}, qualifiers:[]} */
 self_return_battlefield_tapped_counter ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "tapped" "with" entry_counter_amount counter_kind "counter" "on" "it"
 
@@ -2629,7 +2630,7 @@ cast_sacrifice_one_for_return ::= "sacrifice" "a" filter_phrase
 /* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[$cast_sacrifice_one_for_return]}, optional:false, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[$casting_sacrifice_delayed_return, Effect{result:@next, operation:$operation}]}}] */
 line_cast_sacrifice_delayed_return ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cast_sacrifice_one_for_return "." NEWLINE casting_sacrifice_delayed_return "." operation "."
 
-cost_words_activation ::= cost_unattach_holder | cost_exile_controlled_spell_selection | cost_exile_ordered_graveyard_population | cost_exile_graveyard_equal_value | cost_exile_graveyard_mana_value | cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between | cost_performed_library_move | cost_flip_coin_series | cost_choose_type_action | cost_exile_single_graveyard_selection | cost_exile_top_one | cost_or_choice | cost_exile_hand_mana_value_one | cost_exile_hand_mana_value_many | cost_put_exiled_card_graveyard | cost_remove_selected_counter | cost_remove_selected_named_counter | cost_exile_top_card | cost_remove_unspecified_count | cost_remove_unspecified_among | cost_remove_kind_among | cost_remove_kind_at_least_among | cost_remove_kind_count | cost_tap_named_source | cost_roll_die | cost_exile_card_hand | cost_sacrifice_description | cost_life_measured | cost_reveal_announced_hand_selection | cost_tap_any_population | cost_have_player_gain_control | cost_put_single_graveyard_cards | cost_sacrifice_copy_receipt | cost_return_unblocked_attacker | cost_reveal_chosen_value | cost_sacrifice_up_to | cost_mana_or_word_payment | cost_discard_or_qualified_card | cost_remove_one_of_two_counter_kinds | cost_remove_selected_count | cost_tap_controlled_untapped | cost_tap_enchanted | cost_remove_counter_population_choice | cost_shuffle_card_from_hand
+cost_words_activation ::= cost_sacrifice_described_choice | cost_unattach_holder | cost_exile_controlled_spell_selection | cost_exile_ordered_graveyard_population | cost_exile_graveyard_equal_value | cost_exile_graveyard_mana_value | cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between | cost_performed_library_move | cost_flip_coin_series | cost_choose_type_action | cost_exile_single_graveyard_selection | cost_exile_top_one | cost_or_choice | cost_exile_hand_mana_value_one | cost_exile_hand_mana_value_many | cost_put_exiled_card_graveyard | cost_remove_selected_counter | cost_remove_selected_named_counter | cost_exile_top_card | cost_remove_unspecified_count | cost_remove_unspecified_among | cost_remove_kind_among | cost_remove_kind_at_least_among | cost_remove_kind_count | cost_tap_named_source | cost_roll_die | cost_exile_card_hand | cost_sacrifice_description | cost_life_measured | cost_reveal_announced_hand_selection | cost_tap_any_population | cost_have_player_gain_control | cost_put_single_graveyard_cards | cost_sacrifice_copy_receipt | cost_return_unblocked_attacker | cost_reveal_chosen_value | cost_sacrifice_up_to | cost_mana_or_word_payment | cost_discard_or_qualified_card | cost_remove_one_of_two_counter_kinds | cost_remove_selected_count | cost_tap_controlled_untapped | cost_tap_enchanted | cost_remove_counter_population_choice | cost_shuffle_card_from_hand | cost_sacrifice_suspected | cost_sacrifice_suspected_many
 
 /* A source revealed from its hand can activate from that zone. */
 /* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, $cost_reveal_self_hand]}, limits:ActivationLimits{}, announcement:@announcement, body:$program_sentence})} */
@@ -2638,7 +2639,7 @@ activated_reveal_self_hand_unlimited ::= cost_parts "," "↑" cost_reveal_self_h
 /* Ordinary activations use this view so a direct self-reveal cost is
    dispatched through the hand-scoped activation. Other cost contexts retain
    the full cost vocabulary. */
-activation_cost ::= activation_cost_standard | cost_pay_mana_or_words | cost_reattach_player_subtype
+activation_cost ::= activation_cost_standard | activation_cost_choice | cost_pay_mana_or_words | cost_reattach_player_subtype
 
 /* @sem Cost::Cost{parts:$activation_cost_parts} */
 activation_cost_standard ::= activation_cost_parts
@@ -3130,3 +3131,91 @@ line_cast_revealed_card_stats ::= casting_additional_reveal NEWLINE affected rev
 /* Any player can activate the ability, independently of its effect. */
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{activators:All}, announcement:@announcement, body:$program_sentence} */
 activated_any_player_shared ::= cost ":" program_sentence "any" "player" "may" "activate" "this" "ability" "."
+
+/* The written name is a card-name filter, independent of the ability holder. */
+/* @sem CostPart::Discard{count:Constant(1), filter:Name(@card_name)} */
+cost_discard_another_named_self ::= "discard" "another" "card" "named" SELF_NAME
+
+/* Compose the named-card payment with the sequential return instruction. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_discard_another_named_self]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$repeated_player_return_types}} */
+activated_discard_another_named ::= cost_discard_another_named_self ":" repeated_player_return_types "."
+
+/* A defined draw payment may condition an independent follow-up program. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Draw{count:$value}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:$program, otherwise:Program{}}]} */
+optional_defined_draw_paid_program ::= "you" "may" "draw" "X" "cards" "," "where" "X" "is" value "." "if" "you" "do" "," program "."
+
+/* Bind the named sacrificed population to the actual casting payment. */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_plural, $filter_phrase)}, choose:AnyNumber}]}, optional:true, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$operation}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[$additional_cast_sacrifice_pump], duration:$duration, evaluation:Snapshot}}]}}] */
+line_optional_cast_sacrifice_additional_pump ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "you" "may" "sacrifice" "any" "number" "of" filter_plural "." NEWLINE operation "." "for" "each" filter_phrase "sacrificed" "this" "way" "," affected additional_cast_sacrifice_pump duration "."
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{once_each_turn:true}, announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:$number_words, maximum:$number_words}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}} */
+activated_modal_once_turn_header ::= cost ":" "choose" number_words "." "activate" "only" "once" "each" "turn" "." NEWLINE modes
+
+/* An explicit self-return establishes the activation zone for its complete continuation. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_graveyard_return}, ...$instructions]}})} */
+activated_self_graveyard_return_followed ::= cost ":" self_graveyard_return "." instructions "."
+
+/* A single sacrifice chosen from either named population. */
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$noun, $noun_2])}, choose:Exactly(Constant(1))} */
+chosen_sacrifice_cost ::= "sacrifice" "an" noun "or" noun
+
+/* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[[$counter_kind, $value]], states:[]}}, qualifiers:[]} */
+self_return_battlefield_tapped_counters ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "tapped" "with" value counter_kind "counters" "on" "it"
+
+/* The tested receipt is scoped to this exact optional discard payment. Both
+   surrounding operations remain independent operands of the program. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Discard{count:Constant(1), filter:Any}]}, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:[Effect{result:@next, operation:$operation}]}, otherwise:Program{}}, If{condition:Compare{left:CountObjects(Matching{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:Before}, filter:Any}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:$operation_2}]}, otherwise:Program{}}] */
+instructions_unless_discard_receipt ::= operation "unless" "you" "discard" "a" "card" "." "if" "you" "discard" "a" "card" "this" "way" "," operation
+
+/* A singleton creature tap supplies component zero of the dependent spell. */
+/* @sem CostPart::ChangeTapState{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(Tapped), CardType(Creature), ControlledBy(One(AbilityController))])}, choose:Exactly(Constant(1))}], tapped:true, symbol:false} */
+casting_tap_controlled_creature ::= "tap" "an" "untapped" "creature" "you" "control"
+
+/* The consumer is usable only alongside its exact casting-cost producer. */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[$casting_tap_controlled_creature]}, optional:false, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$exile_objects}, Effect{result:@next, operation:$casting_tap_counter_placement}]}}] */
+line_casting_tap_creature_counter ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," casting_tap_controlled_creature "." NEWLINE exile_objects "." casting_tap_counter_placement "."
+
+/* Each alternative is a complete activation payment. */
+/* @sem Cost::Cost{parts:[Choice([Cost::Cost{parts:$activation_cost_parts}, Cost::Cost{parts:$activation_cost_parts_2}])]} */
+activation_cost_choice ::= activation_cost_parts "or" activation_cost_parts
+
+/* A resolution payment and its chosen-payment branch. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$mana_life_resolution_payment, optional:true}}, If{condition:PaymentChosen(@marked), then:$program, otherwise:Program{}}]} */
+optional_mana_life_paid_program ::= "you" "may" mana_life_resolution_payment "." "if" "you" "do" "," program "."
+
+/* @sem Cost::Cost{parts:[Choice([Cost{parts:[$cost_mana]}, Cost{parts:[Life($value)]}])]} */
+mana_life_resolution_payment ::= "pay" cost_mana "and" value "life"
+
+/* Activated mixed-zone color changes share the target and duration phrase. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$activation_cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$instructions_mixed_target_chosen_color}} */
+activated_mixed_target_chosen_color ::= activation_cost ":" instructions_mixed_target_chosen_color "."
+
+/* Two alternatives describe one permanent paid as a sacrifice. */
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$sacrifice_selection_choice}, choose:Exactly(Expr::Constant(1))} */
+cost_sacrifice_described_choice ::= "sacrifice" ("a" | "an") sacrifice_selection_choice
+
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_suspected}, choose:Exactly(Expr::Constant(1))} */
+cost_sacrifice_suspected ::= "sacrifice" "a" filter_suspected
+
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_suspected_plural}, choose:Exactly($count)} */
+cost_sacrifice_suspected_many ::= "sacrifice" count filter_suspected_plural
+
+/* Modal activations may place a condition after the choice header. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{condition:$condition}, announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:$number_words, maximum:$number_words}, options:$conditional_header_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}} */
+activated_modal_condition_header ::= cost ":" "choose" number_words "." "activate" "only" "if" condition "." NEWLINE conditional_header_modes
+
+conditional_header_modes ::= conditional_header_modes_one | conditional_header_modes_more
+
+/* @sem Mode::[$conditional_header_mode] */
+conditional_header_modes_one ::= conditional_header_mode
+
+/* @sem Mode::[$conditional_header_mode, ...$conditional_header_modes] */
+conditional_header_modes_more ::= conditional_header_mode NEWLINE conditional_header_modes
+
+conditional_header_mode ::= mode | conditional_header_hand_mode | conditional_header_graveyard_mode
+
+/* @sem @scope(Mode::Mode{announcement:@announcement, body:Program{instructions:$optional_controller_hand_entry}, weight:1}) */
+conditional_header_hand_mode ::= "•" optional_controller_hand_entry "."
+
+/* @sem @scope(Mode::Mode{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$conditional_header_return}]}, weight:1}) */
+conditional_header_graveyard_mode ::= "•" conditional_header_return "."

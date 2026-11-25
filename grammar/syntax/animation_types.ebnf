@@ -189,3 +189,23 @@ retained_anaphoric_creature_form ::= "a" number "/" number mana_color_word becom
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($it_ordinary_pronoun)), changes:$retained_anaphoric_creature_form, duration:Indefinite, evaluation:Snapshot} */
 retained_anaphoric_colored_creature ::= it_ordinary_pronoun "becomes" retained_anaphoric_creature_form "." "it's" "still" "a" "land"
+
+/* The following sentence refers to the one card drafted immediately before it. */
+/* @sem Instruction::[Effect{result:@next, operation:$draft_one_source_spellbook}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$drafted_added_type}}] */
+instructions_draft_add_type ::= draft_one_source_spellbook "." "that" "card" "perpetually" drafted_added_type
+
+drafted_added_type ::= drafted_added_enchantment | drafted_added_artifact | drafted_added_creature
+
+/* @sem Change::[AddCardType(Enchantment)] */
+drafted_added_enchantment ::= "becomes" "an" "enchantment" "in" "addition" "to" "its" "other" "types"
+
+/* @sem Change::[AddCardType(Artifact)] */
+drafted_added_artifact ::= "becomes" "an" "artifact" "in" "addition" "to" "its" "other" "types"
+
+/* @sem Change::[AddCardType(Creature)] */
+drafted_added_creature ::= "becomes" "a" "creature" "in" "addition" "to" "its" "other" "types"
+
+/* The life loss and draft remain independently editable; the draft owns the receipt. */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:$destroy_intervening_loss}, ...$instructions_draft_add_type] */
+instructions_loss_and_draft_add_type ::= destroy_intervening_loss "and" instructions_draft_add_type

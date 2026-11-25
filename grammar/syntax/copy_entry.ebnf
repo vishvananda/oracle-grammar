@@ -5,7 +5,7 @@ entry_copy_ability ::= "you" "may" "have" self_explicit_ref "enter" "as" entry_c
 /* Both changes belong to one optional entry replacement. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:$entry_copy_tapped_actions}}]}}) */
 entry_copy_tapped_ability ::= "you" "may" "have" self_explicit_ref "enter" entry_copy_tapped_actions
-entry_copy_tapped_actions ::= entry_copy_tapped_plain | entry_copy_tapped_except
+entry_copy_tapped_actions ::= entry_copy_tapped_plain | entry_copy_tapped_except | entry_copy_tapped_graveyard_land_type
 entry_copy_objects ::= entry_copy_battlefield | entry_copy_graveyard_any | entry_copy_graveyard_arrived | entry_copy_exile_counter | entry_copy_your_graveyard_from_library | entry_copy_entered_this_turn | entry_copy_entered_twice_this_turn
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_choice} */
 entry_copy_battlefield ::= entry_copy_choice
@@ -541,3 +541,15 @@ entry_copy_entered_twice_this_turn ::= "any" filter_phrase "that" "entered" "at"
 /* The counter source is the result of this same entry-copy choice. */
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_battlefield_explicit, exceptions:$copy_exceptions_plain})}}, Effect{result:@next, operation:ModifyEvent{change:Entry(CountersOf{object:Recorded{result:@prior}})}}] */
 entry_copy_counters_of_actions ::= "a" "copy" "of" entry_copy_battlefield_explicit "," "except" copy_exceptions_plain "." "if" "you" "do" "," "it" "enters" "with" "additional" "counters" "on" "it" "equal" "to" "the" "same" "number" "and" "kinds" "of" "counters" "the" "copied" "permanent" "has" "on" "it" "."
+
+/* The copied graveyard card and retained land subtype are independent operands. */
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_graveyard_any, exceptions:[$copy_retained_land_type]})}}, Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}] */
+entry_copy_tapped_graveyard_land_type ::= "tapped" "as" "a" "copy" "of" entry_copy_graveyard_any "," "except" copy_retained_land_type "."
+
+/* @sem CopyException::AddLandTypes([$entry_copy_land_subtype]) */
+copy_retained_land_type ::= "it's" "a" entry_copy_land_subtype "in" "addition" "to" "its" "other" "types"
+
+entry_copy_land_subtype ::= entry_copy_cave | retained_land_singular
+
+/* @sem LandType::Cave */
+entry_copy_cave ::= "Cave"

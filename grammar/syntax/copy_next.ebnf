@@ -275,6 +275,7 @@ activated_copy_stack_twice ::= cost ":" "copy" "target" stack_spell_filter "twic
 /* A stack copy receives these abilities only when it is a permanent spell.
    The quotation is scoped to the copied object's ability holder. */
 /* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$object_ref, times:Constant(1), targets:May, exceptions:[IfPermanentSpell([$copy_added_keyword, $copy_quoted_ability])]}}] */
+/* @prefer always */
 clause_copy_permanent_grants ::= "copy" object_ref "and" "you" "may" "choose" "new" "targets" "for" "the" "copy" "." "if" "the" "copy" "is" "a" "permanent" "spell" "," "it" "gains" copy_added_keyword "and" copy_quoted_ability
 
 /* The referenced stack object and its copiable type addition compose independently. */
@@ -403,3 +404,28 @@ optional_copy_permanent_keyword_once ::= "you" "may" copy_ref_permanent_keyword 
 
 /* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$optional_copy_permanent_keyword_once} */
 triggered_optional_copy_permanent_keyword_once ::= event_clause "," optional_copy_permanent_keyword_once
+
+/* The optional cast consumes precisely the copies just created from the linked population. */
+/* @sem Instruction::[Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:$copy_self_linked_each, times:Constant(1)}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Copies(@prior), count:AnyNumber, cost:Free}}]}}] */
+clause_copy_linked_cards_free ::= "copy" copy_self_linked_each "." "you" "may" "cast" "any" "number" "of" "the" "copies" "without" "paying" "their" "mana" "costs"
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith($self_explicit_ref)} */
+copy_self_linked_each ::= "each" "card" "exiled" "with" self_explicit_ref
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$clause_copy_linked_cards_free}} */
+spell_copy_linked_cards_free ::= clause_copy_linked_cards_free "."
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$clause_copy_linked_cards_free}} */
+activated_copy_linked_cards_free ::= cost ":" clause_copy_linked_cards_free "."
+
+/* A selected linked card is copied as an optional action; the following cast
+   is conditional on that action and refers to the resulting copy. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($self_explicit_ref)}), times:Constant(1)}}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Earlier{what:CopiedSpell}, count:Exactly(Constant(1)), terms:_{cost:Free}}}]}}]}, otherwise:_{}}]} */
+optional_linked_copy_free_cast ::= "you" "may" "copy" "a" "card" "exiled" "with" self_explicit_ref "." "you" "may" "cast" "the" "copy" "without" "paying" "its" "mana" "cost"
+
+/* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$optional_linked_copy_free_cast} */
+turn_optional_linked_copy_free_cast ::= "at" turn_event "," optional_linked_copy_free_cast "."
+
+/* The copied spell owns the quoted ability, in a fresh holder scope. */
+/* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$object_ref, times:Constant(1), targets:May, exceptions:[IfPermanentSpell([$copy_added_keyword, $copy_quoted_ability])]}}] */
+clause_copy_permanent_grants_sentence ::= "copy" object_ref "." "you" "may" "choose" "new" "targets" "for" "the" "copy" "." "if" "it's" "a" "permanent" "spell" "," "the" "copy" "gains" copy_added_keyword "and" copy_quoted_ability
