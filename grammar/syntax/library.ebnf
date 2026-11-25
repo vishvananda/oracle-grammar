@@ -9289,3 +9289,10 @@ dig_look_any_hand_loss ::= dig_look_any_hand_graveyard "." observed_hand_move_li
 /* The comparison population belongs to the named player's graveyard. */
 /* @sem @and($card_filter, ObjectFilter::SharesNameWithAny(Zone(_{scope:Players{zone:Graveyard, players:One($player_possessive)}, kind:Card, filter:Any}))) */
 search_filter_same_name_graveyard ::= card_filter "card" "with" "the" "same" "name" "as" "a" "card" "in" player_possessive "graveyard"
+
+/* A top-library exile and the permission that uses its actual arrival receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@marked, phase:After}, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:Transition{result:@marked, phase:After}, from:Exile, action:CastSpell, filter:Any})], duration:$this_duration, evaluation:LiveObjects}}] */
+exile_top_play_both_actions ::= exile_top_cards_of_your_library "." "you" "may" "play" "those" "cards" this_duration
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$exile_top_play_both_actions}} */
+triggered_exile_top_play_both_actions ::= event_clause "," exile_top_play_both_actions "."

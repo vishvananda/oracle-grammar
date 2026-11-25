@@ -6037,7 +6037,7 @@ acquire_control_change ::= "gain" "control" "of"
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:$leading_player_rule, duration:$duration, evaluation:LiveObjects} */
 leading_player_rule_effect ::= duration "," leading_player_rule
 
-leading_player_rule ::= player_life_lock_and_keyword | player_visibility_rule | player_spending_rule | player_life_floor_rule | player_flash_timing_rule
+leading_player_rule ::= player_life_lock_and_keyword | player_visibility_rule | player_spending_rule | player_life_floor_rule | player_flash_timing_rule | player_spend_color_as_color
 
 /* @sem Change::[PlayerRule(Visibility{objects:$affected, audience:AffectedPlayer})] */
 player_visibility_rule ::= "you" "may" "look" "at" affected "any" "time"
@@ -12660,3 +12660,42 @@ life_gain_payment_pump ::= "you" "may" pay_mana "." "when" "you" "do" "," affect
 /* The added land subtype composes with the affected object and indefinite duration. */
 /* @sem Change::[AddLandType($retained_swamp)] */
 shared_swamp_addition ::= "becomes" "a" retained_swamp
+
+/* The changed characteristic remains an operand of the perpetual effect. */
+/* @sem Change::[SetPower($value)] */
+perpetual_base_power_change ::= "base" "power" "perpetually" "becomes" value
+
+/* @sem Operation::CreatePerpetualEffect{objects:$possessive_target_permanent, changes:$perpetual_base_power_change} */
+/* @prefer always */
+perpetual_possessive_base_power ::= possessive_target_permanent perpetual_base_power_change
+
+/* A spending permission retains both its player and the spell filter. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players($color_spending_players), changes:[PlayerRule(SpendManaAs{spend_as:AnyColor, on:Spells($spending_spell_filter)})]} */
+static_color_spending_spells ::= color_spending_players "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" spending_spell_filter "."
+
+spending_spell_filter ::= spending_spells_prefilter | spending_spells_chosen_name | spending_spells_chosen_type
+
+/* @sem ObjectFilter::$filter_phrase */
+spending_spells_prefilter ::= filter_phrase "spells"
+
+/* @sem ObjectFilter::$modifier_chosen_name */
+spending_spells_chosen_name ::= "spells" modifier_chosen_name
+
+/* @sem ObjectFilter::$modifier_chosen_type */
+spending_spells_chosen_type ::= "spells" modifier_chosen_type
+
+/* The two colors are independent operands of the spending permission. */
+/* @sem Change::[PlayerRule(SpendColorAs{color:$mana_color_word, as_color:$mana_color_word_2, on:Anything})] */
+player_spend_color_as_color ::= "you" "may" "spend" mana_color_word "mana" "as" "though" "it" "were" mana_color_word "mana"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:$player_spend_color_as_color} */
+static_spend_color_as_color ::= player_spend_color_as_color "."
+
+/* Possessive life totals share the player rule with other static contexts. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players($life_total_possessor), changes:[PlayerRule($life_total_rule)]} */
+static_life_total_rule ::= life_total_possessor life_total_rule "."
+
+life_total_possessor ::= hand_size_yours | hand_size_opponents | hand_size_chosen
+
+/* @sem PlayerRule::LifeTotalLocked */
+life_total_rule ::= "life" "total" "can't" "change"
