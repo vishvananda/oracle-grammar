@@ -33,7 +33,7 @@ copied_toughness ::= ("↓")?
 
 /* A leading duration changes the same game rules as a trailing duration. The
    affected object query remains live; no characteristic snapshot is created. */
-continuous_live ::= continuous_live_leading_blocker_union | continuous_block_all_attackers | continuous_phase_rule_leading | continuous_live_plural_target_ban | continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object | continuous_live_plural_opponent_colored_target_ban | continuous_live_source_power_block | continuous_live_object_next_turn | continuous_live_controlled | continuous_sector_blocking | continuous_qualified_live | continuous_attack_defender_plural | continuous_named_targeting_exception | event_subject_rule
+continuous_live ::= continuous_announced_group_live | continuous_live_leading_blocker_union | continuous_block_all_attackers | continuous_phase_rule_leading | continuous_live_plural_target_ban | continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object | continuous_live_plural_opponent_colored_target_ban | continuous_live_source_power_block | continuous_live_object_next_turn | continuous_live_controlled | continuous_sector_blocking | continuous_qualified_live | continuous_attack_defender_plural | continuous_named_targeting_exception | event_subject_rule
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$rule_duration, evaluation:LiveObjects} */
 continuous_live_trailing ::= affected rule_changes ("↓")? rule_duration
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
@@ -355,7 +355,7 @@ grant_tail ::= grant_last | grant_many
 /* @sem Change::[$grant] */
 grant_last ::= "and" grant
 
-grant ::= grant_quoted_static_comma | grant_chosen_ability | grant_player_protection | grant_chosen_snow_landwalk | grant_chosen_color_hexproof | grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger | grant_crew_ability | grant_activated_abilities_from | grant_unpunctuated_static | grant_equipment_keyword | grant_quoted_equipped_pump
+grant ::= grant_subtype_equip_keyword | grant_quoted_static_comma | grant_chosen_ability | grant_player_protection | grant_chosen_snow_landwalk | grant_chosen_color_hexproof | grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger | grant_crew_ability | grant_activated_abilities_from | grant_unpunctuated_static | grant_equipment_keyword | grant_quoted_equipped_pump
 
 /* "Gains all creature types", "a 2/2 creature with all creature types": every creature
    type replaces the old ones (CR 205.3m), like a changeling's characteristic. */
@@ -611,7 +611,7 @@ static_negative_x ::= "-" "X"
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One($object_ref), changes:$static_changes}}] */
 clause_perpetual_card_changes ::= object_ref "perpetually" static_changes
 
-static_changes ::= perpetual_type_pump_keyword | static_retained_land_creature_stats | static_pump_protection_types_keeps | static_artifact_base_keyword_loss | shared_base_keyword | shared_artifact_stat_type | shared_base_keywords | shared_base_keywords_named | static_pump_keyword_color_type | static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature | retained_plural_animation | static_base_and_retained_types | static_base_grant_and_retained_types | static_base_keyword_color_type | retained_colored_land_animation | retained_colored_typed_land_animation | retained_colored_dual_animation | static_pump_and_added_names | sticker_pump_changes | static_base_keyword_other_loss | shared_loss_and_creature_form | static_pump_and_retained_artifact | shared_loss_counter_creature_form | static_pump_and_protection_list | linked_property_defined_changes | singular_base_grant_remove_type | retained_vehicle_stats_grants | static_plural_pump_pair | static_equal_defined_pump | static_card_type_walk_pump
+static_changes ::= retained_plural_vehicle_stats_grants | perpetual_type_pump_keyword | static_retained_land_creature_stats | static_pump_protection_types_keeps | static_artifact_base_keyword_loss | shared_base_keyword | shared_artifact_stat_type | shared_base_keywords | shared_base_keywords_named | static_pump_keyword_color_type | static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature | retained_plural_animation | static_base_and_retained_types | static_base_grant_and_retained_types | static_base_keyword_color_type | retained_colored_land_animation | retained_colored_typed_land_animation | retained_colored_dual_animation | static_pump_and_added_names | sticker_pump_changes | static_base_keyword_other_loss | shared_loss_and_creature_form | static_pump_and_retained_artifact | shared_loss_counter_creature_form | static_pump_and_protection_list | linked_property_defined_changes | singular_base_grant_remove_type | retained_vehicle_stats_grants | static_plural_pump_pair | static_equal_defined_pump | static_card_type_walk_pump | static_have_subtype_equip | resolution_defined_changes
 static_changes_plain ::= static_changes_last_chosen_protection | static_changes_protection_keeps | static_change | static_changes_and | retained_keyword_and_added_color_type | static_loss_and_colored_base | static_changes_prohibited_and
 
 /* @sem Instruction::[Effect{result:@next, operation:$copy_effect_duration}] */
@@ -4602,7 +4602,7 @@ shared_pump_and_blockers ::= "gets" signed "/" signed "and" shared_blockers_requ
 /* @sem Ability::Conditional{condition:$condition, then:[$shared_conditional_player_body]} */
 shared_as_long_as_player_rule ::= "as" "long" "as" condition "," shared_conditional_player_body
 
-shared_conditional_player_body ::= static_activation_ability_cost_floor | static_cast_kind_as_though_flash | static_cycling_alternate_payment | static_player_prohibition | shared_damage_no_life_loss | shared_damage_life_floor | static_players_untap_limit | static_spells_cost_less | shared_spell_cost_floor | static_untap_chosen_card_type | shared_instant_activation_permission
+shared_conditional_player_body ::= static_activation_ability_cost_floor | static_cast_kind_as_though_flash | static_cycling_alternate_payment | static_player_prohibition | shared_damage_no_life_loss | shared_damage_life_floor | static_players_untap_limit | static_players_untap_limit_one | static_spells_cost_less | shared_spell_cost_floor | static_untap_chosen_card_type | shared_instant_activation_permission
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(KeywordCost{keyword:Cycling, cards:Any, change:Alternate($kicker_operand_generic)})]}) */
 static_cycling_alternate_payment ::= "you" "may" "pay" kicker_operand_generic "rather" "than" "pay" "cycling" "costs" "."
@@ -5666,7 +5666,7 @@ double_source_characteristics ::= "double" "this" "creature's" double_stat_chang
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$combat_required_change, duration:$duration, evaluation:LiveObjects} */
 duration_combat_requirement ::= duration "," affected combat_required_change
 
-combat_required_change ::= combat_required_player | combat_required_named_player | combat_required_other_player
+combat_required_change ::= combat_required_player | combat_required_named_player | combat_required_other_player | combat_required_other_player_singular
 
 /* @sem Change::[Rule(RequireCombat{action:Attack(Players(All)), amount:AtLeast($counter_amount)})] */
 combat_required_player ::= "attacks" counter_amount "player" "each" "combat" "if" "able"
@@ -7333,7 +7333,7 @@ causing_your_spells_abilities ::= "spells" "and" "abilities" "you" "control"
 /* @sem ObjectFilter::ControlledBy(OpponentsOf(Active)) */
 causing_active_opponents_spells_abilities ::= "spells" "and" "abilities" "the" "active" "player's" "opponents" "control"
 
-caused_player_action ::= caused_sacrifice | player_prohibit_draw
+caused_player_action ::= caused_sacrifice | player_prohibit_draw | player_prohibit_discard
 
 /* @sem PlayerAction::Sacrifice{objects:$filter_plural} */
 caused_sacrifice ::= "sacrifice" filter_plural
@@ -7363,7 +7363,7 @@ defining_sacrificed_as_entered ::= "the" "number" "of" filter_plural "sacrificed
 /* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:$spell_population_filter} */
 prohibited_spells_restricted ::= spell_population_filter
 
-spell_population_filter ::= spell_population_filter_controlled_list | spell_population_filter_controlled | spell_population_filter_power | spell_population_filter_mana | spell_population_filter_x
+spell_population_filter ::= spell_population_filter_controlled_list | spell_population_filter_controlled_power | spell_population_filter_controlled | spell_population_filter_power | spell_population_filter_mana | spell_population_filter_x
 
 /* @sem @and(ObjectFilter::AnyOf([...$spell_type_commas, $spell_type_head]), ObjectFilter::ControlledBy(One(PlayerRef::AbilityController))) */
 spell_population_filter_controlled_list ::= spell_type_commas "and" spell_type_head "spells" "you" "control"
@@ -12220,6 +12220,7 @@ holder_other_defined_pump ::= "another" "target" filter_phrase change_gets_defin
 switch_battlefield_population ::= "switch" "the" "power" "and" "toughness" "of" affected "on" "the" "battlefield"
 
 /* Retained artifact type and granted abilities compose with any leading duration. */
+/* @prefer always */
 /* @sem Change::[...$retained_vehicle_stats, ...$two_keywords_and_crew] */
 retained_vehicle_stats_grants ::= retained_vehicle_stats "and" two_keywords_and_crew
 
@@ -13195,3 +13196,96 @@ copy_duration_plain ::= copy_exceptions_plain
 
 /* @sem Vec<CopyException>::[$copy_his_keyword] */
 copy_duration_his_keyword ::= copy_his_keyword
+
+/* The loss and the separately worded granted static ability are independent changes. */
+/* @sem Change::[...$change_loses_keyword, $quoted_static_period_grant] */
+shared_loss_quoted_static ::= change_loses_keyword "and" "gains" quoted_static_period_grant
+
+/* @sem Change::GrantAbility(Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})) */
+quoted_static_period_grant ::= '"' affected static_changes "." '"'
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$shared_loss_quoted_static, duration:Indefinite, evaluation:Snapshot} */
+shared_loss_quoted_static_effect ::= affected shared_loss_quoted_static
+
+/* @sem @and($spell_population_filter_controlled, $spell_cost_power_threshold) */
+spell_population_filter_controlled_power ::= spell_population_filter_controlled spell_cost_power_threshold
+
+/* Singular agreement for the same pair of independent attack requirements. */
+/* @sem Change::[Rule(RequireCombat{action:Attack(Any), amount:AtLeast($counter_amount)}), Rule(RequireCombat{action:Attack(Players(OthersThan(AbilityController))), amount:AtLeast($counter_amount)})] */
+combat_required_other_player_singular ::= "attacks" "each" "combat" "if" "able" "and" "attacks" counter_amount "player" "other" "than" "you" "if" "able"
+
+/* Plural subjects retain their prior types and receive the same native crew ability. */
+/* @sem Change::[...$retained_plural_vehicle_stats, ...$plural_keywords_and_crew] */
+retained_plural_vehicle_stats_grants ::= retained_plural_vehicle_stats "and" plural_keywords_and_crew
+
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, AddArtifactType(Vehicle)] */
+retained_plural_vehicle_stats ::= "become" value "/" value "Vehicles" "in" "addition" "to" "their" "other" "types"
+
+/* @sem Change::[GrantKeyword($keyword_value), GrantKeyword($keyword_value_2), $grant_crew_ability] */
+plural_keywords_and_crew ::= "gain" keyword_value "," keyword_value "," "and" grant_crew_ability
+
+/* A disjunctive top-card predicate and its anaphoric permissions share the
+   same library and top position. Each alternative remains an editable filter. */
+/* @sem Condition::ObjectMatches{object:Query{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, index:0}, filter:$top_card_subtype_spell_union} */
+top_card_union_condition ::= "the" "top" "card" "of" "your" "library" "is" "a" top_card_subtype_spell_union "card"
+
+top_card_subtype_spell_union ::= top_card_subtype_instant | top_card_subtype_sorcery
+
+/* @prefer always */
+/* @sem ObjectFilter::@or($subtype, $spell_instant) */
+top_card_subtype_instant ::= subtype "or" spell_instant
+
+/* @prefer always */
+/* @sem ObjectFilter::@or($subtype, $spell_sorcery) */
+top_card_subtype_sorcery ::= subtype "or" spell_sorcery
+
+/* @prefer always */
+/* @sem Ability::Conditional{condition:$top_card_union_condition, then:[$static_top_card_anaphoric_access]} */
+conditional_top_union_access ::= "as" "long" "as" top_card_union_condition "," static_top_card_anaphoric_access
+
+/* A previously identified creature group remains restricted for the stated duration. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($those_creatures), changes:[Rule(Unique(TapsOnlyToAttack))], duration:$duration, evaluation:LiveObjects} */
+duration_group_taps_only_attack ::= duration "," those_creatures "can't" "become" "tapped" "unless" "they're" "being" "declared" "as" "attackers"
+
+/* Each action retains its own operands while sharing the stated cause. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(CantBeCaused{action:$caused_player_action, by:$causing_spells_abilities}), PlayerRule(CantBeCaused{action:$caused_player_action_2, by:$causing_spells_abilities})]} */
+static_controller_cause_pair ::= causing_spells_abilities "can't" "cause" "you" "to" caused_player_action "or" caused_player_action "."
+
+/* The granted subtype equip retains the holder and its own target scope. */
+/* @sem Change::GrantAbility(@holder($keyword_equip_subtype)) */
+grant_subtype_equip_keyword ::= keyword_equip_subtype
+
+/* Plural have is the canonical spelling of this grant. */
+/* @sem Change::[GrantAbility(@holder($keyword_equip_subtype))] */
+/* @prefer always */
+static_have_subtype_equip ::= "have" keyword_equip_subtype
+
+/* The quoted trigger has its own holder and retains the combat event subject. */
+/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$shared_creature_blocks_holder_or_blocked, limits:_{}, announcement:@announcement, body:Program{instructions:$retirement_event_action}})) */
+shared_combat_subject_trigger ::= '"' "whenever" shared_creature_blocks_holder_or_blocked "," retirement_event_action "." '"'
+
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
+shared_singular_stat_pump ::= "gets" signed "/" signed
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[...$shared_singular_stat_pump, $grant_keyword, $shared_combat_subject_trigger]} */
+shared_pump_keyword_combat_trigger ::= affected shared_singular_stat_pump "and" "has" grant_keyword "and" shared_combat_subject_trigger
+
+/* Define the numeric changes from this ability frame at resolution. */
+/* @sem @where($static_numeric_changes, $resolution_count_value) */
+resolution_defined_changes ::= static_numeric_changes "," "where" "X" "is" resolution_count_value
+
+/* @sem Expr::Game(ResolutionsThisTurn) */
+resolution_count_value ::= "the" "number" "of" "times" "this" "ability" "has" "resolved" "this" "turn"
+
+/* The announced target group and its live rule change retain independent operands. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($objects_announced_x_targets), changes:$rule_changes, duration:$this_duration, evaluation:LiveObjects} */
+continuous_announced_group_live ::= objects_announced_x_targets rule_changes this_duration
+
+/* Singular and plural counted objects have separate print shapes. */
+/* @prefer always */
+/* @sem Change::PlayerRule(UntapLimit{permanents:$filter_phrase, amount:Constant(1)}) */
+players_untap_limit_one_change ::= "untap" "more" "than" "one" filter_phrase "during" "their" "untap" "steps"
+
+/* @prefer always */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(All), changes:[$players_untap_limit_one_change]} */
+static_players_untap_limit_one ::= "players" "can't" players_untap_limit_one_change "."
