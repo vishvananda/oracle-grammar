@@ -201,8 +201,21 @@ pub(super) fn materialize(
     {
         return Err("Station declaration disagrees with printed P/T".into());
     }
+    let total_rows: usize = abilities
+        .iter()
+        .filter(|a| station_stage(a))
+        .filter_map(|a| a["args"]["stages"].as_array())
+        .map(Vec::len)
+        .sum();
+    let sole_stage = contextual
+        && declared.is_none()
+        && context
+            .and_then(|c| c.printed_power_toughness.values())
+            .is_some()
+        && total_rows == 1;
     if contextual
         && declared.is_none()
+        && !sole_stage
         && context
             .and_then(|c| c.printed_power_toughness.values())
             .is_some()
@@ -239,6 +252,12 @@ pub(super) fn materialize(
             if contextual && selected {
                 let b = declared.unwrap();
                 row["power_toughness"] = json!([b.power, b.toughness]);
+                row["animates"] = json!(true);
+            } else if sole_stage {
+                let (power, toughness) = context
+                    .and_then(|c| c.printed_power_toughness.values())
+                    .ok_or("Station animation requires numeric printed P/T")?;
+                row["power_toughness"] = json!([power, toughness]);
                 row["animates"] = json!(true);
             }
             if !row["animates"].as_bool().unwrap_or(false) {

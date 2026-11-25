@@ -1015,3 +1015,7 @@ reading. No reference update or AST schema change was needed for this fix.
 ### U0182: Fix inverted Repeat times and Incubate amount on Glistening Dawn.
 - Faces (1): Glistening Dawn
 - Evidence: Glistening Dawn reads 'Incubate X twice, where X is the number of lands you control.' (CR 701.52: incubate with value X two times, creating two Incubator tokens each with X +1/+1 counters). Frozen MTGish gold inverted the operands as Repeat{times: CountObjects(lands you control), body: Incubate{amount: Constant(2)}} (creating X tokens with 2 counters each) instead of Repeat{times: Constant(2), body: Incubate{amount: CountObjects(lands you control)}}.
+
+### U0183: Use Affected instead of Source in Earnest Fellowship's SharesColorWith protection grant.
+- Faces (1): Earnest Fellowship
+- Evidence: Earnest Fellowship reads: 'Each creature has protection from each of its colors.' Under CR 702.16, 'each of its colors' refers to each affected creature's own colors (SharesColorWith(Affected), matching Tam, Mindful First-Year's 'has hexproof from each of its colors' grant in continuous.ebnf). Frozen MTGish gold emitted SharesColorWith(Source), which grants every creature protection from Earnest Fellowship's color (white) instead of each creature's own colors.

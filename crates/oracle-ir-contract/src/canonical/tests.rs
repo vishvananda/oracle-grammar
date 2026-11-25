@@ -232,3 +232,88 @@ fn delayed_closures_keep_explicit_damage_roles_when_the_event_subject_changes() 
         [0]["args"]["operation"]["args"]["objects"]["args"];
     assert_eq!(role, &json!({"kind":"Damage","args":"Source"}));
 }
+
+#[test]
+fn same_property_any_of_filters_merge_into_property_number_test_any_of() {
+    let mut value = json!([{
+        "kind": "Spell",
+        "args": {
+            "announcement": {"targets": [], "modes": null},
+            "body": {
+                "instructions": [{
+                    "kind": "Effect",
+                    "args": {
+                        "result": 0,
+                        "operation": {
+                            "kind": "PlayCards",
+                            "args": {
+                                "actor": {"kind": "One", "args": {"kind": "AbilityController"}},
+                                "action": "CastSpell",
+                                "cards": {
+                                    "kind": "Zone",
+                                    "args": {
+                                        "scope": {"Players": {"zone": "Hand", "players": {"kind": "One", "args": {"kind": "AbilityController"}}}},
+                                        "kind": "Card",
+                                        "filter": {
+                                            "kind": "AnyOf",
+                                            "args": [
+                                                {"kind": "Property", "args": {"property": "ManaValue", "test": {"kind": "Compare", "args": {"comparison": "Equal", "value": {"kind": "Constant", "args": 2}}}}},
+                                                {"kind": "Property", "args": {"property": "ManaValue", "test": {"kind": "Compare", "args": {"comparison": "Equal", "value": {"kind": "Constant", "args": 1}}}}}
+                                            ]
+                                        }
+                                    }
+                                },
+                                "count": {"Exactly": {"kind": "Constant", "args": 1}},
+                                "cost": "Free",
+                                "into_exile": false
+                            }
+                        }
+                    }
+                }]
+            }
+        }
+    }]);
+    canonical::abilities(&mut value).unwrap();
+    let filter = &value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["cards"]
+        ["args"]["filter"];
+    assert_eq!(filter["kind"], "Property");
+    assert_eq!(filter["args"]["property"], "ManaValue");
+    assert_eq!(filter["args"]["test"]["kind"], "AnyOf");
+    let tests = filter["args"]["test"]["args"].as_array().unwrap();
+    assert_eq!(tests.len(), 2);
+
+    // Idempotent on second canonicalization.
+    let once = value.clone();
+    canonical::abilities(&mut value).unwrap();
+    assert_eq!(value, once);
+
+    // Distinct properties stay as ObjectFilter::AnyOf.
+    let mut mixed = json!([{
+        "kind": "Static",
+        "args": {
+            "kind": "Ordinary",
+            "affected": {
+                "Objects": {
+                    "kind": "Zone",
+                    "args": {
+                        "scope": {"Shared": "Battlefield"},
+                        "kind": "Permanent",
+                        "filter": {
+                            "kind": "AnyOf",
+                            "args": [
+                                {"kind": "Property", "args": {"property": "Power", "test": {"kind": "Compare", "args": {"comparison": "Equal", "value": {"kind": "Constant", "args": 1}}}}},
+                                {"kind": "Property", "args": {"property": "Toughness", "test": {"kind": "Compare", "args": {"comparison": "Equal", "value": {"kind": "Constant", "args": 1}}}}}
+                            ]
+                        }
+                    }
+                }
+            },
+            "changes": [{"kind": "GrantKeyword", "args": {"kind": "Flying"}}]
+        }
+    }]);
+    canonical::abilities(&mut mixed).unwrap();
+    assert_eq!(
+        mixed[0]["args"]["affected"]["Objects"]["args"]["filter"]["kind"],
+        "AnyOf"
+    );
+}

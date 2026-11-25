@@ -1,5 +1,5 @@
 /* Rules seen on one card. Each must stay as narrow as its sentence. */
-tail_ability ::= t_keyword_value_keyword_value_keyword_value | t_affected_static_changes_2 | t_value_create_value_value_value_black_and_2 | t_flying_whenever_deals_combat_damage_to_a | t_i_you_may_cast_an_instant_or
+tail_ability ::= never_tail_ability
 tail_operation ::= never_tail_operation
 tail_instruction ::= never_tail_instruction
 tail_instructions ::= never_tail_instructions
@@ -73,18 +73,6 @@ never_tail_recipients ::= "never"
 
 /* 1 cards, level:ability, e.g. Each other creature you control named Syr Joshua and Syr Saxon has battle cry. */
 
-/* 1 cards, level:ability, e.g. 6+ | Flying, Deathtouch, Lifelink */
-/* @sem Ability::CounterStages{counter:Named(ChargeCounter), stages:[_{minimum:6, power_toughness:[2, 3], animates:true, abilities:[Keyword($keyword_value), Keyword($keyword_value_2), Keyword($keyword_value_3)]}]} */
-t_keyword_value_keyword_value_keyword_value ::= "6" "⁺" "|" keyword_value "," "↑" keyword_value "," "↑" keyword_value
-
-/* 1 cards, level:ability, e.g. 10+ | Creatures you control have flying. */
-/* @sem Ability::CounterStages{counter:Named(ChargeCounter), stages:[_{minimum:10, power_toughness:[4, 4], animates:true, abilities:[Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]}]} */
-t_affected_static_changes_2 ::= "10" "⁺" "|" affected static_changes "."
-
-/* 1 cards, level:ability, e.g. [0]: Create two 2/2 black and green Wolf creature tokens with "When this token dies, put a loyalty c */
-/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Loyalty($value)]}, limits:_{sorcery:true}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$value_2, words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:[Black, Green], card_types:[Creature], subtypes:[Wolf], power_toughness:[$value_3, $value_4], abilities:[@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Subtype(Garruk), ControlledBy(One(AbilityController))])}), kind:$counter_kind, amount:$counter_amount}]}}]}})]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}} */
-t_value_create_value_value_value_black_and_2 ::= "[" value "]" ":" "create" value value "/" value "black" "and" "green" "Wolf" "creature" "tokens" "with" '"' event_clause "," "put" counter_amount counter_kind "counter" "on" "each" SELF_NAME "you" "control" "." '"'
-
 /* 1 cards, level:ability, e.g. I — Exile all creatures with power 4 or greater. / II, III — Put a +1/+1 counter on each creature yo */
 
 /* 1 cards, level:ability, e.g. Whenever a player casts a spell, if it isn't that player's turn, choose one — / • Put a +1/+1 counte */
@@ -94,10 +82,6 @@ t_value_create_value_value_value_black_and_2 ::= "[" value "]" ":" "create" valu
 /* 1 cards, level:ability, e.g. When Creeping Chill is put into your graveyard from your library, you may exile it. If you do, Creep */
 
 /* 1 cards, level:ability, e.g. When you cast this spell, choose one. If it was kicked, choose both instead. / • Return target creat */
-
-/* 1 cards, level:ability, e.g. 8+ | Flying / Whenever Candela deals combat damage to a player, you may put a creature card with man */
-/* @sem Ability::CounterStages{counter:Named(ChargeCounter), stages:[_{minimum:8, power_toughness:[3, 3], animates:true, abilities:[Keyword($keyword_name), @scope(Ability::Triggered{event:Damage(_{source_kind:Permanent, sources:SameObject(Source), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}), limits:_{}, announcement:@announcement, body:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AllOf([$noun, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$number}}])}), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]}})]}]} */
-t_flying_whenever_deals_combat_damage_to_a ::= "8" "⁺" "|" keyword_name NEWLINE "whenever" SELF_NAME "deals" "combat" "damage" "to" "a" "player" "," "you" "may" "put" "a" noun "card" "with" "mana" "value" number "or" "less" "from" "your" "hand" "onto" "the" "battlefield" "."
 
 /* 1 cards, level:ability, e.g. Spend only colored mana on X. No more than one mana of each color may be spent this way. / If this c */
 
@@ -110,7 +94,3 @@ t_flying_whenever_deals_combat_damage_to_a ::= "8" "⁺" "|" keyword_name NEWLIN
 /* 1 cards, level:ability, e.g. Whenever a player casts a spell, if it isn't that player's turn, choose one — / • Put a +1/+1 counte */
 /* Retired: ordinary conditional modal composition preserves the written caster population. */
 
-
-/* 1 cards, level:ability, e.g. I — You may cast an instant or sorcery spell with mana value 1 or 2 from your hand without paying it */
-/* @sem Ability::Saga{chapters:[@scope(Ability::Triggered{event:SagaChapter(1), limits:_{}, body:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AllOf([AnyOf([CardType(Instant), CardType(Sorcery)]), Property{property:ManaValue, test:NumberTest::AnyOf([NumberTest::Compare{comparison:Equal, value:Constant(1)}, NumberTest::Compare{comparison:Equal, value:$number}])}])}), count:Exactly(Constant(1)), cost:Free}}]}}]}, announcement:@announcement}), @scope(Ability::Triggered{event:SagaChapter(2), limits:_{}, body:_{instructions:[Effect{result:@next, operation:Mill{players:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:All}), index:0}), amount:$number_2}}]}, announcement:@announcement}), @scope(Ability::Triggered{event:SagaChapter(3), limits:_{}, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([AnyOf([CardType(Instant), CardType(Sorcery)]), InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:One(Result{result:@prior, phase:After, index:0}), times:Constant(1)}}, Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Copies(@prior), count:Exactly(Constant(1)), cost:Normal}}]}}]}, announcement:@announcement})]} */
-t_i_you_may_cast_an_instant_or ::= "i" "—" "you" "may" "cast" "an" "instant" "or" "sorcery" "spell" "with" "mana" "value" "1" "or" number "from" "your" "hand" "without" "paying" "its" "mana" "cost" "." NEWLINE "II" "—" "target" "player" "mills" number "cards" "." NEWLINE "III" "—" "exile" "target" "instant" "or" "sorcery" "card" "from" "your" "graveyard" "." "copy" "it" "." "you" "may" "cast" "the" "copy" "."

@@ -529,6 +529,8 @@ impl Walker {
                 }
                 if let Some(only) = single(content) {
                     *value = only;
+                } else if name == "ObjectFilter" && variant == "AnyOf" && !self.keep_order {
+                    filters::merge_same_property_any_of(value, self.tracing);
                 }
                 return;
             }

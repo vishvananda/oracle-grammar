@@ -69,9 +69,13 @@ mc_green ::= "{G}"
 /* @sem ManaColor::Colorless */
 mc_colorless ::= "{C}"
 
-put_counters ::= put_counters_three_direct | put_counters_where_owned_zones | put_each_player_target_counters | put_counters_equal_votes | put_counter_pairs_on_two | put_counters_controlled_permanent_types | put_counters_target_linked_property | put_counters_capped_source_power | put_created_counters_for_counters | put_counters_direct | put_counters_equal | put_counters_equal_first | put_counters_choice | put_counters_many_choices | put_counters_where_devotion | put_counter_each_battlefield | put_counters_each_battlefield | put_choice_on_each_created | put_counters_each_creature_property | put_counters_above_base_each | put_counters_direct_singular | put_counters_per_cast_history | put_counters_vote_placement | put_shared_counter_pair | put_counter_pair_default
+put_counters ::= put_loyalty_counter_on_each | put_counters_three_direct | put_counters_where_owned_zones | put_each_player_target_counters | put_counters_equal_votes | put_counter_pairs_on_two | put_counters_controlled_permanent_types | put_counters_target_linked_property | put_counters_capped_source_power | put_created_counters_for_counters | put_counters_direct | put_counters_equal | put_counters_equal_first | put_counters_choice | put_counters_many_choices | put_counters_where_devotion | put_counter_each_battlefield | put_counters_each_battlefield | put_choice_on_each_created | put_counters_each_creature_property | put_counters_above_base_each | put_counters_direct_singular | put_counters_per_cast_history | put_counters_vote_placement | put_shared_counter_pair | put_counter_pair_default
 /* @sem Operation::PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:$counter_amount}]} */
 put_counters_direct ::= "put" counter_amount counter_kind ("counter" | "counters") "on" affected
+/* Loyalty counter placements on a permanent group use distributive "each" phrasing. */
+/* @prefer always */
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects($objects_each), kind:Named(LoyaltyCounter), amount:Constant(1)}]} */
+put_loyalty_counter_on_each ::= "put" "a" "loyalty" "counter" "on" objects_each
 /* A counted placement names its amount after its recipients or before them. */
 /* One recipient: a value naming "that creature" after a group would read as
    the source, not as each member. */
@@ -6660,6 +6664,12 @@ copy_it_may_cast_copy ::= "copy" "it" "." "you" "may" "cast" "the" "copy"
 
 /* @sem Instruction::[Effect{result:@next, operation:$exile_up_to_one_your_graveyard_kind}, ...$copy_it_may_cast_copy] */
 instructions_exile_up_to_one_copy ::= exile_up_to_one_your_graveyard_kind "." copy_it_may_cast_copy
+
+/* @sem Operation::Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([$card_filter, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_one_your_graveyard_kind ::= "exile" "target" card_filter "card" "from" "your" "graveyard"
+
+/* @sem Instruction::[Effect{result:@next, operation:$exile_one_your_graveyard_kind}, ...$copy_it_may_cast_copy] */
+instructions_exile_one_copy ::= exile_one_your_graveyard_kind "." copy_it_may_cast_copy
 
 /* Two independently authored negative filters and a current comparison value
    constrain the announced graveyard target. */

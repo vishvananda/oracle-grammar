@@ -197,7 +197,7 @@ fn after_article(before: &[Token]) -> bool {
         let Token::Word(word) = &before[i - 1] else {
             return false;
         };
-        if matches!(word.as_str(), "a" | "an" | "another" | "this") {
+        if matches!(word.as_str(), "a" | "an" | "another" | "this" | "each") {
             return true;
         }
         if matches!(

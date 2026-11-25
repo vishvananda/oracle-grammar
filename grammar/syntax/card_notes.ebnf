@@ -1,5 +1,5 @@
 /* Card-characteristic explanations are separate from the card's abilities. */
-card_text ::= card_station_raw | card_station_raw_before | card_station_plain | card_station_before | card_station_explicit | card_text_land | card_text_land_only | card_text_land_cost | card_text_cost_land | card_text_land_cost_only | card_text_cost_land_only | card_text_noted | card_text_notes_only | card_text_plain
+card_text ::= card_station_before_three_titled | card_station_raw | card_station_raw_before | card_station_plain | card_station_before | card_station_explicit | card_text_land | card_text_land_only | card_text_land_cost | card_text_cost_land | card_text_land_cost_only | card_text_cost_land_only | card_text_noted | card_text_notes_only | card_text_plain
 
 /* @sem CardSurface::CardSurface{notes:$cost_notes, abilities:$card} */
 card_text_noted ::= cost_notes NEWLINE card
@@ -67,7 +67,7 @@ station_row_abilities ::= station_row_keyword_have | stage_line | station_row_ke
    threshold cannot start an ability line. */
 /* @sem Ability::[...$station_row_keywords, ...$stage_abilities] */
 station_row_keyword_lines ::= station_row_keywords NEWLINE stage_abilities
-station_row_keywords ::= station_row_keyword_one | station_row_keyword_more
+station_row_keywords ::= station_row_keyword_one | station_row_keyword_more | station_row_keyword_more_titled
 
 /* A bounded row composes a turn event, one optional other target, current
    base statistics, grants and duration. It has no cross-clause pronoun or
@@ -81,8 +81,25 @@ station_animation_target ::= "up" "to" "one" "other" "target" filter_phrase
 
 /* @sem Ability::[Keyword($keyword_value)] */
 station_row_keyword_one ::= keyword_value
+/* @prefer always */
 /* @sem Ability::[Keyword($keyword_value), ...$station_row_keywords] */
 station_row_keyword_more ::= keyword_value "," station_row_keywords
+/* @sem Ability::[Keyword($keyword_value), ...$station_row_keywords] */
+station_row_keyword_more_titled ::= keyword_value "," "↑" station_row_keywords
+/* @sem Ability::[Keyword($keyword_value), Keyword($keyword_value_2), Keyword($keyword_value_3)] */
+station_row_three_titled_keywords ::= keyword_value "," "↑" keyword_value "," "↑" keyword_value
+/* A single-stage bare Station block preceded by abilities with three keywords uses title case. */
+/* @sem CardSurface::CardSurface{station:true, abilities:[...$abilities, Mechanic{mechanic:Station}, CounterStages{counter:Named(ChargeCounter), stages:[_{minimum:$number, abilities:$station_row_three_titled_keywords}]}]} */
+card_station_before_three_titled_body ::= abilities NEWLINE station_heading NEWLINE NUMBER "⁺" "|" station_row_three_titled_keywords
+/* @prefer always */
+/* @sem $card_station_before_three_titled_body */
+card_station_before_three_titled_p1 ::= card_station_before_three_titled_body
+/* @prefer always */
+/* @sem $card_station_before_three_titled_p1 */
+card_station_before_three_titled_p2 ::= card_station_before_three_titled_p1
+/* @prefer always */
+/* @sem $card_station_before_three_titled_p2 */
+card_station_before_three_titled ::= card_station_before_three_titled_p2
 
 /* An ability-only input may supply its box explicitly in the same striation. */
 /* @sem CardSurface::CardSurface{station_explicit:true, abilities:$station_explicit_text} */
