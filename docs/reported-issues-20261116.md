@@ -58,6 +58,14 @@ rather than searching for a new link when the delayed trigger later resolves. `M
 still refers to a receipt from the current resolution. Neither is an alias for
 the new linked relation.
 
+The later #20 follow-up identified two remaining `MadeBy(Source)` references
+on Dance of Many: its token-removal instruction and token-leaves event.
+U0184 changes those two relation discriminants to `CreatedWith`, preserving
+their Token intersections and source operands. The shared "the token" grammar
+phrase uses that acquisition-bound relation in both positions. Generic
+`MadeBy` and creation receipts keep their separate contracts; this correction
+uses the existing schema-192 model.
+
 ## Historical deaths and first destinations: #21
 
 `ObjectSet::FromHistoryDestinations { event, window }` matches the historical
