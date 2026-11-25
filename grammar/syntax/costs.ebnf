@@ -3091,3 +3091,42 @@ activation_target_count_condition ::= "it" "targets" number_words filter_plural
 
 /* @sem ActivationLimits::ActivationLimits{modifiers:[ActivationRule(Cost{modifier:Reduce{reductions:[_{amount:$braced_amount}], spill_into_generic:true}, condition:$activation_target_count_condition})]} */
 limit_target_count_reduction ::= "this" "ability" "costs" braced_amount "less" "to" "activate" "if" activation_target_count_condition
+
+/* Modal options are independently scoped by the ordinary modes production. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{once:true}, announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:$number_words, maximum:$number_words}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}} */
+activated_modal_once_header ::= cost ":" "choose" number_words "." "activate" "only" "once" "." NEWLINE modes
+
+/* The triggering player chooses one matching permanent for a counter payment. */
+/* @sem Cost::Cost{parts:[PutCounters([_{recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), kind:$counter_kind, amount:Constant(1), selection:_{player:EventSubject, count:Exactly(Constant(1))}}])]} */
+event_player_single_counter_payment ::= "put" "a" counter_kind "counter" "on" "a" filter_phrase
+
+/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Mana($mana_symbols)]}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$move_noted_graveyard_face_down}]}} */
+noted_face_down_activation ::= mana_symbols ":" move_noted_graveyard_face_down
+
+/* A singular Equipment detached from the ability's source as a cost. */
+/* @sem CostPart::UnattachFrom{attachments:Zone(_{scope:Shared(Battlefield), kind:Permanent, filter:Subtype(Equipment)}), hosts:One($self_ref_named)} */
+cost_unattach_equipment_from_source ::= "unattach" "an" "Equipment" "from" self_ref_named
+
+/* The scoped spell supplies the mana value for this alternate payment. */
+/* @sem CostPart::Life(ObjectProperty{object:Scoped, property:ManaValue, information:CurrentOrLastKnown}) */
+scoped_spell_life_cost ::= "paying" "life" "equal" "to" "its" "mana" "value" "rather" "than" "paying" "its" "mana" "cost"
+
+/* A limited alternate spell cost keeps the payment and spell filter independent. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$limited_alternate_spell, modifier:AlternateDuring{cost:Alternate(Cost{parts:[$scoped_spell_life_cost]}), limit:EachTurn(1), during:One(AbilityController)}})]}) */
+static_once_turn_spell_life_cost ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "cast" limited_alternate_spell "by" scoped_spell_life_cost "."
+
+limited_alternate_spell ::= limited_alternate_spell_a | limited_alternate_spell_an
+
+/* @sem $filter_phrase */
+limited_alternate_spell_a ::= "a" filter_phrase "spell"
+
+/* @sem $filter_phrase */
+limited_alternate_spell_an ::= "an" filter_phrase "spell"
+
+/* Keep the single revealed casting-cost input and its stat consumer in one scope. */
+/* @sem Ability::[$casting_additional_reveal, Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$revealed_cast_card_negative_stats, duration:$duration, evaluation:Snapshot}}]}}] */
+line_cast_revealed_card_stats ::= casting_additional_reveal NEWLINE affected revealed_cast_card_negative_stats duration "," "where" "X" "is" "the" "revealed" "card's" "mana" "value" "."
+
+/* Any player can activate the ability, independently of its effect. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{activators:All}, announcement:@announcement, body:$program_sentence} */
+activated_any_player_shared ::= cost ":" program_sentence "any" "player" "may" "activate" "this" "ability" "."
