@@ -90,6 +90,15 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 releases.source_spec(spec, source)
 
+    def test_crate_upload_limit_is_checked_before_release_preparation(self):
+        archive = self.root/'package.crate'
+        with patch.object(releases, 'MAX_CRATE_BYTES', 8):
+            archive.write_bytes(b'12345678')
+            releases.check_crate_sizes([archive])
+            archive.write_bytes(b'123456789')
+            with self.assertRaisesRegex(ValueError, 'package.crate.*9 bytes.*8-byte'):
+                releases.check_crate_sizes([archive])
+
     def test_runtime_overrides_cannot_leak_into_releases(self):
         with patch.dict('os.environ', {'ORACLE_GRAMMAR_DIR': 'alternate'}):
             with self.assertRaisesRegex(ValueError, 'override'):

@@ -23,7 +23,10 @@ runs compositional family gates and a synthetic native-CLI smoke test,
 and creates the `.crate` files, modular grammar archive, flattened EBNF,
 `manifest.json` and `SHA256SUMS`. The model dependencies are packaged with the
 grammar release so their precise bytes are independently inspectable. Full
-corpora and reference data are excluded. `embedded-grammar` embeds syntax for
+corpora and reference data are excluded. The large retirement-family fixtures
+stay in the repository and its full family gate; the published crate retains
+the smaller named families referenced by its library tests. Every prepared
+crate is checked against the default 10 MiB compressed upload limit. `embedded-grammar` embeds syntax for
 portable binaries. Without that feature development retains hot-loading;
 `ORACLE_GRAMMAR_DIR` still overrides either mode explicitly. Release tooling
 rejects external grammar and compiler-flag overrides.

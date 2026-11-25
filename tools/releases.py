@@ -18,6 +18,7 @@ import urllib.error
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGES = ('oracle-ir', 'oracle-ir-contract', 'oracle-ir-grammar')
+MAX_CRATE_BYTES = 10 * 1024 * 1024
 
 
 def run(*args, cwd=ROOT, **kwargs):
@@ -201,6 +202,15 @@ def package_archives(meta, reused):
     return archives
 
 
+def check_crate_sizes(paths):
+    """The registry's default compressed upload limit applies to each crate."""
+    for path in paths:
+        size = path.stat().st_size
+        if size > MAX_CRATE_BYTES:
+            raise ValueError(f'{path.name}: {size} bytes exceeds the {MAX_CRATE_BYTES}-byte '
+                             'crate limit; exclude repository-only data before publication')
+
+
 def code(out, tag):
     meta = metadata()
     if tag != 'grammar-v'+meta['grammar']['version']:
@@ -208,6 +218,7 @@ def code(out, tag):
     env = environment()
     with tempfile.TemporaryDirectory() as directory:
         archives = package_archives(meta, Path(directory))
+        check_crate_sizes(archives.values())
         binaries = build()
         families = json.loads((ROOT/'tests/families.json').read_text())
         subprocess.run([str(binaries/'family-check'), *families, '--compositional'],
