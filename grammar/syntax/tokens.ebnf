@@ -454,7 +454,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_new_planet | created_name_wolves_of_the_hunt | created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite | created_name_sword | created_name_cloud_sprite | created_name_koma_coil
+created_token_name ::= created_name_new_planet | created_name_wolves_of_the_hunt | created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite | created_name_sword | created_name_cloud_sprite | created_name_koma_coil | created_name_ornithopter | created_name_twin
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -2533,3 +2533,26 @@ token_defined_x_after ::= "X" token_recipe_base "," "where" "X" "is" value token
 
 /* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[$token_defined_x_after], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
 instructions_create_x_quoted ::= "create" token_defined_x_after
+
+/* Keep the moved card and the token characteristics in one producer-consumer scope. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One($target_card_your_graveyard), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:Power, information:CurrentOrLastKnown}, ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:Toughness, information:CurrentOrLastKnown}]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+instructions_exile_card_stat_token ::= "exile" target_card_your_graveyard "." "create" "a" token_colors token_subtypes token_types "token" "." "its" "power" "is" "equal" "to" "that" "card's" "power" "and" "its" "toughness" "is" "equal" "to" "that" "card's" "toughness"
+
+/* @sem String::'Ornithopter' */
+created_name_ornithopter ::= "Ornithopter"
+
+/* The two following characteristic expressions belong to the token recipe. */
+/* @sem TokenRecipe::Defined{name:Explicit($created_token_name), colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$value, $value_2]} */
+token_named_separate_stats ::= token_colors token_subtypes token_types "token" "named" created_token_name "that's" "attacking" "." "its" "power" "is" "equal" "to" value "and" "its" "toughness" "is" "equal" "to" value
+
+/* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_named_separate_stats}], entry:BattlefieldArrival{tapped:false, counters:[], states:[Attacking{}]}} */
+create_named_separate_stats ::= "create" "a" token_named_separate_stats
+
+/* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:$token_cleanup_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(0)})}]}}} */
+token_sacrifice_cleanup ::= "sacrifice" "the" "token" "at" token_cleanup_event
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$create_named_separate_stats}, $token_sacrifice_cleanup]}} */
+triggered_named_stats_cleanup ::= event_clause "," create_named_separate_stats "." token_sacrifice_cleanup "."
+
+/* @sem String::'Twin' */
+created_name_twin ::= "Twin"

@@ -8614,3 +8614,26 @@ combat_damage_player_recipient_event ::= "whenever" self_explicit_ref "deals" "c
 
 /* @sem Ability::Triggered{event:$combat_damage_player_recipient_event, limits:TriggerLimits{}, announcement:@announcement, body:$search_event_player_exile_play_program} */
 combat_player_search_exile_trigger ::= combat_damage_player_recipient_event "," search_event_player_exile_play_program
+
+/* Group damage is attributed per damaged opponent. */
+/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$filter_plural, recipients:Players(OpponentsOf(AbilityController)), kind:Combat, grouping:Recipient, subject:Source}) */
+shared_opponent_combat_group ::= "whenever" "an" "opponent" "is" "dealt" "combat" "damage" "by" "one" "or" "more" filter_plural
+
+/* The threshold also defines the amount of the shortfall. */
+/* @sem Ability::Triggered{event:$shared_opponent_combat_group, intervening_if:Compare{left:EventHistory{event:Player{event:LosesLife, players:One(EventSubject)}, window:ThisTurn, measure:TotalAmount}, test:NumberTest::Compare{comparison:Less, value:$value}}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:LoseLife{players:One(EventSubject), amount:Subtract([$value, EventHistory{event:Player{event:LosesLife, players:One(EventSubject)}, window:ThisTurn, measure:TotalAmount}])}}]}} */
+shared_life_shortfall_trigger ::= shared_opponent_combat_group "," "if" "that" "player" "lost" "less" "than" value "life" "this" "turn" "," "they" "lose" "life" "equal" "to" "the" "difference" "."
+
+/* The ordered-population instruction can follow any supported turn event. */
+/* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:_{instructions:$instructions_ordered_controlled_pump}} */
+triggered_turn_ordered_controlled_pump ::= "at" turn_event "," instructions_ordered_controlled_pump
+
+/* A pair of linked departure triggers, used only after its sole target producer. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:Object{event:LeavesBattlefield, objects:SameObject(Source)}, duration:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:One(Target{slot:@last_slot, index:0})})}]}, announcement:_{}}}, Effect{result:@next, operation:CreateTrigger{event:Object{event:LeavesBattlefield, objects:SameObject(Target{slot:@last_slot, index:0})}, duration:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:One(Source)})}]}, announcement:_{}}}] */
+linked_creature_departures ::= "when" "this" "creature" "leaves" "the" "battlefield" "this" "turn" "," "sacrifice" "that" "creature" "." "when" "the" "creature" "leaves" "the" "battlefield" "this" "turn" "," "sacrifice" "this" "creature"
+
+/* The entry subject remains the subject of the battlefield condition. */
+/* @sem Ability::Triggered{event:$event_self_enters, intervening_if:$entrant_on_battlefield, limits:TriggerLimits{}, announcement:@announcement, body:$entrant_exchange_damage_program} */
+triggered_entrant_present ::= "when" event_self_enters "," "if" entrant_on_battlefield "," entrant_exchange_damage_program "."
+
+/* @sem Condition::ObjectMatches{object:EventSubject, filter:InZone(Shared(Battlefield))} */
+entrant_on_battlefield ::= "it's" "on" "the" "battlefield"

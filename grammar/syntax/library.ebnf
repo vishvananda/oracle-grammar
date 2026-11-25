@@ -90,7 +90,7 @@ mill_take_filtered ::= ("a" | "an") search_filter
 mill_take_modified ::= "a" "card" modifier
 
 /* What a search looks for: one find clause. */
-search_choice ::= search_choice_sacrificed_creature_name | search_choice_shared_color | search_choice_filtered | search_choice_any | search_choice_modified | search_choice_many | search_choice_many_any | search_named_one | search_named_many | search_choice_many_where | search_choice_basic_land_type | search_choice_enchant_host | search_choice_could_enchant | search_choice_two_names | search_choice_keyword_family_pair | search_choice_named_pair | search_choice_named_pair_one | search_choice_counter_mana_value
+search_choice ::= search_choice_sacrificed_creature_name | search_choice_shared_color | search_choice_filtered | search_choice_any | search_choice_modified | search_choice_many | search_choice_many_any | search_named_one | search_named_many | search_choice_many_where | search_choice_basic_land_type | search_choice_enchant_host | search_choice_could_enchant | search_choice_two_names | search_choice_keyword_family_pair | search_choice_named_pair | search_choice_named_pair_one | search_choice_counter_mana_value | search_choice_distinct_land_type | search_choice_another_controlled_name
 /* An unrestricted plural choice composes with the ordinary search follow-ups. */
 search_choice_any_number ::= search_choice_any_number_filtered | search_choice_any_number_colorless | search_choice_prior_card_name | search_choice_any_number_total_mana | search_choice_chosen_name | search_choice_any_number_mana_value
 
@@ -359,7 +359,7 @@ dig_block_untaken ::= dig_look_split "." dig_untaken_if
 /* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Union([Transition{result:@back(2), phase:Before}])), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
 dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
 
-dig_block ::= dig_look_hand_entry_graveyard | dig_look_choice_entry_graveyard | reveal_cast_types_partition | reveal_until_optional_entry_shuffle | dig_reveal_shared_split | reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter | dig_look_cloak | dig_look_plot | dig_defined_reveal_cast | dig_reveal_all_hand | reveal_until_entry_or_hand_remainder | dig_reveal_selected_split | dig_look_payment_partition | dig_reveal_distinct_choice | dig_look_conditional_choice | dig_look_entry_duplicate | dig_look_hand_exile | dig_captured_reveal_entry | dig_look_optional_tapped_remainder | dig_reveal_two_choices | dig_reveal_two_destinations | dig_look_entry_attach | dig_three_partition | dig_variable_partition | dig_look_attacking_split
+dig_block ::= dig_look_hand_entry_graveyard | dig_look_choice_entry_graveyard | reveal_cast_types_partition | reveal_until_optional_entry_shuffle | dig_reveal_shared_split | reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter | dig_look_cloak | dig_look_plot | dig_defined_reveal_cast | dig_reveal_all_hand | reveal_until_entry_or_hand_remainder | dig_reveal_selected_split | dig_look_payment_partition | dig_reveal_distinct_choice | dig_look_conditional_choice | dig_look_entry_duplicate | dig_look_hand_exile | dig_captured_reveal_entry | dig_look_optional_tapped_remainder | dig_reveal_two_choices | dig_reveal_two_destinations | dig_look_entry_attach | dig_three_partition | dig_variable_partition | dig_look_attacking_split | dig_look_any_tapped_shuffle
 
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_split] */
 dig_look_split ::= look_top "." dig_follow_split
@@ -1084,7 +1084,7 @@ then_players_shuffle ::= "then" players_singular "shuffles"
 /* @sem @where(Program::Program{instructions:[Effect{result:@mark, operation:$look_top}, ...$look_where_follow]}, $look_where_value) */
 program_look_where ::= ("you")? look_top "," "where" "X" "is" look_where_value "." look_where_follow
 
-look_where_follow ::= look_put_split | dig_follow | look_cast_split | look_top_split | look_top_condition_split | look_exile_cast_split
+look_where_follow ::= look_any_tapped_shuffle | look_put_split | dig_follow | look_cast_split | look_top_split | look_top_condition_split | look_exile_cast_split
 
 /* Declining to look also declines the following top/bottom selection. */
 /* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:@where(Program::Program{instructions:[Effect{result:@mark, operation:$look_top}, ...$look_top_split]}, $value)}]} */
@@ -9045,3 +9045,42 @@ scoped_found_battlefield ::= "put" "that" "card" "onto" "the" "battlefield"
 /* The line scopes the casting payment and the search arrival together. */
 /* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$cast_sacrifice_head}, choose:Exactly(Constant(1))}]}, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$scoped_single_search}, Effect{result:@next, operation:$scoped_found_battlefield}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}, If{condition:ObjectMatches{object:Result{result:@back(2), phase:After, index:0}, filter:Property{property:ManaValue, test:NumberTest::Compare{comparison:Less, value:ObjectProperty{object:Query{objects:CostObjects{payment:Casting{ability:0}, component:[0], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}}, then:$program, otherwise:Program{}}]}}] */
 line_cast_sacrifice_search_value ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "sacrifice" cast_sacrifice_head "." NEWLINE scoped_single_search "," scoped_found_battlefield "," "then" "shuffle" "." "if" "it" "has" "mana" "value" "less" "than" "the" "sacrificed" "permanent's" "mana" "value" "," program "."
+
+/* The comparison population belongs to the choice, so ordinary search
+   continuations retain the selected cards and their destination. */
+/* @sem SearchChoice::SearchChoice{filter:AllOf([Supertype(Basic), $filter_phrase, Not(SharesWithAny{property:LandTypes, with:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase_2}})]), count:UpTo(Constant(1))} */
+search_choice_distinct_land_type ::= "a" "basic" filter_phrase "card" "that" "doesn't" "share" "a" "land" "type" "with" "a" filter_phrase
+
+/* The compared permanent is another controlled object relative to the named
+   object in this ability, independently of the card found by the search. */
+/* @sem SearchChoice::SearchChoice{filter:SharesNameWithAny(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(@named_object)), $filter_phrase, ControlledBy(One(AbilityController))])}), count:UpTo(Constant(1))} */
+search_choice_another_controlled_name ::= "a" "card" "with" "the" "same" "name" "as" "another" filter_phrase "you" "control"
+
+/* A revealed top card supplies the test; both branches refer to the event-bound creature, independently of the
+   player whose library was revealed. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::EventSubject)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:$aura_reveal_then}, otherwise:Program{instructions:$aura_reveal_otherwise}}]} */
+aura_upkeep_reveal_conditional ::= "that" "player" "reveals" "the" "top" "card" "of" "their" "library" "." "if" "that" "card" "is" top_reveal_quality "," aura_reveal_then "." "otherwise" "," aura_reveal_otherwise
+
+/* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:One(ObjectRef::EventSubject), regeneration:true}}] */
+aura_reveal_then ::= "destroy" "that" "creature"
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(ObjectRef::EventSubject)), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}}] */
+aura_reveal_otherwise ::= "it" "gets" signed "/" signed duration
+
+/* The look, reveal payment, mana choice and both moves share the same top card.
+   The colors are taken from the reveal payment's recorded card. */
+/* @sem Program::Program{instructions:[...$top_card_look, Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[RevealTop($colored_symbol_threshold)]}, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:$value, production:ColorsAmong{objects:One(Recorded{result:@prior})}, choice:EachUnit}}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}]} */
+program_look_reveal_colors_hand ::= top_card_look "you" "may" "reveal" "that" "card" "if" "it" "has" colored_symbol_threshold "." "if" "you" "do" "," "add" value "mana" "in" "any" "combination" "of" "its" "colors" "and" "put" "it" "into" "your" "hand" "." "if" "you" "don't" "reveal" "it" "," "put" "it" "into" "your" "hand" "."
+
+/* @sem ObjectFilter::Property{property:ColorSymbolCount, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+colored_symbol_threshold ::= value "or" "more" "colored" "mana" "symbols" "in" "its" "mana" "cost"
+
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:$program_look_reveal_colors_hand} */
+trigger_turn_look_reveal_colors_hand ::= "at" turn_event "," program_look_reveal_colors_hand
+
+/* The observed cards remain in the library until the chosen cards move. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$filter_phrase}, count:AnyNumber, constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+look_any_tapped_shuffle ::= "put" "any" "number" "of" filter_phrase "cards" "from" "among" "them" "onto" "the" "battlefield" "tapped" "," "then" "shuffle"
+
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_any_tapped_shuffle] */
+dig_look_any_tapped_shuffle ::= look_top "." look_any_tapped_shuffle

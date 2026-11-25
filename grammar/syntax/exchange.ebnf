@@ -100,3 +100,14 @@ program_sentence_event_controller_exchange ::= "its" "controller" "chooses" even
 event_controller_exchange_target ::= "target" event_exchange_kind "another" "player" "controls" "that" "shares" "a" "card" "type" "with" "it"
 
 event_exchange_kind ::= noun_permanent | noun_creature | noun_artifact | noun_enchantment | noun_land | noun_planeswalker
+
+/* The exchange and its conditional cleanup share the exchange receipt and both
+   announced targets. Card types are shared between the eligibility filters. */
+/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::ExchangeControl{first:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([AnyOf([CardType($exchange_card_type), CardType($exchange_card_type_2), CardType($exchange_card_type_3)]), ControlledBy(One(AbilityController))])}), index:0}, second:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([ControlledBy(OpponentsOf(AbilityController)), SharesTypeFrom{types:[$exchange_card_type, $exchange_card_type_2, $exchange_card_type_3], with:Target{slot:0, index:0}}])}), index:0}}}}, If{condition:Compare{left:CountObjects(Recorded(@last_result)), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:[Effect{result:@next, operation:Destroy{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Subtype(Aura), ObjectFilter::AnyOf([AttachedTo(SameObject(Target{slot:0, index:0})), AttachedTo(SameObject(Target{slot:1, index:0}))]))}, regeneration:true}}]}, otherwise:_{}}] */
+instructions_exchange_shared_types_cleanup ::= "exchange" "control" "of" "target" exchange_card_type "," exchange_card_type "," "or" exchange_card_type "you" "control" "and" "target" "permanent" "an" "opponent" "controls" "that" "shares" "one" "of" "those" "types" "with" "it" "." NEWLINE? "if" "those" "permanents" "are" "exchanged" "this" "way" "," "destroy" "all" "Auras" "attached" "to" "them"
+
+exchange_card_type ::= added_artifact | added_creature | added_enchantment | added_land | singular_planeswalker_card_type
+
+/* This root owns the target frame for the paired exchange. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$instructions_exchange_shared_types_cleanup}} */
+activated_exchange_shared_types_cleanup ::= cost ":" instructions_exchange_shared_types_cleanup "."

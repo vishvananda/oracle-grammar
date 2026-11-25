@@ -480,7 +480,7 @@ replacement_prevent_self_deals ::= "prevent" "all" "damage" "that" self_ref "wou
 /* @sem Ability::Replacement{active:Battlefield, event:Either([Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient})]), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
 replacement_prevent_to_and_by ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" "and" "dealt" "by" object_ref "."
 
-prevent_by_permanents ::= prevent_by_group | prevent_by_object | prevent_by_group_except | prevent_by_without_counters
+prevent_by_permanents ::= prevent_by_group | prevent_by_object | prevent_by_group_except | prevent_by_without_counters | prevent_by_unblocked_group
 /* @sem ObjectFilter::$filter_plural */
 prevent_by_group ::= filter_plural
 /* @sem ObjectFilter::SameObject($object_ref) */
@@ -662,9 +662,9 @@ instructions_prevention_receipt_callback ::= prevention_choice_window "." preven
    resolving choice of any kind or color of source, never a target. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($next_chosen_sources), count:Exactly($counter_amount)}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:$next_chosen_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:NextOccurrence, duration:$this_duration, body:$prevented_body}}] */
 instructions_next_chosen_prevent ::= "the" "next" "time" counter_amount next_chosen_sources "would" "deal" "damage" next_chosen_to this_duration "," prevented_body
-/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($next_chosen_sources), count:Exactly($counter_amount)}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:NextOccurrence, duration:$this_duration, body:$prevented_body}}] */
-instructions_next_chosen_prevent_any ::= "the" "next" "time" counter_amount next_chosen_sources "would" "deal" "damage" this_duration "," prevented_body
-next_chosen_sources ::= next_chosen_any | next_chosen_kind | next_chosen_color | next_chosen_either_color
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($next_chosen_sources), count:Exactly($counter_amount)}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:NextOccurrence, duration:$this_duration, body:$next_chosen_any_body}}] */
+instructions_next_chosen_prevent_any ::= "the" "next" "time" counter_amount next_chosen_sources "would" "deal" "damage" this_duration "," next_chosen_any_body
+next_chosen_sources ::= next_chosen_any | next_chosen_kind | next_chosen_color | next_chosen_either_color | next_chosen_color_pair
 /* @sem ObjectFilter::Any */
 next_chosen_any ::= "source" "of" "your" "choice"
 /* @sem ObjectFilter::$adjective */
@@ -4474,3 +4474,15 @@ prevent_next_with_receipt_any_target ::= "prevent" "the" "next" number "damage" 
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, If{condition:ObjectMatches{object:RecipientObject{slot:0, index:0}, filter:$noun}, then:_{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(RecipientObject{slot:0, index:0})), kind:$counter_kind, amount:Performed(@back(3))}]}}]}}}]}, otherwise:_{}}]} */
 prevent_receipt_conditional_delayed_counters ::= "if" "it's" "a" noun "," "put" "a" counter_kind "counter" "on" "it" "for" "each" "1" "damage" "prevented" "this" "way" "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* @sem ObjectFilter::AllOf([State(Unblocked), $filter_plural]) */
+prevent_by_unblocked_group ::= "unblocked" filter_plural
+
+/* @sem ObjectFilter::AnyOf([$adjective_color, $adjective_color_2]) */
+next_chosen_color_pair ::= adjective_color "or" adjective_color "source" "of" "your" "choice"
+
+next_chosen_any_body ::= prevented_body | redirect_damage_source_controller_body
+
+/* The recipient is the controller of the damage event source. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage(Players(One(ControllerOf(Damage(Source)))))}}]} */
+redirect_damage_source_controller_body ::= "that" "damage" "is" "dealt" "to" "that" "source's" "controller" "instead"
