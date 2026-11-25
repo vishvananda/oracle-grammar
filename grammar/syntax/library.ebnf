@@ -10015,3 +10015,33 @@ exile_name_search_finish ::= "and" "exile" "them" "." "then" "that" "player" "sh
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$exile_target_controller_name_search}} */
 spell_exile_target_controller_name_search ::= exile_target_controller_name_search "."
+
+hand_choice_target_h2 ::= target_player | target_opponent
+
+/* A player chooses cards from that same player's hand; the enclosing move
+   determines their destination. */
+/* @sem Operation::ChooseObjects{player:$hand_choice_target_h2, objects:Zone{scope:Players{zone:Hand, players:One($hand_choice_target_h2)}, kind:Card, filter:Any}, count:AsManyAsCan($card_count)} */
+player_chooses_hand_cards ::= hand_choice_target_h2 "puts" card_count "from" "their" "hand"
+
+/* @sem Instruction::[Effect{result:@next, operation:$player_chooses_hand_cards}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_player_hand_cards_top ::= player_chooses_hand_cards "on" "top" "of" "their" "library"
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), from:Exile, action:Either, filter:Any}, terms:_{cost:Normal, spend_as:AnyType}})], duration:WhileExiled(Result{result:@marked, phase:After, index:0}), evaluation:LiveObjects}}] */
+look_exile_play_permission_spell ::= "you" "may" "play" "that" "card" "for" "as" "long" "as" "it" "remains" "exiled" "," "and" "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "that" "spell"
+
+/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:AllOf([$plural, ControlledBy(One(AbilityController))]), recipients:Players(All), kind:Combat, grouping:Recipient, subject:Source}) */
+event_controlled_group_combat_player_h2 ::= "one" "or" "more" plural "you" "control" "deal" "combat" "damage" "to" "a" "player"
+
+/* The two operations share the same library query and the permission consumes that exile. */
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:$look_exile_library_top}}, Effect{result:@mark, operation:Move{objects:$look_exile_library_top, destination:$look_top_exile_destination, qualifiers:[]}}, ...$look_exile_play_permission_spell] */
+look_exile_top_play_spell ::= "look" "at" look_exile_library_top "," "then" look_top_exile_destination "." look_exile_play_permission_spell
+
+/* @sem Ability::Triggered{event:$event_controlled_group_combat_player_h2, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$look_exile_top_play_spell}} */
+controlled_group_look_exile_trigger ::= "whenever" event_controlled_group_combat_player_h2 "," look_exile_top_play_spell "."
+
+/* The cast consumes the same card-producing move, including its actual destination. */
+/* @sem Operation::Move{objects:$library_tops, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_library_tops_h2 ::= "exile" library_tops
+
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_library_tops_h2}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$cast_library_tops_receipt}]}}] */
+instructions_library_tops_cast ::= exile_library_tops_h2 "." "you" "may" cast_library_tops_receipt

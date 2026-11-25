@@ -1,7 +1,7 @@
 /* Costs and mana symbols. */
 cost ::= cost_standard | cost_pay_mana_or_words | cost_reattach_player_subtype
 
-cost_parts ::= cost_blight_return_enchantment | cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self | cost_tap_controlled_and_sacrifice
+cost_parts ::= cost_blight_return_enchantment | cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_remove_counters_and_exile | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self | cost_tap_controlled_and_sacrifice
 
 /* "Remove three quest counters from this enchantment and sacrifice it": "it" is the
    source the counters come off. */
@@ -14,7 +14,7 @@ cost_parts_one ::= cost_part
 /* @sem CostPart::[$cost_part, ...$cost_parts_later] */
 cost_parts_more ::= cost_part "," cost_parts_later
 
-cost_parts_later ::= cost_sacrifice_self_and_one_later | cost_parts_one_later | cost_parts_more_later | cost_parts_and_later | cost_sacrifice_three_later | cost_sacrifice_many_and_self | cost_sacrifice_self_and_many | cost_exile_many_and_self | cost_sacrifice_self_and_another_later | cost_remove_counters_and_sacrifice_later | cost_sacrifice_pair_later | cost_remove_counter_return_later | cost_remove_counters_return_later | cost_sacrifice_source_and_qualified_later
+cost_parts_later ::= cost_sacrifice_self_and_one_later | cost_parts_one_later | cost_parts_more_later | cost_parts_and_later | cost_sacrifice_three_later | cost_sacrifice_many_and_self | cost_sacrifice_self_and_many | cost_exile_many_and_self | cost_sacrifice_self_and_another_later | cost_remove_counters_and_sacrifice_later | cost_remove_counters_and_exile_later | cost_sacrifice_pair_later | cost_remove_counter_return_later | cost_remove_counters_return_later | cost_sacrifice_source_and_qualified_later
 
 /* @sem CostPart::[CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly($count)}, CostPart::Sacrifice{objects:One(ObjectRef::Source)}] */
 cost_sacrifice_many_and_self ::= "↑" "sacrifice" count filter_plural "and" self_text
@@ -2645,7 +2645,7 @@ activation_cost ::= activation_cost_standard | activation_cost_choice | cost_pay
 /* @sem Cost::Cost{parts:$activation_cost_parts} */
 activation_cost_standard ::= activation_cost_parts
 
-activation_cost_parts ::= activation_named_discard_sacrifice | activation_cost_one | activation_cost_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self | cost_tap_controlled_and_sacrifice
+activation_cost_parts ::= activation_named_discard_sacrifice | activation_cost_one | activation_cost_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_remove_counters_and_exile | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self | cost_tap_controlled_and_sacrifice
 
 /* @sem CostPart::[$activation_cost_part] */
 activation_cost_one ::= activation_cost_part
@@ -2653,7 +2653,7 @@ activation_cost_one ::= activation_cost_part
 /* @sem CostPart::[$activation_cost_part, ...$activation_cost_later] */
 activation_cost_more ::= activation_cost_part "," activation_cost_later
 
-activation_cost_later ::= activation_cost_one_later | activation_cost_more_later | cost_parts_and_later | cost_sacrifice_three_later | cost_sacrifice_many_and_self | cost_sacrifice_self_and_many | cost_exile_many_and_self | cost_sacrifice_self_and_another_later | cost_remove_counters_and_sacrifice_later | cost_sacrifice_pair_later | cost_remove_counter_return_later | cost_remove_counters_return_later | cost_sacrifice_source_and_qualified_later
+activation_cost_later ::= activation_cost_one_later | activation_cost_more_later | cost_parts_and_later | cost_sacrifice_three_later | cost_sacrifice_many_and_self | cost_sacrifice_self_and_many | cost_exile_many_and_self | cost_sacrifice_self_and_another_later | cost_remove_counters_and_sacrifice_later | cost_remove_counters_and_exile_later | cost_sacrifice_pair_later | cost_remove_counter_return_later | cost_remove_counters_return_later | cost_sacrifice_source_and_qualified_later
 
 /* @sem CostPart::[$activation_cost_part_later] */
 activation_cost_one_later ::= activation_cost_part_later
@@ -3235,3 +3235,10 @@ combined_mana_life_paid_program ::= "you" "may" combined_mana_life_payment "." "
 /* A self-return proves the activation zone; the following resolving action and limit retain their own operands. */
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:$self_return_then_sacrifice}})} */
 activated_self_return_then_sacrifice ::= cost ":" self_return_then_sacrifice "." activation_limits "."
+
+/* "Remove X time counters from this artifact and exile it": "it" is the source. */
+/* @sem CostPart::[CostPart::RemoveCounters{removals:[CounterRemoval{player:AbilityController, recipients:Objects(One($self_explicit_ref)), kind:$counter_kind, amount:Count(Exactly(AnnouncedX))}]}, CostPart::Move{selections:[CostObjectSelection{objects:One(ObjectRef::Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}] */
+cost_remove_counters_and_exile ::= "remove" "X" counter_kind "counters" "from" self_explicit_ref "and" "exile" "it"
+
+/* @sem $cost_remove_counters_and_exile */
+cost_remove_counters_and_exile_later ::= "↑" cost_remove_counters_and_exile

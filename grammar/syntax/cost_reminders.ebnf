@@ -20,7 +20,7 @@ cycling_cost ::= keyword_cost_parts
 cycling_reminder_cost ::= cost_parts "," "↑" "discard" "this" "card"
 
 /* The target phrase supplies the complete controlled-creature restriction. */
-equip_target_phrase ::= equip_target_creature | equip_target_commander
+equip_target_phrase ::= equip_target_creature | equip_target_commander | equip_target_compound
 /* @prefer always */
 /* @sem ObjectFilter::AllOf([CardType(Creature), ControlledBy(One(AbilityController))]) */
 equip_target_creature ::= "equip"
@@ -145,3 +145,7 @@ keyword_cost_forage ::= "forage"
 /* Subtype-qualified equip retains the target and activation scope. */
 /* @sem Ability::Activated{origin:Equip, cost:$keyword_payment, limits:_{sorcery:true}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$subtype, ControlledBy(One(AbilityController))])}), index:0}}}]}} */
 shared_subtype_equip ::= "equip" subtype keyword_payment
+
+/* A compound printed target narrows the creature that equip can attach to. */
+/* @sem @and(ObjectFilter::CardType(Creature), $filter_type_prefix, ObjectFilter::ControlledBy(One(AbilityController))) */
+equip_target_compound ::= "equip" filter_type_prefix
