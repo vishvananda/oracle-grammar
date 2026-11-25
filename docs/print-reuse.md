@@ -149,3 +149,22 @@ contradicted prediction writes `print-reuse-contradicted.json` at the campaign
 root. Until someone investigates and removes it, every batch runs in shadow mode.
 Batch evidence records the plan, the counts and the trace digest under
 `print_reuse`.
+
+Family validation also shares a `FaceMemo` within each reading's default,
+exact-keyed and authored-order fallback searches. When the verified default is
+already byte-identical to the requested text, it proves the exact-wording gate
+as well. Other wordings still require the independent keyed or ordered-trail
+search. Reference comparison and validation happen before these checks; every
+accepted print still reparses from its current operands.
+
+On 2026-11-25, a frozen 156-case cohort from `shared-clauses`,
+`fixed-mana-normalization`, `defined-stat-changes`,
+`retirement-70c6cba7435ed207` and `retirement-62847733cc228fca` produced identical
+reports before and after this change, including 68 refusal cases. Three
+interleaved pairs of immutable release binaries (frontend opt-level 3, owned
+model/contract opt-level 1, one thread) had median wall times of 13.61 and
+12.86 seconds. A separate hardware-counter pair retired 65.56 and 62.07 billion
+user instructions; median peak RSS stayed around 597 MiB. Timing varied across
+runs, so these measurements describe this cohort rather than a whole-population
+speedup. Frozen inputs, hashes, binaries, CPU and allocation profiles and raw
+measurements are retained locally under `.cache/continuation-perf/`.

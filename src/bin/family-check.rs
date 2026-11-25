@@ -5,6 +5,7 @@ use oracle_ir_grammar::engine::{
 };
 use oracle_ir_grammar::model::ir::Characteristics;
 use oracle_ir_grammar::parse::RuleSet;
+use oracle_ir_grammar::render::FaceMemo;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::io::Read;
@@ -61,11 +62,16 @@ fn case_lex_types(types: &[String]) -> &[String] {
     }
 }
 
-fn exact(engine: &Engine, case: &Case, reading: &Value) -> Result<bool, String> {
+fn exact(
+    engine: &Engine,
+    case: &Case,
+    reading: &Value,
+    memo: &mut FaceMemo,
+) -> Result<bool, String> {
     let lex = case_lex_types(&case.types);
     if let Some(key) = engine.derivation_of_types(&case.name, lex, reading, &case.text)?
         && engine
-            .print_keyed(&case.name, reading, &case.types, &key)?
+            .print_keyed_memo(memo, &case.name, reading, &case.types, &key)?
             .as_deref()
             == Some(&case.text)
     {
@@ -87,21 +93,25 @@ fn exact_authored(
     case: &Case,
     authored: &Value,
     types: &[String],
+    memo: &mut FaceMemo,
 ) -> Result<bool, String> {
     let name = &case.name;
     let text = case.text.as_str();
     let lex = case_lex_types(types);
     if let Some(full) = engine.derivation_of_types(name, lex, authored, text)? {
-        let default = engine.productions_of(name, authored, types)?;
+        let default = engine.productions_of_memo(memo, name, authored, types)?;
         let trimmed = Engine::trim_key(&full, &default);
         if engine
-            .print_keyed_narrow(name, authored, types, &trimmed)?
+            .print_keyed_narrow_memo(memo, name, authored, types, &trimmed)?
             .as_deref()
             == Some(text)
-            || engine.print_keyed(name, authored, types, &full)?.as_deref() == Some(text)
+            || engine
+                .print_keyed_memo(memo, name, authored, types, &full)?
+                .as_deref()
+                == Some(text)
             || (trimmed != full
                 && engine
-                    .print_keyed(name, authored, types, &trimmed)?
+                    .print_keyed_memo(memo, name, authored, types, &trimmed)?
                     .as_deref()
                     == Some(text))
         {
@@ -164,11 +174,22 @@ fn check(engine: &Engine, off: &RuleSet, case: &Case) -> Result<usize, String> {
         return Err("no reading equals the expected IR".into());
     }
     for reading in &parsed.readings {
+        let mut memo = FaceMemo::new();
         validate_abilities(reading)?;
-        if case.exact && !exact(engine, case, reading)? {
+        // A verified default that is already the requested wording proves both
+        // gates, as in score. Otherwise retain the independent keyed search.
+        let default = case
+            .default
+            .then(|| engine.print_keyed_memo(&mut memo, &case.name, reading, &case.types, &[]));
+        let exact_default = default
+            .as_ref()
+            .and_then(|result| result.as_ref().ok())
+            .and_then(Option::as_deref)
+            == Some(case.text.as_str());
+        if case.exact && !exact_default && !exact(engine, case, reading, &mut memo)? {
             let reproduced = match &expected {
                 Some((authored, canonical)) if canonical == reading => {
-                    exact_authored(engine, case, authored, &case.types)?
+                    exact_authored(engine, case, authored, &case.types, &mut memo)?
                 }
                 _ => false,
             };
@@ -176,10 +197,8 @@ fn check(engine: &Engine, off: &RuleSet, case: &Case) -> Result<usize, String> {
                 return Err("a reading has no exact keyed print".into());
             }
         }
-        if case.default
-            && engine
-                .print_keyed(&case.name, reading, &case.types, &[])?
-                .is_none()
+        if let Some(default) = default
+            && default?.is_none()
         {
             return Err("a reading has no verified default print".into());
         }
@@ -250,7 +269,7 @@ fn check_card(
                 && let Some(authored) = &case.expected
             {
                 let types = corpus::print_context(&json!({"characteristics": context}));
-                exact = exact_authored(engine, case, authored, &types)?;
+                exact = exact_authored(engine, case, authored, &types, &mut FaceMemo::new())?;
             }
             if !exact {
                 return Err("a card reading has no exact keyed print".into());
