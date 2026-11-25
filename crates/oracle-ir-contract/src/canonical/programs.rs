@@ -5,6 +5,7 @@ use serde_json::Value;
 
 #[derive(Default)]
 struct Needed {
+    source_components: Vec<usize>,
     snapshots: bool,
     mana: bool,
     hand_reveal: bool,
@@ -20,7 +21,14 @@ struct Normalize {
 impl Visit for Normalize {
     fn enter(&mut self, value: &Value, ty: &Ty) {
         if matches!(ty, Ty::Named(name) if name == "Ability") {
-            self.owners.push(Needed::default());
+            self.owners.push(Needed {
+                source_components: if self.keep_order {
+                    Vec::new()
+                } else {
+                    super::paid_source::components(value)
+                },
+                ..Needed::default()
+            });
         } else if let Some(needed) = self.owners.last_mut() {
             needed.snapshots |= matches!(ty, Ty::Named(name) if name == "Operation")
                 && value["kind"] == "BindValue";
@@ -40,6 +48,12 @@ impl Visit for Normalize {
         _: &str,
         walker: &mut Walker<'_>,
     ) -> Result<(), String> {
+        if !self.keep_order
+            && matches!(ty, Ty::Named(name) if name == "ObjectRef")
+            && let Some(owner) = self.owners.last()
+        {
+            self.changed |= super::paid_source::reference(value, &owner.source_components);
+        }
         if matches!(ty, Ty::Named(name) if name == "Program") {
             self.changed |= super::observed_top::program(value, self.tracing)?;
         }

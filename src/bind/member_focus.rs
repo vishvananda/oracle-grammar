@@ -581,7 +581,7 @@ mod tests {
     }
 
     #[test]
-    fn end_to_end_native_members_and_both_paid_and_ordinary_goblin_bomb_sources() {
+    fn end_to_end_native_members_and_proved_goblin_bomb_source_encodings() {
         use crate::engine::canonical_abilities;
         let engine = crate::test_support::engine();
         let fixtures: Vec<Value> =
@@ -619,10 +619,12 @@ mod tests {
             actual.sort_by_key(Value::to_string);
             expected.sort_by_key(Value::to_string);
             expected.dedup();
-            assert_eq!(expected.len(), 2);
+            // The two retained authoring forms identify the same proved source input.
+            assert_eq!(case["expected_readings"].as_array().unwrap().len(), 2);
+            assert_eq!(expected.len(), 1);
             assert_eq!(
                 actual, expected,
-                "Goblin Bomb must keep both distinct source meanings"
+                "Goblin Bomb must retain the meaning of both source encodings"
             );
         }
     }

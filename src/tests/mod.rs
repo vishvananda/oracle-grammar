@@ -968,3 +968,4 @@ mod wave_c_contracts;
 mod wave_f_contracts;
 
 mod reported_receipts_193;
+mod source_input_normal_form;

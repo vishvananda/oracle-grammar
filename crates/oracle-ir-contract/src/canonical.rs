@@ -25,6 +25,9 @@ mod mode_results;
 mod movement;
 mod observed_hands;
 pub mod observed_top;
+mod paid_source;
+#[cfg(test)]
+mod paid_source_tests;
 mod programs;
 #[cfg(test)]
 mod result_scopes;
