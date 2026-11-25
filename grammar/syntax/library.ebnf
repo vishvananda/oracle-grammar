@@ -2117,10 +2117,9 @@ bound_optional_library_action ::= bound_ante_top
 /* @sem Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Ante(CardArrival{counters:[], states:[]}), qualifiers:[]} */
 bound_ante_top ::= "ante" "the" "top" "card" "of" "their" "library"
 
-/* The follow-up selects players who took the immediately preceding optional
-   player action; the two phrases share its result within this scope. */
-/* @sem Instruction::[...$clause_each_player_optional_library_action, ForEachPlayer{players:Matching{binding:0, condition:PlayerTook{player:Bound(0), result:@prior}}, binding:0, body:Program{instructions:[Effect{result:@next, operation:SetLifeTotal{players:One(Bound(0)), amount:$value}}]}}] */
-instructions_player_optional_life ::= clause_each_player_optional_library_action "." "if" "a" "player" "does" "," "that" "player's" "life" "total" "becomes" value
+/* Keep the optional action and its player receipt in the same semantic scope. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@mark, operation:PayCost{player:Bound(0), cost:Cost{parts:[PlayerAction{player:Bound(0), body:Program{instructions:[Effect{result:@next, operation:$bound_ante_top}]}}]}, optional:true}}]}}, ForEachPlayer{players:Matching{binding:0, condition:PlayerTook{player:Bound(0), result:@marked}}, binding:0, body:Program{instructions:[Effect{result:@next, operation:$bound_player_life_total}]}}] */
+instructions_player_optional_life ::= players_singular "may" bound_ante_top "." "if" "a" "player" "does" "," bound_player_life_total
 
 /* An optional look guards the subsequent test; the test and reveal both name the
    same single top card of the controller's library. */

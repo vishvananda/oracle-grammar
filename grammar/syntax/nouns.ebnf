@@ -22,6 +22,7 @@ objects_target_and_each_other ::= target_object "and" others_each
 /* @sem @and(ObjectFilter::Not(ObjectFilter::SameObject(@it)), $filter_phrase) */
 others_each ::= "each" "other" filter_phrase
 
+/* @prefer always */
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf(@unordered([SameObject($self_ref), SameObject($target_object)]))} */
 objects_self_and_target ::= self_ref "and" target_object
 
@@ -287,7 +288,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_attacking_creature | named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_saddler_of_event_subject | target_controller_controls_land | target_extreme_battlefield | target_controlled_kind_union | target_controlled_subtype_or_filter | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled | target_blocking_controlled | target_opponent_choice_controlled | target_attacked_this_turn | target_relative_event_stat | target_attached_to_permanent | target_six_subtype_union | target_up_to_controlled_lesser_event
+target_object ::= target_saddler_of_event_subject | target_controller_controls_land | target_extreme_battlefield | target_controlled_kind_union | target_controlled_subtype_or_filter | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled | target_blocking_controlled | target_opponent_choice_controlled | target_attacked_this_turn | target_relative_event_stat | target_attached_to_permanent | target_six_subtype_union | target_up_to_controlled_lesser_event | target_optional_other_double_faced_controlled
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -5279,3 +5280,11 @@ owned_x_card_population ::= "each" "card" "you" "own" "with" "{" "X" "}" "in" "i
 /* A possessive target keeps the permanent filter in the announcement. */
 /* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$possessive_permanent_filter}), index:0}) */
 possessive_target_permanent ::= "target" possessive_permanent_filter
+
+/* A named holder and another object form a reusable pair of references. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf(@unordered([SameObject($self_explicit_ref), SameObject($object_ref)]))} */
+objects_self_and_reference ::= self_explicit_ref "and" object_ref
+
+/* An optional other target retains the noun-specific exclusion anchor and controller. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo($number), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@other_reference(ObjectFilter::$noun))), ObjectFilter::AllOf([State(DoubleFaced), $noun, ControlledBy(One(AbilityController))]))}), index:0} */
+target_optional_other_double_faced_controlled ::= "up" "to" number "other" "target" "double-faced" noun "you" "control"

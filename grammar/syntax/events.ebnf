@@ -1822,8 +1822,7 @@ selected_damage_any ::= "choose" "target" selected_damage_creature "." "whenever
 selected_damage_attacker ::= "choose" "target" selected_damage_creature "." "whenever" "that" "creature" "is" "dealt" "damage" "by" "an" "attacking" "creature"
 
 /* The window modifies the actual event, preserving its subject. */
-/* @sem EventSpec::Filtered{event:$event_enters, condition:$cast_window_declare_attackers} */
-event_during_window ::= event_enters "during" cast_window_declare_attackers
+event_during_window ::= event_zone_during_window | event_controlled_during_window
 
 /* A revealed draw retains the written player and the card predicate independently. */
 /* @sem EventSpec::Player{event:DrawsRevealedCard, players:$revealed_draw_player, objects:$revealed_draw_card} */
@@ -2624,7 +2623,7 @@ put_zone_graveyard ::= "a" "graveyard"
 /* @sem EventSpec::Player{event:$you_intransitive_action, players:One(AbilityController)} */
 event_you_intransitive ::= "you" you_intransitive_action
 
-you_intransitive_action ::= you_action_clash | you_action_scry | you_action_surveil
+you_intransitive_action ::= you_action_clash | you_action_scry | you_action_surveil | you_action_clash_win
 
 /* @sem PlayerEvent::Clashes */
 you_action_clash ::= "clash"
@@ -8674,3 +8673,20 @@ whenever_you_play_exiled_card ::= "whenever" "you" "play" "a" played_card_filter
 /* The creator and token identity are independent of the resolving effect. */
 /* @sem EventSpec::Player{event:CreatesToken, players:$token_creation_actor, objects:Token} */
 event_created_unqualified_token ::= token_creation_actor "a" "token"
+
+/* Combat damage whose event subject is the ability holder. */
+/* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$event_holder, recipients:Players($combat_damage_player_set), kind:Combat, grouping:SourceRecipient, subject:Source}) */
+holder_combat_damage_player ::= event_holder "deals" "combat" "damage" "to" combat_damage_player_set
+
+/* @sem Ability::Triggered{event:$holder_combat_damage_player, intervening_if:$condition_control_no_other_shared, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence} */
+holder_combat_no_other_trigger ::= "whenever" holder_combat_damage_player "," "if" condition_control_no_other_shared "," program_sentence
+
+/* @sem EventSpec::Filtered{event:$event_enters, condition:$cast_window_declare_attackers} */
+event_zone_during_window ::= event_enters "during" cast_window_declare_attackers
+
+/* @prefer always */
+/* @sem EventSpec::Filtered{event:Player{event:EntersUnderControl, players:All, objects:$controlled_entrant}, condition:$cast_window_combat} */
+event_controlled_during_window ::= controlled_entrant "enters" "during" cast_window_combat
+
+/* @sem PlayerEvent::WinsClash */
+you_action_clash_win ::= "clash" "and" "win"

@@ -976,7 +976,7 @@ controlled_explore_replacement ::= controlled_explore_event "," explore_twice_re
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_modification}) */
 entry_modified ::= object_ref "enters" entry_modification "."
 
-entry_modification ::= entry_single_counter_him | entry_convoked_counters | entry_two_counter_kinds | entry_counter_for_each | entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse | entry_foretold_counters | entry_many_counters_him | entry_plural_counters_her | entry_counters_per_paired_mana | entry_escape_counter_alternative | entry_counted_counter_pair | entry_counter_list_four | entry_counter_list_three | entry_counter_list_two
+entry_modification ::= entry_single_counter_him | entry_convoked_counters | entry_two_counter_kinds | entry_counter_for_each | entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse | entry_foretold_counters | entry_many_counters_him | entry_plural_counters_her | entry_counters_per_paired_mana | entry_escape_counter_alternative | entry_counted_counter_pair | entry_counter_list_four | entry_counter_list_three | entry_counter_list_two | entry_prepared | entry_fixed_plus_population | entry_many_plus_population
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]} */
 entry_tapped_and_counters ::= "tapped" "and" "with" value counter_kind "counters" "on" "it"
@@ -4494,3 +4494,14 @@ prevent_next_creature_delayed_receipt ::= "prevent" "the" "next" number "damage"
 /* The callback owns the prevention operation and its performed-damage receipt. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:@last_slot, index:0})), kind:$counter_kind, amount:Performed(@back(3))}]}}]}}}]} */
 prevent_creature_delayed_body ::= "at" "the" "beginning" "of" "the" "next" "end" "step" "," "put" "a" counter_kind "counter" "on" "that" "creature" "for" "each" "1" "damage" "prevented" "this" "way"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(Prepared)}}]} */
+entry_prepared ::= "prepared"
+
+/* Both counter mentions describe the same +1/+1 kind. The counted population
+   is evaluated for the entering object's controller by entry_modified. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:PowerToughness([1, 1]), amount:Add([Constant(1), CountObjects($affected)])})}}]} */
+entry_fixed_plus_population ::= "with" "a" "+" "1" "/" "+" "1" "counter" "on" "it" "plus" "an" "additional" "+" "1" "/" "+" "1" "counter" "on" "it" "for" affected
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:PowerToughness([1, 1]), amount:Add([@plural_amount($value), CountObjects($affected)])})}}]} */
+entry_many_plus_population ::= "with" value "+" "1" "/" "+" "1" "counters" "on" "it" "plus" "an" "additional" "+" "1" "/" "+" "1" "counter" "on" "it" "for" affected

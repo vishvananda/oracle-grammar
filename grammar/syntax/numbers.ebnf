@@ -747,7 +747,7 @@ count_each_you_attacked_with ::= filter_phrase "you" "attacked" "with" "this" "t
 /* @sem Expr::EventHistory{event:Spell{event:Cast, players:$cast_history_players, spells:$cast_history_spell}, window:ThisTurn, measure:Occurrences} */
 count_each_spell_cast_history ::= cast_history_spell cast_history_players "this" "turn"
 
-cast_history_spell ::= cast_history_any_spell | cast_history_other_spell | cast_history_filtered_spell
+cast_history_spell ::= cast_history_any_spell | cast_history_other_spell | cast_history_filtered_spell | cast_history_and_spell
 
 /* @sem ObjectFilter::Any */
 cast_history_any_spell ::= "spell"
@@ -756,7 +756,7 @@ cast_history_any_spell ::= "spell"
 cast_history_other_spell ::= "other" "spell"
 
 /* @sem $spell_adjectives */
-cast_history_filtered_spell ::= spell_adjectives "spell"
+cast_history_filtered_spell ::= spell_adjectives "spell" /* @prefer always */
 
 cast_history_players ::= cast_history_all | cast_history_you | cast_history_they | cast_history_opponents
 
@@ -1661,3 +1661,7 @@ count_each_owned_exile_and_graveyard ::= card_filter "card" "you" "own" "in" "ex
 /* @prefer always */
 /* @sem Expr::Add([CountObjects(Zone(_{scope:Shared(Exile), kind:Card, filter:@and($owned_zone_card_qualifier, ObjectFilter::OwnedBy(One(AbilityController)))})), CountObjects(Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$owned_zone_card_qualifier}))]) */
 count_each_owned_exile_graveyard ::= "card" "you" "own" "in" "exile" "and" "in" "your" "graveyard" owned_zone_card_qualifier
+
+/* Written conjunction denotes either spell type in this counting context. */
+/* @sem ObjectFilter::AnyOf(@unordered([$spell_adjective, $spell_adjective_2])) */
+cast_history_and_spell ::= spell_adjective "and" spell_adjective "spell"
