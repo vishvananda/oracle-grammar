@@ -33,8 +33,12 @@ mod programs;
 mod result_scopes;
 mod sets;
 mod snapshots;
+mod source_events;
+#[cfg(test)]
+mod source_events_tests;
 mod target_pairs;
 mod trace;
+mod trigger_branches;
 mod untap;
 mod visibility;
 mod walk;
@@ -168,23 +172,38 @@ enum Subject {
     Entering,
 }
 
-/// What an ability's event is about, through a `Filtered` wrapper.
-fn event_objects(event: &Value) -> Option<&Value> {
-    if let Some(filtered) = event.get("Filtered") {
-        return event_objects(&filtered["event"]);
-    }
-    ["Object", "ZoneChange", "Pair"]
-        .iter()
-        .find_map(|kind| event.get(*kind))
-        .map(|body| &body["objects"])
-}
-
 fn subject_of(ability: &Value) -> Subject {
     let args = &ability["args"];
     if args["active"] == "SourceEntering" {
         return Subject::Entering;
     }
     events::subject(&args["event"])
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ReferenceForm {
+    Ordinary,
+    Subject,
+    SubjectOperands,
+    SubjectCreators,
+    SubjectAnnouncements,
+}
+
+impl ReferenceForm {
+    fn for_field(self, owner: &str, field: &str) -> Self {
+        let announcement = field == "announcement";
+        let creator = matches!(
+            (owner, field),
+            ("Operation::CreateContinuousEffect", "source") | ("Operation::ChangeSpell", "subject")
+        );
+        let literal = match self {
+            Self::SubjectOperands => announcement || creator,
+            Self::SubjectCreators => creator,
+            Self::SubjectAnnouncements => announcement,
+            _ => false,
+        };
+        if literal { Self::Ordinary } else { self }
+    }
 }
 
 struct Walker {
@@ -197,6 +216,8 @@ struct Walker {
     subjects: Vec<Subject>,
     event_header: bool,
     reference_reductions: bool,
+    /// A private print view may spell a proved Source as its event subject.
+    reference_form: ReferenceForm,
     /// Keep ids and list order, for callers that read the text back out.
     keep_order: bool,
     tracing: bool,
@@ -361,7 +382,7 @@ impl Walker {
                     } else if **inner == Ty::Named("Ability".into()) {
                         merge_statics(items, self.tracing);
                         if !self.keep_order {
-                            merge_triggers(items, self.tracing);
+                            trigger_branches::merge(items, self.schema, self.tracing);
                         }
                     }
                 }
@@ -506,8 +527,19 @@ impl Walker {
         let subject = self.subjects.last().copied().unwrap_or(Subject::Other);
         let references = self.reference_reductions && !self.event_header;
         if references
+            && self.reference_form != ReferenceForm::Ordinary
+            && subject == Subject::Source
+            && name == "ObjectRef"
+            && variant == "Source"
+            && value.as_object().is_some_and(|fields| fields.len() == 1)
+        {
+            *value = serde_json::json!({"kind": "EventSubject"});
+            return;
+        }
+        if references
             && name == "ObjectRef"
             && variant == "EventSubject"
+            && value.as_object().is_some_and(|fields| fields.len() == 1)
             && self.names_source(subject)
         {
             *value = serde_json::json!({"kind": "Source"});
@@ -573,10 +605,15 @@ impl Walker {
                 }
                 ("ObjectRef", "Damage") => {
                     if references
+                        && value.as_object().is_some_and(|fields| fields.len() == 2)
                         && self.damage_subjects.last().cloned().flatten().as_ref()
                             == value.get("args")
                     {
-                        *value = serde_json::json!({"kind": "EventSubject"});
+                        *value = if self.names_source(subject) {
+                            serde_json::json!({"kind": "Source"})
+                        } else {
+                            serde_json::json!({"kind": "EventSubject"})
+                        };
                     }
                 }
                 ("PlayerRef", "ControllerOf") => {
@@ -756,6 +793,8 @@ impl Walker {
                     continue;
                 }
                 let old_header = self.event_header;
+                let old_reference_form = self.reference_form;
+                self.reference_form = self.reference_form.for_field(owner, field);
                 if field == "event" {
                     self.event_header = true;
                 }
@@ -849,6 +888,7 @@ impl Walker {
                     self.restore_with_exports(saved, &exported);
                 }
                 self.event_header = old_header;
+                self.reference_form = old_reference_form;
             }
         }
         if owner == "Instruction::If"
@@ -942,50 +982,6 @@ fn merge_statics(items: &mut Vec<Value>, tracing: bool) {
             }
         }
         merged.push(item);
-    }
-    *items = merged;
-}
-
-/// Whether two triggered abilities differ in nothing but what triggers them.
-fn same_but_event(a: &Value, b: &Value, tracing: bool) -> bool {
-    a["kind"] == "Triggered"
-        && b["kind"] == "Triggered"
-        && ["intervening_if", "limits", "announcement", "body"]
-            .iter()
-            .all(|field| trace::same(&a["args"][*field], &b["args"][*field], tracing))
-}
-
-/// The events of a trigger, whether it has one or lists several.
-fn trigger_events(ability: &Value) -> Vec<Value> {
-    match ability["args"]["event"].get("AnyOf") {
-        Some(Value::Array(cases)) => cases.clone(),
-        _ => vec![ability["args"]["event"].clone()],
-    }
-}
-
-/// `Whenever a or b, do c`, held as one ability with `Either` or as two sharing a
-/// body, means the same either way, so comparison sees one ability in event order.
-fn merge_triggers(items: &mut Vec<Value>, tracing: bool) {
-    let mut merged: Vec<Value> = Vec::with_capacity(items.len());
-    for item in items.drain(..) {
-        match merged.last_mut() {
-            Some(last) if same_but_event(last, &item, tracing) => {
-                if tracing {
-                    for field in ["intervening_if", "limits", "announcement", "body"] {
-                        trace::merge(&mut last["args"][field], &item["args"][field]);
-                    }
-                }
-                let mut events = trigger_events(last);
-                events.extend(trigger_events(&item));
-                last["args"]["event"] = json!({ "AnyOf": events });
-            }
-            _ => merged.push(item),
-        }
-    }
-    for item in merged.iter_mut().filter(|item| item["kind"] == "Triggered") {
-        if let Some(Value::Array(events)) = item["args"]["event"].get_mut("AnyOf") {
-            events.sort_by_key(|event| trace::key(event, tracing));
-        }
     }
     *items = merged;
 }
@@ -1183,6 +1179,15 @@ fn normalize_with_trace(value: &mut Value, keep_order: bool, tracing: bool) -> R
 }
 
 fn walk_normal_form(value: &mut Value, keep_order: bool, tracing: bool) -> Result<(), String> {
+    walk_reference_form(value, keep_order, tracing, ReferenceForm::Ordinary)
+}
+
+fn walk_reference_form(
+    value: &mut Value,
+    keep_order: bool,
+    tracing: bool,
+    reference_form: ReferenceForm,
+) -> Result<(), String> {
     let mut walker = Walker {
         schema: schema()?,
         binding_namespace: "binding",
@@ -1191,6 +1196,7 @@ fn walk_normal_form(value: &mut Value, keep_order: bool, tracing: bool) -> Resul
         subjects: Vec::new(),
         event_header: false,
         reference_reductions: true,
+        reference_form,
         keep_order,
         tracing,
         read: Vec::new(),
@@ -1236,6 +1242,35 @@ pub fn semantic_abilities(value: &mut Value) -> Result<(), String> {
 /// what a printer reads the card's wording back from.
 pub fn reduced(value: &mut Value) -> Result<(), String> {
     normalize(value, true)
+}
+
+/// At most four additional print views of current operands, retaining IDs/order.
+/// Only a proved source event can spell Source as its distinguished subject;
+/// event headers and independent/deferred event contexts keep their own roles.
+/// Literal creator and announcement Source roles can each retain their form.
+/// The caller retains the ordinary form and verifies every generated text.
+pub fn event_subject_print_views(value: &Value) -> Result<Vec<Value>, String> {
+    let mut views = Vec::new();
+    for form in [
+        ReferenceForm::SubjectOperands,
+        ReferenceForm::SubjectCreators,
+        ReferenceForm::SubjectAnnouncements,
+        ReferenceForm::Subject,
+    ] {
+        let mut view = value.clone();
+        walk_reference_form(&mut view, true, false, form)?;
+        if view != *value && !views.contains(&view) {
+            views.push(view);
+        }
+    }
+    Ok(views)
+}
+
+/// Whether the distinguished object is the source, with its role available.
+/// This structural identity proof does not replace event validation; unknown
+/// or over-budget shapes conservatively give no proof.
+pub fn event_subject_names_source(event: &Value) -> bool {
+    source_events::names_source(event)
 }
 
 pub fn card(card: &Card) -> Result<Card, String> {

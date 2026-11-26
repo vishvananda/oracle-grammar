@@ -150,6 +150,11 @@ as Source when its directly addressed sacrifice or exile component proves that
 original identity. Performed/After histories, choices, nested payments and other
 ability frames stay distinct. See [the bounded source input proof](docs/source-input-normal-form.md).
 
+An event's distinguished object also compares as Source when its matching filter
+proves that identity and its grouping supplies the singular role. This bounded
+proof preserves event headers, ability scopes and identifier origins; see
+[source event subjects](docs/event-source-normal-form.md).
+
 A universal player loop containing only one unrestricted fixed mana action can
 use AddMana(All) when its result is unobserved. The actions are simultaneous in
 both forms. Keep loops with choices, dynamic amounts, restrictions, ordering or

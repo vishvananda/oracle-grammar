@@ -1,5 +1,5 @@
 //! Reference frames of independently matched created events.
-use serde_json::{Value, json};
+use serde_json::Value;
 
 pub(super) struct Frame {
     pub subject: super::Subject,
@@ -7,22 +7,7 @@ pub(super) struct Frame {
 }
 
 pub(super) fn subject(event: &Value) -> super::Subject {
-    // The same existing self-reference proof applies to an alternative event
-    // only when every branch independently identifies that same source.
-    // In particular, a self entry OR a haunted creature's death is not self.
-    if let Some(events) = event.get("AnyOf").and_then(Value::as_array) {
-        return if !events.is_empty()
-            && events
-                .iter()
-                .all(|event| matches!(subject(event), super::Subject::Source))
-        {
-            super::Subject::Source
-        } else {
-            super::Subject::Other
-        };
-    }
-    let source = json!({"kind":"SameObject","args":{"kind":"Source"}});
-    if super::event_objects(event) == Some(&source) {
+    if super::source_events::names_source(event) {
         super::Subject::Source
     } else {
         super::Subject::Other

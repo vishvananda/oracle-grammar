@@ -1191,6 +1191,13 @@ fn own_forms(ability: &Value) -> Vec<Value> {
         return forms;
     }
     let mut all = spelled_forms(&named);
+    if crate::model::canonical::event_subject_names_source(&ability["args"]["event"]) {
+        // A proved subject view must reach the bounded nested-form product.
+        // Prefixing all named variants can otherwise exhaust it before the
+        // event-subject condition or body is tried.
+        forms.extend(all);
+        return forms;
+    }
     all.extend(forms);
     all
 }

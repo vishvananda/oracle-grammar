@@ -58,7 +58,7 @@ fn a_pronoun_in_a_self_damage_replacement_names_the_damaged_object() {
         [0];
     assert_eq!(
         placement["recipients"]["args"],
-        json!({"kind":"One","args":{"kind":"EventSubject"}}),
+        json!({"kind":"One","args":{"kind":"Source"}}),
         "{placement}"
     );
     printed(&reading);

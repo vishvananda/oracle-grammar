@@ -98,6 +98,8 @@ impl Engine {
         let mut views: Vec<Value> = super::ability_joins::joined(&abilities)
             .into_iter()
             .collect();
+        let subject_views = canonical::event_subject_print_views(&abilities)?;
+        views.extend(subject_views.iter().cloned());
         views.extend(super::ability_joins::lowered_apart(lowered, &abilities));
         views.extend(super::ability_joins::split_statics(&abilities));
         if written {
@@ -108,6 +110,11 @@ impl Engine {
                 if !surfaces.contains(&surface) {
                     surfaces.push(surface);
                 }
+            }
+        }
+        for view in subject_views {
+            if !surfaces.contains(&view) {
+                surfaces.push(view);
             }
         }
         Ok(surfaces)
@@ -164,6 +171,11 @@ impl Engine {
         // Their canonical inverse must also see the current native operands,
         // before lexical unbinding replaces those identities with references.
         let native = canonical_abilities(abilities)?;
+        for view in canonical::event_subject_print_views(&native)? {
+            if !surfaces.contains(&view) {
+                surfaces.push(view);
+            }
+        }
         if !surfaces.contains(&native) {
             surfaces.push(native);
         }

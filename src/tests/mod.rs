@@ -967,5 +967,6 @@ mod print_speed;
 mod wave_c_contracts;
 mod wave_f_contracts;
 
+mod event_source_normal_form;
 mod reported_receipts_193;
 mod source_input_normal_form;
