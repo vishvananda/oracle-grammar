@@ -8,7 +8,6 @@ use crate::{
 };
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::OnceLock;
 
 pub fn positive(protocol: CoinProtocol, outcome: &CoinOutcome) -> Option<bool> {
     match (protocol, outcome) {
@@ -49,8 +48,7 @@ pub fn series(repetition: &CoinRepetition) -> Series<'_> {
     Series { times, each, stop }
 }
 fn schema() -> &'static Schema {
-    static S: OnceLock<Schema> = OnceLock::new();
-    S.get_or_init(|| Schema::of_ir().expect("coin schema"))
+    crate::canonical::schema().expect("coin schema")
 }
 fn ptr(path: &str, key: &str) -> String {
     format!("{path}/{}", key.replace('~', "~0").replace('/', "~1"))

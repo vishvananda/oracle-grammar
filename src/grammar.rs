@@ -19,6 +19,10 @@ pub type RuleId = u32;
 
 /// One token class of `lexical.ebnf`; the tokenizer produces exactly these.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "compiled-grammar",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub enum Class {
     Number,
     Word,
@@ -28,6 +32,10 @@ pub enum Class {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "compiled-grammar",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub enum Sym {
     Word(String),
     Mark(char),
@@ -36,6 +44,10 @@ pub enum Sym {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(
+    feature = "compiled-grammar",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct Alternative {
     pub syms: Vec<Sym>,
     /// For each `sym`, the hole it fills, if any.
@@ -43,6 +55,10 @@ pub struct Alternative {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(
+    feature = "compiled-grammar",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct Rule {
     pub name: String,
     pub alternatives: Vec<Alternative>,
@@ -454,6 +470,15 @@ pub fn load(lexical: &str, syntax: &[(&str, &str)], schema: &Schema) -> Result<G
             rule.alternatives.clear();
         }
     }
+    grammar.fingerprint = fingerprint(&sources);
+    if let Some((_, source)) = syntax.iter().find(|(name, _)| *name == "labels") {
+        grammar.presentation_labels = presentation_labels(source)?;
+    }
+    initialize(&mut grammar)?;
+    Ok(grammar)
+}
+
+pub(crate) fn initialize(grammar: &mut Grammar) -> Result<(), String> {
     for rule in &grammar.rules {
         // These validated literals classify presentation omission only. They
         // cannot change tokenization of unrelated rules or proper names.
@@ -468,10 +493,9 @@ pub fn load(lexical: &str, syntax: &[(&str, &str)], schema: &Schema) -> Result<G
             }
         }
     }
-    finish(&mut grammar)?;
+    finish(grammar)?;
     grammar.literal_reads = LiteralReads::build(&grammar.rules);
     grammar.terminal_prefixes = TerminalPrefixes::build(&grammar.rules, &mut grammar.starts);
-    grammar.fingerprint = fingerprint(&sources);
     grammar.literal_inverses = literal_inverse::prepare(&grammar.rules);
     grammar.conjunction_inverses =
         conjunction_inverse::prepare(&grammar.rules, &grammar.literal_inverses);
@@ -481,10 +505,7 @@ pub fn load(lexical: &str, syntax: &[(&str, &str)], schema: &Schema) -> Result<G
     grammar.list_shapes = crate::list_shapes::ListShapes::build(&grammar.rules, &inverses);
     grammar.word_table = crate::rtoken::WordTable::build(&grammar.rules);
     grammar.words = crate::render::words::Words::build(&grammar.rules);
-    if let Some((_, source)) = syntax.iter().find(|(name, _)| *name == "labels") {
-        grammar.presentation_labels = presentation_labels(source)?;
-    }
-    Ok(grammar)
+    Ok(())
 }
 
 fn build_rule(
@@ -520,7 +541,7 @@ fn build_rule(
     Ok(())
 }
 
-fn fingerprint(source: &str) -> String {
+pub(crate) fn fingerprint(source: &str) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for byte in source.bytes() {
         hash = (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3);

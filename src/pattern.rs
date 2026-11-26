@@ -45,6 +45,10 @@ pub enum Args {
 
 /// An elaborated pattern: the serialized shape of an IR value, with holes.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "compiled-grammar",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub enum Pattern {
     Value(Value),
     Hole(String, Ty),
@@ -56,6 +60,10 @@ pub enum Pattern {
 
 /// One element of a list pattern.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "compiled-grammar",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub enum Item {
     One(Pattern),
     Splice(String, Ty),

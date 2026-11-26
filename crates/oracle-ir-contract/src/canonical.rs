@@ -61,10 +61,36 @@ mod tests;
 
 pub fn schema() -> Result<&'static Schema, String> {
     static SCHEMA: OnceLock<Result<Schema, String>> = OnceLock::new();
-    SCHEMA
-        .get_or_init(Schema::of_ir)
-        .as_ref()
-        .map_err(Clone::clone)
+    #[cfg(all(target_arch = "wasm32", feature = "compiled-schema"))]
+    let load = frozen_schema;
+    #[cfg(not(all(target_arch = "wasm32", feature = "compiled-schema")))]
+    let load = Schema::of_ir;
+    SCHEMA.get_or_init(load).as_ref().map_err(Clone::clone)
+}
+
+#[cfg(all(feature = "compiled-schema", any(target_arch = "wasm32", test)))]
+fn frozen_schema() -> Result<Schema, String> {
+    use crate::ir::SCHEMA_VERSION;
+    #[derive(serde::Deserialize)]
+    struct Descriptor {
+        schema_version: u32,
+        schema: Schema,
+    }
+    let source = crate::ir_schema::frozen_json(SCHEMA_VERSION).ok_or("missing frozen schema")?;
+    let descriptor: Descriptor = serde_json::from_str(source).map_err(|error| error.to_string())?;
+    if descriptor.schema_version != SCHEMA_VERSION {
+        return Err("frozen schema version mismatch".into());
+    }
+    Ok(descriptor.schema)
+}
+
+#[cfg(all(test, feature = "compiled-schema"))]
+#[test]
+fn frozen_runtime_schema_matches_the_source_contract() {
+    assert_eq!(
+        serde_json::to_value(frozen_schema().unwrap()).unwrap(),
+        serde_json::to_value(Schema::of_ir().unwrap()).unwrap()
+    );
 }
 
 /// Lists whose order carries no meaning.

@@ -9,6 +9,8 @@ use crate::tokens::{self, Names};
 use serde_json::{Value, json};
 
 mod card;
+#[cfg(feature = "compiled-grammar")]
+mod compiled;
 #[cfg(test)]
 mod spell_neighbors_tests;
 pub use card::{
@@ -207,7 +209,10 @@ impl Engine {
             .iter()
             .map(|(n, t)| (n.as_str(), t.as_str()))
             .collect();
-        let mut grammar = grammar::load(LEXICAL, &syntax, &schema)?;
+        Self::from_grammar(grammar::load(LEXICAL, &syntax, &schema)?)
+    }
+
+    fn from_grammar(mut grammar: Grammar) -> Result<Self, String> {
         let root = *grammar.names.get("card").ok_or("no card rule")?;
         let style = print_style();
         grammar.bind_style(&style);

@@ -9,7 +9,6 @@ use crate::model::{
 };
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::OnceLock;
 
 pub(super) fn receipt(root: &Value, path: &[super::Step]) -> Result<Value, String> {
     fn at<'a>(mut value: &'a Value, path: &[super::Step]) -> Option<&'a Value> {
@@ -75,8 +74,7 @@ pub(super) fn receipt(root: &Value, path: &[super::Step]) -> Result<Value, Strin
 mod tests;
 
 fn schema() -> &'static Schema {
-    static S: OnceLock<Schema> = OnceLock::new();
-    S.get_or_init(|| Schema::of_ir().expect("coin schema"))
+    crate::model::canonical::schema().expect("coin schema")
 }
 fn ptr(path: &str, key: &str) -> String {
     format!("{path}/{}", key.replace('~', "~0").replace('/', "~1"))
