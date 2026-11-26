@@ -45,3 +45,24 @@ refusals before timing. It reports raw and Brotli quality 9 sizes, cold module
 loading and grammar initialization, linear memory before and after warm work,
 and per-call medians for parse, verified print and standalone verification. A
 second module path enables an interleaved comparison with the packed baseline.
+
+## Measurements
+
+Five interleaved runs in Node 22.22.1 used the same four texts and checked all
+their readings in both modules. The packed baseline compiled the full source
+grammar at startup. The slice had 127 rules and a 29,707-byte grammar table.
+
+| Measurement | Packed full grammar | Compiled guarded slice |
+| --- | ---: | ---: |
+| Raw Wasm | 13.00 MiB | 11.13 MiB |
+| Brotli quality 9 | 3.46 MiB | 2.06 MiB |
+| Cold module compile and instantiate | 70.9 ms | 49.4 ms |
+| Cold grammar initialization | 5,462.1 ms | 69.5 ms |
+| Linear memory after initialization and after warm work | 294.63 MiB | 7.63 MiB |
+| Warm parse | 19.3 ms | 9.3 ms |
+| Warm print including verification | 63.2 ms | 14.2 ms |
+| Beza warm print including verification | 49.4 ms | 14.8 ms |
+| Standalone verification of the edited Beza | 27.9 ms | 13.1 ms |
+
+Warm timings are per-call batch means with the median reported across runs.
+The compiled module's code section occupies about 8.84 MiB of the raw file.
