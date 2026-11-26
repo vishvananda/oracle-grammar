@@ -75,6 +75,13 @@ pattern. Contextual symbols, captures and rule calls use ordinary evaluation.
 Audit and diagnostic requests use ordinary evaluation to retain provenance and
 failure expectations.
 
+An index of shared terminal prefixes also covers mixed productions. It
+matches only deterministic, binding-free terminals from the validated lexical
+rules. It charges the original attempts in each alternative's grammar order,
+tracks the furthest token, and leaves child calls and reading limits in place.
+The compiler caps trie construction work and prefix length. Audit, diagnostics
+and parses with disabled productions use ordinary prefix matching.
+
 ## IR, context and identity
 
 The semantic contract is a typed, versioned model. Closed vocabularies use enums

@@ -11,7 +11,9 @@ use tabnas_ebnf::{Element, Kind, Production};
 mod conjunction_inverse;
 mod literal_inverse;
 mod literal_reads;
+mod terminal_prefixes;
 pub(crate) use literal_reads::LiteralReads;
+pub(crate) use terminal_prefixes::{Span as PrefixSpan, TerminalPrefixes};
 
 pub type RuleId = u32;
 
@@ -132,6 +134,7 @@ pub struct Grammar {
     /// Which alternatives can start at a token, for reading.
     pub starts: crate::starts::Starts,
     pub(crate) literal_reads: LiteralReads,
+    pub(crate) terminal_prefixes: TerminalPrefixes,
     /// Only declared, literal presentation labels may be stripped from rules text.
     pub presentation_labels: Vec<String>,
     /// How rules say the card, for printing.
@@ -467,6 +470,7 @@ pub fn load(lexical: &str, syntax: &[(&str, &str)], schema: &Schema) -> Result<G
     }
     finish(&mut grammar)?;
     grammar.literal_reads = LiteralReads::build(&grammar.rules);
+    grammar.terminal_prefixes = TerminalPrefixes::build(&grammar.rules, &mut grammar.starts);
     grammar.fingerprint = fingerprint(&sources);
     grammar.literal_inverses = literal_inverse::prepare(&grammar.rules);
     grammar.conjunction_inverses =

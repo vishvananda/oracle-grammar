@@ -29,6 +29,24 @@ pub struct Look {
     class: usize,
 }
 
+/// A terminal that produces no binding, with the same token keys as FIRST.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum PlainTerminal {
+    Named { key: u32, numeral: Option<u32> },
+    Class(usize),
+}
+
+impl PlainTerminal {
+    pub(crate) fn matches(self, look: Look) -> bool {
+        match self {
+            Self::Named { key, numeral } => look
+                .key
+                .is_some_and(|found| found == key || Some(found) == numeral),
+            Self::Class(class) => look.class == class,
+        }
+    }
+}
+
 /// The tokens some rule starts with: terminals by key, and open classes as a mask.
 #[derive(Debug, Default)]
 struct Set {
@@ -93,31 +111,38 @@ impl Starts {
         key
     }
 
-    /// The keys a terminal matches: a numeral is a word in the grammar, a number in a text.
-    fn terminal_keys(&mut self, sym: &Sym, out: &mut Vec<u32>) {
+    pub(crate) fn plain_terminal(&mut self, sym: &Sym) -> Option<PlainTerminal> {
         match sym {
             Sym::Word(word) => {
                 if !self.words.contains_key(word) {
                     let key = self.new_key(word_class(word));
                     self.words.insert(word.clone(), key);
                 }
-                out.push(self.words[word]);
-                if let Ok(number) = word.parse::<u32>() {
+                let numeral = word.parse::<u32>().ok().map(|number| {
                     if !self.numbers.contains_key(&number) {
                         let key = self.new_key(NUMBER);
                         self.numbers.insert(number, key);
                     }
-                    out.push(self.numbers[&number]);
-                }
+                    self.numbers[&number]
+                });
+                Some(PlainTerminal::Named {
+                    key: self.words[word],
+                    numeral,
+                })
             }
             Sym::Mark(mark) => {
                 if !self.marks.contains_key(mark) {
                     let key = self.new_key(MARK);
                     self.marks.insert(*mark, key);
                 }
-                out.push(self.marks[mark]);
+                Some(PlainTerminal::Named {
+                    key: self.marks[mark],
+                    numeral: None,
+                })
             }
-            Sym::Class(_) | Sym::Rule(_) => {}
+            Sym::Class(Class::SelfName) => Some(PlainTerminal::Class(SELF_NAME)),
+            Sym::Class(Class::Newline) => Some(PlainTerminal::Class(NEWLINE)),
+            Sym::Class(_) | Sym::Rule(_) => None,
         }
     }
 
@@ -141,7 +166,14 @@ impl Starts {
                         continue;
                     }
                 }
-                terminal => self.terminal_keys(terminal, &mut keys),
+                terminal => {
+                    if let Some(PlainTerminal::Named { key, numeral }) =
+                        self.plain_terminal(terminal)
+                    {
+                        keys.push(key);
+                        keys.extend(numeral);
+                    }
+                }
             }
             return (keys, open, false);
         }

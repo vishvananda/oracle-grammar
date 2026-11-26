@@ -1,11 +1,12 @@
 //! Evaluate a compiled terminal-only rule in grammar order.
-use super::{Parser, Rc, Reading, Value};
-use crate::grammar::{Class, Rule, Sym};
+use super::{Parser, Rc, Reading, Value, prefix::PrefixProgress};
+use crate::grammar::{Class, Rule, RuleId, Sym};
 use crate::tokens::Token;
 
 impl Parser<'_> {
     pub(super) fn literal_rule(
         &mut self,
+        id: RuleId,
         rule: &Rule,
         candidates: &[u32],
         at: usize,
@@ -14,9 +15,14 @@ impl Parser<'_> {
     ) -> Result<Vec<Reading>, String> {
         let mut readings: Vec<Reading> = Vec::new();
         let mut constant = None;
+        let prefixes = self.prefix_spans(id);
+        let mut previous = PrefixProgress::default();
         for index in candidates {
-            let mut pos = at;
-            for sym in &rule.alternatives[*index as usize].syms {
+            let Some(consumed) = self.prefix(prefixes, *index, at, &mut previous)? else {
+                continue;
+            };
+            let mut pos = at + consumed;
+            for sym in &rule.alternatives[*index as usize].syms[consumed..] {
                 self.counters.steps += 1;
                 if self.counters.steps > self.limits.steps {
                     return Err("step limit".into());

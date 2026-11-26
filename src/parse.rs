@@ -13,6 +13,7 @@ use std::rc::Rc;
 
 mod literals;
 mod memo;
+mod prefix;
 pub use memo::ParseMemo;
 
 #[derive(Clone)]
@@ -615,7 +616,7 @@ impl<'a> Parser<'a> {
             && !self.diagnostics
             && let Some(value) = grammar.literal_reads.value(rule, definition)
         {
-            let readings = self.literal_rule(definition, candidates, at, whole, value)?;
+            let readings = self.literal_rule(rule, definition, candidates, at, whole, value)?;
             return Ok(self.finish_rule((rule, at, depth, whole), saved, Rc::new(readings)));
         }
         // Direct zero-copy fast path for a single-candidate pass-through rule.
@@ -631,6 +632,19 @@ impl<'a> Parser<'a> {
             let child_readings = self.rule(*child, at, depth + 1, whole)?;
             return Ok(self.finish_rule((rule, at, depth, whole), saved, child_readings));
         }
+        let readings = self.eval_alternatives(rule, candidates, (at, depth, whole))?;
+        Ok(self.finish_rule((rule, at, depth, whole), saved, Rc::new(readings)))
+    }
+
+    fn eval_alternatives(
+        &mut self,
+        rule: RuleId,
+        candidates: &[u32],
+        (at, depth, whole): (usize, usize, bool),
+    ) -> Result<Vec<Reading>, String> {
+        let definition = &self.grammar.rules[rule as usize];
+        let prefixes = self.prefix_spans(rule);
+        let mut previous = prefix::PrefixProgress::default();
         let mut readings: Vec<Reading> = Vec::new();
         let tag_seeded = self.audit && crate::grammar::seeded(&definition.name);
         for index in candidates {
@@ -662,11 +676,14 @@ impl<'a> Parser<'a> {
                 }
                 continue;
             }
+            let Some(consumed) = self.prefix(prefixes, *index, at, &mut previous)? else {
+                continue;
+            };
             let mut partials: SmallVec<[Partial; 2]> = smallvec![Partial {
-                at,
+                at: at + consumed,
                 bindings: SmallVec::new(),
             }];
-            for (sym_idx, sym) in alternative.syms.iter().enumerate() {
+            for (sym_idx, sym) in alternative.syms.iter().enumerate().skip(consumed) {
                 let final_child = whole && sym_idx + 1 == alternative.syms.len();
                 let need_binding = definition.sem.is_none() || alternative.holes[sym_idx].is_some();
                 partials =
@@ -710,7 +727,7 @@ impl<'a> Parser<'a> {
                 return Err(format!("reading limit at {} token {at}", definition.name));
             }
         }
-        Ok(self.finish_rule((rule, at, depth, whole), saved, Rc::new(readings)))
+        Ok(readings)
     }
 
     fn advance(
