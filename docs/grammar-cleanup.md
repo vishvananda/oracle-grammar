@@ -54,3 +54,13 @@ every production and semantic annotation.
 The [repetition review](grammar-repetition-review.md) records the disposition
 of all 89 candidates after these passes, including the shared list changes and
 the remaining scope-sensitive cases.
+
+## Shared retirement fixtures
+
+The registered retirement cases that repeated verbatim now have one copy in
+the authored families or the `retirement-shared-*` suites. The shared suites
+group cases by the expected ability family, with a separate refusal suite.
+The case comparison covered every field, including source context, expected
+IR, compositional mode, and both print requirements. It preserved all 43,789
+distinct registered cases and removed 317 repeats. Cases with different
+operands or expectations retain their own assertions.
