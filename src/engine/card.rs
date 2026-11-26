@@ -2,7 +2,7 @@
 use super::{Engine, Refusal, bind_card, canonical_abilities, validate_abilities};
 use crate::model::ir::{Ability, Characteristics, ManaSymbol, Mechanic};
 use crate::model::ir_schema::Schema;
-use crate::model::mtg_types::{CardType, SubType};
+use crate::model::mtg_types::{CardType, SubType, SuperType};
 use crate::parse::{Counters, Parser, RuleSet};
 use crate::tokens::{self, Names};
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,9 @@ pub use surface::{AdventureReturnType, LayoutReminder};
 #[serde(tag = "kind", content = "args", deny_unknown_fields)]
 pub enum CardNote {
     ManaCost {
+        slot: usize,
+    },
+    AssistLimit {
         slot: usize,
     },
     /// The mana granted by all current basic land types, with no copied colors.
@@ -80,7 +83,6 @@ impl LayoutReminder {
                     && context.defense.is_some_and(|defense| defense >= 0)
             }
             Self::OngoingScheme => {
-                use crate::model::mtg_types::SuperType;
                 context
                     .card_types
                     .iter()
@@ -94,6 +96,16 @@ impl LayoutReminder {
                 .card_types
                 .iter()
                 .any(|ty| matches!(ty, CardType::Conspiracy)),
+            Self::LegendarySorcery => {
+                context
+                    .card_types
+                    .iter()
+                    .any(|ty| matches!(ty, CardType::Sorcery))
+                    && context
+                        .supertypes
+                        .iter()
+                        .any(|ty| matches!(ty, SuperType::Legendary))
+            }
         };
         matches
             .then_some(())
@@ -306,6 +318,7 @@ impl Engine {
         if surface.notes.len()
             + usize::from(surface.land_mana.is_some())
             + usize::from(surface.layout_reminder.is_some())
+            + usize::from(surface.assist_limit.is_some())
             > self.limits.depth
         {
             return Err(Refusal::Limit("card note limit".into()));
@@ -318,7 +331,17 @@ impl Engine {
             .map(|symbol| serde_json::to_value(symbol).expect("native mana symbol serializes"))
             .collect();
         let mut choices = vec![station_notes];
-        for note in surface.notes {
+        let mana_notes = surface
+            .notes
+            .into_iter()
+            .map(|symbol| (symbol, false))
+            .chain(
+                surface
+                    .assist_limit
+                    .into_iter()
+                    .map(|symbol| (symbol, true)),
+            );
+        for (note, assist) in mana_notes {
             let note = serde_json::to_value(note).map_err(|e| Refusal::Binding(e.to_string()))?;
             let mut slots = Vec::new();
             for (slot, symbol) in cost.iter().enumerate() {
@@ -327,7 +350,11 @@ impl Engine {
                     return Err(Refusal::Limit("card note work limit".into()));
                 }
                 if *symbol == note {
-                    slots.push(CardNote::ManaCost { slot });
+                    slots.push(if assist {
+                        CardNote::AssistLimit { slot }
+                    } else {
+                        CardNote::ManaCost { slot }
+                    });
                 }
             }
             if slots.is_empty() {
@@ -405,17 +432,25 @@ impl Engine {
             return Err("card note limit".into());
         }
         let mut notes = Vec::new();
+        let mut assist_limit = None;
         let mut land_colors = None;
         let mut layout_reminder = None;
         for note in &reading.notes {
             match note {
-                CardNote::ManaCost { slot } => {
+                CardNote::ManaCost { slot } | CardNote::AssistLimit { slot } => {
                     let symbol = context
                         .mana_cost
                         .as_ref()
                         .and_then(|cost| cost.get(*slot))
                         .ok_or("mana explanation references a missing mana-cost slot")?;
-                    notes.push(serde_json::to_value(symbol).map_err(|e| e.to_string())?);
+                    let symbol = serde_json::to_value(symbol).map_err(|e| e.to_string())?;
+                    if matches!(note, CardNote::AssistLimit { .. }) {
+                        if assist_limit.replace(symbol).is_some() {
+                            return Err("duplicate Assist reminder".into());
+                        }
+                    } else {
+                        notes.push(symbol);
+                    }
                 }
                 CardNote::StationPowerToughness { .. } => {}
                 CardNote::LandTypes => {
@@ -435,7 +470,7 @@ impl Engine {
         let land_mana = land_colors.map(|colors| json!({"colors":colors}));
         Ok(Self::native_surfaces(&reading.abilities, written)?
             .into_iter()
-            .map(|abilities| json!({"notes":notes,"land_mana":land_mana,"layout_reminder":layout_reminder,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
+            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"land_mana":land_mana,"layout_reminder":layout_reminder,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
             .collect())
     }
     /// A card's surfaces, with the views only a `written` text asks for when it does.

@@ -94,10 +94,10 @@ verb_base_quoted ::= create_quoted_operation
 
 create_quoted_operation ::= create_base_quoted | create_each_defined_leading_quoted
 
-/* Zero-loyalty activations that create tokens with quoted abilities print [0]:. */
+/* Zero-loyalty activations can create tokens with quoted abilities. */
 /* @prefer always */
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty(Constant(0))]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:$clause_imperative_quoted}} */
-loyalty_zero_create_quoted ::= "[" "0" "]" ":" clause_imperative_quoted
+loyalty_zero_create_quoted ::= loyalty_zero_heading ":" clause_imperative_quoted
 
 verbs_third_quoted ::= verb_third_tapped_quoted_list | verb_third_quoted_list | verbs_third_before_quoted
 
@@ -186,9 +186,24 @@ clause_continuous_grant_quoted ::= duration "," affected ("gains" | "gain") clos
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[...$change_pump, ...$closed_grants], duration:$duration, evaluation:Snapshot}}] */
 clause_continuous_pump_grant_quoted ::= duration "," affected change_pump "and" ("gains" | "gain") closed_grants
 
-closed_grants ::= closed_grant_mechanic_comma_and | closed_player_rule_pair | closed_activation_pair | closed_grant_word_ward | closed_grant_ability | closed_grant_keyword_prefix | closed_grant_exhaust | closed_grant_pair | closed_grants_oxford | closed_grant_keyword_comma | closed_unattach_payment_grant | closed_activation_aim_pair | closed_two_quoted_grants | closed_cast_player_damage_grant | closed_grant_keyword_comma_pair
+closed_grants ::= closed_grant_mechanic_comma_and | closed_player_rule_pair | closed_activation_pair | closed_grant_word_ward | closed_grant_ability | closed_grant_keyword_prefix | closed_grant_exhaust | closed_grant_pair | closed_grants_oxford | closed_grant_keyword_comma | closed_unattach_payment_grant | closed_activation_aim_pair | closed_two_quoted_grants | closed_cast_player_damage_grant | closed_grant_keyword_comma_pair | closed_prismatic_grant | closed_prismatic_and_quoted_grant
 /* @sem Change::[GrantAbility($token_quoted_sentence)] */
 closed_grant_ability ::= token_quoted_sentence
+
+/* Prismatic is a casting permission of the granted card. */
+/* @sem Ability::Casting(SpendAsThoughAnyType) */
+prismatic_casting_permission ::= "prismatic"
+/* @sem Change::[GrantAbility($prismatic_casting_permission)] */
+closed_prismatic_grant ::= prismatic_casting_permission "."
+/* @sem Change::[GrantAbility($prismatic_casting_permission), GrantAbility($token_quoted_sentence)] */
+closed_prismatic_and_quoted_grant ::= prismatic_casting_permission "and" token_quoted_sentence
+
+/* Spelling used by grants that already declare SpendAsThoughAnyType. */
+mana_spending_grant_words ::= mana_spending_quoted_words | prismatic_grant_words
+/* @sem () */
+mana_spending_quoted_words ::= '"' "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "this" "spell" "." '"'
+/* @sem () */
+prismatic_grant_words ::= "prismatic" "."
 /* @sem Change::[$grant_keyword, ...$closed_grants] */
 closed_grant_keyword_prefix ::= grant_keyword "and" closed_grants
 

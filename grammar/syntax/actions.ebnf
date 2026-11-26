@@ -2477,7 +2477,7 @@ instructions_duplicate_perpetual ::= conjure_duplicate_spell_hand "." "that" "ca
 conjure_duplicate_spell_hand ::= "conjure" counter_amount "duplicate" "of" "target" "spell" "into" "your" "hand"
 
 /* @sem Change::[GrantAbility(Casting(SpendAsThoughAnyType))] */
-duplicate_card_perpetual_changes ::= "gains" '"' "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "this" "spell" "." '"'
+duplicate_card_perpetual_changes ::= "gains" mana_spending_grant_words
 
 /* A selected hand-card set receives the quoted stack ability. */
 /* @sem Instruction::[Effect{result:@next, operation:$choose_hand_union}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Earlier{what:Selected}), changes:[$perpetual_cast_grant_once]}}] */
@@ -3429,14 +3429,20 @@ discard_hand_noncreature ::= "noncreature"
 discard_hand_filter ::= discard_hand_nonland | discard_hand_noncreature
 
 /* The chosen player conjures the discarded event card and grants its result an ability. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseValue(_{choosers:One(EventSubject), kind:Player, terms:_{options:[Players(OthersThan(EventSubject))], count:Exactly(Constant(1))}})}, Effect{result:@next, operation:$chosen_conjure_discarded}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[$discarded_perpetual_grant]}}] */
-discarded_duplicate_perpetual ::= "they" "choose" "another" "player" "." chosen_conjure_discarded "." "it" "perpetually" "gains" '"' discarded_perpetual_grant "." '"'
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue(_{choosers:One(EventSubject), kind:Player, terms:_{options:[Players(OthersThan(EventSubject))], count:Exactly(Constant(1))}})}, Effect{result:@next, operation:$chosen_conjure_discarded}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[$discarded_perpetual_grant_sentence]}}] */
+discarded_duplicate_perpetual ::= "they" "choose" "another" "player" "." chosen_conjure_discarded "." "it" "perpetually" "gains" discarded_perpetual_grant_sentence
 
 /* @sem Operation::Conjure{actor:One(Chosen), card:Duplicate(One(Query{objects:InZone{objects:One(Discarded), zone:Graveyard}, index:0})), count:Constant(1), destination:Hand{}} */
 chosen_conjure_discarded ::= "that" "player" "conjures" "a" "duplicate" "of" "that" "card" "into" "their" "hand"
 
 /* @sem Change::GrantAbility(Casting(SpendAsThoughAnyType)) */
 discarded_perpetual_grant ::= "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "this" "spell"
+
+discarded_perpetual_grant_sentence ::= discarded_perpetual_grant_quoted_sentence | prismatic_grant_sentence
+/* @sem $discarded_perpetual_grant */
+discarded_perpetual_grant_quoted_sentence ::= '"' discarded_perpetual_grant "." '"'
+/* @sem Change::GrantAbility($prismatic_casting_permission) */
+prismatic_grant_sentence ::= prismatic_casting_permission "."
 
 /* The return and delayed sacrifice both refer to this exact move's arrivals. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:$object_ref, affected:Objects(Transition{result:@prior, phase:After}), changes:$static_changes, duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Transition{result:0, phase:After}})}]}}}]} */
@@ -3452,14 +3458,14 @@ player_discard_conjure_right ::= players_each "discards" "their" "hand" "," "the
 
 /* The history set is limited to the players' hands and the preceding conjure. */
 /* @sem Instruction::Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone{scope:Players{zone:Hand, players:All}, kind:Card, filter:InSet(Earlier{what:Conjured})}, changes:[GrantAbility(Casting(SpendAsThoughAnyType))]}} */
-conjured_duplicates_spending ::= "the" "duplicates" "perpetually" "gain" '"' "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "this" "spell" "." '"'
+conjured_duplicates_spending ::= "the" "duplicates" "perpetually" "gain" mana_spending_grant_words
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$player_discard_conjure_right, $conjured_duplicates_spending]}} */
 spell_player_discard_conjure_spending ::= player_discard_conjure_right "." conjured_duplicates_spending
 
 /* The selection and its immediate result remain together for the anaphor. */
 /* @sem Instruction::[Effect{result:@next, operation:WithSelections{steps:[_{binding:@selection_id(0), objects:Zone{scope:Players{zone:Library, players:One(Target{slot:0, index:0})}, kind:Card, filter:Any}, chooser:Chance, count:AsManyAsCan(Constant(1))}], action:Conjure{actor:One(AbilityController), card:Duplicate(Prepared(@selection_id(0))), count:Constant(1), destination:Hand(CardArrival{counters:[], states:[]})}}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[GrantAbility(Casting(SpendAsThoughAnyType))]}}] */
-conjure_target_library_spending ::= "conjure" "a" "duplicate" "of" "a" "random" "card" "from" "their" "library" "into" "your" "hand" "." "it" "perpetually" "gains" '"' "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "this" "spell" "." '"'
+conjure_target_library_spending ::= "conjure" "a" "duplicate" "of" "a" "random" "card" "from" "their" "library" "into" "your" "hand" "." "it" "perpetually" "gains" mana_spending_grant_words
 
 /* @sem Instruction::[Effect{result:@next, operation:Discard{players:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:OpponentsOf(AbilityController)}), index:0}), amount:$card_count}}, Effect{result:@next, operation:PayCost{player:Target{slot:0, index:0}, cost:Cost{parts:[Discard{count:Constant(1), filter:Any}]}, optional:true}}] */
 target_opponent_discard_optional_extra ::= "target" "opponent" "discards" card_count "." "then" "they" "may" "discard" "an" "additional" "card"
@@ -6680,8 +6686,8 @@ payment_reveal_own_hand ::= "reveal" "your" "hand"
 /* @sem Vec<Instruction>::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$milled_return_filter}, count:Exactly(Constant(1)), constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}] */
 mill_optional_return_milled ::= "mill" card_count "." "you" "may" "put" "a" milled_return_filter "card" "from" "among" "the" "milled" "cards" "into" "your" "hand"
 
-/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:$mill_optional_return_milled}} */
-activated_mill_optional_return ::= "[" loyalty "]" ":" mill_optional_return_milled "."
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty_heading)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:$mill_optional_return_milled}} */
+activated_mill_optional_return ::= loyalty_heading ":" mill_optional_return_milled "."
 
 /* Scope the reflexive amount to this specific library-to-exile producer. */
 /* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:$card_filter}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:$recipients, amount:CountObjects(Transition{result:@marked, phase:Before}), preventable:true}}]}})}] */
@@ -12431,8 +12437,8 @@ activated_power_up_counter_type ::= "power-up" "—" cost ":" counter_pair_then_
 /* @sem Instruction::[ChooseOne{decider:AbilityController, options:[_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:Constant(1)}, _{recipients:Objects($affected_2), kind:$counter_kind_2, amount:Constant(1)}]}}]}, _{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected_2), kind:$counter_kind, amount:Constant(1)}, _{recipients:Objects($affected_2), kind:$counter_kind_3, amount:Constant(1)}]}}]}, _{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected_2), kind:$counter_kind, amount:Constant(1)}, _{recipients:Objects($affected_2), kind:$counter_kind_4, amount:Constant(1)}]}}]}, _{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected_2), kind:$counter_kind, amount:Constant(1)}, _{recipients:Objects($affected_2), kind:$counter_kind_5, amount:Constant(1)}]}}]}]}] */
 choose_target_counter_four_kinds ::= "choose" affected "." "put" "a" counter_kind "counter" "and" "a" "counter" "from" "among" counter_kind "," counter_kind "," counter_kind "," "or" counter_kind "on" affected
 
-/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Loyalty($loyalty)]}, limits:_{sorcery:true}, announcement:@announcement, body:_{instructions:$choose_target_counter_four_kinds}} */
-activated_loyalty_counter_choices ::= "[" loyalty "]" ":" choose_target_counter_four_kinds "."
+/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Loyalty($loyalty_heading)]}, limits:_{sorcery:true}, announcement:@announcement, body:_{instructions:$choose_target_counter_four_kinds}} */
+activated_loyalty_counter_choices ::= loyalty_heading ":" choose_target_counter_four_kinds "."
 
 /* @sem CounterKind::Named(SamuraiCounter) */
 training_counter_kind ::= "training"
@@ -12544,8 +12550,8 @@ copy_spell_other_opponents ::= "for" "each" "other" "opponent" "," "choose" "tha
 /* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:$event_next_cast_opponent_single, duration:$this_duration, announcement:@announcement, body:_{instructions:$copy_spell_other_opponents}, once:true}}] */
 clause_next_cast_copy_other_opponents ::= event_next_cast_opponent_single this_duration "," copy_spell_other_opponents
 
-/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:$loyalty_timed_trigger_clause}} */
-ability_loyalty_timed_trigger ::= "[" loyalty "]" ":" loyalty_timed_trigger_clause "."
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty_heading)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:$loyalty_timed_trigger_clause}} */
+ability_loyalty_timed_trigger ::= loyalty_heading ":" loyalty_timed_trigger_clause "."
 
 loyalty_timed_trigger_clause ::= clause_opponent_attack_timed_penalty | clause_selected_group_combat_trigger
 
@@ -14032,8 +14038,8 @@ event_subject_him_counters_then_grant ::= put_event_subject_him_counters "." eve
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:SetTapped{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:$target_up_to, filter:CardType(Land)})), tapped:false}}, Effect{result:@next, operation:$target_lands_retained_animation}]} */
 program_untap_lands_retained_animation ::= "untap" target_up_to "target" "lands" "." target_lands_retained_animation
 
-/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:$program_untap_lands_retained_animation} */
-activated_untap_lands_retained_animation ::= "[" loyalty "]" ":" program_untap_lands_retained_animation "."
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty_heading)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:$program_untap_lands_retained_animation} */
+activated_untap_lands_retained_animation ::= loyalty_heading ":" program_untap_lands_retained_animation "."
 
 /* The selected population, total-property cap, and X definition compose independently. */
 /* @sem Operation::WithSelections{steps:[_{binding:@selection_id(0), chooser:Players(One(AbilityController)), objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$other_graveyard_card_filter}), count:AnyNumber, constraints:[TotalProperty{property:$stat, comparison:LessOrEqual, amount:$value}]}], action:Move{objects:Prepared(@selection_id(0)), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}} */
@@ -20136,8 +20142,8 @@ exile_any_target_graveyard_cards ::= "any" "number" "of" "target" "cards" "from"
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:Move{objects:$exile_any_target_graveyard_cards, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:CountObjects(Transition{result:@marked, phase:Before}), production:$mana_production, choice:Once}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@marked, phase:After}, from:Exile, action:Either, filter:Any})], duration:$this_duration, evaluation:LiveObjects}}]} */
 program_exile_graveyard_mana_play ::= "exile" exile_any_target_graveyard_cards "." "add" mana_production "for" "each" "card" "exiled" "this" "way" "." "you" "may" "play" "those" "cards" this_duration
 
-/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:$program_exile_graveyard_mana_play} */
-activated_exile_graveyard_mana_play ::= "[" loyalty "]" ":" program_exile_graveyard_mana_play "."
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty_heading)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:$program_exile_graveyard_mana_play} */
+activated_exile_graveyard_mana_play ::= loyalty_heading ":" program_exile_graveyard_mana_play "."
 
 /* Milling targets uses the amount of the enclosing damage event. */
 /* @sem Operation::Mill{players:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:All, constraints:[]})), amount:$mill_cast_event_amount} */
@@ -21221,8 +21227,14 @@ other_permanent_or_spell_airbend_modes ::= "airbend" "up" "to" value other_airbe
 program_return_named_controlled ::= "return" "a" filter_phrase "named" SELF_NAME "you" "control" "to" "its" "owner's" "hand"
 
 /* The perpetual recipient is the single card produced by the draft. */
-/* @sem Instruction::[Effect{result:@next, operation:$draft_self_spellbook_card}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[$discarded_perpetual_grant, GrantAbility($quoted_perpetual_cast_trigger)]}}] */
-instructions_draft_cast_grants ::= draft_self_spellbook_card "." "that" "card" "perpetually" "gains" '"' discarded_perpetual_grant '"' "and" quoted_perpetual_cast_trigger
+/* @sem Instruction::[Effect{result:@next, operation:$draft_self_spellbook_card}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[$draft_cast_spending_grant, GrantAbility($quoted_perpetual_cast_trigger)]}}] */
+instructions_draft_cast_grants ::= draft_self_spellbook_card "." "that" "card" "perpetually" "gains" draft_cast_spending_grant "and" quoted_perpetual_cast_trigger
+
+draft_cast_spending_grant ::= draft_cast_spending_quoted | draft_cast_prismatic
+/* @sem $discarded_perpetual_grant */
+draft_cast_spending_quoted ::= '"' discarded_perpetual_grant '"'
+/* @sem Change::GrantAbility($prismatic_casting_permission) */
+draft_cast_prismatic ::= prismatic_casting_permission
 
 /* Each recipient is also the player whose draws are counted. */
 /* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Players(One(Bound(0))), amount:EventHistory{event:Player{event:Draws, players:One(Bound(0))}, window:ThisTurn, measure:Occurrences}, preventable:true}}]}}] */
@@ -21462,7 +21474,7 @@ player_plural_counter_number ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n
 
 /* The singular duplicate is the arrival of this conjure action. */
 /* @sem Instruction::[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Duplicate(One($object_ref)), count:Constant(1), destination:Hand(CardArrival{counters:[], states:[]})}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[GrantAbility(Casting(SpendAsThoughAnyType))]}}] */
-duplicate_hand_perpetual_spending ::= "conjure" "a" "duplicate" "of" object_ref "into" "your" "hand" "," "and" "the" "duplicate" "perpetually" "gains" '"' "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "this" "spell" "." '"'
+duplicate_hand_perpetual_spending ::= "conjure" "a" "duplicate" "of" object_ref "into" "your" "hand" "," "and" "the" "duplicate" "perpetually" "gains" mana_spending_grant_words
 
 /* The payment gates the complete duplicate-and-grant instruction sequence. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$operation}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:$cost, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$duplicate_hand_perpetual_spending}, otherwise:Program{}}]} */
@@ -23138,7 +23150,7 @@ distributed_x_damage_and_changes ::= self_explicit_ref "deals" "X" "damage" "div
 
 /* The explicit X loyalty payment binds the distributed amount and target count. */
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty(Multiply(Constant(-1), AnnouncedX))]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:$distributed_x_damage_and_changes}} */
-activated_distributed_x_damage_changes ::= "[" "−" "X" "]" ":" distributed_x_damage_and_changes "."
+activated_distributed_x_damage_changes ::= loyalty_x_decrease_heading ":" distributed_x_damage_and_changes "."
 
 /* The event player remains the damage recipient. */
 /* @sem Operation::DealDamage{source:$self_explicit_ref, recipients:Players(One(EventSubject)), amount:$number, preventable:true} */
@@ -24745,7 +24757,7 @@ activated_loyalty_zero_history_draw_pref_h3 ::= activated_loyalty_zero_history_d
 
 /* @prefer always */
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Loyalty(Expr::Constant(0))]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:$program_history_draw_after} */
-activated_loyalty_zero_history_draw_h3 ::= "[" "0" "]" ":" program_history_draw_after "."
+activated_loyalty_zero_history_draw_h3 ::= loyalty_zero_heading ":" program_history_draw_after "."
 
 /* Put a counter for each matching permanent that entered under your control this turn. */
 /* @prefer always */

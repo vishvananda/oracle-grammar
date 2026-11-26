@@ -2,7 +2,7 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
-line_contextual_reminder ::= line_contextual_ability | line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder
+line_contextual_reminder ::= line_contextual_ability | line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder
 /* @sem Ability::[@contextual_reminder($ability, $ability_explanation)] */
 line_contextual_ability ::= ability "(" ability_explanation ")"
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
@@ -12,6 +12,11 @@ remindable_line ::= line_prototype | line_named_flash_if | line_pair_blocks_bloc
 /* The activation and the explanation designate the same source creature. */
 /* @sem Ability::[WithPresentation{reminder:true, ability:Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateRegenerationShields{objects:One(Source)}}]}}}] */
 line_explicit_self_regeneration_reminder ::= cost ":" "regenerate" "this" "creature" "." "(" self_regeneration_rule_words ")"
+
+/* An explanation following a payment belongs to the ability's own cost. */
+/* @sem Ability::[@cost_symbol_reminder($ability_cost_note_head, $cost_note)] */
+line_cost_symbol_reminder ::= ability_cost_note_head cost_note
+ability_cost_note_head ::= ability | keyword_equip | keyword_equip_once_word | keyword_flashback
 
 /* The explanation repeats a numeric operand from the native action. */
 /* @sem Ability::[@measured_reminder($ability, $measured_explanation)] */
@@ -23,6 +28,8 @@ measured_explanation ::= monstrosity_explanation | mill_number_explanation | inc
     | earthbend_measured_explanation | bolster_measured_explanation | amass_zombies_measured_explanation | amass_orcs_measured_explanation
     | expend_four_measured_explanation | mill_them_measured_explanation | mill_them_one_explanation | mill_any_actor_measured_explanation
     | mill_controller_one_explanation | collect_evidence_measured_explanation
+    | scry_defining_one_explanation | scry_defining_many_explanation
+    | firebending_granted_explanation | monstrosity_x_explanation | collect_evidence_short_explanation
 /* @sem Operand::List([Text(Monstrosity), Number($number_words)]) */
 monstrosity_explanation ::= "if" "this" "creature" "isn't" "monstrous" "," "put" number_words "+" "1" "/" "+" "1" "counters" "on" "it" "and" "it" "becomes" "monstrous" "."
 /* @sem Operand::List([Text(Mill), Number(@agree($number_words, $number_words_2))]) */
@@ -85,6 +92,21 @@ mill_controller_one_explanation ::= "put" "the" "top" "card" "of" "your" "librar
 
 /* @sem Operand::List([Text(CollectEvidence), Number(@agree($number_digits, $number_digits_2))]) */
 collect_evidence_measured_explanation ::= "to" "collect" "evidence" number_digits "," "exile" "cards" "with" "total" "mana" "value" number_digits "or" "greater" "from" "your" "graveyard" "."
+
+/* @sem Operand::List([Text(Scry), Number(Constant(1))]) */
+scry_defining_one_explanation ::= "to" "scry" "1" "," "look" "at" "the" "top" "card" "of" "your" "library" "," "then" "you" "may" "put" "that" "card" "on" "the" "bottom" "."
+
+/* @sem Operand::List([Text(Scry), Number(@agree($number_digits, $scry_look_many))]) */
+scry_defining_many_explanation ::= "to" "scry" number_digits "," scry_look_many
+
+/* @sem Operand::List([Text(Firebending), Number(@agree($number_digits, $firebending_reminder_mana))]) */
+firebending_granted_explanation ::= "whenever" "a" "creature" "with" "firebending" number_digits "attacks" "," "add" firebending_reminder_mana "." "this" "mana" "lasts" "until" "end" "of" "combat" "."
+
+/* @sem Operand::List([Text(Monstrosity), Number($number_x)]) */
+monstrosity_x_explanation ::= "if" "this" "creature" "isn't" "monstrous" "," "put" number_x "+" "1" "/" "+" "1" "counters" "on" "it" "and" "it" "becomes" "monstrous" "."
+
+/* @sem Operand::List([Text(CollectEvidence), Number($number_digits)]) */
+collect_evidence_short_explanation ::= "exile" "cards" "with" "total" "mana" "value" number_digits "or" "greater" "from" "your" "graveyard" "."
 
 ability_explanation ::= stun_explanation | modified_explanation | historic_explanation
     | shield_explanation | venture_explanation | learn_explanation | explore_explanation
@@ -205,8 +227,8 @@ reminder_activated_limited ::= cost ":" reminder_program_sentence activation_lim
    operand is still explicit, so it cannot attach to an unrelated program. */
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$proliferate_action}]}} */
 reminder_activated_trailing ::= cost ":" proliferate_action "." activation_limits "." "(" proliferate_explanation "." ")"
-/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Loyalty($loyalty)]}, limits:_{sorcery:true}, announcement:@announcement, body:$reminder_program_sentence} */
-reminder_loyalty ::= "[" loyalty "]" ":" reminder_program_sentence
+/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Loyalty($loyalty_heading)]}, limits:_{sorcery:true}, announcement:@announcement, body:$reminder_program_sentence} */
+reminder_loyalty ::= loyalty_heading ":" reminder_program_sentence
 /* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$reminder_program_sentence} */
 reminder_triggered ::= event_clause "," reminder_program_sentence
 /* @sem Ability::Triggered{event:$event_clause, intervening_if:$condition, limits:_{}, announcement:@announcement, body:$reminder_program_sentence} */

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 #[serde(deny_unknown_fields)]
 pub(super) struct CardSurface {
     pub notes: Vec<ManaSymbol>,
+    pub assist_limit: Option<ManaSymbol>,
     pub station: bool,
     pub station_explicit: bool,
     pub station_declaration: Option<StationSource>,
@@ -24,6 +25,7 @@ pub enum LayoutReminder {
     Siege,
     OngoingScheme,
     FaceUpConspiracy,
+    LegendarySorcery,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]

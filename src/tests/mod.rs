@@ -934,6 +934,7 @@ mod lowered_statics;
 mod nonlegendary;
 mod print_frontier;
 mod print_style;
+mod raw_reminders;
 mod reference_prints;
 mod reported_corrections;
 mod reported_issue_contracts;

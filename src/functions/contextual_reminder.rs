@@ -7,7 +7,12 @@ mod evidence;
 pub(crate) fn is_symbol(name: &str) -> bool {
     matches!(
         name,
-        "contextual_reminder" | "measured_reminder" | "cycling_reminder" | "chapter_reminder"
+        "contextual_reminder"
+            | "measured_reminder"
+            | "cycling_reminder"
+            | "chapter_reminder"
+            | "cost_symbol_reminder"
+            | "awaken_reminder"
     )
 }
 
@@ -292,6 +297,7 @@ fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
                 "Toxic" => "Toxic",
                 "Renown" => "Renown",
                 "Bloodthirst" => "Bloodthirst",
+                "Firebending" => "Firebending",
                 _ => return None,
             };
             Some((kind, args.get("amount")?))
@@ -444,8 +450,8 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
     } else {
         ability
     };
-    let matches = if name == "cycling_reminder" {
-        evidence::cycling_claim(inner).is_some_and(|claim| &claim == explanation)
+    let matches = if let Some(candidates) = typed_claims(name, inner) {
+        candidates.iter().any(|candidate| candidate == explanation)
     } else {
         let (topic, amount) = claim(explanation).ok_or("invalid contextual reminder claim")?;
         visit_mentions(inner, amount.is_some(), |found, quantity| {
@@ -512,8 +518,8 @@ pub(crate) fn unify<'p, 'v>(
 }
 
 fn claims(name: &str, ability: &Value) -> Vec<Value> {
-    if name == "cycling_reminder" {
-        return evidence::cycling_claim(ability).into_iter().collect();
+    if let Some(claims) = typed_claims(name, ability) {
+        return claims;
     }
     let mut found = Vec::new();
     visit_mentions(ability, name == "measured_reminder", |kind, amount| {
@@ -531,4 +537,13 @@ fn claims(name: &str, ability: &Value) -> Vec<Value> {
             }
         })
         .collect()
+}
+
+fn typed_claims(name: &str, ability: &Value) -> Option<Vec<Value>> {
+    Some(match name {
+        "cycling_reminder" => evidence::cycling_claim(ability).into_iter().collect(),
+        "cost_symbol_reminder" => evidence::cost_symbols(ability).cloned().collect(),
+        "awaken_reminder" => evidence::awaken_claim(ability).into_iter().collect(),
+        _ => return None,
+    })
 }

@@ -606,10 +606,10 @@ fn contextual_reminder_call(
     if *ty != ability_type && *ty != Ty::Vec(Box::new(ability_type)) {
         return Err("@contextual_reminder produces one ability or an ability list".into());
     }
-    let claim = if matches!(name, "contextual_reminder" | "chapter_reminder") {
-        "String"
-    } else {
-        "Operand"
+    let claim = match name {
+        "contextual_reminder" | "chapter_reminder" => "String",
+        "cost_symbol_reminder" => "ManaSymbol",
+        _ => "Operand",
     };
     Ok(Pattern::Symbol(
         name.into(),

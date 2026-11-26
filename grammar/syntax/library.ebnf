@@ -2428,8 +2428,8 @@ selected_revealed_card_destination ::= opponent_owned_graveyard | opponent_owned
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:$ordered_cards, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Transition{result:@prior, phase:After}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:$play_that_card_permission}] */
 clause_exile_choose_play ::= "exile" ordered_cards "." "choose" "one" "." play_that_card_permission
 
-/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$operation}, ...$clause_exile_choose_play]}} */
-activated_action_exile_choose_play ::= "[" loyalty "]" ":" operation "." clause_exile_choose_play "."
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty_heading)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$operation}, ...$clause_exile_choose_play]}} */
+activated_action_exile_choose_play ::= loyalty_heading ":" operation "." clause_exile_choose_play "."
 
 /* A reveal-until selection and its exile arrival retain the same filter. */
 /* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:$reveal_qualified_filter, count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$reveal_qualified_filter}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[[Named(TimeCounter), $counter_amount]], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:EffectOn{subject:Objects(One(Result{result:@prior, phase:After, index:0})), effects:[Term{family:ExiledCardEffect, form:AddAbilityIfItDoesntHaveIt, operands:[Ability(Mechanic{mechanic:BasicSuspend})]}]}}, Effect{result:@next, operation:$revealed_exile_rest_bottom}] */
@@ -3511,8 +3511,8 @@ search_graveyard_library_exile_cast ::= "search" "your" "graveyard" "and" "libra
 search_choice_any_number_colored_spells ::= "any" "number" "of" adjective_color filter_instant_and_or_sorcery "cards"
 
 /* The trailing operation composes independently with the scoped search sequence. */
-/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:[...$search_graveyard_library_exile_cast, Effect{result:@next, operation:$mana_add_counted}]}} */
-loyalty_search_exile_cast_mana ::= "[" loyalty "]" ":" search_graveyard_library_exile_cast "." mana_add_counted "."
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty_heading)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:[...$search_graveyard_library_exile_cast, Effect{result:@next, operation:$mana_add_counted}]}} */
+loyalty_search_exile_cast_mana ::= loyalty_heading ":" search_graveyard_library_exile_cast "." mana_add_counted "."
 
 /* The permission is tied to the immediately preceding random library selection
    and its move to the owner's hand; its reference is that move's arrival. */
@@ -5983,12 +5983,12 @@ mill_take_origin_milled ::= "from" "among" "the" "milled" "cards"
 /* @sem Instruction::[Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), kind:$counter_kind, amount:Count(Exactly($counter_amount)), selection:_{player:AbilityController, count:AnyNumber}}]}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:CountersRemoved(@prior), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any})], duration:$this_duration, evaluation:LiveObjects}}] */
 remove_each_exile_count_play ::= "remove" counter_amount counter_kind "counter" "from" "each" "of" "any" "number" "of" affected "." "exile" "that" "many" "cards" "from" "the" "top" "of" "your" "library" "." "you" "may" "play" "them" this_duration
 
-/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:[...$remove_each_exile_count_play]}} */
-loyalty_remove_each_exile_play ::= "[" loyalty "]" ":" remove_each_exile_count_play "."
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty_heading)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:[...$remove_each_exile_count_play]}} */
+loyalty_remove_each_exile_play ::= loyalty_heading ":" remove_each_exile_count_play "."
 
 /* @prefer always */
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty(Constant(0))]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:[...$remove_each_exile_count_play]}} */
-loyalty_zero_remove_each_exile_play ::= "[" "0" "]" ":" remove_each_exile_count_play "."
+loyalty_zero_remove_each_exile_play ::= loyalty_zero_heading ":" remove_each_exile_count_play "."
 
 /* The comparison is valid only in the immediate branch of this exact reveal. */
 /* @sem Condition::Compare{left:CountObjects(Matching{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, filter:Shares{property:ManaValues, with:$object_ref}}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
@@ -9429,8 +9429,8 @@ spell_seek_shared_color_reduction ::= clause_seek_shared_color "." "for" "each" 
 /* @sem Program::Program{instructions:[ForEachPlayer{players:$players_singular, binding:0, body:_{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}), count:$card_count, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any}, terms:_{cost:Free}})], duration:$duration, evaluation:LiveObjects}}]} */
 player_library_exile_free_play_program ::= players_singular "exiles" "the" "top" card_count "of" "their" "library" "." duration "," "you" "may" "play" "those" "cards" "without" "paying" "their" "mana" "costs"
 
-/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:$player_library_exile_free_play_program} */
-loyalty_player_library_exile_free_play ::= "[" loyalty "]" ":" player_library_exile_free_play_program "."
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty_heading)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:$player_library_exile_free_play_program} */
+loyalty_player_library_exile_free_play ::= loyalty_heading ":" player_library_exile_free_play_program "."
 
 /* One selection can satisfy either the described filter or the named card. */
 /* @sem SearchChoice::SearchChoice{filter:@or($filter_phrase, ObjectFilter::Name($referenced_card_name)), count:UpTo(Constant(1))} */

@@ -4,7 +4,11 @@ event ::= event_filtered_batch_attacks_opponent | event_self_and_counted_subtype
 event_once ::= event_self_enters | event_self_dies | event_self_leaves
 
 /* @sem EventSpec::ZoneChange{objects:$event_self, to:Battlefield} */
-event_self_enters ::= event_self ("enters" | "enter")
+event_self_enters ::= event_self ("enters" | "enter") battlefield_entry_zone?
+
+/* A named battlefield destination spells out the same entry event. */
+/* @sem () */
+battlefield_entry_zone ::= "the" "battlefield"
 
 /* @sem EventSpec::ZoneChange{objects:$event_self, from:Battlefield, to:Graveyard} */
 event_self_dies ::= event_self "dies"
@@ -40,20 +44,20 @@ event_a ::= ("a" | "an") filter_phrase
 event_another ::= "another" filter_phrase
 
 /* @sem EventSpec::ZoneChange{objects:$event_object, to:Battlefield} */
-event_enters ::= event_object "enters"
+event_enters ::= event_object "enters" battlefield_entry_zone?
 
 /* The native player event retains the written controller restriction in its
    object filter. Its object binding is the entrant, not that controller. */
 event_controlled_enters ::= controlled_entry_prefix | controlled_entry_your_suffix | controlled_entry_opponent_suffix
 
 /* @sem EventSpec::Player{event:EntersUnderControl, players:All, objects:$controlled_entrant} */
-controlled_entry_prefix ::= controlled_entrant "enters"
+controlled_entry_prefix ::= controlled_entrant "enters" battlefield_entry_zone?
 
 /* @sem EventSpec::Player{event:EntersUnderControl, players:All, objects:@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)))} */
-controlled_entry_your_suffix ::= ("a" | "an") filter_phrase "enters" "under" "your" "control"
+controlled_entry_your_suffix ::= ("a" | "an") filter_phrase "enters" battlefield_entry_zone? "under" "your" "control"
 
 /* @sem EventSpec::Player{event:EntersUnderControl, players:All, objects:@and($filter_phrase, ObjectFilter::ControlledBy(OpponentsOf(PlayerRef::AbilityController)))} */
-controlled_entry_opponent_suffix ::= ("a" | "an") filter_phrase "enters" "under" "an" "opponent's" "control"
+controlled_entry_opponent_suffix ::= ("a" | "an") filter_phrase "enters" battlefield_entry_zone? "under" "an" "opponent's" "control"
 
 /* Original lowering forms still print from edited/source IR. The pinned native
    canonicalizer proves when they share the normal form above; parsing retains
@@ -76,13 +80,13 @@ sticker_put_ability ::= "ability"
 event_you_place_sticker ::= "you" "place" "a" "sticker"
 
 /* @sem EventSpec::Player{event:EntersUnderControl, players:One(PlayerRef::AbilityController), objects:$controlled_entrant} */
-controlled_entry_prefix_original ::= controlled_entrant "enters"
+controlled_entry_prefix_original ::= controlled_entrant "enters" battlefield_entry_zone?
 
 /* @sem EventSpec::Player{event:EntersUnderControl, players:One(PlayerRef::AbilityController), objects:$filter_phrase} */
-controlled_entry_your_suffix_original ::= ("a" | "an") filter_phrase "enters" "under" "your" "control"
+controlled_entry_your_suffix_original ::= ("a" | "an") filter_phrase "enters" battlefield_entry_zone? "under" "your" "control"
 
 /* @sem EventSpec::Player{event:EntersUnderControl, players:OpponentsOf(PlayerRef::AbilityController), objects:$filter_phrase} */
-controlled_entry_opponent_suffix_original ::= ("a" | "an") filter_phrase "enters" "under" "an" "opponent's" "control"
+controlled_entry_opponent_suffix_original ::= ("a" | "an") filter_phrase "enters" battlefield_entry_zone? "under" "an" "opponent's" "control"
 
 /* @sem EventSpec::@either_event(EventSpec::ZoneChange{objects:$event_self, to:Battlefield}, EventSpec::Player{event:EntersUnderControl, players:One(PlayerRef::AbilityController), objects:$controlled_entrant_another}) */
 event_controlled_self_or_enters_original ::= event_self "or" controlled_entrant_another "enters"
@@ -90,7 +94,7 @@ event_controlled_self_or_enters_original ::= event_self "or" controlled_entrant_
 /* The same normal form composes below a batch wrapper; EventGroup still names
    exactly this event's entrants, and quantity remains a count of that group. */
 /* @sem EventSpec::Batch{event:Player{event:EntersUnderControl, players:All, objects:$controlled_entry_plural_filter}, per:Whole} */
-event_many_controlled_enter ::= "one" "or" "more" controlled_entry_plural_filter "enter"
+event_many_controlled_enter ::= "one" "or" "more" controlled_entry_plural_filter "enter" battlefield_entry_zone?
 
 controlled_entry_plural_filter ::= controlled_entry_plural_plain | controlled_entry_plural_modified
 controlled_entry_controller ::= modifier_you_control | modifier_opponent_controls | modifier_opponents_control | modifier_player_controls | modifier_they_control
@@ -453,7 +457,7 @@ event_discard_many ::= "you" "discard" "one" "or" "more" "cards"
 event_sacrifice_many ::= "you" "sacrifice" "one" "or" "more" event_many
 
 /* @sem EventSpec::Batch{event:ZoneChange{objects:$filter_plural, to:Battlefield}, per:Whole} */
-event_many_enter ::= "one" "or" "more" filter_plural "enter"
+event_many_enter ::= "one" "or" "more" filter_plural "enter" battlefield_entry_zone?
 
 /* @sem EventSpec::@either_event(EventSpec::Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:$spell_filter}, EventSpec::Spell{event:Copy, players:One(PlayerRef::AbilityController), spells:$spell_filter}) */
 event_cast_or_copy ::= "you" "cast" "or" "copy" spell_filter
@@ -1196,7 +1200,7 @@ event_card_put_into_your_graveyard ::= "a" filter_phrase "card" "is" "put" "into
 event_commit_crime ::= "you" "commit" "a" "crime"
 
 /* @sem EventSpec::AnyOf([ZoneChange{objects:SameObject($object_ref), to:Battlefield}, Object{event:Specializes, objects:SameObject($object_ref)}]) */
-event_enters_or_specializes ::= object_ref "enters" "or" "specializes"
+event_enters_or_specializes ::= object_ref "enters" battlefield_entry_zone? "or" "specializes"
 
 /* @sem EventSpec::ZoneChange{objects:AllOf([OwnedBy(OpponentsOf(AbilityController)), Not(Token)]), to:Graveyard} */
 event_card_put_into_opponent_graveyard ::= "a" "card" "is" "put" "into" "an" "opponent's" "graveyard" "from" "anywhere"
@@ -6451,7 +6455,7 @@ granted_controlled_greater_stat_death ::= "when" "a" noun "you" "control" "with"
 
 /* A controlled entrant expressed as a zone change, preserving the entrant as subject. */
 /* @sem EventSpec::ZoneChange{objects:$controlled_entrant, to:Battlefield} */
-event_controlled_entrant_zone_change ::= controlled_entrant "enters"
+event_controlled_entrant_zone_change ::= controlled_entrant "enters" battlefield_entry_zone?
 
 /* @sem EventSpec::$event_controlled_entrant_zone_change */
 whenever_controlled_entrant_zone_change ::= "whenever" event_controlled_entrant_zone_change
