@@ -1,7 +1,8 @@
 //! Native face distribution: every input occurrence has an explicit outcome.
 //! Source characteristics are read independently of reference IR. Printing is
 //! deliberately a separate gate; these exports claim parsing and validation.
-use crate::engine::{CardReading, Engine, Refusal};
+use crate::engine::{CardNote, CardReading, Engine, LayoutReminder, Refusal};
+use crate::model::mtg_types::CardType;
 use crate::model::{canonical, ir, validate};
 use serde_json::{Value, json};
 
@@ -16,6 +17,8 @@ pub struct SourceFace {
     pub name: String,
     pub text: String,
     pub source: Value,
+    /// The other face's printed card types, for verifying an Adventure note.
+    pub adventure_partner_types: Vec<CardType>,
     pub context: Result<(ir::Characteristics, crate::engine::PrintedPowerToughness), String>,
 }
 
@@ -87,6 +90,29 @@ pub fn outcome(engine: &Engine, face: &SourceFace) -> Value {
         let parsed = engine
             .parse_card_with_source(&face.name, &face.text, &context)
             .map_err(refusal)?;
+        for reading in &parsed.readings {
+            for note in &reading.notes {
+                let matches = match note {
+                    CardNote::LayoutReminder(LayoutReminder::Adventure(kind)) => {
+                        face.identity["layout"] == "adventure"
+                            && face
+                                .adventure_partner_types
+                                .iter()
+                                .any(|ty| kind.matches(ty))
+                    }
+                    CardNote::LayoutReminder(LayoutReminder::Room) => {
+                        face.identity["layout"] == "split"
+                    }
+                    _ => true,
+                };
+                if !matches {
+                    return Err((
+                        "source_context",
+                        "layout reminder disagrees with the source record".into(),
+                    ));
+                }
+            }
+        }
         let readings = cards(&face.name, &context.characteristics, parsed.readings)
             .map_err(|why| ("validation", why))?;
         if readings.is_empty() {

@@ -2,6 +2,7 @@
 use super::{Engine, Refusal, bind_card, canonical_abilities, validate_abilities};
 use crate::model::ir::{Characteristics, ManaSymbol};
 use crate::model::ir_schema::Schema;
+use crate::model::mtg_types::{CardType, SubType};
 use crate::parse::{Counters, Parser, RuleSet};
 use crate::tokens::{self, Names};
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,7 @@ pub(crate) mod station;
 mod surface;
 pub use station::{CardInputContext, PrintedPowerToughness, StationAnimationBox};
 use surface::CardSurface;
+pub use surface::{AdventureReturnType, LayoutReminder};
 
 /// A reference into current characteristics, never a retained mana operand.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -24,10 +26,41 @@ pub enum CardNote {
     },
     /// The mana granted by all current basic land types, with no copied colors.
     LandTypes,
+    LayoutReminder(LayoutReminder),
     StationPowerToughness {
         ability: usize,
         stage: usize,
     },
+}
+
+impl LayoutReminder {
+    fn check(self, context: &Characteristics) -> Result<(), String> {
+        let matches = match self {
+            Self::Adventure(_) => {
+                context
+                    .subtypes
+                    .iter()
+                    .any(|ty| matches!(ty, SubType::Adventure))
+                    && context
+                        .card_types
+                        .iter()
+                        .any(|kind| matches!(kind, CardType::Instant | CardType::Sorcery))
+            }
+            Self::Room => {
+                context
+                    .subtypes
+                    .iter()
+                    .any(|ty| matches!(ty, SubType::Room))
+                    && context
+                        .card_types
+                        .iter()
+                        .any(|ty| matches!(ty, CardType::Enchantment))
+            }
+        };
+        matches
+            .then_some(())
+            .ok_or_else(|| "layout reminder disagrees with the face's type line".into())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -212,7 +245,11 @@ impl Engine {
         };
         let surface: CardSurface = serde_json::from_value(value)
             .map_err(|why| Refusal::Binding(format!("typed card surface: {why}")))?;
-        if surface.notes.len() + usize::from(surface.land_mana.is_some()) > self.limits.depth {
+        if surface.notes.len()
+            + usize::from(surface.land_mana.is_some())
+            + usize::from(surface.layout_reminder.is_some())
+            > self.limits.depth
+        {
             return Err(Refusal::Limit("card note limit".into()));
         }
         let cost: Vec<Value> = context
@@ -275,6 +312,12 @@ impl Engine {
                 notes.push(CardNote::LandTypes);
             }
         }
+        if let Some(reminder) = surface.layout_reminder {
+            reminder.check(context).map_err(Refusal::Binding)?;
+            for notes in &mut choices {
+                notes.push(CardNote::LayoutReminder(reminder));
+            }
+        }
         let abilities =
             serde_json::to_value(surface.abilities).map_err(|e| Refusal::Binding(e.to_string()))?;
         Ok(choices
@@ -298,6 +341,7 @@ impl Engine {
         }
         let mut notes = Vec::new();
         let mut land_colors = None;
+        let mut layout_reminder = None;
         for note in &reading.notes {
             match note {
                 CardNote::ManaCost { slot } => {
@@ -315,12 +359,18 @@ impl Engine {
                     }
                     land_colors = Some(land_mana::colors(context)?);
                 }
+                CardNote::LayoutReminder(reminder) => {
+                    reminder.check(context)?;
+                    if layout_reminder.replace(*reminder).is_some() {
+                        return Err("duplicate layout reminder".into());
+                    }
+                }
             }
         }
         let land_mana = land_colors.map(|colors| json!({"colors":colors}));
         Ok(Self::native_surfaces(&reading.abilities, written)?
             .into_iter()
-            .map(|abilities| json!({"notes":notes,"land_mana":land_mana,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
+            .map(|abilities| json!({"notes":notes,"land_mana":land_mana,"layout_reminder":layout_reminder,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
             .collect())
     }
     /// A card's surfaces, with the views only a `written` text asks for when it does.

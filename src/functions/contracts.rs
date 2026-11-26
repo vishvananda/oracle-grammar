@@ -590,6 +590,22 @@ fn class_levels_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Patter
     ))
 }
 
+fn contextual_reminder_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    let [ability, explanation] = args else {
+        return Err("@contextual_reminder needs an ability and an explanation".into());
+    };
+    if *ty != Ty::Named("Ability".into()) {
+        return Err("@contextual_reminder produces Ability".into());
+    }
+    Ok(Pattern::Symbol(
+        "contextual_reminder".into(),
+        vec![
+            elaborate(ability, ty, schema)?,
+            elaborate(explanation, &Ty::Named("String".into()), schema)?,
+        ],
+    ))
+}
+
 fn optional_scope_call(
     name: &str,
     args: &[Syntax],
@@ -799,6 +815,7 @@ fn specialized_call(
             )))
         }
         "class_levels" => class_levels_call(args, ty, schema).map(Some),
+        "contextual_reminder" => contextual_reminder_call(args, ty, schema).map(Some),
         "saga_final_chapter" => {
             let expected = Ty::Vec(Box::new(Ty::Named("Ability".into())));
             let [chapters, number] = args else {

@@ -3,11 +3,11 @@
 //! a hole binds a child's value, never an omitted constraint.
 use crate::functions::target_scopes::unify as unify_targets;
 use crate::functions::{
-    agreed, applied, conjunction, continuous_parts, either_event, entering, incremented, negated,
-    product, saga_chapters, substituted, subtype_name, unify_agree, unify_and, unify_apply,
-    unify_continuous_parts, unify_either_event, unify_negate, unify_plus_one, unify_subtype_name,
-    unify_times, unify_token_abilities, unify_where, unify_zone, with_token_abilities,
-    zone_card_members,
+    agreed, applied, conjunction, contextual_reminder, continuous_parts, either_event, entering,
+    incremented, negated, product, saga_chapters, substituted, subtype_name, unify_agree,
+    unify_and, unify_apply, unify_continuous_parts, unify_either_event, unify_negate,
+    unify_plus_one, unify_subtype_name, unify_times, unify_token_abilities, unify_where,
+    unify_zone, with_token_abilities, zone_card_members,
 };
 use crate::model::ir_schema::{Fields, Schema, Ty, TypeDef};
 use serde_json::{Map, Value};
@@ -592,6 +592,9 @@ impl Pattern {
                     ("saga_final_chapter", [chapters, number]) => {
                         return saga_chapters::agree(chapters, number);
                     }
+                    ("contextual_reminder", [ability, explanation]) => {
+                        return contextual_reminder::attach(ability, explanation);
+                    }
                     ("and_sequence", [head, tail]) => {
                         return crate::functions::optional_scope::sequence(head, tail);
                     }
@@ -846,15 +849,7 @@ impl Pattern {
                 return id.map_or_else(Vec::new, |_| vec![bindings]);
             }
             "return_ref" => return reference_symbols::return_ref(args, value, bindings),
-            "selection" => {
-                if value["$sym"] != "selection" {
-                    return Vec::new();
-                }
-                return match (args.first(), value["args"].get(0)) {
-                    (Some(pattern), Some(step)) => pattern.unify(step, bindings),
-                    _ => Vec::new(),
-                };
-            }
+            "selection" => return reference_symbols::selection(args, value, bindings),
             "target_contrast" if value.get("$sym").is_none() => {
                 return match args {
                     [fallback, _domain] => fallback.unify(value, bindings),
@@ -935,6 +930,7 @@ impl Pattern {
             }
             "class_levels" => return crate::functions::class_levels::unify(args, value, bindings),
             "saga_final_chapter" => return saga_chapters::unify(args, value, bindings),
+            "contextual_reminder" => return contextual_reminder::unify(args, value, bindings),
             "and_sequence"
             | "then_sequence"
             | "optional_then"

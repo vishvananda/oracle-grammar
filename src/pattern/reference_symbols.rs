@@ -2,6 +2,20 @@
 use super::{Bindings, Pattern, Value};
 use std::borrow::Cow;
 
+pub(super) fn selection<'p, 'v>(
+    args: &'p [Pattern],
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    if value["$sym"] != "selection" {
+        return Vec::new();
+    }
+    match (args.first(), value["args"].get(0)) {
+        (Some(pattern), Some(step)) => pattern.unify(step, bindings),
+        _ => Vec::new(),
+    }
+}
+
 pub(super) fn is_context(name: &str) -> bool {
     matches!(
         name,

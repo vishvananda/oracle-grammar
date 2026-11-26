@@ -73,39 +73,41 @@ pub(super) fn can_merge(items: &[Value]) -> bool {
 pub(super) fn written_splits(surfaces: &[Value]) -> Vec<Value> {
     const MAX_SPLITS: usize = 64;
     let mut results = Vec::new();
-    'surfaces: for surface in surfaces {
-        let Some(abilities) = surface.as_array() else {
-            continue;
-        };
-        for (index, ability) in abilities.iter().enumerate() {
-            if ability["kind"] != "WithPresentation" {
-                continue;
-            }
-            let Some(instructions) = ordinary_instructions(ability) else {
+    // Keep the single-reminder views first under the shared cap.
+    for both_reminded in [false, true] {
+        for surface in surfaces {
+            let Some(abilities) = surface.as_array() else {
                 continue;
             };
-            if instructions.len() > 16 {
-                continue;
-            }
-            let spell = &ability["args"]["ability"];
-            for split in 1..instructions.len() {
-                let (prefix, suffix) = instructions.split_at(split);
-                for label_first in [true, false] {
-                    let mut first = spell.clone();
-                    let mut second = spell.clone();
-                    first["args"]["body"]["instructions"] = json!(prefix);
-                    second["args"]["body"]["instructions"] = json!(suffix);
-                    let labelled = if label_first { &mut first } else { &mut second };
-                    let mut wrapper = ability.clone();
-                    wrapper["args"]["ability"] = std::mem::take(labelled);
-                    *labelled = wrapper;
-                    let mut split_view = abilities.clone();
-                    split_view.splice(index..=index, [first, second]);
-                    let view = Value::Array(split_view);
-                    if !results.contains(&view) {
-                        results.push(view);
-                        if results.len() == MAX_SPLITS {
-                            break 'surfaces;
+            for (index, ability) in abilities.iter().enumerate() {
+                if ability["kind"] != "WithPresentation"
+                    || (both_reminded && ability["args"]["reminder"] != true)
+                {
+                    continue;
+                }
+                let Some(instructions) = ordinary_instructions(ability) else {
+                    continue;
+                };
+                if instructions.len() > 16 {
+                    continue;
+                }
+                for split in 1..instructions.len() {
+                    for label_first in [true, false] {
+                        let parts = split_paragraph(
+                            ability,
+                            instructions,
+                            split,
+                            label_first,
+                            both_reminded,
+                        );
+                        let mut split_view = abilities.clone();
+                        split_view.splice(index..=index, parts);
+                        let view = Value::Array(split_view);
+                        if !results.contains(&view) {
+                            results.push(view);
+                            if results.len() == MAX_SPLITS {
+                                return results;
+                            }
                         }
                     }
                 }
@@ -113,4 +115,31 @@ pub(super) fn written_splits(surfaces: &[Value]) -> Vec<Value> {
         }
     }
     results
+}
+
+fn split_paragraph(
+    ability: &Value,
+    instructions: &[Value],
+    split: usize,
+    label_first: bool,
+    both_reminded: bool,
+) -> [Value; 2] {
+    let (prefix, suffix) = instructions.split_at(split);
+    let spell = &ability["args"]["ability"];
+    let mut first = spell.clone();
+    let mut second = spell.clone();
+    first["args"]["body"]["instructions"] = json!(prefix);
+    second["args"]["body"]["instructions"] = json!(suffix);
+    let (labelled, other) = if label_first {
+        (&mut first, &mut second)
+    } else {
+        (&mut second, &mut first)
+    };
+    let mut wrapper = ability.clone();
+    wrapper["args"]["ability"] = std::mem::take(labelled);
+    *labelled = wrapper;
+    if both_reminded {
+        *other = json!({"kind":"WithPresentation","args":{"ability":std::mem::take(other),"label":null,"reminder":true}});
+    }
+    [first, second]
 }

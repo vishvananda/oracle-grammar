@@ -1,6 +1,7 @@
 //! Conservative original-provider metadata conversion, independent of gold IR.
 use super::SourceFace;
 use crate::engine::PrintedPowerToughness;
+use crate::model::mtg_types::CardType;
 use crate::model::{
     ir,
     ir_schema::{Fields, Schema, TypeDef},
@@ -82,14 +83,18 @@ fn integer(face: &Value, field: &str) -> Result<Option<i32>, String> {
     }
 }
 
-fn characteristics(face: &Value) -> Result<(ir::Characteristics, PrintedPowerToughness), String> {
-    let mut out = crate::engine::empty_card_characteristics();
+fn type_line(face: &Value) -> Result<(&str, &str), String> {
     let types = face["type_line"]
         .as_str()
         .ok_or("missing source type_line")?;
-    let (head, tail) = types
+    Ok(types
         .split_once('—')
-        .map_or((types, ""), |(a, b)| (a.trim(), b.trim()));
+        .map_or((types, ""), |(a, b)| (a.trim(), b.trim())))
+}
+
+fn characteristics(face: &Value) -> Result<(ir::Characteristics, PrintedPowerToughness), String> {
+    let mut out = crate::engine::empty_card_characteristics();
+    let (head, tail) = type_line(face)?;
     for word in head.split_whitespace() {
         if let Ok(value) = vocabulary("SuperType", word) {
             out.supertypes.push(value);
@@ -138,6 +143,21 @@ fn characteristics(face: &Value) -> Result<(ir::Characteristics, PrintedPowerTou
     Ok((out, printed))
 }
 
+fn adventure_partner_types(layout: &str, faces: &[Value], face_index: usize) -> Vec<CardType> {
+    if layout != "adventure" || faces.len() != 2 {
+        return Vec::new();
+    }
+    let Some((head, _)) = faces
+        .get(face_index ^ 1)
+        .and_then(|face| type_line(face).ok())
+    else {
+        return Vec::new();
+    };
+    head.split_whitespace()
+        .filter_map(|word| vocabulary("CardType", word).ok())
+        .collect()
+}
+
 pub(super) fn scryfall(records: &[Value]) -> Result<Vec<SourceFace>, String> {
     let mut out = Vec::new();
     for (record_index, record) in records.iter().enumerate() {
@@ -176,6 +196,7 @@ pub(super) fn scryfall(records: &[Value]) -> Result<Vec<SourceFace>, String> {
             out.push(SourceFace {
                 identity: json!({"provider_id":id,"record_index":record_index,"face_index":face_index,"layout":layout,"record_name":record["name"]}),
                 name, text, source, context,
+                adventure_partner_types: adventure_partner_types(layout, faces, face_index),
             });
         }
     }

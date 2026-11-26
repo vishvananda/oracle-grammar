@@ -9,6 +9,7 @@ pub(crate) mod capture_amount;
 pub(crate) mod class_levels;
 pub(crate) mod computed_condition;
 pub(crate) mod conditional;
+pub(crate) mod contextual_reminder;
 mod continuous;
 pub(crate) mod copy_subject;
 mod costs;

@@ -14,7 +14,8 @@ mod compiled;
 #[cfg(test)]
 mod spell_neighbors_tests;
 pub use card::{
-    CardInputContext, CardNote, CardReading, ParsedCard, PrintedPowerToughness, StationAnimationBox,
+    AdventureReturnType, CardInputContext, CardNote, CardReading, LayoutReminder, ParsedCard,
+    PrintedPowerToughness, StationAnimationBox,
 };
 /// Empty native characteristics for source-context discovery without inventing stats.
 pub fn empty_card_characteristics() -> crate::model::ir::Characteristics {

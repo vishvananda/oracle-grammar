@@ -205,6 +205,18 @@ fn presentation_keeps_native_meaning_and_exact_wording() {
             None,
             true,
         ),
+        (
+            "When this creature enters, tap target creature an opponent controls and put a stun counter on it.",
+            "When this creature enters, tap target creature an opponent controls and put a stun counter on it. (If a permanent with a stun counter would become untapped, remove one from it instead.)",
+            None,
+            true,
+        ),
+        (
+            "Tap target creature and put three stun counters on it.\nScry 1.",
+            "Tap target creature and put three stun counters on it. (If a permanent with a stun counter would become untapped, remove one from it instead.)\nScry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+            None,
+            true,
+        ),
     ] {
         let name = "Synthetic example";
         let faces = scryfall(&[raw("one", name, text), raw("two", name, plain)]).unwrap();
@@ -249,6 +261,7 @@ fn unsupported_presentation_cannot_hide_rules_or_contradict_operands() {
     let cases = [
         "Uncatalogued heading — Draw a card.",
         "Partner (Draw a card.)",
+        "Draw a card. (If a permanent with a stun counter would become untapped, remove one from it instead.)",
         "Create a Food token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
         "Scry 2. (Look at the top card of your library. You may put that card on the bottom.)",
         "Crew 2 (Tap any number of creatures you control with total power 3 or more: This Vehicle becomes an artifact creature until end of turn.)",
@@ -260,6 +273,59 @@ fn unsupported_presentation_cannot_hide_rules_or_contradict_operands() {
         let row = outcome(engine, &face);
         assert_eq!(row["status"], "refused", "{}: {row}", face.text);
     }
+}
+
+#[test]
+fn layout_reminders_bind_to_the_native_face_and_source_record() {
+    let engine = crate::test_support::engine();
+    let adventure =
+        "Draw a card. (Then exile this card. You may cast the creature later from exile.)";
+    let room = "When you unlock this door, draw a card.\n(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)";
+    let records = [
+        json!({"oracle_id":"adventure","layout":"adventure","name":"Creature // Quest","card_faces":[
+            {"name":"Creature","type_line":"Creature — Human","power":"1","toughness":"1"},
+            {"name":"Quest","type_line":"Sorcery — Adventure","oracle_text":adventure}
+        ]}),
+        json!({"oracle_id":"room","layout":"split","name":"Library // Hall","card_faces":[
+            {"name":"Library","type_line":"Enchantment — Room","oracle_text":room},
+            {"name":"Hall","type_line":"Enchantment — Room"}
+        ]}),
+    ];
+    let faces = scryfall(&records).unwrap();
+    for (face, note) in [
+        (
+            &faces[1],
+            LayoutReminder::Adventure(crate::engine::AdventureReturnType::Creature),
+        ),
+        (&faces[2], LayoutReminder::Room),
+    ] {
+        let row = outcome(engine, face);
+        assert_eq!(row["status"], "unique", "{row}");
+        let reading = CardReading {
+            abilities: row["readings"][0]["card"]["abilities"].clone(),
+            notes: vec![CardNote::LayoutReminder(note)],
+        };
+        assert_eq!(row["readings"][0]["notes"], json!(reading.notes));
+        let context = &face.context.as_ref().unwrap().0;
+        let trail = engine
+            .card_key_of(&face.name, &reading, context, &face.text, true)
+            .unwrap()
+            .expect("exact layout reminder trail");
+        assert_eq!(
+            engine
+                .print_card_trail(&face.name, &reading, context, &trail)
+                .unwrap()
+                .as_deref(),
+            Some(face.text.as_str())
+        );
+    }
+
+    let mut wrong = records[0].clone();
+    wrong["card_faces"][0]["type_line"] = json!("Artifact");
+    let wrong = scryfall(&[wrong]).unwrap();
+    assert_eq!(outcome(engine, &wrong[1])["stage"], "source_context");
+    let wrong = scryfall(&[raw("ordinary", "Quest", adventure)]).unwrap();
+    assert_eq!(outcome(engine, &wrong[0])["stage"], "binding");
 }
 
 #[test]
