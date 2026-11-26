@@ -157,6 +157,18 @@ pub struct Parsed {
     pub counters: Counters,
 }
 
+/// Rank an already parsed set using caller-provided context. Higher scores
+/// come first, ties keep parser order, and every reading appears in the view.
+/// This works with both ability readings and readings with card-level notes.
+pub fn rank_readings_by<T, Score: Ord>(
+    readings: &[T],
+    mut score: impl FnMut(&T) -> Score,
+) -> Vec<&T> {
+    let mut ranked: Vec<_> = readings.iter().collect();
+    ranked.sort_by_cached_key(|reading| std::cmp::Reverse(score(reading)));
+    ranked
+}
+
 impl Engine {
     pub fn load() -> Result<Self, String> {
         Self::load_with(&[])
