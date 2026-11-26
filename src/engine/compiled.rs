@@ -80,8 +80,11 @@ impl Engine {
                 })
                 .collect();
             rules.push(Rule {
+                name: rule.name.clone(),
                 alternatives,
-                ..rule.clone()
+                sem: rule.sem.clone(),
+                ty: rule.ty.clone(),
+                prefer: rule.prefer.clone(),
             });
         }
         Table {
@@ -145,8 +148,8 @@ impl Engine {
         Ok(())
     }
 
-    /// Load a compiler-produced table. There is no EBNF or schema-source parse
-    /// on this path. Native schema validation still checks constructed IR.
+    /// Load a compiler-produced table without reading EBNF. The Wasm build
+    /// uses frozen schema descriptors. Native validation checks constructed IR.
     pub fn from_compiled(bytes: &[u8]) -> Result<Self, String> {
         if bytes.len() > BYTES {
             return Err("compiled grammar exceeds byte limit".into());
@@ -159,9 +162,10 @@ impl Engine {
             return Err("compiled grammar version, schema or lexical mismatch".into());
         }
         table.validate()?;
+        let source = std::str::from_utf8(bytes).map_err(|error| error.to_string())?;
         let mut grammar = Grammar {
             rules: table.rules,
-            fingerprint: table.fingerprint,
+            fingerprint: format!("compiled-{}", grammar::fingerprint(source)),
             ..Grammar::default()
         };
         for (id, rule) in grammar.rules.iter().enumerate() {
