@@ -141,6 +141,19 @@ replacing a published version. GitHub release immutability can lock final assets
 - Current `inspect` is a bounded diagnostic, and `score` compares against a
   reference. Neither is yet the native face release exporter described here.
 
+## Deferred optimized Wasm build
+
+Prototype a standalone Oracle-to-AST and AST-to-Oracle module with grammar and
+schema tables compiled at build time. Start with guarded triggers, including
+Beza, and generate both directions from the existing `@sem` declarations.
+Preserve all supported readings and verify printed text by reparsing it, including
+when printing edited AST operands.
+
+Measure raw and Brotli module size, cold initialization, linear memory, and
+warm parse, print, and verification time. The packed-source prototype measured
+13.00 MiB raw and 3.46 MiB with Brotli, with about five seconds of initialization
+in Node. Use it as the comparison baseline for the compiled runtime.
+
 ## Primary documentation
 
 - [Cargo publishing](https://doc.rust-lang.org/cargo/reference/publishing.html)
