@@ -2,6 +2,15 @@
 use crate::pattern::{Bindings, Pattern};
 use serde_json::{Value, json};
 
+mod evidence;
+
+pub(crate) fn is_symbol(name: &str) -> bool {
+    matches!(
+        name,
+        "contextual_reminder" | "measured_reminder" | "cycling_reminder" | "chapter_reminder"
+    )
+}
+
 fn historic_filter(value: &Value) -> bool {
     value.as_array().is_some_and(|items| {
         items.len() == 3
@@ -165,6 +174,9 @@ fn marker(value: &Value) -> Option<&'static str> {
             Some("Suspect") => Some("Suspect"),
             Some("Manifest") => Some("Manifest"),
             Some("ManifestDread") => Some("ManifestDread"),
+            Some("Proliferate") => Some("Proliferate"),
+            Some("Forage") => Some("Forage"),
+            Some("PhaseOut") => Some("PhaseOut"),
             Some("Goad") if args["action"]["Goad"]["until"].is_null() => Some("Goad"),
             Some("Exert") => Some("Exert"),
             _ => None,
@@ -245,7 +257,7 @@ fn marker(value: &Value) -> Option<&'static str> {
         {
             Some("TargetedAbility")
         }
-        _ => rules_token(value),
+        _ => rules_token(value).or_else(|| evidence::mention(value)),
     }
 }
 
@@ -259,6 +271,18 @@ fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
                 "Discover" => "Discover",
                 "Incubate" => "Incubate",
                 "Adapt" => "Adapt",
+                "Earthbend" => "Earthbend",
+                "Bolster" => "Bolster",
+                "CollectEvidence" => "CollectEvidence",
+                "Amass" => {
+                    let amass = &action["Amass"];
+                    let topic = match amass["creature_type"].as_str()? {
+                        "Zombie" => "AmassZombies",
+                        "Orc" => "AmassOrcs",
+                        _ => return None,
+                    };
+                    return Some((topic, amass.get("amount")?));
+                }
                 _ => return None,
             };
             Some((topic, action.get(topic)?.get("amount")?))
@@ -275,18 +299,23 @@ fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
         Some("Mill") => Some(("Mill", args.get("amount")?)),
         Some("Scry") => Some(("Scry", args.get("amount")?)),
         Some("Surveil") => Some(("Surveil", args.get("amount")?)),
-        _ => None,
+        _ => evidence::measurement(value),
     }
     .filter(|(_, amount)| !amount.is_null())
 }
 
-fn controller_mill(value: &Value) -> Option<&Value> {
+fn mill_recipient(value: &Value) -> Option<(&'static str, &Value)> {
     let args = &value["args"];
-    (value["kind"] == "Mill"
-        && args["players"]["kind"] == "One"
-        && args["players"]["args"]["kind"] == "AbilityController")
-        .then(|| args.get("amount"))
-        .flatten()
+    if value["kind"] != "Mill" {
+        return None;
+    }
+    let players = &args["players"];
+    let topic = if players["kind"] == "One" && players["args"]["kind"] == "AbilityController" {
+        "ControllerMill"
+    } else {
+        "OtherMill"
+    };
+    Some((topic, args.get("amount")?))
 }
 
 fn ordinary_activation(ability: &Value) -> bool {
@@ -320,8 +349,8 @@ fn visit_mentions<'a>(
         if let Some(object) = value.as_object() {
             let found = if measured {
                 measurement(value).is_some_and(|(topic, amount)| visit(topic, Some(amount)))
-                    || controller_mill(value)
-                        .is_some_and(|amount| visit("ControllerMill", Some(amount)))
+                    || mill_recipient(value)
+                        .is_some_and(|(topic, amount)| visit(topic, Some(amount)))
             } else {
                 marker(value).is_some_and(|topic| visit(topic, None))
             };
@@ -374,8 +403,10 @@ fn visit_mentions<'a>(
     }
 
     // Direct keyword reminders already have a native keyword-level placement.
+    let ability = evidence::unscoped(ability);
     ability["kind"] != "Keyword" && walk(ability, measured, 0, &mut 8192, &mut visit)
         || !measured && ordinary_activation(ability) && visit("InstantActivation", None)
+        || !measured && evidence::root_mentions(ability, |topic| visit(topic, None))
 }
 
 fn last_ability(value: &Value) -> Option<&Value> {
@@ -406,18 +437,28 @@ fn claim(explanation: &Value) -> Option<(&str, Option<&Value>)> {
         .then_some((topic["args"].as_str()?, Some(&amount["args"])))
 }
 
-pub(crate) fn attach(value: &Value, explanation: &Value) -> Result<Value, String> {
+pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<Value, String> {
     let ability = last_ability(value).ok_or("reminder needs a bounded nonempty ability line")?;
     let inner = if ability["kind"] == "WithPresentation" {
         &ability["args"]["ability"]
     } else {
         ability
     };
-    let (topic, amount) = claim(explanation).ok_or("invalid contextual reminder claim")?;
-    if !visit_mentions(inner, amount.is_some(), |found, quantity| {
-        found == topic && quantity == amount
-    }) {
+    let matches = if name == "cycling_reminder" {
+        evidence::cycling_claim(inner).is_some_and(|claim| &claim == explanation)
+    } else {
+        let (topic, amount) = claim(explanation).ok_or("invalid contextual reminder claim")?;
+        visit_mentions(inner, amount.is_some(), |found, quantity| {
+            found == topic && quantity == amount
+        })
+    };
+    if !matches {
         return Err("reminder has no matching operand in this ability".into());
+    }
+    // The chapter list is a list of triggers. The owning Saga can carry a
+    // presentation wrapper, but the individual chapter is kept as a trigger.
+    if name == "chapter_reminder" {
+        return Ok(value.clone());
     }
     let result = if ability["kind"] == "WithPresentation" {
         let mut attached = ability.clone();
@@ -441,6 +482,13 @@ pub(crate) fn unify<'p, 'v>(
     let Some(wrapped) = last_ability(value) else {
         return Vec::new();
     };
+    if name == "chapter_reminder" {
+        return claims(name, wrapped)
+            .iter()
+            .flat_map(|claim| explanation.unify_made(claim, &bindings))
+            .flat_map(|binding| ability.unify(value, binding))
+            .collect();
+    }
     if wrapped["kind"] != "WithPresentation" || wrapped["args"]["reminder"] != true {
         return Vec::new();
     }
@@ -452,26 +500,35 @@ pub(crate) fn unify<'p, 'v>(
     } else {
         &without_reminder
     };
-    let mut found = Vec::new();
-    visit_mentions(inner, name == "measured_reminder", |kind, amount| {
-        if !found.contains(&(kind, amount)) {
-            found.push((kind, amount));
-        }
-        false
-    });
     let source = replace_last(value, source.clone());
     let mut solutions = Vec::new();
-    for (kind, amount) in found {
-        let claim = match amount {
-            None => Value::from(kind),
-            Some(amount) => {
-                json!({"kind":"List","args":[{"kind":"Text","args":kind},{"kind":"Number","args":amount}]})
-            }
-        };
+    for claim in claims(name, inner) {
         for matched in explanation.unify_made(&claim, &bindings) {
             solutions.extend(ability.unify_made(&source, &matched));
             solutions.extend(ability.unify(value, matched));
         }
     }
     solutions
+}
+
+fn claims(name: &str, ability: &Value) -> Vec<Value> {
+    if name == "cycling_reminder" {
+        return evidence::cycling_claim(ability).into_iter().collect();
+    }
+    let mut found = Vec::new();
+    visit_mentions(ability, name == "measured_reminder", |kind, amount| {
+        if !found.contains(&(kind, amount)) {
+            found.push((kind, amount));
+        }
+        false
+    });
+    found
+        .into_iter()
+        .map(|(kind, amount)| match amount {
+            None => Value::from(kind),
+            Some(amount) => {
+                json!({"kind":"List","args":[{"kind":"Text","args":kind},{"kind":"Number","args":amount}]})
+            }
+        })
+        .collect()
 }

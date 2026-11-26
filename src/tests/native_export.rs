@@ -397,6 +397,91 @@ fn mechanic_reminders_verify_repeated_amounts_and_costs() {
 }
 
 #[test]
+fn typecycling_reminder_agrees_on_payment_and_search() {
+    let engine = crate::test_support::engine();
+    let context = crate::engine::empty_card_characteristics();
+    let name = "Synthetic";
+    for (cycling, noun) in [("Islandcycling", "an Island"), ("Swampcycling", "a Swamp")] {
+        let text = format!(
+            "{cycling} {{2}} ({{2}}, Discard this card: Search your library for {noun} card, reveal it, put it into your hand, then shuffle.)"
+        );
+        let reading = &engine.parse_card(name, &text, &context).unwrap().readings[0];
+        let key = engine
+            .card_key_of(name, reading, &context, &text, true)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            engine
+                .print_card_trail(name, reading, &context, &key)
+                .unwrap()
+                .as_deref(),
+            Some(text.as_str())
+        );
+        for bad in [text.replace("({2}", "({3}"), text.replace(noun, "a Plains")] {
+            assert!(engine.parse_card(name, &bad, &context).is_err());
+        }
+        let mut edited = reading.clone();
+        *edited
+            .abilities
+            .pointer_mut("/0/args/ability/args/ability/args/cost/parts/0/Mana/0/Generic")
+            .unwrap() = json!(3);
+        assert_eq!(
+            engine
+                .print_card_keyed(name, &edited, &context, &[])
+                .unwrap()
+                .unwrap(),
+            text.replace("{2}", "{3}")
+        );
+    }
+}
+
+#[test]
+fn earthbend_and_copy_explanations_check_current_operands() {
+    let engine = crate::test_support::engine();
+    let context = crate::engine::empty_card_characteristics();
+    let name = "Synthetic";
+    let earthbend = "When this creature dies, earthbend 2. (Target land you control becomes a 0/0 creature with haste that's still a land. Put two +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.)";
+    let copy = "Whenever you cast a creature spell, copy it. (The copy becomes a token.)";
+    for (text, from, to) in [
+        (earthbend, "Put two", "Put three"),
+        (copy, "a creature", "an instant"),
+    ] {
+        let parsed = engine.parse_card(name, text, &context);
+        assert!(parsed.is_ok(), "{text}: {parsed:?}");
+        assert!(
+            engine
+                .parse_card(name, &text.replace(from, to), &context)
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn saga_chapter_reminder_keeps_the_chapter_trigger() {
+    let engine = crate::test_support::engine();
+    let context = crate::engine::empty_card_characteristics();
+    let name = "Synthetic";
+    let text = "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI, II — Create a 2/2 green Alien Salamander creature token with islandwalk. (It can't be blocked as long as defending player controls an Island.)\nIII — Draw a card.";
+    let reading = &engine.parse_card(name, text, &context).unwrap().readings[0];
+    let key = engine
+        .card_key_of(name, reading, &context, text, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine
+            .print_card_trail(name, reading, &context, &key)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+    assert!(
+        engine
+            .parse_card(name, &text.replace("an Island", "a Swamp"), &context)
+            .is_err()
+    );
+}
+
+#[test]
 fn layout_notes_require_the_printed_battle_or_scheme() {
     let battle = "(As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)\nWhen this Siege enters, draw a card.";
     let scheme = "(An ongoing scheme remains face up until it's abandoned.)\nAt the beginning of your upkeep, draw a card.";

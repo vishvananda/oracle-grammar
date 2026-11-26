@@ -2,12 +2,16 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
-line_contextual_reminder ::= line_contextual_ability | line_contextual_group | line_measured_reminder
+line_contextual_reminder ::= line_contextual_ability | line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder
 /* @sem Ability::[@contextual_reminder($ability, $ability_explanation)] */
 line_contextual_ability ::= ability "(" ability_explanation ")"
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
 line_contextual_group ::= remindable_line "(" ability_explanation ")"
 remindable_line ::= line_prototype | line_named_flash_if | line_pair_blocks_blocked
+
+/* The activation and the explanation designate the same source creature. */
+/* @sem Ability::[WithPresentation{reminder:true, ability:Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateRegenerationShields{objects:One(Source)}}]}}}] */
+line_explicit_self_regeneration_reminder ::= cost ":" "regenerate" "this" "creature" "." "(" self_regeneration_rule_words ")"
 
 /* The explanation repeats a numeric operand from the native action. */
 /* @sem Ability::[@measured_reminder($ability, $measured_explanation)] */
@@ -16,6 +20,9 @@ line_measured_reminder ::= ability "(" measured_explanation ")"
 measured_explanation ::= monstrosity_explanation | mill_number_explanation | incubation_explanation | discover_explanation | toxic_number_explanation
     | scry_context_amount | surveil_context_amount | surveil_defining_amount | mill_controller_explanation
     | adapt_context_amount | renown_one_explanation | renown_number_explanation | bloodthirst_one_explanation | bloodthirst_number_explanation
+    | earthbend_measured_explanation | bolster_measured_explanation | amass_zombies_measured_explanation | amass_orcs_measured_explanation
+    | expend_four_measured_explanation | mill_them_measured_explanation | mill_them_one_explanation | mill_any_actor_measured_explanation
+    | mill_controller_one_explanation | collect_evidence_measured_explanation
 /* @sem Operand::List([Text(Monstrosity), Number($number_words)]) */
 monstrosity_explanation ::= "if" "this" "creature" "isn't" "monstrous" "," "put" number_words "+" "1" "/" "+" "1" "counters" "on" "it" "and" "it" "becomes" "monstrous" "."
 /* @sem Operand::List([Text(Mill), Number(@agree($number_words, $number_words_2))]) */
@@ -48,6 +55,36 @@ bloodthirst_context_head ::= "if" "an" "opponent" "was" "dealt" "damage" "this" 
 bloodthirst_one_explanation ::= bloodthirst_context_head "a" "+" "1" "/" "+" "1" "counter" "on" "it" "."
 /* @sem Operand::List([Text(Bloodthirst), Number($number_words)]) */
 bloodthirst_number_explanation ::= bloodthirst_context_head number_words "+" "1" "/" "+" "1" "counters" "on" "it" "."
+
+/* @sem Operand::List([Text(Earthbend), Number($printed_plus_one_counters)]) */
+earthbend_measured_explanation ::= "target" "land" "you" "control" "becomes" "a" "0" "/" "0" "creature" "with" "haste" "that's" "still" "a" "land" "." "put" printed_plus_one_counters "on" "it" "." "when" "it" "dies" "or" "is" "exiled" "," "return" "it" "to" "the" "battlefield" "tapped" "."
+
+/* @sem Operand::List([Text(Bolster), Number($printed_plus_one_counters)]) */
+bolster_measured_explanation ::= "choose" "a" "creature" "with" "the" "least" "toughness" "among" "creatures" "you" "control" "and" "put" printed_plus_one_counters "on" "it" "."
+
+/* @sem Operand::List([Text(AmassZombies), Number($printed_plus_one_counters)]) */
+amass_zombies_measured_explanation ::= "put" printed_plus_one_counters "on" "an" "Army" "you" "control" "." "it's" "also" "a" "Zombie" "." "if" "you" "don't" "control" "an" "Army" "," "create" "a" "0" "/" "0" "black" "Zombie" "Army" "creature" "token" "first" "."
+
+/* @sem Operand::List([Text(AmassOrcs), Number($printed_plus_one_counters)]) */
+amass_orcs_measured_explanation ::= "put" printed_plus_one_counters "on" "an" "Army" "you" "control" "." "it's" "also" "an" "Orc" "." "if" "you" "don't" "control" "an" "Army" "," "create" "a" "0" "/" "0" "black" "Orc" "Army" "creature" "token" "first" "."
+
+/* @sem Operand::List([Text(Expend), Number(Constant(4))]) */
+expend_four_measured_explanation ::= "you" "expend" "4" "as" "you" "spend" "your" "fourth" "total" "mana" "to" "cast" "spells" "during" "a" "turn" "."
+
+/* @sem Operand::List([Text(OtherMill), Number($number_words)]) */
+mill_them_measured_explanation ::= "they" "put" "the" "top" number_words "cards" "of" "their" "library" "into" "their" "graveyard" "."
+
+/* @sem Operand::List([Text(OtherMill), Number(Constant(1))]) */
+mill_them_one_explanation ::= "they" "put" "the" "top" "card" "of" "their" "library" "into" "their" "graveyard" "."
+
+/* @sem Operand::List([Text(Mill), Number(@agree($number_words, $number_words_2))]) */
+mill_any_actor_measured_explanation ::= "to" "mill" number_words "cards" "," "a" "player" "puts" "the" "top" number_words "cards" "of" "their" "library" "into" "their" "graveyard" "."
+
+/* @sem Operand::List([Text(ControllerMill), Number(Constant(1))]) */
+mill_controller_one_explanation ::= "put" "the" "top" "card" "of" "your" "library" "into" "your" "graveyard" "."
+
+/* @sem Operand::List([Text(CollectEvidence), Number(@agree($number_digits, $number_digits_2))]) */
+collect_evidence_measured_explanation ::= "to" "collect" "evidence" number_digits "," "exile" "cards" "with" "total" "mana" "value" number_digits "or" "greater" "from" "your" "graveyard" "."
 
 ability_explanation ::= stun_explanation | modified_explanation | historic_explanation
     | shield_explanation | venture_explanation | learn_explanation | explore_explanation

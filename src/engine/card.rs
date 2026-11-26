@@ -1,6 +1,6 @@
 //! Full-card text binds characteristic notes independently of native abilities.
 use super::{Engine, Refusal, bind_card, canonical_abilities, validate_abilities};
-use crate::model::ir::{Characteristics, ManaSymbol};
+use crate::model::ir::{Ability, Characteristics, ManaSymbol, Mechanic};
 use crate::model::ir_schema::Schema;
 use crate::model::mtg_types::{CardType, SubType};
 use crate::parse::{Counters, Parser, RuleSet};
@@ -90,11 +90,29 @@ impl LayoutReminder {
                         .iter()
                         .any(|ty| matches!(ty, SuperType::Ongoing))
             }
+            Self::FaceUpConspiracy => context
+                .card_types
+                .iter()
+                .any(|ty| matches!(ty, CardType::Conspiracy)),
         };
         matches
             .then_some(())
             .ok_or_else(|| "layout reminder disagrees with the face's type line".into())
     }
+}
+
+fn hidden_agenda(ability: &Ability) -> bool {
+    let ability = match ability {
+        Ability::WithPresentation { ability, .. } => ability.as_ref(),
+        _ => ability,
+    };
+    matches!(
+        ability,
+        Ability::Mechanic {
+            mechanic: Mechanic::HiddenAgenda | Mechanic::DoubleAgenda,
+            ..
+        }
+    )
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -354,6 +372,13 @@ impl Engine {
         }
         if let Some(reminder) = surface.layout_reminder {
             reminder.check(context).map_err(Refusal::Binding)?;
+            if reminder == LayoutReminder::FaceUpConspiracy
+                && surface.abilities.iter().any(hidden_agenda)
+            {
+                return Err(Refusal::Binding(
+                    "a conspiracy with an agenda starts face down".into(),
+                ));
+            }
             for notes in &mut choices {
                 notes.push(CardNote::LayoutReminder(reminder));
             }

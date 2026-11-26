@@ -194,13 +194,26 @@ kn_changeling ::= ("changeling" | "↑" "changeling")
 
 /* Numbered and land-type cycling mechanics compose as independent keyword
    items, including repeated instances. Each meaning is declared here once. */
-listed_mechanic ::= listed_typecycling | listed_soulshift | listed_rampage
+listed_mechanic ::= listed_typecycling | listed_soulshift | listed_rampage | listed_typecycling_reminded
 
 /* @sem Ability::[$listed_mechanic] */
 keyword_listed_mechanic ::= listed_mechanic
 
 /* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Cycling{search:$typecycling_filter}, cost:_{parts:[Mana($mana_symbols), Discard{count:Constant(1), filter:SameObject(Source)}]}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:$typecycling_filter, count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:Move{objects:Selected(0), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}})} */
 listed_typecycling ::= typecycling_filter mana_symbols
+
+/* The explanation repeats both the activation payment and its search restriction. */
+/* @sem Ability::@cycling_reminder($listed_typecycling, $typecycling_claim) */
+listed_typecycling_reminded ::= listed_typecycling "(" typecycling_claim ")"
+
+/* @sem Operand::List([Cost($cycling_reminder_cost), Filter($typecycling_explained_filter)]) */
+typecycling_claim ::= cycling_reminder_cost ":" "search" "your" "library" "for" typecycling_explained_filter "card" "," "reveal" "it" "," "put" "it" "into" "your" "hand" "," "then" "shuffle" "."
+typecycling_explained_filter ::= typecycling_named_filter | typecycling_island_filter
+/* @sem $typecycling_consonant_kind */
+typecycling_named_filter ::= "a" typecycling_consonant_kind
+typecycling_consonant_kind ::= st_plains | st_swamp | st_mountain | st_forest | st_sliver | st_wizard
+/* @sem ObjectFilter::Subtype(Island) */
+typecycling_island_filter ::= "an" "Island"
 
 typecycling_filter ::= cycling_plains | cycling_island | cycling_swamp | cycling_mountain | cycling_forest
     | cycling_sliver | cycling_wizard | cycling_qualified_land

@@ -23,6 +23,7 @@ pub enum LayoutReminder {
     Room,
     Siege,
     OngoingScheme,
+    FaceUpConspiracy,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]

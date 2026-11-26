@@ -606,10 +606,10 @@ fn contextual_reminder_call(
     if *ty != ability_type && *ty != Ty::Vec(Box::new(ability_type)) {
         return Err("@contextual_reminder produces one ability or an ability list".into());
     }
-    let claim = if name == "measured_reminder" {
-        "Operand"
-    } else {
+    let claim = if matches!(name, "contextual_reminder" | "chapter_reminder") {
         "String"
+    } else {
+        "Operand"
     };
     Ok(Pattern::Symbol(
         name.into(),
@@ -829,7 +829,7 @@ fn specialized_call(
             )))
         }
         "class_levels" => class_levels_call(args, ty, schema).map(Some),
-        "contextual_reminder" | "measured_reminder" => {
+        _ if super::contextual_reminder::is_symbol(name) => {
             contextual_reminder_call(name, args, ty, schema).map(Some)
         }
         "saga_final_chapter" => {
