@@ -8,6 +8,7 @@ use crate::grammar::{Rule, RuleId, Sym};
 use crate::pattern::{Item, Pattern};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use serde_json::Value;
+use smallvec::SmallVec;
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -76,6 +77,8 @@ pub struct Net {
     edges: HashMap<(u32, u32), u32>,
     /// For each node, where a hole leads.
     holes: Vec<u32>,
+    /// Array patterns with a variable-length middle, by the node that reads them.
+    lists: HashMap<u32, Vec<(ListHead, u32)>>,
     /// The rules whose path ends at a node.
     ends: HashMap<u32, Vec<RuleId>>,
     /// For each rule, the pass-through alternatives that start with it.
@@ -88,6 +91,14 @@ pub struct Net {
 enum Step {
     Exact(u32),
     Hole,
+    List(ListHead),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ListHead {
+    min_len: usize,
+    first_kind: Option<u32>,
+    last_kind: Option<u32>,
 }
 
 fn tagged(tag: u32, payload: u32) -> u32 {
@@ -114,6 +125,7 @@ fn count(items: usize) -> u32 {
 struct Flat {
     steps: Vec<u32>,
     after: Vec<u32>,
+    list_kinds: SmallVec<[(usize, [u32; 2]); 8]>,
 }
 
 impl Net {
@@ -171,7 +183,14 @@ impl Net {
             Pattern::List(pieces) => {
                 let exact = pieces.iter().all(|piece| matches!(piece, Item::One(_)));
                 if !exact {
-                    out.push(Step::Hole);
+                    out.push(Step::List(ListHead {
+                        min_len: pieces
+                            .iter()
+                            .filter(|piece| matches!(piece, Item::One(_)))
+                            .count(),
+                        first_kind: self.fixed_kind(pieces.first()),
+                        last_kind: self.fixed_kind(pieces.last()),
+                    }));
                     return;
                 }
                 out.push(Step::Exact(tagged(LIST, count(pieces.len()))));
@@ -182,6 +201,21 @@ impl Net {
                 }
             }
         }
+    }
+
+    fn fixed_kind(&mut self, piece: Option<&Item>) -> Option<u32> {
+        let Some(Item::One(pattern)) = piece else {
+            return None;
+        };
+        let text = match pattern {
+            Pattern::Value(value) => value.get("kind")?.as_str()?,
+            Pattern::Object(fields) => fields.iter().find_map(|(field, kind)| match kind {
+                Pattern::Value(value) if field == "kind" => value.as_str(),
+                _ => None,
+            })?,
+            _ => return None,
+        };
+        Some(Self::intern(&mut self.strings, text))
     }
 
     fn insert(&mut self, rule: RuleId, path: &[Step]) {
@@ -204,6 +238,17 @@ impl Net {
                         next
                     }
                 },
+                Step::List(head) => {
+                    let edges = self.lists.entry(node).or_default();
+                    if let Some((_, next)) = edges.iter().find(|(existing, _)| existing == head) {
+                        *next
+                    } else {
+                        let next = count(self.holes.len());
+                        self.holes.push(NONE);
+                        edges.push((*head, next));
+                        next
+                    }
+                }
             };
         }
         self.ends.entry(node).or_default().push(rule);
@@ -280,6 +325,21 @@ impl Net {
             }
             Value::Array(items) => {
                 flat.steps[at] = tagged(LIST, count(items.len()));
+                if !self.lists.is_empty()
+                    && let (Some(first), Some(last)) = (items.first(), items.last())
+                {
+                    let kind = |item: &Value| {
+                        item.get("kind")
+                            .and_then(Value::as_str)
+                            .and_then(|kind| self.strings.get(kind))
+                            .copied()
+                            .unwrap_or(UNSEEN)
+                    };
+                    let ends = [kind(first), kind(last)];
+                    if ends != [UNSEEN; 2] {
+                        flat.list_kinds.push((at, ends));
+                    }
+                }
                 items.iter().for_each(|item| self.flatten(item, flat));
             }
             Value::Object(object) => {
@@ -312,6 +372,23 @@ impl Net {
         }
         if let Some(next) = self.edges.get(&(node, *step)) {
             self.walk(*next, at + 1, flat, found);
+        }
+        if step & ((1 << TAG_BITS) - 1) == LIST
+            && let Some(edges) = self.lists.get(&node)
+        {
+            let len = (step >> TAG_BITS) as usize;
+            let [first, last] = flat
+                .list_kinds
+                .binary_search_by_key(&at, |(position, _)| *position)
+                .map_or([UNSEEN; 2], |idx| flat.list_kinds[idx].1);
+            for (head, next) in edges {
+                if len >= head.min_len
+                    && head.first_kind.is_none_or(|kind| kind == first)
+                    && head.last_kind.is_none_or(|kind| kind == last)
+                {
+                    self.walk(*next, flat.after[at] as usize, flat, found);
+                }
+            }
         }
     }
 

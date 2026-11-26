@@ -13,6 +13,87 @@ fn engine() -> &'static Engine {
     crate::test_support::engine()
 }
 
+#[test]
+fn guarded_trigger_prints_current_operands_at_resolution() {
+    let engine = engine();
+    let name = "Test Elk";
+    let types = ["Legendary".into(), "Creature".into()];
+    let text = "When Test Elk enters, create a Treasure token if an opponent controls more lands than you. If an opponent has more life than you, you gain 4 life. If an opponent has more cards in hand than you, draw a card.";
+    let parsed = engine.parse_types(name, text, &types).unwrap();
+    assert_eq!(parsed.readings.len(), 1);
+    let original = &parsed.readings[0];
+    let trail = engine
+        .trail_of_types(name, &types, original, text)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine
+            .print_trail_types(name, &types, original, &trail)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+    let mut edited = original.clone();
+    edited[0]["args"]["body"]["instructions"][1]["args"]["then"]["instructions"][0]["args"]["operation"]
+        ["args"]["amount"]["args"] = serde_json::json!(7);
+    let printed = engine.render(name, &edited, &types, 1).unwrap();
+    assert_eq!(printed.len(), 1);
+    assert!(printed[0].contains("gain 7 life"), "{printed:?}");
+    let reparsed = engine.parse_types(name, &printed[0], &types).unwrap();
+    assert_eq!(
+        reparsed.readings,
+        vec![crate::engine::canonical_abilities(&edited).unwrap()]
+    );
+    assert!(reparsed.readings[0][0]["args"]["intervening_if"].is_null());
+    let replayed = engine
+        .print_trail_types(name, &types, &edited, &trail)
+        .unwrap()
+        .unwrap();
+    assert_eq!(replayed, text.replace("gain 4 life", "gain 7 life"));
+}
+
+#[test]
+fn print_index_preserves_spliced_list_matches_with_fixed_ends() {
+    use crate::grammar::Rule;
+    use crate::heads::{Net, Values};
+    use crate::model::ir_schema::Ty;
+    use crate::pattern::{Item, Pattern};
+    use serde_json::{Value, json};
+
+    let first = json!({"kind":"If","args":{}});
+    let last = json!({"kind":"Effect","args":{}});
+    let pattern = Pattern::Object(vec![(
+        "instructions".into(),
+        Pattern::List(vec![
+            Item::One(Pattern::Value(first.clone())),
+            Item::Splice("middle".into(), Ty::Named("Instruction".into())),
+            Item::One(Pattern::Object(vec![
+                ("kind".into(), Pattern::Value(json!("Effect"))),
+                ("args".into(), Pattern::Value(json!({}))),
+            ])),
+        ]),
+    )]);
+    let net = Net::build(&[Rule {
+        name: "list".into(),
+        alternatives: Vec::new(),
+        sem: Some(pattern),
+        ty: None,
+        prefer: Vec::new(),
+    }]);
+    let mut values = Values::default();
+    for (list, fits) in [
+        (json!([first, last]), true),
+        (json!([first, Value::Null, last]), true),
+        (json!([last, last]), false),
+        (json!([first, first]), false),
+        (json!([first]), false),
+        (Value::Null, false),
+    ] {
+        let (_, reach) = values.id(&net, &json!({"instructions":list}));
+        assert_eq!(net.reaches(&reach, 0), fits, "{list}");
+    }
+}
+
 fn to_rtokens(engine: &Engine, tokens: &[Token]) -> (Vec<RToken>, Vec<String>, u64) {
     let table = &engine.grammar.word_table;
     let mut dyn_words = Vec::new();

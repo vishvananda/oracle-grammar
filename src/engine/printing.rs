@@ -10,6 +10,8 @@ use crate::tokens::{self, Names};
 use serde_json::Value;
 use std::rc::Rc;
 
+mod guarded;
+
 /// Marks the part of an ordered key that says how the card's name is spelled.
 const SPELLING: &str = "@name.";
 /// Marks a number of an ordered key, by its place among the text's numbers, that is
@@ -290,6 +292,13 @@ impl Engine {
         mut memo: Option<&mut FaceMemo>,
     ) -> Result<Vec<String>, String> {
         super::validate_abilities(abilities)?;
+        if limits.1 == 1
+            && key.is_empty()
+            && let Some(text) =
+                self.print_guarded_trigger(abilities, (name, types), memo.as_deref_mut())
+        {
+            return Ok(vec![text]);
+        }
         let texts = self.verified_whole(
             name,
             abilities,
@@ -739,6 +748,25 @@ impl Engine {
     ) -> Result<Option<String>, String> {
         super::validate_abilities(abilities)?;
         let wanted = canonical_abilities(abilities)?;
+        let Some(trail) = PrintTrail::decode(self, trail) else {
+            return Ok(None);
+        };
+        let names = Names::for_card(name, types);
+        let mut checked = rustc_hash::FxHashSet::default();
+        let mut check = |surface: &Value| {
+            let text = trail.render(self, self.root, surface, &names)?;
+            (checked.insert(text.clone())
+                && self.reads_as_memo(None, (name, types), &text, &wanted))
+            .then_some(text)
+        };
+        // A single ability's first unbound form is also the first full surface.
+        // Try it before building alternate projections for the same trail.
+        if let Some([ability]) = abilities.as_array().map(Vec::as_slice)
+            && let Ok(surface) = Self::surface(ability)
+            && let Some(text) = check(&Value::Array(vec![surface]))
+        {
+            return Ok(Some(text));
+        }
         // A trail found on the canonical form replays on its surfaces.
         let views = if wanted == *abilities {
             vec![abilities]
@@ -746,11 +774,11 @@ impl Engine {
             vec![abilities, &wanted]
         };
         for view in views {
-            let surfaces = Self::native_surfaces(view, true)?;
-            for text in self.replayed_surfaces_types(self.root, surfaces, (name, types), trail)? {
-                if self.reads_as_memo(None, (name, types), &text, &wanted) {
-                    return Ok(Some(text));
-                }
+            if let Some(text) = Self::native_surfaces(view, true)?
+                .iter()
+                .find_map(&mut check)
+            {
+                return Ok(Some(text));
             }
         }
         Ok(None)
@@ -773,39 +801,17 @@ impl Engine {
         (name, types): (&str, &[String]),
         trail: &[String],
     ) -> Result<Vec<String>, String> {
-        let (grouped, trail): (Vec<&String>, Vec<&String>) =
-            trail.iter().partition(|step| step.starts_with(GROUPED));
-        let (spelled, choices): (Vec<&String>, Vec<&String>) = trail
-            .into_iter()
-            .partition(|step| step.starts_with(SPELLING));
-        let grouped: Option<Vec<usize>> = grouped
-            .iter()
-            .map(|step| step[GROUPED.len()..].parse().ok())
-            .collect();
-        let steps: Option<Vec<(u32, usize)>> = choices
-            .iter()
-            .map(|step| {
-                let (rule, index) = step.rsplit_once('.')?;
-                Some((*self.grammar.names.get(rule)?, index.parse().ok()?))
-            })
-            .collect();
-        let spellings: Option<Vec<u8>> = spelled
-            .iter()
-            .map(|step| step[SPELLING.len()..].parse().ok())
-            .collect();
-        let (Some(steps), Some(spellings), Some(grouped)) = (steps, spellings, grouped) else {
+        let Some(trail) = PrintTrail::decode(self, trail) else {
             return Ok(Vec::new());
         };
         let names = Names::for_card(name, types);
         let mut texts = Vec::new();
-        for surface in surfaces {
-            let printed = Replay::run(&self.grammar, root, &surface, &steps, &spellings);
-            if let Some(mut printed) = printed {
-                group_numbers(&mut printed, &grouped);
-                let text = tokens::detokenize(&tokens::agree_articles(&printed), &names);
-                if !texts.contains(&text) {
-                    texts.push(text);
-                }
+        for text in surfaces
+            .iter()
+            .filter_map(|surface| trail.render(self, root, surface, &names))
+        {
+            if !texts.contains(&text) {
+                texts.push(text);
             }
         }
         Ok(texts)
@@ -963,6 +969,40 @@ fn stopped_in(renderer: &mut Renderer, before: &Value, after: &Value) -> Option<
 }
 
 /// Writes the numbers at these places among the printed numbers with separators.
+struct PrintTrail {
+    steps: Vec<(u32, usize)>,
+    spellings: Vec<u8>,
+    grouped: Vec<usize>,
+}
+
+impl PrintTrail {
+    fn decode(engine: &Engine, trail: &[String]) -> Option<Self> {
+        let mut plan = Self {
+            steps: Vec::new(),
+            spellings: Vec::new(),
+            grouped: Vec::new(),
+        };
+        for step in trail {
+            if let Some(grouped) = step.strip_prefix(GROUPED) {
+                plan.grouped.push(grouped.parse().ok()?);
+            } else if let Some(spelling) = step.strip_prefix(SPELLING) {
+                plan.spellings.push(spelling.parse().ok()?);
+            } else {
+                let (rule, index) = step.rsplit_once('.')?;
+                plan.steps
+                    .push((*engine.grammar.names.get(rule)?, index.parse().ok()?));
+            }
+        }
+        Some(plan)
+    }
+
+    fn render(&self, engine: &Engine, root: u32, value: &Value, names: &Names) -> Option<String> {
+        let mut printed = Replay::run(&engine.grammar, root, value, &self.steps, &self.spellings)?;
+        group_numbers(&mut printed, &self.grouped);
+        Some(tokens::detokenize(&tokens::agree_articles(&printed), names))
+    }
+}
+
 fn group_numbers(printed: &mut [tokens::Token], grouped: &[usize]) {
     if grouped.is_empty() {
         return;
