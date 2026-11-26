@@ -1336,19 +1336,16 @@ static_player_color_spending ::= color_spending_players "may" "spend" "mana" "as
 
 color_spending_players ::= player_keyword_all | hexproof_you
 
-/* Each listed change has its own condition. The subject is shared by exact
-   semantic-hole identity; conditions never become one enclosing gate. Lists
-   are bounded to two through five items and end at the sentence period. */
-line_independent_static_list ::= independent_static_two | independent_static_three | independent_static_four | independent_static_five
+/* Each arm keeps its own gate and uses the written scalar subject.
+   Only self and attached subjects participate in this construction. */
+/* @sem Vec<Ability>::@shared_static_subject($independent_static_subject, $independent_static_arms) */
+line_independent_static_list ::= independent_static_subject independent_static_arms "."
 
-/* Only scalar self/attached subjects are proved here. A plural subject needs
-   per-affected condition binding and is deliberately outside this family. */
 /* @sem ObjectSet::One($independent_static_object) */
 independent_static_subject ::= independent_static_object
 independent_static_object ::= self_ref | attached_ref
 
-/* These gates read an independent controller population, never a pronoun whose
-   antecedent would require new subject binding. */
+/* These gates read the controller's population separately for every arm. */
 /* @sem Condition::Controls{player:AbilityController, filter:$noun, minimum:1} */
 independent_static_gate ::= ("as" "long" "as" | "if") "you" "control" ("a" | "an") noun
 
@@ -1359,17 +1356,22 @@ independent_static_keyword ::= keyword_value
 /* @sem () */
 independent_static_last ::= "," "and" | "and"
 
-/* @sem Ability::[Conditional{condition:$independent_static_gate, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes}], otherwise:[]}, Conditional{condition:$independent_static_gate_2, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_2}], otherwise:[]}] */
-independent_static_two ::= independent_static_subject independent_static_changes independent_static_gate independent_static_last independent_static_changes independent_static_gate "."
+/* @sem Ability::Conditional{condition:$independent_static_gate, then:[Static{kind:Ordinary, affected:Objects(@static_subject_slot), changes:$independent_static_changes}], otherwise:[]} */
+independent_static_arm ::= independent_static_changes independent_static_gate
 
-/* @sem Ability::[Conditional{condition:$independent_static_gate, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes}], otherwise:[]}, Conditional{condition:$independent_static_gate_2, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_2}], otherwise:[]}, Conditional{condition:$independent_static_gate_3, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_3}], otherwise:[]}] */
-independent_static_three ::= independent_static_subject independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate independent_static_last independent_static_changes independent_static_gate "."
+independent_static_arms ::= independent_static_two | independent_static_three | independent_static_four | independent_static_five
 
-/* @sem Ability::[Conditional{condition:$independent_static_gate, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes}], otherwise:[]}, Conditional{condition:$independent_static_gate_2, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_2}], otherwise:[]}, Conditional{condition:$independent_static_gate_3, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_3}], otherwise:[]}, Conditional{condition:$independent_static_gate_4, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_4}], otherwise:[]}] */
-independent_static_four ::= independent_static_subject independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate independent_static_last independent_static_changes independent_static_gate "."
+/* @sem Ability::[$independent_static_arm, $independent_static_arm_2] */
+independent_static_two ::= independent_static_arm independent_static_last independent_static_arm
 
-/* @sem Ability::[Conditional{condition:$independent_static_gate, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes}], otherwise:[]}, Conditional{condition:$independent_static_gate_2, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_2}], otherwise:[]}, Conditional{condition:$independent_static_gate_3, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_3}], otherwise:[]}, Conditional{condition:$independent_static_gate_4, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_4}], otherwise:[]}, Conditional{condition:$independent_static_gate_5, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_5}], otherwise:[]}] */
-independent_static_five ::= independent_static_subject independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate independent_static_last independent_static_changes independent_static_gate "."
+/* @sem Ability::[$independent_static_arm, ...$independent_static_two] */
+independent_static_three ::= independent_static_arm "," independent_static_two
+
+/* @sem Ability::[$independent_static_arm, ...$independent_static_three] */
+independent_static_four ::= independent_static_arm "," independent_static_three
+
+/* @sem Ability::[$independent_static_arm, ...$independent_static_four] */
+independent_static_five ::= independent_static_arm "," independent_static_four
 
 /* A quoted activation without an inner period remains part of this item's
    conditional predicate. Its holder is independent of the creating source. */
@@ -1757,20 +1759,27 @@ static_global_legend_rule ::= "the" '"' ("↓")? "legend" "rule" '"' "doesn't" "
 /* @sem Operation::@where(Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[GrantKeyword($keyword_value), Pump{power:AnnouncedX, toughness:$value}], duration:$duration, evaluation:Snapshot}, Expr::ObjectProperty{object:Affected, property:$stat, information:CurrentOrLastKnown}) */
 continuous_keyword_pump_own_power ::= affected "gains" keyword_value "and" "gets" "+" "X" "/" "+" value duration "," "where" "X" "is" "its" stat
 
-/* Every written condition qualifies its own simultaneous keyword grant. */
-line_conditional_keyword_arms ::= conditional_keywords_2 | conditional_keywords_3 | conditional_keywords_4 | conditional_keywords_5
+/* A shared population is conjoined with each arm's one local quality.
+   The quality tests the member receiving that arm's keyword. */
+/* @sem Vec<Ability>::@shared_static_filter($filter_phrase, $conditional_keyword_arms) */
+line_conditional_keyword_arms ::= "each" filter_phrase "has" conditional_keyword_arms "."
 
-/* @sem Ability::[Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality)}), changes:[GrantKeyword($keyword_value)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_2)}), changes:[GrantKeyword($keyword_value_2)] }] */
-conditional_keywords_2 ::= "each" filter_phrase "has" keyword_value "if" conditional_keyword_quality (",")? "and" keyword_value "if" conditional_keyword_quality "."
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$conditional_keyword_quality}), changes:[GrantKeyword($keyword_value)]} */
+conditional_keyword_arm ::= keyword_value "if" conditional_keyword_quality
 
-/* @sem Ability::[Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality)}), changes:[GrantKeyword($keyword_value)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_2)}), changes:[GrantKeyword($keyword_value_2)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_3)}), changes:[GrantKeyword($keyword_value_3)] }] */
-conditional_keywords_3 ::= "each" filter_phrase "has" keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality (",")? "and" keyword_value "if" conditional_keyword_quality "."
+conditional_keyword_arms ::= conditional_keywords_2 | conditional_keywords_3 | conditional_keywords_4 | conditional_keywords_5
 
-/* @sem Ability::[Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality)}), changes:[GrantKeyword($keyword_value)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_2)}), changes:[GrantKeyword($keyword_value_2)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_3)}), changes:[GrantKeyword($keyword_value_3)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_4)}), changes:[GrantKeyword($keyword_value_4)] }] */
-conditional_keywords_4 ::= "each" filter_phrase "has" keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality (",")? "and" keyword_value "if" conditional_keyword_quality "."
+/* @sem Ability::[$conditional_keyword_arm, $conditional_keyword_arm_2] */
+conditional_keywords_2 ::= conditional_keyword_arm ","? "and" conditional_keyword_arm
 
-/* @sem Ability::[Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality)}), changes:[GrantKeyword($keyword_value)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_2)}), changes:[GrantKeyword($keyword_value_2)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_3)}), changes:[GrantKeyword($keyword_value_3)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_4)}), changes:[GrantKeyword($keyword_value_4)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_5)}), changes:[GrantKeyword($keyword_value_5)] }] */
-conditional_keywords_5 ::= "each" filter_phrase "has" keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality (",")? "and" keyword_value "if" conditional_keyword_quality "."
+/* @sem Ability::[$conditional_keyword_arm, ...$conditional_keywords_2] */
+conditional_keywords_3 ::= conditional_keyword_arm "," conditional_keywords_2
+
+/* @sem Ability::[$conditional_keyword_arm, ...$conditional_keywords_3] */
+conditional_keywords_4 ::= conditional_keyword_arm "," conditional_keywords_3
+
+/* @sem Ability::[$conditional_keyword_arm, ...$conditional_keywords_4] */
+conditional_keywords_5 ::= conditional_keyword_arm "," conditional_keywords_4
 
 /* @sem $quality */
 conditional_keyword_quality ::= ("it's" | "it" "is") quality

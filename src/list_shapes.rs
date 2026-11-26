@@ -953,7 +953,7 @@ fn pattern_list_shape(
                             .require_non_empty();
                     left.concat(&right)
                 }
-                ("apply", [_, body]) => {
+                ("apply" | "shared_static_subject" | "shared_static_filter", [_, body]) => {
                     pattern_list_shape(body, hole_map, tags, elem_tags, op_tags, shapes)
                 }
                 ("unordered", [inner @ Pattern::List(_)]) => {

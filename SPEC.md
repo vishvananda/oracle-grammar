@@ -122,6 +122,15 @@ ordinary optional placements retain their separate program form. The shared
 cost composes with retained animations and prints their current operands. See
 [counter payments](docs/counter-payments.md).
 
+Shared-subject static clauses have two to five arms. A scalar self or
+attached subject fills only each arm's immediate affected-object slot. Each
+arm retains its own controller test, changes, and any granted ability's
+holder. For keyword grants to a shared population, each arm conjoins one
+local quality with that population. Printing proves that every arm can use
+the same scalar subject or ordered conjunction of filter terms. The filter
+inverse tries every such split within the ten-conjunct bound, and verified
+printing still reparses the finished clause.
+
 Preserve distinctions among:
 
 - source, granting object and ability holder;

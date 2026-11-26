@@ -541,6 +541,12 @@ impl Pattern {
                     .iter()
                     .map(|a| a.fill(bindings, at))
                     .collect::<Result<Vec<_>, _>>()?;
+                if let Some(shared) = crate::functions::shared_statics::SharedStatic::named(name) {
+                    let [subject, arms] = args.as_slice() else {
+                        return Err(format!("@{name} needs a subject and static arms"));
+                    };
+                    return shared.fill(subject, arms);
+                }
                 match (name.as_str(), args.as_slice()) {
                     ("single_player", [players]) => {
                         if players["kind"] != "One" {
@@ -755,7 +761,16 @@ impl Pattern {
                 Some(items) => unify_items_root(pieces, items, bindings, ctx),
                 None => Vec::new(),
             },
+            Self::Symbol(name, _) if name == crate::functions::shared_statics::SUBJECT_SLOT => {
+                (value["kind"] == "One")
+                    .then_some(bindings)
+                    .into_iter()
+                    .collect()
+            }
             Self::Symbol(name, args) => {
+                if let Some(shared) = crate::functions::shared_statics::SharedStatic::named(name) {
+                    return shared.unify(args, value, bindings);
+                }
                 let mut found = self.moved_source(name, value, &bindings);
                 found.extend(self.unify_symbol(name, args, value, bindings, ctx));
                 found

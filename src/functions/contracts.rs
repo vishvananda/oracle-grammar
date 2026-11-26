@@ -8,6 +8,9 @@ pub(crate) fn checked_call(
     ty: &Ty,
     schema: &Schema,
 ) -> Result<Option<Pattern>, String> {
+    if let Some(pattern) = super::shared_statics::checked_call(name, args, ty, schema)? {
+        return Ok(Some(pattern));
+    }
     if let Some(pattern) = coin_call(name, args, ty, schema)? {
         return Ok(Some(pattern));
     }
