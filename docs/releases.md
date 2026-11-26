@@ -137,3 +137,27 @@ For an existing code release whose original workflow had no automatic face job,
 dispatch **Release native faces** on main with `grammar_tag=grammar-v0.1.0`
 and no face `tag`. This uses the default source pin with that exact old grammar;
 it does not republish crates. Use `publish=false` to inspect CI artifacts first.
+
+### MTGish-compatible Oracle scope
+
+`tools/oracle_scope.py` generates a snapshot-specific ignore list and an
+`oracle_ids` population for coverage audits. It follows MTGish's Scryfall
+input stage and its exact record-name ignore list. MTGish sources raw tokens,
+dungeons and other supplemental objects separately. Named exclusions include
+playtest, acorn, and promotional cards. Set type and parser success do not
+decide membership. The emitted list records the reason and original Oracle ID
+for each exclusion. [Upstream input stage](https://github.com/vishvananda/mtgish/blob/e8faef56112ef0c979f6174acadcfe3e21505dd6/preprocess_scryfall) · [Upstream named exclusions](https://github.com/vishvananda/mtgish/blob/e8faef56112ef0c979f6174acadcfe3e21505dd6/grammars/ignore.json5)
+
+```sh
+mkdir -p .cache/oracle-scope
+curl --fail --silent --show-error --location \
+  https://raw.githubusercontent.com/vishvananda/mtgish/e8faef56112ef0c979f6174acadcfe3e21505dd6/grammars/ignore.json5 \
+  --output .cache/oracle-scope/upstream-ignore.json5
+python3 tools/oracle_scope.py oracle.jsonl.gz .cache/oracle-scope/upstream-ignore.json5 \
+  --snapshot SNAPSHOT_ID --sha256 SOURCE_SHA256 --out .cache/oracle-scope/scope.json
+```
+
+Both hashes are verified before selection. Use the output's `population`
+object for an explicitly scoped export or to filter coverage counts. The
+default source pin and full release population remain independent of this
+audit scope.
