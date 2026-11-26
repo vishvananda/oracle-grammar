@@ -103,6 +103,15 @@ pub fn outcome(engine: &Engine, face: &SourceFace) -> Value {
                     CardNote::LayoutReminder(LayoutReminder::Room) => {
                         face.identity["layout"] == "split"
                     }
+                    CardNote::LayoutReminder(LayoutReminder::Omen) => {
+                        matches!(face.identity["layout"].as_str(), Some("adventure" | "omen"))
+                    }
+                    CardNote::LayoutReminder(LayoutReminder::Siege) => {
+                        face.identity["layout"] == "transform" && face.identity["face_index"] == 0
+                    }
+                    CardNote::LayoutReminder(LayoutReminder::OngoingScheme) => {
+                        face.identity["layout"] == "scheme"
+                    }
                     _ => true,
                 };
                 if !matches {

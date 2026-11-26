@@ -163,6 +163,60 @@ fn variable_stats_require_a_matching_source_definition() {
 }
 
 #[test]
+fn printed_cost_explanations_roundtrip_with_matching_mana() {
+    let engine = crate::test_support::engine();
+    for (symbol, explanation) in [
+        ("{C}", "{C} represents colorless mana."),
+        ("{S}", "{S} can be paid with one mana from a snow source."),
+    ] {
+        let text = format!("({explanation})\nDraw a card.");
+        let mut input = raw("printed", "Synthetic", &text);
+        let mismatched = input.clone();
+        input["mana_cost"] = json!(symbol);
+        let faces = scryfall(&[input, mismatched]).unwrap();
+        let context = &faces[0].context.as_ref().unwrap().0;
+        let parsed = engine.parse_card("Synthetic", &text, context).unwrap();
+        let reading = &parsed.readings[0];
+        let key = engine
+            .card_key_of("Synthetic", reading, context, &text, true)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            engine
+                .print_card_trail("Synthetic", reading, context, &key)
+                .unwrap()
+                .as_deref(),
+            Some(text.as_str())
+        );
+        assert!(
+            engine
+                .parse_card("Synthetic", &text, &faces[1].context.as_ref().unwrap().0)
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn entry_or_death_trigger_roundtrips_with_a_shared_creature_filter() {
+    let engine = crate::test_support::engine();
+    let context = crate::engine::empty_card_characteristics();
+    let name = "Synthetic";
+    let text = "Whenever another creature you control enters or dies, you gain 1 life.";
+    let reading = &engine.parse_card(name, text, &context).unwrap().readings[0];
+    let key = engine
+        .card_key_of(name, reading, &context, text, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine
+            .print_card_trail(name, reading, &context, &key)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+}
+
+#[test]
 fn contextual_reminders_check_keywords_actions_and_costs() {
     let engine = crate::test_support::engine();
     let examples = [
@@ -221,6 +275,166 @@ fn granted_reach_explains_the_created_token() {
         printed.ends_with("(It can block creatures with flying.)"),
         "{printed}"
     );
+}
+
+#[test]
+fn token_explanations_require_the_corresponding_predefined_recipe() {
+    let engine = crate::test_support::engine();
+    let context = crate::engine::empty_card_characteristics();
+    let name = "Halo Scarab";
+    assert!(
+        engine
+            .parse_card(
+                name,
+                "Create a Treasure token. (Activate only as an instant.)",
+                &context
+            )
+            .is_err()
+    );
+    let text = "{2}, Exile this card from your graveyard: Create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")";
+    let reading = &engine.parse_card(name, text, &context).unwrap().readings[0];
+    let key = engine
+        .card_key_of(name, reading, &context, text, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine
+            .print_card_trail(name, reading, &context, &key)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+    assert!(
+        engine
+            .parse_card(
+                name,
+                &text.replace("a Treasure token", "a Food token"),
+                &context
+            )
+            .is_err()
+    );
+}
+
+#[test]
+fn contextual_action_amount_is_checked_in_both_directions() {
+    let engine = crate::test_support::engine();
+    let context = crate::engine::empty_card_characteristics();
+    let name = "Synthetic Giant";
+    let text = "{5}{R}: Monstrosity 3. (If this creature isn't monstrous, put three +1/+1 counters on it and it becomes monstrous.)";
+    let reading = &engine.parse_card(name, text, &context).unwrap().readings[0];
+    let key = engine
+        .card_key_of(name, reading, &context, text, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine
+            .print_card_trail(name, reading, &context, &key)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+    assert!(
+        engine
+            .parse_card(name, &text.replace("three", "four"), &context)
+            .is_err()
+    );
+    let mut edited = reading.clone();
+    let action = edited.abilities.pointer_mut("/0/args/ability/args/body/instructions/0/args/operation/args/action/Monstrosity/amount/args").unwrap();
+    *action = json!(6);
+    let printed = engine
+        .print_card_keyed(name, &edited, &context, &[])
+        .unwrap()
+        .unwrap();
+    assert!(
+        printed.contains("Monstrosity 6.") && printed.contains("six +1/+1 counters"),
+        "{printed}"
+    );
+}
+
+#[test]
+fn mechanic_reminders_verify_repeated_amounts_and_costs() {
+    let engine = crate::test_support::engine();
+    let context = crate::engine::empty_card_characteristics();
+    let examples = [
+        (
+            "Soulshift 4 (When this creature dies, you may return target Spirit card with mana value 4 or less from your graveyard to your hand.)",
+            "value 4",
+            "value 5",
+        ),
+        (
+            "Reconfigure {2} ({2}: Attach to target creature you control; or unattach from a creature. Reconfigure only as a sorcery. While attached, this isn't a creature.)",
+            "({2}:",
+            "({3}:",
+        ),
+        (
+            "Backup 2 (When this creature enters, put two +1/+1 counters on target creature. If that's another creature, it gains the following ability until end of turn.)\nFlying",
+            "put two",
+            "put three",
+        ),
+    ];
+    for (text, from, to) in examples {
+        let reading = &engine
+            .parse_card("Synthetic", text, &context)
+            .unwrap()
+            .readings[0];
+        let key = engine
+            .card_key_of("Synthetic", reading, &context, text, true)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            engine
+                .print_card_trail("Synthetic", reading, &context, &key)
+                .unwrap()
+                .as_deref(),
+            Some(text)
+        );
+        assert!(
+            engine
+                .parse_card("Synthetic", &text.replace(from, to), &context)
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn layout_notes_require_the_printed_battle_or_scheme() {
+    let battle = "(As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)\nWhen this Siege enters, draw a card.";
+    let scheme = "(An ongoing scheme remains face up until it's abandoned.)\nAt the beginning of your upkeep, draw a card.";
+    let records = [
+        json!({"oracle_id":"battle","name":"Front // Back","layout":"transform","card_faces":[
+            {"name":"Front","type_line":"Battle — Siege","defense":"4","oracle_text":battle},
+            {"name":"Back","type_line":"Creature — Elf","power":"1","toughness":"2","oracle_text":"Flying"}
+        ]}),
+        json!({"oracle_id":"scheme","name":"Synthetic scheme","layout":"scheme","type_line":"Ongoing Scheme","oracle_text":scheme}),
+        json!({"oracle_id":"wrong","name":"Non-ongoing scheme","layout":"scheme","type_line":"Scheme","oracle_text":scheme}),
+    ];
+    let faces = scryfall(&records).unwrap();
+    let engine = crate::test_support::engine();
+    for (index, note, text) in [
+        (0, LayoutReminder::Siege, battle),
+        (2, LayoutReminder::OngoingScheme, scheme),
+    ] {
+        let face = &faces[index];
+        let row = outcome(engine, face);
+        assert_eq!(row["status"], "unique", "{row}");
+        let reading = CardReading {
+            abilities: row["readings"][0]["card"]["abilities"].clone(),
+            notes: vec![CardNote::LayoutReminder(note)],
+        };
+        let context = &face.context.as_ref().unwrap().0;
+        let trail = engine
+            .card_key_of(&face.name, &reading, context, text, true)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            engine
+                .print_card_trail(&face.name, &reading, context, &trail)
+                .unwrap()
+                .as_deref(),
+            Some(text)
+        );
+    }
+    assert_eq!(outcome(engine, &faces[3])["stage"], "binding");
 }
 
 #[test]

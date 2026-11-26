@@ -19,7 +19,10 @@ pub(super) struct CardSurface {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub enum LayoutReminder {
     Adventure(AdventureReturnType),
+    Omen,
     Room,
+    Siege,
+    OngoingScheme,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]

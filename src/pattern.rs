@@ -592,7 +592,7 @@ impl Pattern {
                     ("saga_final_chapter", [chapters, number]) => {
                         return saga_chapters::agree(chapters, number);
                     }
-                    ("contextual_reminder", [ability, explanation]) => {
+                    ("contextual_reminder" | "measured_reminder", [ability, explanation]) => {
                         return contextual_reminder::attach(ability, explanation);
                     }
                     ("integer_interval", [lower, upper]) => {
@@ -933,7 +933,9 @@ impl Pattern {
             }
             "class_levels" => return crate::functions::class_levels::unify(args, value, bindings),
             "saga_final_chapter" => return saga_chapters::unify(args, value, bindings),
-            "contextual_reminder" => return contextual_reminder::unify(args, value, bindings),
+            "contextual_reminder" | "measured_reminder" => {
+                return contextual_reminder::unify(name, args, value, bindings);
+            }
             "integer_interval" => {
                 return crate::functions::integer_interval::unify(args, value, bindings);
             }

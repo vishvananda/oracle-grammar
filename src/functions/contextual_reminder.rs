@@ -26,11 +26,118 @@ fn action_name(action: &Value) -> Option<&str> {
     })
 }
 
+fn mechanic(value: &Value) -> Option<&'static str> {
+    match value.as_str()? {
+        "Improvise" => Some("Improvise"),
+        "LivingWeapon" => Some("LivingWeapon"),
+        "ForMirrodin" => Some("ForMirrodin"),
+        "JobSelect" => Some("JobSelect"),
+        "Evolve" => Some("Evolve"),
+        "Mentor" => Some("Mentor"),
+        "Myriad" => Some("Myriad"),
+        "SplitSecond" => Some("SplitSecond"),
+        "Miracle" => Some("Miracle"),
+        "Retrace" => Some("Retrace"),
+        "Unleash" => Some("Unleash"),
+        "Storm" => Some("Storm"),
+        "UmbraArmor" => Some("UmbraArmor"),
+        "BattleCry" => Some("BattleCry"),
+        "Extort" => Some("Extort"),
+        "Surge" => Some("Surge"),
+        "Freerunning" => Some("Freerunning"),
+        "Enlist" => Some("Enlist"),
+        "LivingMetal" => Some("LivingMetal"),
+        "Riot" => Some("Riot"),
+        "Melee" => Some("Melee"),
+        "Training" => Some("Training"),
+        "Ravenous" => Some("Ravenous"),
+        "Conspire" => Some("Conspire"),
+        "JumpStart" => Some("JumpStart"),
+        "Spectacle" => Some("Spectacle"),
+        "Phasing" => Some("Phasing"),
+        "Sunburst" => Some("Sunburst"),
+        "Dethrone" => Some("Dethrone"),
+        "Decayed" => Some("Decayed"),
+        "Emerge" => Some("Emerge"),
+        "Flashback" => Some("Flashback"),
+        "Harmonize" => Some("Harmonize"),
+        _ => None,
+    }
+}
+
+fn rules_token(value: &Value) -> Option<&'static str> {
+    let definition = &value["recipe"]["Defined"];
+    // Rules words designate the predefined token recipe. Custom tokens and
+    // copies can have the same subtype without having that recipe.
+    if value["words"] != "Rules"
+        || definition["name"] != "FromSubtypes"
+        || !matches!(definition["card_types"].as_array().map(Vec::as_slice),
+            Some([kind]) if kind == "Artifact")
+    {
+        return None;
+    }
+    let [subtype] = definition["subtypes"].as_array()?.as_slice() else {
+        return None;
+    };
+    match subtype.as_str()? {
+        "Treasure" => Some("TreasureToken"),
+        "Powerstone" => Some("PowerstoneToken"),
+        "Clue" => Some("ClueToken"),
+        "Food" => Some("FoodToken"),
+        "Gold" => Some("GoldToken"),
+        "Blood" => Some("BloodToken"),
+        "Lander" => Some("LanderToken"),
+        "Junk" => Some("JunkToken"),
+        "Map" => Some("MapToken"),
+        "Mutagen" => Some("MutagenToken"),
+        _ => None,
+    }
+}
+
+fn outlaws(value: &Value) -> bool {
+    value.as_array().is_some_and(|items| {
+        items.len() == 5
+            && ["Assassin", "Mercenary", "Pirate", "Rogue", "Warlock"]
+                .iter()
+                .all(|subtype| {
+                    items
+                        .iter()
+                        .any(|i| i["kind"] == "Subtype" && i["args"] == *subtype)
+                })
+    })
+}
+
+fn devotion(args: &Value) -> Option<&'static str> {
+    let objects = &args["objects"];
+    let filter = &objects["args"]["filter"];
+    if objects["kind"] != "Zone"
+        || objects["args"]["scope"]["Shared"] != "Battlefield"
+        || objects["args"]["kind"] != "Permanent"
+        || filter["kind"] != "ControlledBy"
+        || filter["args"]["kind"] != "One"
+        || filter["args"]["args"]["kind"] != "AbilityController"
+    {
+        return None;
+    }
+    let [color] = args["colors"].as_array()?.as_slice() else {
+        return None;
+    };
+    match color.as_str()? {
+        "White" => Some("DevotionWhite"),
+        "Blue" => Some("DevotionBlue"),
+        "Black" => Some("DevotionBlack"),
+        "Red" => Some("DevotionRed"),
+        "Green" => Some("DevotionGreen"),
+        _ => None,
+    }
+}
+
 fn marker(value: &Value) -> Option<&'static str> {
     let args = &value["args"];
     match value["kind"].as_str() {
         Some("Modified") if value.as_object()?.len() == 1 => Some("Modified"),
         Some("AnyOf") if historic_filter(args) => Some("Historic"),
+        Some("AnyOf") if outlaws(args) => Some("Outlaw"),
         Some("Indestructible") => Some("Indestructible"),
         Some("Menace") => Some("Menace"),
         Some("Shroud") => Some("Shroud"),
@@ -49,6 +156,14 @@ fn marker(value: &Value) -> Option<&'static str> {
             Some("Venture") => Some("Venture"),
             Some("Learn") => Some("Learn"),
             Some("Explore") => Some("Explore"),
+            Some("Investigate") => Some("Investigate"),
+            Some("Populate") => Some("Populate"),
+            Some("Connive") => Some("Connive"),
+            Some("Fight") => Some("Fight"),
+            Some("OpenAttraction") => Some("OpenAttraction"),
+            Some("Cipher") => Some("Cipher"),
+            Some("Suspect") => Some("Suspect"),
+            Some("Manifest") => Some("Manifest"),
             Some("ManifestDread") => Some("ManifestDread"),
             Some("Goad") if args["action"]["Goad"]["until"].is_null() => Some("Goad"),
             Some("Exert") => Some("Exert"),
@@ -57,10 +172,18 @@ fn marker(value: &Value) -> Option<&'static str> {
         Some("Populate") => Some("Populate"),
         Some("Mill") => Some("Mill"),
         Some("PartySize") => Some("Party"),
+        Some("CountManaSymbols") => devotion(args),
         Some("Clash") => Some("Clash"),
         Some("CreateContinuousEffect") if args["duration"] == "Indefinite" => Some("Indefinite"),
         Some("CostBranch") if args["keyword"] == "Overload" => Some("Overload"),
         Some("Mechanic") if args["mechanic"] == "Bargain" => Some("Bargain"),
+        Some("Mechanic")
+            if args["mechanic"] == "Toxic"
+                && args["amount"]["kind"] == "Constant"
+                && args["amount"]["args"] == 1 =>
+        {
+            Some("Toxic")
+        }
         Some("Mechanic")
             if args["mechanic"] == "SpliceOnto"
                 && args["filter"]["kind"] == "Subtype"
@@ -69,10 +192,50 @@ fn marker(value: &Value) -> Option<&'static str> {
             Some("SpliceArcane")
         }
         Some("Prototype") => Some("Prototype"),
+        Some("Mechanic") => mechanic(&args["mechanic"]),
+        Some("Fight") => Some("Fight"),
+        Some("Companion") => Some("Companion"),
+        Some("Enchant")
+            if args["hosts"]["Permanents"]["kind"] == "CardType"
+                && args["hosts"]["Permanents"]["args"] == "Creature" =>
+        {
+            Some("EnchantCreature")
+        }
+        Some("CreateRegenerationShields")
+            if args["objects"]["kind"] == "One" && args["objects"]["args"]["kind"] == "Source" =>
+        {
+            Some("RegenerateSource")
+        }
+        Some("Activated")
+            if args["origin"] == "Equip"
+                && args["cost"]["parts"] == json!([{"Mana":[{"Generic":2}]}]) =>
+        {
+            Some("EquipTwo")
+        }
+        Some("DeckRule")
+            if matches!(
+                args["Partner"].as_str(),
+                Some("FriendsForever" | "CharacterSelect" | "FatherAndSon")
+            ) =>
+        {
+            Some("SharedPartner")
+        }
+        Some("Activated") if args["limits"]["keyword"] == "Boast" => Some("Boast"),
+        Some("Activated") if args["limits"]["keyword"] == "Forecast" => Some("Forecast"),
+        Some("PlayerState") if args["state"] == "Descended" => Some("Descend"),
         Some("PlayerState") if args["state"] == "CommittedCrime" => Some("Crime"),
+        Some("Casting") if args["If"]["rule"].get("Flash").is_some() => Some("FlashPermission"),
         _ if value["event"] == "CommitsCrime" => Some("Crime"),
+        _ if value["event"] == "LosesLife" => Some("LifeLoss"),
         _ if value["Named"] == "StunCounter" => Some("Stun"),
         _ if value["Named"] == "ShieldCounter" => Some("Shield"),
+        _ if value["Named"] == "FinalityCounter" => Some("Finality"),
+        _ if value["ChangeTapState"]["symbol"] == true
+            && value["ChangeTapState"]["tapped"] == false =>
+        {
+            Some("UntapSymbol")
+        }
+        _ if value["Amount"]["color"] == "Colorless" => Some("ColorlessMana"),
         _ if value["$sym"] == "overload_branch" => Some("Overload"),
         _ if value["Mill"].is_object() => Some("Mill"),
         _ if !value["Waterbend"].is_null() || !value["WaterbendX"].is_null() => Some("Waterbend"),
@@ -82,26 +245,90 @@ fn marker(value: &Value) -> Option<&'static str> {
         {
             Some("TargetedAbility")
         }
-        _ => None,
+        _ => rules_token(value),
     }
 }
 
-fn visit_mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {
-    fn walk(
-        value: &Value,
+fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
+    let args = &value["args"];
+    match value["kind"].as_str() {
+        Some("Keyword" | "KeywordEach") => {
+            let action = &args["action"];
+            let topic = match action_name(action)? {
+                "Monstrosity" => "Monstrosity",
+                "Discover" => "Discover",
+                "Incubate" => "Incubate",
+                "Adapt" => "Adapt",
+                _ => return None,
+            };
+            Some((topic, action.get(topic)?.get("amount")?))
+        }
+        Some("Mechanic") => {
+            let kind = match args["mechanic"].as_str()? {
+                "Toxic" => "Toxic",
+                "Renown" => "Renown",
+                "Bloodthirst" => "Bloodthirst",
+                _ => return None,
+            };
+            Some((kind, args.get("amount")?))
+        }
+        Some("Mill") => Some(("Mill", args.get("amount")?)),
+        Some("Scry") => Some(("Scry", args.get("amount")?)),
+        Some("Surveil") => Some(("Surveil", args.get("amount")?)),
+        _ => None,
+    }
+    .filter(|(_, amount)| !amount.is_null())
+}
+
+fn controller_mill(value: &Value) -> Option<&Value> {
+    let args = &value["args"];
+    (value["kind"] == "Mill"
+        && args["players"]["kind"] == "One"
+        && args["players"]["args"]["kind"] == "AbilityController")
+        .then(|| args.get("amount"))
+        .flatten()
+}
+
+fn ordinary_activation(ability: &Value) -> bool {
+    let activation = if ability["kind"] == "Scoped" {
+        &ability["args"]["ability"]
+    } else {
+        ability
+    };
+    activation["kind"] == "Activated"
+        && activation["args"]["origin"] == "Ordinary"
+        && activation["args"]["limits"]["sorcery"] == false
+        && activation["args"]["limits"]["keyword"].is_null()
+}
+
+fn visit_mentions<'a>(
+    ability: &'a Value,
+    measured: bool,
+    mut visit: impl FnMut(&'static str, Option<&'a Value>) -> bool,
+) -> bool {
+    fn walk<'a>(
+        value: &'a Value,
+        measured: bool,
         depth: usize,
         remaining: &mut usize,
-        visit: &mut impl FnMut(&'static str) -> bool,
+        visit: &mut impl FnMut(&'static str, Option<&'a Value>) -> bool,
     ) -> bool {
         if *remaining == 0 {
             return false;
         }
         *remaining -= 1;
         if let Some(object) = value.as_object() {
-            if marker(value).is_some_and(&mut *visit) {
+            let found = if measured {
+                measurement(value).is_some_and(|(topic, amount)| visit(topic, Some(amount)))
+                    || controller_mill(value)
+                        .is_some_and(|amount| visit("ControllerMill", Some(amount)))
+            } else {
+                marker(value).is_some_and(|topic| visit(topic, None))
+            };
+            if found {
                 return true;
             }
-            if let Some(mana) = object.get("Mana").and_then(Value::as_array) {
+            if !measured && let Some(mana) = object.get("Mana").and_then(Value::as_array) {
                 for symbol in mana.iter().take(*remaining) {
                     let explanation = if symbol == "Snow" {
                         Some("Snow")
@@ -110,7 +337,7 @@ fn visit_mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> bool) 
                     } else {
                         None
                     };
-                    if explanation.is_some_and(&mut *visit) {
+                    if explanation.is_some_and(|topic| visit(topic, None)) {
                         return true;
                     }
                 }
@@ -120,23 +347,26 @@ fn visit_mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> bool) 
             return false;
         }
         match value {
-            Value::Object(fields) => walk_children(fields.values(), depth, remaining, visit),
-            Value::Array(items) => walk_children(items.iter(), depth, remaining, visit),
+            Value::Object(fields) => {
+                walk_children(fields.values(), measured, depth, remaining, visit)
+            }
+            Value::Array(items) => walk_children(items.iter(), measured, depth, remaining, visit),
             _ => false,
         }
     }
 
     fn walk_children<'a>(
         children: impl Iterator<Item = &'a Value>,
+        measured: bool,
         depth: usize,
         remaining: &mut usize,
-        visit: &mut impl FnMut(&'static str) -> bool,
+        visit: &mut impl FnMut(&'static str, Option<&'a Value>) -> bool,
     ) -> bool {
         for child in children {
             if *remaining == 0 {
                 break;
             }
-            if walk(child, depth + 1, remaining, visit) {
+            if walk(child, measured, depth + 1, remaining, visit) {
                 return true;
             }
         }
@@ -144,7 +374,8 @@ fn visit_mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> bool) 
     }
 
     // Direct keyword reminders already have a native keyword-level placement.
-    ability["kind"] != "Keyword" && walk(ability, 0, &mut 8192, &mut visit)
+    ability["kind"] != "Keyword" && walk(ability, measured, 0, &mut 8192, &mut visit)
+        || !measured && ordinary_activation(ability) && visit("InstantActivation", None)
 }
 
 fn last_ability(value: &Value) -> Option<&Value> {
@@ -164,6 +395,17 @@ fn replace_last(value: &Value, replacement: Value) -> Value {
     Value::Array(result)
 }
 
+fn claim(explanation: &Value) -> Option<(&str, Option<&Value>)> {
+    if let Some(topic) = explanation.as_str() {
+        return Some((topic, None));
+    }
+    let [topic, amount] = explanation["args"].as_array()?.as_slice() else {
+        return None;
+    };
+    (explanation["kind"] == "List" && topic["kind"] == "Text" && amount["kind"] == "Number")
+        .then_some((topic["args"].as_str()?, Some(&amount["args"])))
+}
+
 pub(crate) fn attach(value: &Value, explanation: &Value) -> Result<Value, String> {
     let ability = last_ability(value).ok_or("reminder needs a bounded nonempty ability line")?;
     let inner = if ability["kind"] == "WithPresentation" {
@@ -171,10 +413,10 @@ pub(crate) fn attach(value: &Value, explanation: &Value) -> Result<Value, String
     } else {
         ability
     };
-    if !explanation
-        .as_str()
-        .is_some_and(|kind| visit_mentions(inner, |found| found == kind))
-    {
+    let (topic, amount) = claim(explanation).ok_or("invalid contextual reminder claim")?;
+    if !visit_mentions(inner, amount.is_some(), |found, quantity| {
+        found == topic && quantity == amount
+    }) {
         return Err("reminder has no matching operand in this ability".into());
     }
     let result = if ability["kind"] == "WithPresentation" {
@@ -188,6 +430,7 @@ pub(crate) fn attach(value: &Value, explanation: &Value) -> Result<Value, String
 }
 
 pub(crate) fn unify<'p, 'v>(
+    name: &str,
     args: &'p [Pattern],
     value: &'v Value,
     bindings: Bindings<'p, 'v>,
@@ -210,16 +453,22 @@ pub(crate) fn unify<'p, 'v>(
         &without_reminder
     };
     let mut found = Vec::new();
-    visit_mentions(inner, |kind| {
-        if !found.contains(&kind) {
-            found.push(kind);
+    visit_mentions(inner, name == "measured_reminder", |kind, amount| {
+        if !found.contains(&(kind, amount)) {
+            found.push((kind, amount));
         }
         false
     });
     let source = replace_last(value, source.clone());
     let mut solutions = Vec::new();
-    for kind in found {
-        for matched in explanation.unify_made(&Value::from(kind), &bindings) {
+    for (kind, amount) in found {
+        let claim = match amount {
+            None => Value::from(kind),
+            Some(amount) => {
+                json!({"kind":"List","args":[{"kind":"Text","args":kind},{"kind":"Number","args":amount}]})
+            }
+        };
+        for matched in explanation.unify_made(&claim, &bindings) {
             solutions.extend(ability.unify_made(&source, &matched));
             solutions.extend(ability.unify(value, matched));
         }

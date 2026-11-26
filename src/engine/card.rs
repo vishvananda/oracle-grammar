@@ -37,16 +37,26 @@ pub enum CardNote {
 
 impl LayoutReminder {
     fn check(self, context: &Characteristics) -> Result<(), String> {
+        let is_spell = || {
+            context
+                .card_types
+                .iter()
+                .any(|kind| matches!(kind, CardType::Instant | CardType::Sorcery))
+        };
         let matches = match self {
             Self::Adventure(_) => {
                 context
                     .subtypes
                     .iter()
                     .any(|ty| matches!(ty, SubType::Adventure))
-                    && context
-                        .card_types
-                        .iter()
-                        .any(|kind| matches!(kind, CardType::Instant | CardType::Sorcery))
+                    && is_spell()
+            }
+            Self::Omen => {
+                context
+                    .subtypes
+                    .iter()
+                    .any(|ty| matches!(ty, SubType::Omen))
+                    && is_spell()
             }
             Self::Room => {
                 context
@@ -57,6 +67,28 @@ impl LayoutReminder {
                         .card_types
                         .iter()
                         .any(|ty| matches!(ty, CardType::Enchantment))
+            }
+            Self::Siege => {
+                context
+                    .subtypes
+                    .iter()
+                    .any(|ty| matches!(ty, SubType::Siege))
+                    && context
+                        .card_types
+                        .iter()
+                        .any(|ty| matches!(ty, CardType::Battle))
+                    && context.defense.is_some_and(|defense| defense >= 0)
+            }
+            Self::OngoingScheme => {
+                use crate::model::mtg_types::SuperType;
+                context
+                    .card_types
+                    .iter()
+                    .any(|ty| matches!(ty, CardType::Scheme))
+                    && context
+                        .supertypes
+                        .iter()
+                        .any(|ty| matches!(ty, SuperType::Ongoing))
             }
         };
         matches

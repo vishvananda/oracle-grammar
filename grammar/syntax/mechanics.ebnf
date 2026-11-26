@@ -37,6 +37,7 @@ labelled_mechanic_reminder ::= ability_label "—" mechanic_reminded_text
 mechanic_reminded_text ::= ingest_reminded_text | convoke_reminded_text | delve_reminded_text
     | deck_rule_reminded_text | triggered_mechanic_reminded_text | standalone_mechanic_reminded_text
     | banding_reminded_text | bushido_reminded_text | affinity_reminded_text
+    | valued_mechanic_reminded_text | reconfigure_reminded_text
 
 /* @sem $mechanic_ingest */
 ingest_reminded_text ::= mechanic_ingest "(" "whenever" reminder_subject "deals" "combat" "damage" "to" "a" "player" "," "that" "player" "exiles" "the" "top" "card" "of" "their" "library" "." ")"
@@ -138,11 +139,14 @@ line_prototype ::= "prototype" mana_symbols "—" NUMBER "/" NUMBER
 
 /* A stage owner consumes the complete remaining card body. Prefix abilities
    stay outside; stage suffixes cannot escape as ordinary top-level lines. */
-stage_owning_abilities ::= line_level_up | line_class | class_with_reminder
+stage_owning_abilities ::= line_level_up | line_class | class_with_reminder | line_level_up_reminded
 
 /* Level up: its cost, then one stage to a range of levels. */
 /* @sem Ability::[Ability::CounterStages{counter:Named(LevelCounter), level_up:$cost, stages:$level_stages}] */
 line_level_up ::= "level" "up" cost NEWLINE level_stages
+
+/* @sem Ability::[WithPresentation{reminder:true, ability:CounterStages{counter:Named(LevelCounter), level_up:Cost::@agree($cost, $cost_2), stages:$level_stages}}] */
+line_level_up_reminded ::= "level" "up" cost "(" cost ":" "put" "a" "level" "counter" "on" "this" "." "level" "up" "only" "as" "a" "sorcery" "." ")" NEWLINE level_stages
 
 level_stages ::= level_stages_one | level_stages_more
 
@@ -205,9 +209,26 @@ tier_word ::= WORD
 
 /* Backup owns every following ability in this card body. It is reached from
    abilities, not line, so a trailing line cannot escape the granted set. */
-backup_abilities ::= line_backup | line_backup_pair | line_backup_triple
+backup_abilities ::= line_backup | line_backup_pair | line_backup_triple | line_backup_reminded
 /* @sem Ability::[Ability::Backup{amount:$number, abilities:$backup_stage_abilities}, ...$backup_stage_abilities] */
 line_backup ::= "backup" NUMBER NEWLINE backup_stage_abilities
+
+/* The reminder's counter count agrees with the keyword's printed amount.
+   The shared stage remains the complete set of following abilities. */
+/* @sem Ability::[WithPresentation{reminder:true, ability:Backup{amount:$backup_reminded_amount, abilities:$backup_stage_abilities}}, ...$backup_stage_abilities] */
+line_backup_reminded ::= "backup" backup_reminded_amount NEWLINE backup_stage_abilities
+
+backup_reminded_amount ::= backup_reminded_one | backup_reminded_two | backup_reminded_three
+/* @sem i64::1 */
+backup_reminded_one ::= "1" "(" backup_explanation_start "a" "+" "1" "/" "+" "1" "counter" backup_explanation_end ")"
+/* @sem i64::2 */
+backup_reminded_two ::= "2" "(" backup_explanation_start "two" "+" "1" "/" "+" "1" "counters" backup_explanation_end ")"
+/* @sem i64::3 */
+backup_reminded_three ::= "3" "(" backup_explanation_start "three" "+" "1" "/" "+" "1" "counters" backup_explanation_end ")"
+/* @sem () */
+backup_explanation_start ::= "when" "this" "creature" "enters" "," "put"
+/* @sem () */
+backup_explanation_end ::= "on" "target" "creature" "." "if" "that's" "another" "creature" "," "it" "gains" "the" "following" "ability" "until" "end" "of" "turn" "."
 
 /* Each printed Backup instance shares the non-Backup abilities below it. */
 /* @sem Ability::[Backup{amount:$number, abilities:$backup_stage_abilities}, Backup{amount:$number_2, abilities:$backup_stage_abilities}, ...$backup_stage_abilities] */
@@ -1123,3 +1144,27 @@ tier_mode_meteor_strikes ::= "•" "Meteor" "Strikes" "—" cost "—" double_po
 /* @prefer always */
 /* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$triple_target_characteristics}]}}}) */
 tier_mode_final_heaven ::= "•" "Final" "Heaven" "—" cost "—" triple_target_characteristics "."
+
+/* These reminders repeat the mechanic’s printed amount. */
+valued_mechanic_reminded_text ::= soulshift_reminded_text | saddle_reminded_text | dredge_reminded_text | graft_reminded_text | modular_reminded_text | rampage_reminded_text
+
+/* @sem Ability::Mechanic{mechanic:Soulshift, amount:Expr::@agree($number_digits, $number_digits_2)} */
+soulshift_reminded_text ::= "soulshift" number_digits "(" "when" "this" "creature" "dies" "," "you" "may" "return" "target" "Spirit" "card" "with" "mana" "value" number_digits "or" "less" "from" "your" "graveyard" "to" "your" "hand" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:Saddle, amount:Expr::@agree($number_digits, $number_digits_2)} */
+saddle_reminded_text ::= "saddle" number_digits "(" "tap" "any" "number" "of" "other" "creatures" "you" "control" "with" "total" "power" number_digits "or" "more" ":" "this" "Mount" "becomes" "saddled" "until" "end" "of" "turn" "." "saddle" "only" "as" "a" "sorcery" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:Dredge, amount:Expr::@agree($number_digits, $number_words)} */
+dredge_reminded_text ::= "dredge" number_digits "(" "if" "you" "would" "draw" "a" "card" "," "you" "may" "mill" number_words "cards" "instead" "." "if" "you" "do" "," "return" "this" "card" "from" "your" "graveyard" "to" "your" "hand" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:Graft, amount:Expr::@agree($number_digits, $number_words)} */
+graft_reminded_text ::= "graft" number_digits "(" "this" "creature" "enters" "with" number_words "+" "1" "/" "+" "1" "counters" "on" "it" "." "whenever" "another" "creature" "enters" "," "you" "may" "move" "a" "+" "1" "/" "+" "1" "counter" "from" "this" "creature" "onto" "it" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:Modular, amount:Expr::@agree($number_digits, $number_words)} */
+modular_reminded_text ::= "modular" number_digits "(" "this" "creature" "enters" "with" number_words "+" "1" "/" "+" "1" "counters" "on" "it" "." "when" "it" "dies" "," "you" "may" "put" "its" "+" "1" "/" "+" "1" "counters" "on" "target" "artifact" "creature" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:Rampage, amount:Expr::@agree($number_digits, $bushido_reminder_amount)} */
+rampage_reminded_text ::= "rampage" number_digits "(" "whenever" "this" "creature" "becomes" "blocked" "," "it" "gets" bushido_reminder_amount "until" "end" "of" "turn" "for" "each" "creature" "blocking" "it" "beyond" "the" "first" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:Reconfigure, cost:Cost::@agree($keyword_payment, $keyword_payment_2)} */
+reconfigure_reminded_text ::= "reconfigure" keyword_payment "(" keyword_payment ":" "attach" "to" "target" "creature" "you" "control" ";" "or" "unattach" "from" "a" "creature" "." "reconfigure" "only" "as" "a" "sorcery" "." "while" "attached" "," "this" "isn't" "a" "creature" "." ")"
