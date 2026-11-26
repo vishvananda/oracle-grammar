@@ -24,6 +24,7 @@ mod ability_joins;
 mod presentation;
 mod print_audit;
 mod printing;
+mod spell_paragraphs;
 pub use printing::Enumerated;
 
 pub mod diagnostics;
@@ -427,29 +428,6 @@ impl Engine {
     }
 }
 
-/// Ordinary spell paragraphs share a resolution. A modal announcement owns
-/// its selected programs; neighboring unconditional instructions remain separate.
-fn merge_spells(items: Vec<Value>) -> Vec<Value> {
-    let mut merged: Vec<Value> = Vec::with_capacity(items.len());
-    for item in items {
-        if item["kind"] == "Spell"
-            && item["args"]["announcement"]["modes"].is_null()
-            && let Some(previous) = merged.last_mut()
-            && previous["kind"] == "Spell"
-            && previous["args"]["announcement"]["modes"].is_null()
-            && let (Some(list), Some(more)) = (
-                previous["args"]["body"]["instructions"].as_array_mut(),
-                item["args"]["body"]["instructions"].as_array(),
-            )
-        {
-            list.extend(more.iter().cloned());
-            continue;
-        }
-        merged.push(item);
-    }
-    merged
-}
-
 fn bind_card(value: &Value, name: &str) -> Result<Value, String> {
     diagnostics::bind(value, name).map_err(|(_, why)| why)
 }
@@ -466,17 +444,6 @@ fn attachment_tag(attachment: bind::Attachment) -> u8 {
     }
 }
 
-fn has_mergeable_spells(items: &[Value]) -> bool {
-    items.windows(2).any(|pair| {
-        pair[0]["kind"] == "Spell"
-            && pair[0]["args"]["announcement"]["modes"].is_null()
-            && pair[1]["kind"] == "Spell"
-            && pair[1]["args"]["announcement"]["modes"].is_null()
-            && pair[0]["args"]["body"]["instructions"].is_array()
-            && pair[1]["args"]["body"]["instructions"].is_array()
-    })
-}
-
 fn bind_surface_cached(
     value: &Value,
     name: &str,
@@ -485,7 +452,7 @@ fn bind_surface_cached(
     // Zero-clone fast path for ordinary multi-ability cards: check per-ability
     // binding cache on borrowed abilities before allocating a cloned card Value.
     if let (Value::Array(items), Some(cache)) = (value, memo.as_deref_mut())
-        && !has_mergeable_spells(items)
+        && !spell_paragraphs::can_merge(items)
         && bind::linked_card_actions::is_plain(value)?
     {
         let attachment = bind::attachment(value);
@@ -530,7 +497,7 @@ fn bind_surface_cached(
         return Ok(bound);
     }
     let mut bound = match value {
-        Value::Array(items) => Value::Array(merge_spells(items.clone())),
+        Value::Array(items) => Value::Array(spell_paragraphs::merge(items.clone())),
         other => other.clone(),
     };
     let linked_card_sites = bind::linked_card_actions::prepare(&mut bound)?;

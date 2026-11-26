@@ -8,10 +8,13 @@ labelled_action_reminder ::= ability_label "—" action_reminder_ability
 action_reminder_ability ::= reminder_spell | reminder_activated | reminder_activated_limited | reminder_activated_trailing
     | reminder_triggered | reminder_triggered_if | reminder_triggered_once
     | reminder_turn | reminder_turn_if | reminder_spell_modal | reminder_activated_modal
-    | reminder_triggered_modal | reminder_turn_modal | reminder_loyalty
+    | reminder_triggered_modal | reminder_turn_modal | reminder_loyalty | reminder_spell_ascend
 
 /* @sem Ability::Spell{announcement:@announcement, body:$reminder_program_sentence} */
 reminder_spell ::= reminder_program_sentence
+/* The spell performs ascend before continuing with the rest of its program. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$ascend_instruction, ...$instructions]}} */
+reminder_spell_ascend ::= ascend_instruction ascend_explanation NEWLINE instructions "."
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$reminder_program_sentence} */
 reminder_activated ::= cost ":" reminder_program_sentence
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:$reminder_program_sentence} */
@@ -39,9 +42,11 @@ reminder_turn_if ::= "at" turn_event "," "if" condition "," reminder_program_sen
 reminder_program_sentence ::= reminder_instructions
 reminder_instructions ::= reminder_closed | reminder_before | reminder_closed_before
     | reminder_after_plain | reminder_after_reminder | reminder_open_then_plain | reminder_open_then_reminder
-reminder_before ::= reminder_before_period | reminder_before_then
+reminder_before ::= reminder_before_period | reminder_before_then | reminder_before_line
 /* @sem Instruction::[...$clause, ...$reminder_instructions] */
 reminder_before_period ::= clause sequencer reminder_instructions
+/* @sem Instruction::[...$instructions, ...$reminder_instructions] */
+reminder_before_line ::= instructions "." NEWLINE reminder_instructions
 /* @sem Vec<Instruction>::@then_sequence($clause_before_then, $reminder_instructions) */
 reminder_before_then ::= clause_before_then "," "then" reminder_instructions
 /* @sem Instruction::[...$clause_closed, ...$reminder_instructions] */
@@ -59,6 +64,7 @@ reminder_open_then_reminder ::= reminder_open (sequencer | "," "then") reminder_
 reminder_open_closed ::= reminder_open "."
 
 reminder_closed ::= limited_mana_cost_spending_reminded | reminder_open_closed | proliferate_reminded | proliferate_twice_reminded | proliferate_pair_reminded
+    | scry_reminded | surveil_reminded | investigate_reminded | named_token_reminded
     | reminder_if | reminder_optional | reminder_paid
 /* @sem Instruction::[@leading_if(Instruction::If{condition:$condition, then:_{instructions:$reminder_closed}, otherwise:_{}})] */
 reminder_if ::= "if" condition "," reminder_closed
@@ -84,6 +90,42 @@ proliferate_twice_reminded ::= proliferate_twice_action "." "(" proliferate_expl
 proliferate_pair_reminded ::= proliferate_pair "." "(" proliferate_explanation "." ("then" "do" "it" "again" ".")? ")"
 /* @sem () */
 proliferate_explanation ::= ("to" "proliferate" ",")? "choose" "any" "number" "of" "permanents" "and/or" "players" "," "then" "give" "each" "another" "counter" "of" "each" "kind" "already" "there"
+
+/* The numeral and the reminder's written count must agree in both directions. */
+/* @sem Instruction::[Effect{result:@next, operation:Scry{players:One(AbilityController), amount:@agree($number, $scry_look_explanation)}}] */
+scry_reminded ::= "scry" number "." "(" scry_look_explanation ")"
+scry_look_explanation ::= scry_look_one | scry_look_many
+/* @sem Expr::Constant(1) */
+scry_look_one ::= "look" "at" "the" "top" "card" "of" "your" "library" "." "you" "may" "put" "that" "card" "on" "the" "bottom" "."
+/* @sem $number_words */
+scry_look_many ::= "look" "at" "the" "top" number_words "cards" "of" "your" "library" "," "then" "put" "any" "number" "of" "them" "on" "the" "bottom" "and" "the" "rest" "on" "top" "in" "any" "order" "."
+
+/* @sem Instruction::[Effect{result:@next, operation:Surveil{players:One(AbilityController), amount:@agree($number, $surveil_look_explanation)}}] */
+surveil_reminded ::= "surveil" number "." "(" surveil_look_explanation ")"
+surveil_look_explanation ::= surveil_look_one | surveil_look_many
+/* @sem Expr::Constant(1) */
+surveil_look_one ::= "look" "at" "the" "top" "card" "of" "your" "library" "." "you" "may" "put" "it" "into" "your" "graveyard" "."
+/* @sem $number_words */
+surveil_look_many ::= "look" "at" "the" "top" number_words "cards" "of" "your" "library" "," "then" "put" "any" "number" "of" "them" "into" "your" "graveyard" "and" "the" "rest" "on" "top" "in" "any" "order" "."
+
+/* @sem Instruction::[Effect{result:@next, operation:$investigate_once}] */
+investigate_reminded ::= investigate_once "." "(" "create" "a" "Clue" "token" "." clue_explanation ")"
+/* The receipt and token's activated abilities come from the existing recipe.
+   The recognized explanation contributes no extra instructions. */
+/* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:Rules, recipe:$reminded_named_token}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+named_token_reminded ::= "create" "a" reminded_named_token
+
+reminded_named_token ::= reminded_treasure_token | reminded_food_token | reminded_clue_token | reminded_blood_token
+/* @sem $tn_treasure */
+reminded_treasure_token ::= tn_treasure "token" "." "(" "it's" "an" "artifact" "with" '"' "{" "T" "}" "," "↑" "sacrifice" "this" "token" ":" "add" "one" "mana" "of" "any" "color" "." '"' ")"
+/* @sem $tn_food */
+reminded_food_token ::= tn_food "token" "." "(" "it's" "an" "artifact" "with" '"' "{" "2" "}" "," "{" "T" "}" "," "↑" "sacrifice" "this" "token" ":" "you" "gain" "3" "life" "." '"' ")"
+/* @sem $tn_clue */
+reminded_clue_token ::= tn_clue "token" "." "(" clue_explanation ")"
+/* @sem $tn_blood */
+reminded_blood_token ::= tn_blood "token" "." "(" "it's" "an" "artifact" "with" '"' "{" "1" "}" "," "{" "T" "}" "," "↑" "discard" "a" "card" "," "↑" "sacrifice" "this" "token" ":" "draw" "a" "card" "." '"' ")"
+/* @sem () */
+clue_explanation ::= "it's" "an" "artifact" "with" '"' "{" "2" "}" "," "↑" "sacrifice" "this" "token" ":" "draw" "a" "card" "." '"'
 
 /* The mode list has at least one reminder-bearing mode. Plain modes keep their
    own scopes; the presentation belongs to the complete modal ability. */

@@ -128,3 +128,143 @@ fn absent_mana_cost_is_not_a_zero_mana_cost() {
         json!([{"Generic":0}])
     );
 }
+
+#[test]
+fn presentation_keeps_native_meaning_and_exact_wording() {
+    let engine = crate::test_support::engine();
+    for (plain, text, label, reminder) in [
+        (
+            "Draw a card.",
+            "Beacon of Hope — Draw a card.",
+            Some("Beacon of Hope"),
+            false,
+        ),
+        (
+            "Draw a card.",
+            "A Test of Your Reflexes! — Draw a card.",
+            Some("A Test of Your Reflexes!"),
+            false,
+        ),
+        (
+            "Draw three cards.\nIf you cast this spell during your main phase, instead scry 3, then draw three cards.",
+            "Draw three cards.\nAddendum — If you cast this spell during your main phase, instead scry 3, then draw three cards.",
+            Some("Addendum"),
+            false,
+        ),
+        (
+            "Tap target creature.\nIf you control three or more artifacts, exile that creature.",
+            "Tap target creature.\nMetalcraft — If you control three or more artifacts, exile that creature.",
+            Some("Metalcraft"),
+            false,
+        ),
+        (
+            "Counter target spell.\nSurveil 1.",
+            "Counter target spell.\nSurveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
+            None,
+            true,
+        ),
+        (
+            "Whenever a land you control enters, create a Treasure token.",
+            "Landfall — Whenever a land you control enters, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+            Some("Landfall"),
+            true,
+        ),
+        (
+            "Choose one —\n• Draw a card.\n• Scry 1.\nEntwine {2}",
+            "Choose one —\n• Draw a card.\n• Scry 1.\nEntwine {2} (Choose both if you pay the entwine cost.)",
+            None,
+            true,
+        ),
+        (
+            "Partner",
+            "Partner (You can have two commanders if both have partner.)",
+            None,
+            true,
+        ),
+        (
+            "Echo {1}{G}",
+            "Echo {1}{G} (At the beginning of your upkeep, if this came under your control since the beginning of your last upkeep, sacrifice it unless you pay its echo cost.)",
+            None,
+            true,
+        ),
+    ] {
+        let name = "Synthetic example";
+        let faces = scryfall(&[raw("one", name, text), raw("two", name, plain)]).unwrap();
+        let row = outcome(engine, &faces[0]);
+        assert_eq!(row["status"], "unique", "{text}: {row}");
+        let ability = &row["readings"][0]["card"]["abilities"];
+        assert_eq!(ability.as_array().unwrap().len(), 1, "{text}: {row}");
+        assert_eq!(ability[0]["kind"], "WithPresentation", "{text}");
+        assert_eq!(ability[0]["args"]["label"], json!(label), "{text}");
+        assert_eq!(ability[0]["args"]["reminder"], json!(reminder), "{text}");
+        let meaning = crate::engine::semantic_abilities(ability).unwrap();
+        let baseline = outcome(engine, &faces[1]);
+        assert!(
+            baseline["readings"].as_array().unwrap().iter().any(|row| {
+                crate::engine::semantic_abilities(&row["card"]["abilities"]).unwrap() == meaning
+            }),
+            "{text}: {baseline}"
+        );
+
+        let context = &faces[0].context.as_ref().unwrap().0;
+        let reading = CardReading {
+            abilities: ability.clone(),
+            notes: vec![],
+        };
+        let trail = engine
+            .card_key_of(name, &reading, context, text, true)
+            .unwrap()
+            .expect("exact card trail");
+        assert_eq!(
+            engine
+                .print_card_trail(name, &reading, context, &trail)
+                .unwrap()
+                .as_deref(),
+            Some(text)
+        );
+    }
+}
+
+#[test]
+fn unsupported_presentation_cannot_hide_rules_or_contradict_operands() {
+    let engine = crate::test_support::engine();
+    let cases = [
+        "Uncatalogued heading — Draw a card.",
+        "Partner (Draw a card.)",
+        "Create a Food token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "Scry 2. (Look at the top card of your library. You may put that card on the bottom.)",
+        "Choose one —\n• Draw a card.\n• Scry 1.\n• Surveil 1.\nEntwine {2} (Choose both if you pay the entwine cost.)",
+    ];
+    let records = cases.map(|text| raw("one", "Synthetic example", text));
+    for face in scryfall(&records).unwrap() {
+        let row = outcome(engine, &face);
+        assert_eq!(row["status"], "refused", "{}: {row}", face.text);
+    }
+}
+
+#[test]
+fn edited_scry_amount_prints_in_the_action_and_its_reminder() {
+    let engine = crate::test_support::engine();
+    let name = "Synthetic example";
+    let original = "Scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)";
+    let faces = scryfall(&[raw("one", name, original)]).unwrap();
+    let context = &faces[0].context.as_ref().unwrap().0;
+    let mut reading = engine
+        .parse_card(name, original, context)
+        .unwrap()
+        .readings
+        .pop()
+        .unwrap();
+    let amount = "/0/args/ability/args/body/instructions/0/args/operation/args/amount/args";
+    *reading.abilities.pointer_mut(amount).unwrap() = json!(3);
+    let printed = engine
+        .print_card_keyed(name, &reading, context, &[])
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        printed,
+        "Scry 3. (Look at the top three cards of your library, then put any number of them on the bottom and the rest on top in any order.)"
+    );
+    let parsed = engine.parse_card(name, &printed, context).unwrap();
+    assert!(parsed.readings.contains(&reading));
+}

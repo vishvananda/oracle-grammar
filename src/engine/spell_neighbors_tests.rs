@@ -58,17 +58,20 @@ fn modal_boundaries_preserve_direct_shape_labels_and_unknown_announcements() {
         vec![ordinary.clone(), modal.clone()],
         vec![modal.clone(), modal.clone()],
     ] {
-        assert_eq!(merge_spells(input.clone()), input);
+        assert_eq!(spell_paragraphs::merge(input.clone()), input);
     }
     let wrapped = json!({"$sym":"scope","at":0,"args":[ordinary.clone()]});
     let input = vec![ordinary.clone(), wrapped];
-    assert_eq!(merge_spells(input.clone()), input);
+    assert_eq!(spell_paragraphs::merge(input.clone()), input);
     let labelled = json!({"kind":"Keyword","args":{"kind":"Flying"}});
     let input = vec![ordinary.clone(), labelled, ordinary.clone()];
-    assert_eq!(merge_spells(input.clone()), input);
+    assert_eq!(spell_paragraphs::merge(input.clone()), input);
     let mut symbolic = ordinary;
     symbolic["args"]["announcement"] = json!({"$sym":"announcement","at":0});
-    assert_eq!(merge_spells(vec![symbolic.clone(), symbolic]).len(), 1);
+    assert_eq!(
+        spell_paragraphs::merge(vec![symbolic.clone(), symbolic]).len(),
+        1
+    );
 }
 #[test]
 fn ordinary_target_namespaces_still_merge_but_modal_neighbors_do_not() {

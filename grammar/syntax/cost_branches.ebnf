@@ -9,6 +9,8 @@ kicker_branch_reminded_header ::= "kicker" keyword_payment "(" "you" "may" addit
 spell_kicker_branch ::= kicker_branch_header NEWLINE kicker_branch_program
 /* @sem Ability::WithPresentation{reminder:true, ability:@kicker_branch($kicker_branch_reminded_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
 spell_kicker_branch_reminded ::= kicker_branch_reminded_header NEWLINE kicker_branch_program
+/* @sem Ability::WithPresentation{reminder:true, ability:@kicker_branch($kicker_branch_reminded_header, Ability::Spell{announcement:@announcement, body:$reminder_program_sentence})} */
+spell_kicker_branch_with_reminded_body ::= kicker_branch_reminded_header NEWLINE reminder_program_sentence
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:@kicker_branch($kicker_branch_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
 spell_kicker_branch_labelled ::= ability_label "—" kicker_branch_header NEWLINE kicker_branch_program
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:@kicker_branch($kicker_branch_reminded_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
@@ -59,6 +61,13 @@ kicker_replacement_clause ::= kicker_replacement_standard | kicker_replacement_c
    independently scoped mode programs and target announcements. */
 /* @sem Ability::CostBranch{keyword:Entwine, cost:$keyword_payment, paid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:@length($modes), maximum:@length($modes)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}, unpaid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}} */
 spell_entwine ::= "choose" "one" "—" NEWLINE modes NEWLINE "entwine" keyword_payment
+
+/* "Both" describes exactly two modes. The reminder carries presentation
+   and the two casting branches still share those independently scoped modes. */
+/* @sem Ability::WithPresentation{reminder:true, ability:CostBranch{keyword:Entwine, cost:$keyword_payment, paid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(2), maximum:Constant(2)}, options:$entwine_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}, unpaid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:$entwine_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}}} */
+spell_entwine_reminded ::= "choose" "one" "—" NEWLINE entwine_two_modes NEWLINE "entwine" keyword_payment "(" "choose" "both" "if" "you" "pay" "the" "entwine" "cost" "." ")"
+/* @sem Mode::[$mode, $mode_2] */
+entwine_two_modes ::= mode NEWLINE mode
 
 /* Kicker changes the number of chosen modes; each mode keeps its own target
    announcement in both casting branches. */

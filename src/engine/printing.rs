@@ -188,6 +188,9 @@ impl Engine {
         if !surfaces.contains(&native) {
             surfaces.push(native);
         }
+        if written {
+            surfaces.extend(super::spell_paragraphs::written_splits(&surfaces));
+        }
         Ok(surfaces)
     }
 
