@@ -971,3 +971,5 @@ mod event_source_normal_form;
 mod reported_receipts_193;
 mod scalar_capture_normal_form;
 mod source_input_normal_form;
+
+mod recursive_lists;

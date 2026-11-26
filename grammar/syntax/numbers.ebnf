@@ -417,9 +417,8 @@ value_greatest ::= "the" "greatest" stat "among" greatest_maximum_population
 /* @sem Expr::Maximum(Aggregate{objects:$greatest_population, property:$stat, aggregation:Maximum}, Aggregate{objects:$greatest_population, property:$stat_2, aggregation:Maximum}) */
 value_greatest_pair ::= "the" "greatest" stat "and/or" stat "among" greatest_population
 
-greatest_population ::= craft_exiled_cards | greatest_battlefield | greatest_other_battlefield | card_population | greatest_exile_cards
-/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural} */
-greatest_battlefield ::= filter_plural
+greatest_population ::= craft_exiled_cards | counter_battlefield_population | greatest_other_battlefield | card_population | greatest_exile_cards
+
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject(@it)), $filter_plural)} */
 greatest_other_battlefield ::= "other" filter_plural
 greatest_card_zone ::= greatest_hand | greatest_graveyard | greatest_library
@@ -854,8 +853,8 @@ count_each_cycled_or_discarded ::= "card" cycled_or_discarded_this_turn
 value_cards_cycled_or_discarded ::= "the" "number" "of" "cards" cycled_or_discarded_this_turn
 
 /* A property and a battlefield population compose independently. */
-/* @sem Expr::CountDistinct{objects:$greatest_battlefield, property:$distinct_battlefield_property} */
-count_each_distinct_among_battlefield ::= "different" distinct_battlefield_property "among" greatest_battlefield
+/* @sem Expr::CountDistinct{objects:$counter_battlefield_population, property:$distinct_battlefield_property} */
+count_each_distinct_among_battlefield ::= "different" distinct_battlefield_property "among" counter_battlefield_population
 
 distinct_battlefield_property ::= distinct_mana_value | distinct_power
 
@@ -1011,9 +1010,6 @@ history_draw_you ::= "you've"
 history_draw_they ::= "they've"
 
 history_draw_actor ::= history_draw_you | history_draw_they
-
-/* @sem Expr::EventHistory{event:ZoneChange{objects:AllOf([$filter_phrase, ControlledBy(One(AbilityController))]), from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences} */
-count_each_died_under_your_control ::= filter_phrase "that" "died" "under" "your" "control" "this" "turn"
 
 /* One chosen opponent supplies the graveyard for this population. */
 /* @sem ZoneScope::Players{zone:Graveyard, players:One(OneOf(OpponentsOf(AbilityController)))} */
@@ -1239,9 +1235,6 @@ history_life_total ::= history_life_opponents_lost | history_life_you_lost
 /* @sem Expr::Aggregate{objects:$owned_commander_battlefield_or_command, property:ManaValue, aggregation:Maximum} */
 value_greatest_owned_commander_mana ::= "the" "greatest" "mana" "value" "of" owned_commander_battlefield_or_command
 
-/* @sem Expr::CountCounters(_{recipients:Objects($affected), kind:$counter_kind, information:CurrentOrLastKnown}) */
-counter_population_quantity ::= "the" "number" "of" counter_kind "counters" "on" affected
-
 /* Evaluate the life event independently for each bound player. */
 /* @sem Expr::CountPlayers(Matching{binding:0, condition:Compare{left:EventHistory{event:Player{event:$life_history_event, players:One(Bound(0))}, window:$life_history_window, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}) */
 count_each_player_life_history ::= "player" "who" life_history_event "life" life_history_window
@@ -1456,8 +1449,8 @@ value_at_turn_beginning ::= historical_population_count "at" "the" "beginning" "
 historical_population_count ::= "the" "number" "of" historical_event_subject_population
 
 /* Count the largest battlefield group sharing a characteristic. */
-/* @sem Expr::LargestSharedGroup{objects:$greatest_battlefield, property:$equipped_shared_characteristic} */
-value_largest_shared_group ::= "the" "greatest" "number" "of" greatest_battlefield "that" "have" "a" equipped_shared_characteristic "in" "common"
+/* @sem Expr::LargestSharedGroup{objects:$counter_battlefield_population, property:$equipped_shared_characteristic} */
+value_largest_shared_group ::= "the" "greatest" "number" "of" counter_battlefield_population "that" "have" "a" equipped_shared_characteristic "in" "common"
 
 /* A counted live population keeps the state and controller with its filter. */
 /* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([State(Goaded), $filter_phrase, ControlledBy(One(AbilityController))])}) */
@@ -1539,9 +1532,6 @@ owned_zones_plus_value ::= value_atom "plus" value_owned_exile_graveyard_union
 history_other_named_damage ::= "the" "amount" "of" "damage" "dealt" "to" self_ref_holder "this" "turn" "by" "other" "sources" "named" referenced_card_name
 
 history_damage_sum ::= history_damage_named_sum | history_damage_outside_hand_sum
-
-/* @sem Expr::CountDistinct{objects:$affected, property:CreatureTypes} */
-value_creature_types_among ::= "the" "number" "of" "creature" "types" "among" affected
 
 /* The target retains its own announced filter and identity. */
 /* @sem Expr::Noted{object:$target_permanent, measure:CreatureTypes} */

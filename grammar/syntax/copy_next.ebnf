@@ -52,13 +52,10 @@ copy_ref_for_each ::= "copy" object_ref "for" "each" count_each
 /* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$object_ref, times:$count_each, targets:May}}] */
 clause_copy_ref_for_each_new_targets ::= "copy" object_ref "for" "each" count_each "." "you" "may" "choose" "new" "targets" "for" "the" "copies"
 
-next_spell_filter ::= next_any_spell | next_adjective_spell | next_modified_spell | next_described_spell | next_mana_bounded_spell
+next_spell_filter ::= next_any_spell | cast_history_filtered_spell | next_modified_spell | next_described_spell | next_mana_bounded_spell
 
 /* @sem ObjectFilter::Any */
 next_any_spell ::= "spell"
-
-/* @sem $spell_adjectives */
-next_adjective_spell ::= spell_adjectives "spell"
 
 /* @sem $modifiers */
 next_modified_spell ::= "spell" modifiers
@@ -89,10 +86,10 @@ copy_group_retarget ::= "you" "may" "choose" "new" "targets" "for" "the" "copies
 
 /* Fixed mana and the actual optional payment result own both copy actions.
    A spell-only filter must not be applied to the later ability-copy group. */
-/* @sem Cost::@fixed_mana(Cost{parts:[Mana($mana_symbols)]}) */
-copy_fixed_payment ::= mana_symbols
-/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$copy_fixed_payment, optional:true}}, If{condition:PaymentChosen(@marked), then:_{instructions:[Effect{result:@next, operation:CopyEach{actor:One(AbilityController), objects:@and(ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::OnStack(Spell)), targets:May}}, Effect{result:@next, operation:CopyEach{actor:One(AbilityController), objects:@and(ObjectFilter::Not(OnStack(ThisAbility)), ObjectFilter::AnyOf([OnStack(Activated), OnStack(Triggered)]), ObjectFilter::ControlledBy(One(AbilityController))), targets:May}}]}, otherwise:_{}}] */
-clause_copy_paid_stack_groups ::= "you" "may" "pay" copy_fixed_payment "." "if" "you" "do" "," "copy" "all" "spells" "you" "control" "," "then" "copy" "all" "other" "activated" "and" "triggered" "abilities" "you" "control" "." copy_group_retarget
+/* copy_fixed_payment is shared as single_mill_mana. */
+
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$single_mill_mana, optional:true}}, If{condition:PaymentChosen(@marked), then:_{instructions:[Effect{result:@next, operation:CopyEach{actor:One(AbilityController), objects:@and(ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::OnStack(Spell)), targets:May}}, Effect{result:@next, operation:CopyEach{actor:One(AbilityController), objects:@and(ObjectFilter::Not(OnStack(ThisAbility)), ObjectFilter::AnyOf([OnStack(Activated), OnStack(Triggered)]), ObjectFilter::ControlledBy(One(AbilityController))), targets:May}}]}, otherwise:_{}}] */
+clause_copy_paid_stack_groups ::= "you" "may" "pay" single_mill_mana "." "if" "you" "do" "," "copy" "all" "spells" "you" "control" "," "then" "copy" "all" "other" "activated" "and" "triggered" "abilities" "you" "control" "." copy_group_retarget
 
 /* Only this cast-spell producer supplies the marked result. Both copies use
    one shared filter choice, retaining two identical copy actions (one pool). */
@@ -185,9 +182,6 @@ paid_dying_creature_copy ::= "you" "may" pay_mana "." "if" "you" "do" "," copy_d
 /* @sem Ability::Triggered{event:$event_a_creature_dies_for_copy, limits:TriggerLimits{}, announcement:@announcement, body:$paid_dying_creature_copy} */
 triggered_paid_dying_creature_copy ::= "whenever" event_a_creature_dies_for_copy "," paid_dying_creature_copy
 
-/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:$spell_targets_only_self} */
-event_cast_spell_targeting_only_source ::= "you" "cast" spell_targets_only_self
-
 /* @sem Operation::CopyOnStack{actor:One(AbilityController), object:EventSubject, times:Constant(1), targets:May} */
 copy_cast_event_with_new_targets ::= "copy" "that" "spell" "." "you" "may" "choose" "new" "targets" "for" "the" "copy"
 
@@ -195,8 +189,8 @@ copy_cast_event_with_new_targets ::= "copy" "that" "spell" "." "you" "may" "choo
 paid_source_targeting_spell_copy ::= "you" "may" pay_mana "." "if" "you" "do" "," copy_cast_event_with_new_targets "."
 
 /* @prefer always */
-/* @sem Ability::Triggered{event:$event_cast_spell_targeting_only_source, limits:TriggerLimits{}, announcement:@announcement, body:$paid_source_targeting_spell_copy} */
-triggered_paid_source_targeting_spell_copy ::= "whenever" event_cast_spell_targeting_only_source "," paid_source_targeting_spell_copy
+/* @sem Ability::Triggered{event:$event_cast_only_source_general, limits:TriggerLimits{}, announcement:@announcement, body:$paid_source_targeting_spell_copy} */
+triggered_paid_source_targeting_spell_copy ::= "whenever" event_cast_only_source_general "," paid_source_targeting_spell_copy
 
 /* The returned object is the same announced spell that was copied. */
 /* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$target_stack_spell, times:Constant(1), targets:May}}, Effect{result:@next, operation:Move{objects:One($target_stack_spell), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */

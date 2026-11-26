@@ -173,7 +173,7 @@ changes_and ::= change "and" changes
 /* @sem Change::[...$change, ...$changes] */
 changes_comma ::= change "," "and"? changes
 
-change ::= change_becomes_basic_land_type | change_animation_loses_equipment | change_becomes_colored_retained_type | pilot_animation_change | change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords | change_twice_negative_pump | change_become_artifact_creature_singular | change_become_colored_base_retained | change_become_named_artifact_retained | change_granted_controller_activation | plural_animation_with_grants | plural_granted_animation | change_becomes_colored_creature_retained_base | change_colored_named_creature_replacement | change_has_all_nonlegendary_names | change_combat_subject_draw_grant | change_become_artifacts_retained | change_singular_base_keywords | change_isnt_creature | change_has_base_toughness | change_becomes_all_colors | change_becomes_named_artifact_retained | change_remove_vowel_card_type | change_retained_enchantment_creature | change_loses_banding_and_bands
+change ::= pilot_land_change | change_animation_loses_equipment | change_becomes_colored_retained_type | pilot_animation_change | change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords | change_twice_negative_pump | change_become_artifact_creature_singular | change_become_colored_base_retained | change_become_named_artifact_retained | change_granted_controller_activation | plural_animation_with_grants | plural_granted_animation | change_becomes_colored_creature_retained_base | change_colored_named_creature_replacement | change_has_all_nonlegendary_names | change_combat_subject_draw_grant | change_become_artifacts_retained | change_singular_base_keywords | change_isnt_creature | change_has_base_toughness | change_becomes_all_colors | change_becomes_named_artifact_retained | change_remove_vowel_card_type | change_retained_enchantment_creature | change_loses_banding_and_bands
 
 /* "Loses all creature types": an empty creature type list replaces the old one. */
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed([])}] */
@@ -189,11 +189,10 @@ change_is_all_creature_types ::= "is" "all" "creature" "types"
 change_is_basic_land_type ::= "is" basic_land_type_named
 /* @sem Change::[SetLandType(Vocabulary{family:LandType, form:@subtype_name($basic_land_types)})] */
 change_are_basic_land_type ::= "are" basic_land_types
-basic_land_type_named ::= basic_land_type_a | basic_land_type_an
+basic_land_type_named ::= basic_land_type_a | controlled_island
 /* @sem $basic_land_type_consonant */
 basic_land_type_a ::= "a" basic_land_type_consonant
-/* @sem $st_island */
-basic_land_type_an ::= "an" st_island
+
 basic_land_type_consonant ::= st_plains | st_swamp | st_mountain | st_forest
 basic_land_types ::= st_plains | st_island_pl | st_swamp_pl | st_mountain_pl | st_forest_pl
 
@@ -344,7 +343,7 @@ grant_tail ::= grant_last | grant_many
 /* @sem Change::[$grant] */
 grant_last ::= "and" grant
 
-grant ::= grant_subtype_equip_keyword | grant_quoted_static_comma | grant_chosen_ability | grant_player_protection | grant_chosen_snow_landwalk | chosen_color_hexproof_grant | grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger | grant_crew_ability | grant_activated_abilities_from | grant_unpunctuated_static | grant_equipment_keyword | grant_quoted_equipped_pump
+grant ::= grant_subtype_equip_keyword | grant_quoted_static_comma | grant_chosen_ability | grant_player_protection | grant_chosen_snow_landwalk | chosen_color_hexproof_grant | grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger | grant_crew_ability | grant_activated_abilities_from | grant_unpunctuated_static | plain_equip_grant | grant_quoted_equipped_pump
 
 /* "Gains all creature types", "a 2/2 creature with all creature types": every creature
    type replaces the old ones (CR 205.3m), like a changeling's characteristic. */
@@ -775,17 +774,13 @@ replacement_ability ::= replacement_death_redirect_shared | replacement_entry_ma
    permanent, not this source. */
 /* @sem Ability::Replacement{active:Battlefield, event:ZoneChange{objects:$die_exile_objects, from:Battlefield, to:Graveyard}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}} */
 replacement_die_exile ::= "if" die_exile_objects "would" "die" "," "exile" "it" "instead" "."
-die_exile_objects ::= die_exile_any | die_exile_other | die_exile_damaged | die_exile_self
+die_exile_objects ::= event_a | event_another | die_exile_damaged | die_exile_self
 /* @sem ObjectFilter::SameObject($self_explicit_ref) */
 die_exile_self ::= self_explicit_ref
 /* A creature this turn's damage marks: dealt damage by an object, or by a source you controlled. */
 /* @sem @and($filter_phrase, $die_damage_history) */
 die_exile_damaged ::= ("a" | "an") filter_phrase die_damage_history
 die_damage_history ::= modifier_dealt_damage_by | modifier_dealt_damage_by_yours
-/* @sem $filter_phrase */
-die_exile_any ::= ("a" | "an") filter_phrase
-/* @sem @and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_phrase) */
-die_exile_other ::= "another" filter_phrase
 
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:SetTapped(true)}}]}}) */
 replacement_enters_tapped ::= self_ref "enters" "tapped" "."
@@ -1084,9 +1079,8 @@ attached_other_auras ::= "can't" "be" "enchanted" "by" "other" "Auras"
 /* @sem Change::GrantAbility(@holder($granted_mechanic)) */
 grant_native_mechanic ::= granted_mechanic
 
-granted_mechanic ::= bare_mentor | bare_double_team | bare_phasing | granted_echo_defined | granted_annihilator_defined | granted_defined_mechanic | bare_rebound | bare_dethrone | bare_evolve | bare_exploit | bare_extort | granted_valued_mechanic | bare_battle_cry | bare_persist | mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost | bare_melee | bare_myriad | bare_provoke | bare_read_ahead | granted_poisonous | granted_outlast | bare_undying | mechanic_banding | bare_living_weapon
-/* @sem Ability::Mechanic{mechanic:Affinity, filter:$filter_plural} */
-granted_affinity ::= "affinity" "for" filter_plural
+granted_mechanic ::= bare_mentor | bare_double_team | bare_phasing | granted_echo_defined | granted_annihilator_defined | granted_defined_mechanic | bare_rebound | bare_dethrone | bare_evolve | bare_exploit | bare_extort | granted_valued_mechanic | bare_battle_cry | bare_persist | mechanic_numbered_keyword | bare_jump_start | bare_exalted | mechanic_affinity | granted_replicate_mana_cost | granted_replicate_cost | bare_melee | bare_myriad | bare_provoke | bare_read_ahead | granted_poisonous | granted_outlast | bare_undying | mechanic_banding | bare_living_weapon
+
 /* Source belongs to the receiving spell, not the static granting permanent. */
 /* @sem Ability::Mechanic{mechanic:Replicate, cost:Cost{parts:[ManaCostOf(Source)]}} */
 granted_replicate_mana_cost ::= "replicate" "." "the" "replicate" "cost" "is" "equal" "to" "its" "mana" "cost"
@@ -1127,7 +1121,7 @@ mechanic_each_cast_spell ::= "each" card_filter "spell" "you" "cast"
 
 /* Existing lowercase Clues vocabulary folds the sentence-initial spelling.
    Keep that declared spelling local to these typed mechanic grants. */
-mechanic_grant_subject ::= mechanic_clues | mechanic_modified_clues | mechanic_filtered_permanents
+mechanic_grant_subject ::= mechanic_clues | mechanic_modified_clues | counter_battlefield_population
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:Subtype(Clue)} */
 mechanic_clues ::= "clues"
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Subtype(Clue), $modifiers)} */
@@ -1400,9 +1394,7 @@ scalar_static_attacking_alone ::= "attacking" "alone"
    the second static applies to the same subject while its test fails. */
 /* @sem Ability::Conditional{condition:ObjectMatches{object:$scalar_static_subject, filter:$scalar_otherwise_test}, then:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$static_changes}], otherwise:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$static_changes_2}]} */
 scalar_subject_static_otherwise ::= scalar_static_subject static_changes "as" "long" "as" "it's" scalar_otherwise_test "." "otherwise" "," "it" static_changes "."
-scalar_otherwise_test ::= scalar_static_state | scalar_otherwise_kind | adjective_color
-/* @sem $filter_phrase */
-scalar_otherwise_kind ::= ("a" | "an") filter_phrase
+scalar_otherwise_test ::= scalar_static_state | event_a | adjective_color
 
 /* The scalar optional-other target has a lexical antecedent, independently
    of the operation's effect receipt. Keep this opt-in to characteristic changes;
@@ -1454,9 +1446,8 @@ nonbattlefield_singular_subject_verb ::= nonbattlefield_owned_singular "has"
 nonbattlefield_owned_plural ::= filter_phrase "cards" "you" "own" "that" "aren't" "on" "the" "battlefield"
 /* @sem ObjectSet::AnyZone(@and($filter_phrase, ObjectFilter::OwnedBy(One(AbilityController)), ObjectFilter::Not(InZone(Shared(Battlefield))))) */
 nonbattlefield_owned_singular ::= "each" filter_phrase "card" "you" "own" "that" "isn't" "on" "the" "battlefield"
-nonbattlefield_granted_ability ::= nonbattlefield_granted_keyword | nonbattlefield_granted_madness
-/* @sem Ability::Keyword($keyword_value) */
-nonbattlefield_granted_keyword ::= keyword_value
+nonbattlefield_granted_ability ::= keyword_plain | nonbattlefield_granted_madness
+
 /* The granted card is Source for its own madness cost; the granter is not. */
 /* @sem Ability::Mechanic{mechanic:Madness, cost:Cost{parts:[ManaCostOf(Source)]}} */
 nonbattlefield_granted_madness ::= "madness" "." "the" "madness" "cost" "is" "equal" "to" "its" "mana" "cost"
@@ -1509,9 +1500,8 @@ attached_counter_pump ::= "enchanted" "creature" "gets" signed "/" signed "for" 
 
 /* The existing quoted-sentence rule owns its closing inner period. Ordinary
    unquoted changes still require their own terminal period. */
-attached_counter_follow ::= attached_counter_follow_plain | attached_counter_follow_quoted
-/* @sem $static_changes */
-attached_counter_follow_plain ::= static_changes "."
+attached_counter_follow ::= paired_changes_sentence | attached_counter_follow_quoted
+
 /* @sem $closed_grants */
 attached_counter_follow_quoted ::= ("has" | "have") closed_grants
 
@@ -1645,10 +1635,8 @@ continuous_chosen_creature_type_explicit ::= affected "becomes" "the" "chosen" "
 static_spell_mana_grant_with_cost_reduction ::= spell_mana_grant_subject ("has" | "have") spell_mana_grant_effect "." NEWLINE spell_blitz_cost_rule "."
 /* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$spell_blitz_cost_rule]} */
 static_spell_keyword_cost_reduction ::= spell_blitz_cost_rule "."
-/* @sem Change::PlayerRule(KeywordCost{keyword:Blitz, cards:Any, change:Reduce($spell_generic_reduction), per:$count_each_commander_cast}) */
-spell_blitz_cost_rule ::= "blitz" "costs" "you" "pay" "cost" spell_generic_reduction "less" "for" "each" count_each_commander_cast
-/* @sem Operand::List([Term{family:ManaSymbol, form:ManaCostGeneric, operands:[Integer($number)]}]) */
-spell_generic_reduction ::= "{" NUMBER "}"
+/* @sem Change::PlayerRule(KeywordCost{keyword:Blitz, cards:Any, change:Reduce($generic_alternative), per:$count_each_commander_cast}) */
+spell_blitz_cost_rule ::= "blitz" "costs" "you" "pay" "cost" generic_alternative "less" "for" "each" count_each_commander_cast
 
 /* The color-count qualifier belongs to the graveyard card population. The
    granted mechanic is held by each receiving card. */
@@ -1722,9 +1710,8 @@ line_additional_enter_leave_triggers ::= "if" ("a" | "an") filter_phrase "or" ("
    additional time": every trigger of those permanents' abilities happens twice. */
 /* @sem Ability::[TriggerRule{abilities:AbilityOf($retrigger_holder), rule:TriggersAgain}] */
 line_triggers_additional ::= "if" "a" "triggered" "ability" "of" retrigger_holder "triggers" "," retrigger_ref "triggers" "an" "additional" "time" "."
-retrigger_holder ::= retrigger_holder_one | retrigger_holder_another
-/* @sem $filter_phrase */
-retrigger_holder_one ::= ("a" | "an") filter_phrase
+retrigger_holder ::= event_a | retrigger_holder_another
+
 /* @sem @and(ObjectFilter::Not(ObjectFilter::SameObject(Source)), $filter_phrase) */
 retrigger_holder_another ::= "another" filter_phrase
 /* @sem () */
@@ -1739,22 +1726,15 @@ change_lose_all_abilities ::= ("loses" | "lose") "all" "abilities"
 qualified_creature_literal_pump ::= boosted_creature ("gets" | "get") signed_literal "/" signed_literal duration
 /* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::CardType(Creature)) */
 boosted_creature ::= "the" "creature"
-signed_literal ::= signed_literal_plus | signed_literal_minus
-/* @sem $number_digits */
-signed_literal_plus ::= "+" number_digits
-/* @sem Expr::@negate($number_digits) */
-signed_literal_minus ::= "-" number_digits
+signed_literal ::= sacrifice_stat_plus | sacrifice_stat_minus
 
 /* Adjacent statements preserve independent conditions and one explicit host. */
 
 /* @sem Ability::[$static_conditional_first, $static_conditional] */
 line_inline_conditional_statics ::= static_conditional_first static_conditional
 
-/* @sem Ability::[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:$static_changes}, Conditional{condition:ObjectMatches{object:$attached_ref, filter:$host_static_quality}, then:[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:$conditional_followup_changes}]}, Conditional{condition:ObjectMatches{object:$attached_ref, filter:$host_static_quality_2}, then:[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:$conditional_followup_changes_2}]}] */
-line_host_two_conditions ::= attached_ref static_changes "." "as" "long" "as" host_static_quality "," "it" conditional_followup_changes "." "as" "long" "as" host_static_quality "," "it" conditional_followup_changes "."
-
-/* @sem $quality */
-host_static_quality ::= ("it's" | "it" "is") quality
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:$static_changes}, Conditional{condition:ObjectMatches{object:$attached_ref, filter:$conditional_keyword_quality}, then:[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:$conditional_followup_changes}]}, Conditional{condition:ObjectMatches{object:$attached_ref, filter:$conditional_keyword_quality_2}, then:[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:$conditional_followup_changes_2}]}] */
+line_host_two_conditions ::= attached_ref static_changes "." "as" "long" "as" conditional_keyword_quality "," "it" conditional_followup_changes "." "as" "long" "as" conditional_keyword_quality "," "it" conditional_followup_changes "."
 
 /* @sem Ability::[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:[...$base_subtypes, ...$attached_restriction_pair]}] */
 line_host_base_restrictions ::= attached_ref "is" base_subtypes "." "it" attached_restriction_pair "."
@@ -2097,11 +2077,10 @@ target_tax_you_or ::= "you" "or" target_tax_objects
 target_tax_objects ::= affected | target_tax_permanent
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$target_tax_filter} */
 target_tax_permanent ::= target_tax_filter
-target_tax_filter ::= target_tax_single | target_tax_plural
+target_tax_filter ::= target_tax_single | combat_group_filter
 /* @sem ObjectFilter::$filter_phrase */
 target_tax_single ::= ("a" | "an") filter_phrase
-/* @sem ObjectFilter::$filter_plural */
-target_tax_plural ::= "one" "or" "more" filter_plural
+
 spell_cost_change ::= spell_cost_more | spell_cost_less | spell_cost_life | spell_cost_colored_less
 /* @sem SpellCostModifier::Increase($cost) */
 spell_cost_more ::= cost "more"
@@ -2135,13 +2114,9 @@ static_activation_cost_less ::= "activated" "abilities" "of" activation_owner "c
 static_activation_cost_less_floor ::= "activated" "abilities" "of" activation_owner "cost" generic_reduction_symbols "less" "to" "activate" "." "this" "effect" "can't" "reduce" "the" "mana" "in" "that" "cost" "to" "less" "than" "one" "mana" "."
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Increase($kicker_operand_generic)})]}) */
 static_activation_cost_more ::= "activated" "abilities" "of" activation_owner "cost" kicker_operand_generic "more" "to" "activate" "."
-activation_owner ::= activation_owner_group | activation_owner_one | activation_owner_named | activation_owner_graveyard_cards | activation_owner_zone_cards
+activation_owner ::= prevent_by_group | event_referenced_subject | activation_owner_named | activation_owner_graveyard_cards | activation_owner_zone_cards
 /* @sem ObjectFilter::Chosen(CardName) */
 activation_owner_named ::= "sources" "with" "the" "chosen" "name"
-/* @sem ObjectFilter::$filter_plural */
-activation_owner_group ::= filter_plural
-/* @sem ObjectFilter::SameObject($object_ref) */
-activation_owner_one ::= object_ref
 
 /* No maximum hand size. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Unlimited))]}) */
@@ -2312,8 +2287,8 @@ block_shadow_holder ::= "as" "though" "it" "had" "shadow"
 block_shadow_attackers ::= "as" "though" "they" "didn't" "have" "shadow"
 
 /* Attachment eligibility is a filter, independent of the equipment holder. */
-/* @sem Change::[Rule(AttachOnlyTo($attachment_eligible))] */
-change_attachment_permission ::= "can" "be" "attached" "only" "to" attachment_eligible
+/* @sem Change::[Rule(AttachOnlyTo($tap_event_singular_a))] */
+change_attachment_permission ::= "can" "be" "attached" "only" "to" tap_event_singular_a
 
 /* Shared numeric mechanics retain their current amount on the granted ability. */
 /* @sem Ability::Mechanic{mechanic:$granted_valued_name, amount:$value} */
@@ -2750,14 +2725,8 @@ double_toughness ::= "toughness"
 /* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$program})) */
 shared_granted_trigger_comma ::= '"' event_clause "," program "," '"'
 
-/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$program})) */
-shared_granted_trigger_open ::= '"' event_clause "," program '"'
-
 /* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, intervening_if:$condition, limits:_{}, announcement:@announcement, body:$program})) */
 shared_granted_trigger_if_closed ::= '"' event_clause "," "if" condition "," program "." '"'
-
-/* @sem Change::GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})) */
-shared_granted_activation_closed ::= '"' cost ":" program "." '"'
 
 /* @sem Change::GrantAbility(Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Unlimited))]})) */
 shared_granted_unlimited_hand ::= '"' "you" "have" "no" "maximum" "hand" "size" '"'
@@ -2768,11 +2737,11 @@ shared_added_singular_type ::= "is" "a" subtype "in" "addition" "to" "its" "othe
 /* @sem Change::[Pump{power:$signed, toughness:$signed_2}, $shared_granted_trigger_comma, $shared_added_singular_type] */
 shared_pump_trigger_type_changes ::= "gets" signed "/" signed "," "has" shared_granted_trigger_comma "and" shared_added_singular_type
 
-/* @sem Change::[$shared_granted_trigger_open, $shared_added_singular_type] */
-shared_trigger_type_changes ::= "has" shared_granted_trigger_open "and" shared_added_singular_type
+/* @sem Change::[$grant_unpunctuated_trigger, $shared_added_singular_type] */
+shared_trigger_type_changes ::= "has" grant_unpunctuated_trigger "and" shared_added_singular_type
 
-/* @sem Change::[$shared_granted_trigger_open, $shared_granted_activation_closed] */
-shared_trigger_activation_changes ::= "has" shared_granted_trigger_open "and" shared_granted_activation_closed
+/* @sem Change::[$grant_unpunctuated_trigger, $grant_quoted_activation] */
+shared_trigger_activation_changes ::= "has" grant_unpunctuated_trigger "and" grant_quoted_activation
 
 /* @sem Change::[$shared_granted_unlimited_hand, $shared_granted_trigger_if_closed] */
 shared_hand_trigger_changes ::= "has" shared_granted_unlimited_hand "and" shared_granted_trigger_if_closed
@@ -3112,11 +3081,10 @@ ordinal_cast_any ::= "the" "first" "spell" "you" "cast" "each" "turn"
 ordinal_cast_mana_source ::= "the" "first" "spell" "you" "cast" "each" "turn" "that" "mana" "from" ("a" | "an") filter_phrase "was" "spent" "to" "cast"
 
 /* Quoted trigger bodies and creature-type additions are independent changes. */
-/* @sem Program::Program{instructions:[If{condition:$condition, then:$program, otherwise:$program_2}]} */
-shared_postcondition_otherwise_body ::= program "if" condition "." "otherwise" "," program
+/* shared_postcondition_otherwise_body is shared as program_conditional_postposed_else. */
 
-/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$shared_postcondition_otherwise_body})) */
-shared_granted_trigger_conditional_closed ::= '"' event_clause "," shared_postcondition_otherwise_body "." '"'
+/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$program_conditional_postposed_else})) */
+shared_granted_trigger_conditional_closed ::= '"' event_clause "," program_conditional_postposed_else "." '"'
 
 /* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$program})) */
 shared_granted_trigger_closed ::= '"' event_clause "," program "." '"'
@@ -3164,24 +3132,18 @@ static_controller_monarch ::= "the" "monarch" "controls"
 
 /* The turn restriction belongs to the ability controller; the first-spell
    ordinal, threshold and granted spell effect remain independent operands. */
-/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:$first_spell_threshold, nth_each_turn:Constant(1), abilities:List([$first_spell_effect])})]})]} */
-first_spell_turn_grant ::= "the" "first" "spell" "you" "cast" "during" "each" "of" "your" "turns" first_spell_threshold "has" first_spell_effect "."
-
-/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
-first_spell_threshold ::= "with" "mana" "value" value "or" "greater"
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:$spell_cost_mana_threshold, nth_each_turn:Constant(1), abilities:List([$first_spell_effect])})]})]} */
+first_spell_turn_grant ::= "the" "first" "spell" "you" "cast" "during" "each" "of" "your" "turns" spell_cost_mana_threshold "has" first_spell_effect "."
 
 first_spell_effect ::= gained_spell_effect | first_spell_effect_assist
 
 /* The alternative amount and the keyword cost being replaced are separate
    operands. The turn condition applies to the player receiving the rule. */
-/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(KeywordCost{keyword:$first_activation_keyword, cards:Any, change:Alternate($first_activation_payment), first_each_turn:true})]})]} */
-first_activation_alternative ::= "you" "may" "pay" first_activation_payment "rather" "than" "pay" "the" first_activation_keyword "you" "activate" "during" "each" "of" "your" "turns" "."
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(KeywordCost{keyword:$first_activation_keyword, cards:Any, change:Alternate($kicker_operand_generic), first_each_turn:true})]})]} */
+first_activation_alternative ::= "you" "may" "pay" kicker_operand_generic "rather" "than" "pay" "the" first_activation_keyword "you" "activate" "during" "each" "of" "your" "turns" "."
 
 /* @sem CostedKeyword::Equip */
 first_activation_keyword ::= "equip" "cost" "of" "the" "first" "equip" "ability"
-
-/* @sem Operand::Term{family:ManaSymbol, form:ManaCostGeneric, operands:[Integer($number)]} */
-first_activation_payment ::= "{" NUMBER "}"
 
 /* A spell's cost can repeat a cost part for a quantity tied to that spell.
    The two subject shapes keep singular and plural agreement independent. */
@@ -3244,13 +3206,10 @@ static_attachment_count ::= attachment_count_subject attachment_count_changes "a
 
 attachment_count_subject ::= self_explicit_ref | equipped_ref
 
-attachment_count_changes ::= attachment_count_has | attachment_count_gets
+attachment_count_changes ::= attachment_count_has | singular_pump
 
 /* @sem $grants */
 attachment_count_has ::= "has" grants
-
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-attachment_count_gets ::= "gets" signed "/" signed
 
 /* The life-gain event and its amount definition form one contract. */
 /* @sem Ability::Triggered{event:$event_gain_life, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Pump{power:EventAmount, toughness:EventAmount}], duration:$duration, evaluation:Snapshot}}]}} */
@@ -3441,11 +3400,8 @@ shared_granted_spell_filter ::= shared_non_type_spells | shared_cast_type_spells
 /* @sem ObjectFilter::$adjective_nontype */
 shared_non_type_spells ::= adjective_nontype "spells"
 
-/* @sem ObjectFilter::$shared_spell_type_pair */
-shared_cast_type_spells ::= shared_spell_type_pair "spells" "players" "cast"
-
-/* @sem ObjectFilter::AnyOf([$card_word, $card_word_2]) */
-shared_spell_type_pair ::= card_word "and" card_word
+/* @sem ObjectFilter::$card_filter_and */
+shared_cast_type_spells ::= card_filter_and "spells" "players" "cast"
 
 shared_spell_effect ::= shared_spell_convoke | shared_spell_demonstrate
 
@@ -3914,11 +3870,8 @@ static_window_suffix ::= affected static_changes static_suffix_window "."
 static_suffix_window ::= window_extra_turns | window_first_combat_phase | window_main_phase | window_your_turn | window_other_turns
 
 /* The object mentioned in the condition is also the referent of "it's". */
-/* @sem Ability::Conditional{condition:ObjectMatches{object:$self_explicit_ref, filter:$conditional_counter_filter}, then:[Static{kind:Ordinary, affected:Objects(One($self_explicit_ref)), changes:$conditional_type_change}], otherwise:[]} */
-conditional_counter_type ::= "as" "long" "as" self_explicit_ref conditional_counter_filter "," "it's" conditional_type_change "."
-
-/* @sem ObjectFilter::Counters{kind:$counter_kind, comparison:Greater, value:Constant(0)} */
-conditional_counter_filter ::= "has" "a" counter_kind "counter" "on" "it"
+/* @sem Ability::Conditional{condition:ObjectMatches{object:$self_explicit_ref, filter:$counter_test_has_named_it}, then:[Static{kind:Ordinary, affected:Objects(One($self_explicit_ref)), changes:$conditional_type_change}], otherwise:[]} */
+conditional_counter_type ::= "as" "long" "as" self_explicit_ref counter_test_has_named_it "," "it's" conditional_type_change "."
 
 /* @sem Change::[SetCardTypes([$conditional_a_card_type])] */
 conditional_type_change ::= "a" conditional_a_card_type
@@ -4048,21 +4001,14 @@ affected_chosen_planeswalker_plural ::= plural_planeswalker modifier_you_control
 
 /* A singular subject supplies the antecedent of the replacement sentence.
    Both pump operands remain independent and the condition selects one change. */
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-static_singular_pump ::= "gets" signed "/" signed
+/* static_singular_pump is shared as singular_pump. */
 
-/* @sem Ability::Conditional{condition:$condition, then:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$static_singular_pump_2}], otherwise:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$static_singular_pump}]} */
-static_scalar_pump_override ::= scalar_static_subject static_singular_pump "." "it" static_singular_pump "instead" "as" "long" "as" condition "."
+/* @sem Ability::Conditional{condition:$condition, then:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$singular_pump_2}], otherwise:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$singular_pump}]} */
+static_scalar_pump_override ::= scalar_static_subject singular_pump "." "it" singular_pump "instead" "as" "long" "as" condition "."
 
 /* The pump and added color/type preserve their independent current operands. */
-/* @sem Ability::Static{kind:Ordinary, affected:Objects($attached_color_subject), changes:[...$attached_signed_pump, ...$retained_color_type]} */
-static_attached_retained_color_type ::= attached_color_subject attached_signed_pump "and" retained_color_type "."
-
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-attached_signed_pump ::= "gets" signed "/" signed
-
-/* @sem Change::[Colors{mode:Add, colors:[$mana_color_word]}, CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
-retained_color_type ::= "is" "a" mana_color_word becomes_types "in" "addition" "to" "its" "other" "colors" "and" "types"
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($attached_color_subject), changes:[...$singular_pump, ...$retained_color_creature_type]} */
+static_attached_retained_color_type ::= attached_color_subject singular_pump "and" retained_color_creature_type "."
 
 /* Player-facing rules compose independently of the affected population. */
 /* @sem Ability::Static{kind:Ordinary, affected:Players(All), changes:[PlayerRule($plural_shared_player_rule)]} */
@@ -4220,11 +4166,8 @@ affected_control_mana_threshold ::= "with" "mana" "value" "greater" "than" "the"
 /* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$first_cast_filter_player, modifier:$colored_counted_reduction})]} */
 static_first_cast_counted_cost ::= first_cast_filter_player "costs" colored_counted_reduction "."
 
-/* @sem ObjectFilter::NthCast{ordinal:Constant(1), spells:$first_cast_pair, by:One(AbilityController), scope:Turn} */
-first_cast_filter_player ::= "the" "first" first_cast_pair "spell" "you" "cast" "each" "turn"
-
-/* @sem ObjectFilter::AnyOf([$spell_instant, $spell_sorcery]) */
-first_cast_pair ::= spell_instant "or" spell_sorcery
+/* @sem ObjectFilter::NthCast{ordinal:Constant(1), spells:$spell_instant_or_sorcery, by:One(AbilityController), scope:Turn} */
+first_cast_filter_player ::= "the" "first" spell_instant_or_sorcery "spell" "you" "cast" "each" "turn"
 
 /* @sem SpellCostModifier::Reduce{reductions:[_{color:$counted_reduction_color, amount:$controlled_counter_count}], spill_into_generic:true} */
 colored_counted_reduction ::= counted_reduction_color "less" "to" "cast" "for" "each" controlled_counter_count
@@ -4565,10 +4508,7 @@ combat_attack_block_you ::= "can't" "attack" "or" "block" "unless" "you" combat_
 /* @sem Change::[Rule(CombatCost{action:Block(Any), payer:DeclaringPlayer, cost:$combat_payment_pays}), Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:$combat_payment_pays})] */
 combat_attack_block_controller ::= "can't" "attack" "or" "block" "unless" "its" "controller" combat_payment_pays
 
-combat_payment ::= combat_payment_fixed | combat_payment_repeated | combat_payment_counters
-
-/* @sem Cost::Cost{parts:[Mana($mana_symbols)]} */
-combat_payment_fixed ::= "pay" mana_symbols
+combat_payment ::= plot_mana_payment | combat_payment_repeated | combat_payment_counters
 
 /* @sem Cost::Cost{parts:[$cost_pay_for_each]} */
 combat_payment_repeated ::= cost_pay_for_each
@@ -4730,11 +4670,8 @@ static_state_condition ::= shared_intensity_threshold | shared_enchanted_thresho
 
 /* Both clauses describe the named scalar subject; the second changes replace
    the first when the type test holds. Each bonus retains its own operands. */
-/* @sem Ability::Conditional{condition:ObjectMatches{object:$scalar_static_subject, filter:$scalar_otherwise_kind}, then:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$scalar_singular_bonus_2}], otherwise:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$scalar_singular_bonus}]} */
-scalar_static_alternative ::= scalar_static_subject scalar_singular_bonus "." "if" "it's" scalar_otherwise_kind "," "it" scalar_singular_bonus "instead" "."
-
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-scalar_singular_bonus ::= "gets" signed "/" signed
+/* @sem Ability::Conditional{condition:ObjectMatches{object:$scalar_static_subject, filter:$event_a}, then:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$singular_pump_2}], otherwise:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$singular_pump}]} */
+scalar_static_alternative ::= scalar_static_subject singular_pump "." "if" "it's" event_a "," "it" singular_pump "instead" "."
 
 /* A turn condition wraps the shared static change and its scoped activation. */
 /* @sem Ability::Conditional{condition:$static_turn_window, then:[$static_additive_quoted_activation]} */
@@ -4850,11 +4787,8 @@ ability_origin_owned_exiled_counters ::= "all" "cards" "you" "own" "in" "exile" 
 /* @sem Change::[GainAbilitiesOf{objects:$ability_origin_set, kinds:$copied_ability_kinds, once_each_turn:true}] */
 change_gained_limited ::= "has" "all" copied_ability_kinds "abilities" "of" ability_origin_set "." "you" "may" "activate" "each" "of" "those" "abilities" "only" "once" "each" "turn"
 
-/* @sem Change::[GainAbilitiesOf{objects:$craft_ability_origin, kinds:$copied_activated_singular, once_each_turn:true}] */
-change_gained_craft ::= "has" "each" copied_activated_singular "of" craft_ability_origin "." "you" "may" "activate" "each" "of" "those" "abilities" "only" "once" "each" "turn"
-
-/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)}) */
-craft_ability_origin ::= "the" "exiled" "cards" "used" "to" "craft" object_ref
+/* @sem Change::[GainAbilitiesOf{objects:$craft_exiled_cards, kinds:$copied_activated_singular, once_each_turn:true}] */
+change_gained_craft ::= "has" "each" copied_activated_singular "of" craft_exiled_cards "." "you" "may" "activate" "each" "of" "those" "abilities" "only" "once" "each" "turn"
 
 /* @sem Operand::List([Term{family:CheckHasable, form:ActivatedAbility}]) */
 copied_activated_singular ::= "activated" "ability"
@@ -5096,11 +5030,11 @@ static_kind_as_long_as_creature ::= "as" "long" "as" "it's" "a" "creature"
 
 static_kind_as_long_as ::= static_kind_as_long_as_creature | static_kind_as_long_as_a | static_kind_as_long_as_an
 
-/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, $static_kind_as_long_as])}), changes:$static_singular_pump} */
-static_each_qualified_pump ::= "each" filter_phrase static_singular_pump static_kind_as_long_as "."
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, $static_kind_as_long_as])}), changes:$singular_pump} */
+static_each_qualified_pump ::= "each" filter_phrase singular_pump static_kind_as_long_as "."
 
-/* @sem Ability::Conditional{condition:ObjectMatches{object:$scalar_static_subject, filter:$static_kind_as_long_as}, then:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$static_singular_pump}], otherwise:[]} */
-scalar_subject_static_kind ::= scalar_static_subject static_singular_pump static_kind_as_long_as "."
+/* @sem Ability::Conditional{condition:ObjectMatches{object:$scalar_static_subject, filter:$static_kind_as_long_as}, then:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$singular_pump}], otherwise:[]} */
+scalar_subject_static_kind ::= scalar_static_subject singular_pump static_kind_as_long_as "."
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, $modifier_attacked_controllers_last_turn])}), changes:$static_changes}) */
 static_attacked_population ::= filter_plural modifier_attacked_controllers_last_turn static_changes "."
@@ -5148,10 +5082,7 @@ singular_entry_replacement ::= singular_entry_event singular_entry_change "."
 /* @sem ReplacementEvent::Enter{objects:$entry_each_objects} */
 singular_entry_event ::= entry_each_objects "enters"
 
-singular_entry_change ::= singular_entry_additional_one | singular_entry_additional_many
-
-/* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$counter_amount})} */
-singular_entry_additional_one ::= "with" counter_amount "additional" counter_kind "counter" "on" "it"
+singular_entry_change ::= graveyard_entry_additional_counter | singular_entry_additional_many
 
 /* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})} */
 singular_entry_additional_many ::= "with" value "additional" counter_kind "counters" "on" "it"
@@ -5221,8 +5152,8 @@ change_loses_land_types_and_abilities ::= "loses" "all" "land" "types" "and" "ab
 /* @sem Change::GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})) */
 shared_granted_activation_open ::= '"' cost ":" program '"'
 
-/* @sem Change::[$shared_granted_activation_open, $shared_granted_activation_closed] */
-closed_activation_pair ::= shared_granted_activation_open "and" shared_granted_activation_closed
+/* @sem Change::[$shared_granted_activation_open, $grant_quoted_activation] */
+closed_activation_pair ::= shared_granted_activation_open "and" grant_quoted_activation
 
 /* A singular subject loses its creature card type while this change applies. */
 /* @sem Change::[RemoveCardType(Creature)] */
@@ -5396,13 +5327,10 @@ sticker_copied_kind ::= "ability" "stickers"
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(Source)), $filter_plural, ObjectFilter::OwnedBy(One(AbilityController)))} */
 sticker_owned_battlefield ::= "other" filter_plural "you" "own"
 
-sticker_graveyard_cards ::= sticker_graveyard_all | sticker_graveyard_filtered
+sticker_graveyard_cards ::= sticker_graveyard_all | mana_graveyard_cards
 
 /* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any} */
 sticker_graveyard_all ::= "cards" "in" "your" "graveyard"
-
-/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase} */
-sticker_graveyard_filtered ::= filter_phrase "cards" "in" "your" "graveyard"
 
 /* A plural battlefield filter can carry any closed quoted grant. */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), changes:$closed_grants} */
@@ -5542,11 +5470,8 @@ change_no_longer_snow ::= "is" "no" "longer" "snow"
 
 /* The player making the optional choice also chooses the target. The target
    and characteristic change remain independent operands of the duration. */
-/* @sem Instruction::[Optional{decider:$choice_decider, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun, chooser:$choice_decider}), index:0})), changes:$choice_pump, duration:$duration, evaluation:Snapshot}}]}}] */
-clause_player_may_have_choice_change ::= choice_decider "may" "have" "target" noun "of" "their" "choice" choice_pump duration
-
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-choice_pump ::= "get" signed "/" signed
+/* @sem Instruction::[Optional{decider:$choice_decider, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun, chooser:$choice_decider}), index:0})), changes:$plural_private_pump, duration:$duration, evaluation:Snapshot}}]}}] */
+clause_player_may_have_choice_change ::= choice_decider "may" "have" "target" noun "of" "their" "choice" plural_private_pump duration
 
 /* @sem PlayerRef::ControllerOf(EventSubject) */
 choice_decider ::= "that" "creature's" "controller"
@@ -5611,8 +5536,7 @@ combat_required_named_player ::= "attacks" players_singular "each" "combat" "if"
 combat_required_other_player ::= "attack" "each" "combat" "if" "able" "and" "attack" counter_amount "player" "other" "than" "you" "if" "able"
 
 /* A plural filter selects the holders of the granted mechanic. */
-/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural} */
-mechanic_filtered_permanents ::= filter_plural
+/* mechanic_filtered_permanents is shared as counter_battlefield_population. */
 
 /* Color populations and granted mechanics retain their current operands. */
 /* @sem Operand::Term{family:ProtectableColor, form:ColorsOfPermanents, operands:[Objects($affected)]} */
@@ -6022,8 +5946,8 @@ temporary_combat_requirement ::= temporary_attack_or_block | temporary_attack_yo
 temporary_activation_reduction ::= "activated" "abilities" "of" activation_owner "cost" generic_reduction_symbols "less" "to" "activate" this_duration
 
 /* Singular changes without an expiration retain the affected target's identity. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($target_up_to_one_other)), changes:$singular_loss, duration:Indefinite, evaluation:Snapshot} */
-indefinite_singular_snapshot ::= target_up_to_one_other singular_loss
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($other_target_up_to)), changes:$singular_loss, duration:Indefinite, evaluation:Snapshot} */
+indefinite_singular_snapshot ::= other_target_up_to singular_loss
 
 /* @sem Change::[RemoveAllAbilities] */
 singular_loss ::= "loses" "all" "abilities"
@@ -6294,15 +6218,12 @@ attachment_linked_card_copy ::= "for" "as" "long" "as" self_equipment "remains" 
 /* @sem Ability::Triggered{event:$attachment_equipment_becomes_creature, limits:_{}, announcement:@announcement, body:Program{instructions:$attachment_linked_card_copy}} */
 triggered_attachment_linked_copy ::= attachment_equipment_becomes_creature "," attachment_linked_card_copy "."
 
-attachment_linked_card_type ::= attachment_linked_consonant_type | attachment_linked_artifact_type
+attachment_linked_card_type ::= attachment_linked_consonant_type | aura_target_artifact
 
 /* @sem $attachment_linked_consonant_noun */
 attachment_linked_consonant_type ::= "a" attachment_linked_consonant_noun
 
 attachment_linked_consonant_noun ::= noun_creature | noun_land
-
-/* @sem $noun_artifact */
-attachment_linked_artifact_type ::= "an" noun_artifact
 
 /* The exclusion and controller qualify the entire subtype union. */
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Source)), AllOf([$plural_subtype_list, ControlledBy(One(AbilityController))])])} */
@@ -6659,11 +6580,8 @@ host_abilities_cant_activate ::= "its" "activated" "abilities" "can't" "be" "act
 conditional_graveyard_flashback ::= "as" "long" "as" condition "and" "this" "card" "is" "in" "your" "graveyard" "," "it" "has" keyword_flashback "."
 
 /* Plural populations receive a temporary stat bonus and a keyword together. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected_plural), changes:[...$plural_pump_change, ...$plural_gain_change], duration:$duration, evaluation:Snapshot} */
-continuous_plural_pump_grant ::= affected_plural plural_pump_change "and" plural_gain_change duration
-
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-plural_pump_change ::= "get" signed "/" signed
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected_plural), changes:[...$plural_private_pump, ...$plural_gain_change], duration:$duration, evaluation:Snapshot} */
+continuous_plural_pump_grant ::= affected_plural plural_private_pump "and" plural_gain_change duration
 
 /* @sem Change::[GrantKeyword($keyword_value)] */
 plural_gain_change ::= "gain" keyword_value
@@ -6984,11 +6902,8 @@ each_card_in_your_hand ::= "each" card_filter "card" "in" "your" "hand"
 each_card_in_each_players_hand ::= "each" card_filter "card" "in" "each" "player's" "hand"
 
 /* The alternative foretell payment belongs to the controller's first card. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(KeywordCost{keyword:Foretell, cards:Any, change:Alternate($first_foretell_payment), first_each_turn:true})]}) */
-first_foretell_alternative ::= "the" "first" "card" "you" "foretell" "each" "turn" "costs" first_foretell_payment "to" "foretell" "."
-
-/* @sem Operand::Term{family:ManaSymbol, form:ManaCostGeneric, operands:[Integer($number)]} */
-first_foretell_payment ::= "{" NUMBER "}"
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(KeywordCost{keyword:Foretell, cards:Any, change:Alternate($kicker_operand_generic), first_each_turn:true})]}) */
+first_foretell_alternative ::= "the" "first" "card" "you" "foretell" "each" "turn" "costs" kicker_operand_generic "to" "foretell" "."
 
 /* A pump and a granted activation with its own cost and limits. */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[Pump{power:$signed, toughness:$signed_2}, GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$granting_object_exile_cost, limits:$limit_holder_power_reduction_sorcery, announcement:@announcement, body:$granted_explicit_player_program}))]} */
@@ -6999,8 +6914,7 @@ static_pump_grant_limited_exile ::= affected "gets" signed "/" signed "and" "has
 granted_explicit_player_program ::= "you" player_action_base
 
 /* The equipped ability belongs to each affected permanent. */
-/* @sem Change::GrantAbility(@holder($keyword_equip)) */
-grant_equipment_keyword ::= keyword_equip
+/* grant_equipment_keyword is shared as plain_equip_grant. */
 
 /* The population and its origin are shared by all three permissions. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), from:$own_cast_zone, action:PlayLand, filter:Any}, terms:_{cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), from:$own_cast_zone, action:CastSpell, filter:Any}, terms:_{cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), from:$own_cast_zone, action:CastSpell, filter:Any}, terms:_{cost:Alternate(Cost{parts:[$permission_alternate_cost]})}})]}) */
@@ -7163,13 +7077,10 @@ singular_turn_player_rule ::= turn_player_draw_limit | turn_player_sorcery_timin
 /* @sem PlayerRule::LimitPerTurn{action:Draw, amount:$turn_draw_count} */
 turn_player_draw_limit ::= "can't" "draw" "more" "than" turn_draw_count "each" "turn"
 
-turn_draw_count ::= turn_draw_one | turn_draw_many
+turn_draw_count ::= turn_draw_one | mill_cast_fixed_amount
 
 /* @sem Expr::Constant(1) */
 turn_draw_one ::= "one" "card"
-
-/* @sem $count_plural */
-turn_draw_many ::= count_plural "cards"
 
 /* @sem PlayerRule::SpellTiming{spells:Any, timing:SorceryOnly} */
 turn_player_sorcery_timing ::= "can" "cast" "spells" "only" "any" "time" "they" "could" "cast" "a" "sorcery"
@@ -7540,10 +7451,7 @@ source_tapped_duration ::= "for" "as" "long" "as" "this" "creature" "remains" "t
 /* @sem Change::[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})] */
 tapped_rule_skip_untap ::= "doesn't" "untap" "during" "its" "controller's" "untap" "step"
 
-tapped_rule_creature ::= noun_creature | tapped_rule_qualified_creature
-
-/* @sem @and($quality_unscoped, $noun_creature) */
-tapped_rule_qualified_creature ::= quality_unscoped noun_creature
+tapped_rule_creature ::= noun_creature | qualified_above_base_creature
 
 /* Replacing two creature types does not add a card type. */
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed([@subtype_name($creature_subtype), @subtype_name($creature_subtype_2)])}] */
@@ -7569,11 +7477,8 @@ own_hand_once_free_cast ::= "once" "during" "each" "of" "your" "turns" "," "you"
 /* @sem ObjectFilter::@or($adjective_nontype, $filter_phrase) */
 own_hand_disjunct_spell ::= "a" adjective_nontype "or" filter_phrase "spell"
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One(Affected)}, kind:Card, filter:Any}), from:Hand, action:CastSpell, filter:$own_hand_mana_value_spells}, terms:$own_hand_energy_flash_terms}) */
-own_hand_energy_flash_cast ::= "you" "may" "cast" own_hand_mana_value_spells own_hand_energy_flash_terms
-
-/* @sem ObjectFilter::AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}]) */
-own_hand_mana_value_spells ::= filter_phrase "spells" "with" "mana" "value" value "or" "less"
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One(Affected)}, kind:Card, filter:Any}), from:Hand, action:CastSpell, filter:$limited_mana_value_spells}, terms:$own_hand_energy_flash_terms}) */
+own_hand_energy_flash_cast ::= "you" "may" "cast" limited_mana_value_spells own_hand_energy_flash_terms
 
 /* The one energy symbol is the payment; the later article identifies one spell. */
 /* @sem PlayTerms::PlayTerms{cost:Alternate(Cost{parts:[Energy(Constant(1))]}), flash:true} */
@@ -7620,11 +7525,8 @@ graveyard_per_type_limit ::= "of" "each" "permanent" "type"
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$graveyard_artifact_paid_entry]}) */
 static_graveyard_artifact_paid_entry ::= graveyard_artifact_paid_entry "."
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:CardType(Artifact)}, terms:_{cost:Additional(Cost{parts:[$graveyard_additional_life]}), effects:[$cast_entry_effects]}}) */
-graveyard_artifact_paid_entry ::= "you" "may" "cast" "artifact" "spells" "from" "your" "graveyard" "by" graveyard_additional_life "in" "addition" "to" "paying" "their" "other" "costs" "." "if" "you" "cast" "a" "spell" "this" "way" "," "that" "artifact" cast_entry_effects
-
-/* @sem CostPart::Life($value) */
-graveyard_additional_life ::= "paying" value "life"
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:CardType(Artifact)}, terms:_{cost:Additional(Cost{parts:[$cast_pay_life_part]}), effects:[$cast_entry_effects]}}) */
+graveyard_artifact_paid_entry ::= "you" "may" "cast" "artifact" "spells" "from" "your" "graveyard" "by" cast_pay_life_part "in" "addition" "to" "paying" "their" "other" "costs" "." "if" "you" "cast" "a" "spell" "this" "way" "," "that" "artifact" cast_entry_effects
 
 /* Conditional self descriptions share the same creature animation operands. */
 /* @sem Ability::Conditional{condition:$condition, then:[Static{kind:Ordinary, affected:Objects(One(Source)), changes:$indefinite_creature_animation}], otherwise:[]} */
@@ -7805,11 +7707,8 @@ plural_animation_with_grants ::= "become" value "/" value becomes_types "creatur
 /* @sem Change::[AddCardType(Artifact), AddCardType(Creature), SetBasePowerToughness{power:$value, toughness:$value_2}] */
 change_becomes_artifact_creature_base ::= "becomes" "an" "artifact" "creature" "with" "base" "power" "and" "toughness" value "/" value
 
-/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}] */
-change_artifact_animation_alternative_base ::= "has" "base" "power" "and" "toughness" value "/" value
-
-/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($object_one)), changes:[AddCardType(Artifact), AddCardType(Creature), ...$change_artifact_animation_alternative_base], duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($object_one)), changes:$change_becomes_artifact_creature_base, duration:EndOfTurn, evaluation:Snapshot}}]}}] */
-instead_artifact_animation ::= "until" "end" "of" "turn" "," object_one change_becomes_artifact_creature_base "." "if" condition "," "it" change_artifact_animation_alternative_base "until" "end" "of" "turn" "instead"
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($object_one)), changes:[AddCardType(Artifact), AddCardType(Creature), ...$singular_base_stats], duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($object_one)), changes:$change_becomes_artifact_creature_base, duration:EndOfTurn, evaluation:Snapshot}}]}}] */
+instead_artifact_animation ::= "until" "end" "of" "turn" "," object_one change_becomes_artifact_creature_base "." "if" condition "," "it" singular_base_stats "until" "end" "of" "turn" "instead"
 
 /* Replace color words on a controlled enchantment and grant it upkeep.
    Both the target color and upkeep cost remain independent operands. */
@@ -7950,11 +7849,10 @@ protectable_each_color ::= "each" "color"
 affected_other_controlled_attacking_player ::= "other" filter_plural "you" "control" "attacking" players_singular
 
 /* A graveyard population can supply each ability in a shared keyword list. */
-/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase} */
-sharing_graveyard_card ::= "a" filter_phrase "card" "in" "your" "graveyard"
+/* sharing_graveyard_card is shared as name_card_in_your_graveyard. */
 
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[GainAbilitiesOf{objects:$sharing_graveyard_card, kinds:List([Term{family:CheckHasable, form:Flying}, ...$sharing_kind_tail])}], duration:$duration, evaluation:Snapshot}}] */
-share_graveyard_flying ::= affected "gain" "flying" duration "if" sharing_graveyard_card "has" "flying" "." "the" "same" "is" "true" "for" sharing_kind_tail
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[GainAbilitiesOf{objects:$name_card_in_your_graveyard, kinds:List([Term{family:CheckHasable, form:Flying}, ...$sharing_kind_tail])}], duration:$duration, evaluation:Snapshot}}] */
+share_graveyard_flying ::= affected "gain" "flying" duration "if" name_card_in_your_graveyard "has" "flying" "." "the" "same" "is" "true" "for" sharing_kind_tail
 
 /* @sem Operand::Term{family:CheckHasable, form:Shroud} */
 sharing_shroud ::= "shroud"
@@ -8058,11 +7956,7 @@ temporary_harmonize_mana_cost ::= harmonize_grant_subject "gains" "harmonize" du
 harmonize_own_mana_cost ::= "." "its" "harmonize" "cost" "is" "equal" "to" "its" "mana" "cost"
 
 /* Prefer the in-zone wording for this grant without changing other card targets. */
-harmonize_grant_subject ::= harmonize_target_in_your_graveyard | object_ref
-
-/* @prefer always */
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
-harmonize_target_in_your_graveyard ::= "target" card_filter "card" "in" "your" "graveyard"
+harmonize_grant_subject ::= choose_cast_graveyard_in | object_ref
 
 owned_commander_granted_ability ::= shared_granted_trigger_closed | shared_quoted_room_rule
 
@@ -8124,17 +8018,14 @@ pump_keyword_last ::= "or" keyword_value
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:@and($noun_creature, $modifier_you_control)})) */
 chosen_creature_target ::= "up" "to" "one" "target" noun_creature modifier_you_control
 
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-chosen_creature_pump ::= "gets" signed "/" signed
-
 /* @sem $grants */
 chosen_creature_grant ::= "gains" grants
 
 /* @sem Instruction::If{condition:ObjectMatches{object:Target{slot:@last_slot, index:0}, filter:$adjective_color}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Targets(@last_slot)), changes:$chosen_creature_grant, duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{}} */
 chosen_creature_color_grant ::= chosen_creature_grant "if" "it's" adjective_color
 
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($chosen_creature_target), changes:$chosen_creature_pump, duration:EndOfTurn, evaluation:Snapshot}}, $chosen_creature_color_grant, $chosen_creature_color_grant_2] */
-instructions_chosen_creature_changes ::= "choose" chosen_creature_target "." "until" "end" "of" "turn" "," "that" "creature" chosen_creature_pump "," chosen_creature_color_grant "," "and" chosen_creature_color_grant
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($chosen_creature_target), changes:$singular_pump, duration:EndOfTurn, evaluation:Snapshot}}, $chosen_creature_color_grant, $chosen_creature_color_grant_2] */
+instructions_chosen_creature_changes ::= "choose" chosen_creature_target "." "until" "end" "of" "turn" "," "that" "creature" singular_pump "," chosen_creature_color_grant "," "and" chosen_creature_color_grant
 
 /* A timed characteristic change is reusable in either arm of a conditional. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$static_changes, duration:$duration, evaluation:Snapshot}}]} */
@@ -8207,10 +8098,7 @@ fronted_permission_duration ::= until_end_of_combat_next_turn | until_end_of_tur
 until_end_of_combat_next_turn ::= "until" "end" "of" "combat" "on" "your" "next" "turn"
 
 /* Singular cast-spell subjects carry their filter independently of the rule. */
-spell_cast_singular_filter ::= spell_cast_named_filter | spell_cast_color_pair | spell_cast_exact_colors
-
-/* @sem ObjectFilter::$filter_phrase */
-spell_cast_named_filter ::= "a" filter_phrase
+spell_cast_singular_filter ::= tap_event_singular_a | spell_cast_color_pair | spell_cast_exact_colors
 
 /* @sem ObjectFilter::AnyOf([$adjective_color, $adjective_color_2]) */
 spell_cast_color_pair ::= adjective_color "or" adjective_color
@@ -8227,7 +8115,7 @@ static_qualified_spell_cost ::= spell_cast_qualified_subject "costs" spell_cost_
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:$spell_cast_qualified_subject, abilities:List([$spell_granted_effect])})]}) */
 static_qualified_spell_grant ::= spell_cast_qualified_subject "has" spell_granted_effect "."
 
-spell_granted_effect ::= spell_granted_replicate | spell_mana_grant_effect | spell_granted_casualty
+spell_granted_effect ::= spell_granted_replicate | spell_mana_grant_effect | first_player_casualty
 
 /* @sem Operand::Term{family:SpellEffect, form:Replicate, operands:[Cost($cost)]} */
 spell_granted_replicate ::= "replicate" cost
@@ -8236,11 +8124,8 @@ spell_granted_replicate ::= "replicate" cost
 /* @sem ObjectFilter::SameObject(AttachedTo(Source)) */
 activation_attached_owner ::= "enchanted" "artifact's"
 
-/* @sem Operand::Term{family:CostReductionSymbol, form:CostReduceGeneric, operands:[Integer($number)]} */
-activation_generic_reduction ::= "{" NUMBER "}"
-
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_attached_owner), change:Reduce($activation_generic_reduction), floor:1})]}) */
-static_attached_activation_floor ::= activation_attached_owner "activated" "abilities" "cost" activation_generic_reduction "less" "to" "activate" "." "this" "effect" "can't" "reduce" "the" "mana" "in" "that" "cost" "to" "less" "than" "one" "mana" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_attached_owner), change:Reduce($single_generic_reduction), floor:1})]}) */
+static_attached_activation_floor ::= activation_attached_owner "activated" "abilities" "cost" single_generic_reduction "less" "to" "activate" "." "this" "effect" "can't" "reduce" "the" "mana" "in" "that" "cost" "to" "less" "than" "one" "mana" "."
 
 /* The caster is the attached object's controller, not the Aura's controller. */
 /* @sem PlayerSet::One(ControllerOf(AttachedTo(Source))) */
@@ -8387,13 +8272,10 @@ quoted_activation_grants ::= grant "," quoted_activation_grant_tail
 /* @sem Change::[$grant_quoted_activation] */
 quoted_activation_grant_last ::= "and" grant_quoted_activation
 
-/* @sem Change::[$grant, ...$quoted_activation_grant_tail] */
-quoted_activation_grant_more ::= grant "," quoted_activation_grant_tail
+quoted_activation_grant_tail ::= quoted_activation_grant_last | quoted_activation_grants
 
-quoted_activation_grant_tail ::= quoted_activation_grant_last | quoted_activation_grant_more
-
-/* @sem Change::[...$static_singular_pump, ...$quoted_activation_grants] */
-static_changes_with_quoted_final ::= static_singular_pump "and" "has" quoted_activation_grants
+/* @sem Change::[...$singular_pump, ...$quoted_activation_grants] */
+static_changes_with_quoted_final ::= singular_pump "and" "has" quoted_activation_grants
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:[...$static_changes_with_quoted_final, ...$retained_singular_creature_type_sentence]}) */
 static_changes_retained_type_sentence ::= scalar_static_subject static_changes_with_quoted_final retained_singular_creature_type_sentence "."
@@ -8431,13 +8313,10 @@ counted_attacking_noun ::= noun | self_name_as_counted_subtype
 self_name_as_counted_subtype ::= referenced_self_name
 
 /* A temporary discount on a color union, with its amount defined by a value. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$turn_qualified_spell_colors, modifier:Reduce{reductions:[_{amount:$turn_qualified_cost_value}], spill_into_generic:true}})], duration:$this_duration, evaluation:LiveObjects} */
-turn_qualified_spell_cost_where ::= "spells" "you" "cast" this_duration "that" "are" turn_qualified_spell_colors "cost" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" turn_qualified_cost_value
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$condition_color_and_or, modifier:Reduce{reductions:[_{amount:$turn_qualified_cost_value}], spill_into_generic:true}})], duration:$this_duration, evaluation:LiveObjects} */
+turn_qualified_spell_cost_where ::= "spells" "you" "cast" this_duration "that" "are" condition_color_and_or "cost" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" turn_qualified_cost_value
 
 turn_qualified_cost_value ::= return_bound_value | value_constant | value_your_life
-
-/* @sem ObjectFilter::AnyOf([$adjective_color, $adjective_color_2]) */
-turn_qualified_spell_colors ::= adjective_color "and" "/" "or" adjective_color
 
 /* The quotation supplies the closing sentence punctuation. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_model_ref)), changes:[CopyOf{object:$copy_model_ref, exceptions:$copy_stats_and_quoted_ability}], duration:$duration, evaluation:Snapshot} */
@@ -8650,10 +8529,7 @@ paid_pt_counter_removal_pump ::= affected "gets" signed_literal "/" signed_liter
 /* @sem Change::[Colors{mode:Set, colors:$token_colors}] */
 attack_pair_color_change ::= "becomes" token_colors
 
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-attack_pair_pump_change ::= "gets" signed "/" signed
-
-attack_pair_change ::= attack_pair_color_change | attack_pair_pump_change
+attack_pair_change ::= attack_pair_color_change | singular_pump
 
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$attack_pair_change, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects}}] */
 clause_change_attack_requirement ::= affected attack_pair_change duration "and" "attacks" this_duration "if" "able"
@@ -8944,8 +8820,8 @@ turn_zone_additional_cast ::= "you" "may" "cast" cast_spells_filter "from" own_c
 /* @sem ObjectFilter::AllOf([Any, InZone(Players{zone:$own_cast_zone, players:One(AbilityController)})]) */
 activation_owner_zone_cards ::= "cards" "in" own_cast_zone
 
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Reduce($activation_generic_reduction), floor:1})]}) */
-static_activation_ability_cost_floor ::= "activated" "abilities" "of" activation_owner "cost" activation_generic_reduction "less" "to" "activate" "." "this" "effect" "can't" "reduce" "the" "mana" "in" "that" "ability's" "activation" "cost" "to" "less" "than" "one" "mana" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Reduce($single_generic_reduction), floor:1})]}) */
+static_activation_ability_cost_floor ::= "activated" "abilities" "of" activation_owner "cost" single_generic_reduction "less" "to" "activate" "." "this" "effect" "can't" "reduce" "the" "mana" "in" "that" "ability's" "activation" "cost" "to" "less" "than" "one" "mana" "."
 
 /* Both choices replace the same affected objects for the written duration. */
 /* @sem Instruction::[ChooseOne{decider:AbilityController, options:[Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[RemoveAllAbilities, ...$replacement_creature_form], duration:$duration, evaluation:Snapshot}}]}, Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[RemoveAllAbilities, ...$replacement_creature_form_2], duration:$duration, evaluation:Snapshot}}]}]}] */
@@ -9089,13 +8965,10 @@ instructions_loses_chosen_keywords ::= affected "loses" "your" "choice" "of" sha
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(OpponentsOf(AbilityController)), changes:[PlayerRule(SpellCost{spells:Any, modifier:Increase{parts:[Mana($mana_symbols)]}})], duration:$duration, evaluation:LiveObjects}}] */
 clause_opponents_timed_spell_tax ::= duration "," "spells" "your" "opponents" "cast" "cost" mana_symbols "more" "to" "cast"
 
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun_creature}), index:0} */
-counter_type_creature_target ::= "target" noun_creature
-
 /* The announced creature is both the counter recipient and the continuous
    effect's subject; the placement and duration counters are independent operands. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($counter_type_creature_target)), kind:$counter_kind, amount:Constant(1)}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($counter_type_creature_target)), changes:[CreatureTypes{mode:Add, types:Listed($becomes_types)}], duration:WhileMatches{object:$counter_type_creature_target, filter:Counters(_{kind:$counter_kind_2, comparison:Greater, value:Constant(0)})}, evaluation:Snapshot}}]} */
-counter_creature_type_while_present ::= "put" "a" counter_kind "counter" "on" counter_type_creature_target "." "for" "as" "long" "as" "that" "creature" "has" "a" counter_kind "counter" "on" "it" "," "it's" "a" becomes_types "in" "addition" "to" "its" "other" "types" "."
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($kicker_pump_creature)), kind:$counter_kind, amount:Constant(1)}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($kicker_pump_creature)), changes:[CreatureTypes{mode:Add, types:Listed($becomes_types)}], duration:WhileMatches{object:$kicker_pump_creature, filter:Counters(_{kind:$counter_kind_2, comparison:Greater, value:Constant(0)})}, evaluation:Snapshot}}]} */
+counter_creature_type_while_present ::= "put" "a" counter_kind "counter" "on" kicker_pump_creature "." "for" "as" "long" "as" "that" "creature" "has" "a" counter_kind "counter" "on" "it" "," "it's" "a" becomes_types "in" "addition" "to" "its" "other" "types" "."
 
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$counter_creature_type_while_present} */
 activated_counter_creature_type ::= cost ":" counter_creature_type_while_present
@@ -9194,11 +9067,8 @@ target_color_scaled_change ::= "gets" "+" value "/" "+" value
 
 /* A singular affected population can lose its abilities while retaining its
    existing types and receiving new base characteristics. */
-/* @sem Change::[...$singular_loss, ...$singular_retained_subtype, ...$singular_base_stats] */
-loss_retained_type_stats ::= singular_loss "," singular_retained_subtype "," "and" singular_base_stats
-
-/* @sem Change::[CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
-singular_retained_subtype ::= "becomes" "a" becomes_types "in" "addition" "to" "its" "other" "types"
+/* @sem Change::[...$singular_loss, ...$retained_singular_type, ...$singular_base_stats] */
+loss_retained_type_stats ::= singular_loss "," retained_singular_type "," "and" singular_base_stats
 
 /* A permanent-spell subtype and the granted alternate casting cost are independent. */
 /* @sem ObjectFilter::AllOf([$shared_cast_permanent_subtype, AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])]) */
@@ -9224,11 +9094,8 @@ static_targeted_activation_reduction ::= targeted_activated_abilities "cost" gen
 
 /* The loss and the new colored creature form are independent changes in the
    same indefinite snapshot; each operand remains available to the printer. */
-/* @sem Change::[...$singular_loss, ...$colored_creature_form] */
-loss_colored_creature_change ::= singular_loss "and" "becomes" colored_creature_form
-
-/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word]}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetCardTypes([Creature]), SetBasePowerToughness{power:$value, toughness:$value_2}] */
-colored_creature_form ::= "a" mana_color_word becomes_types "creature" "with" "base" "power" "and" "toughness" value "/" value
+/* @sem Change::[...$singular_loss, ...$replacement_creature_form] */
+loss_colored_creature_change ::= singular_loss "and" "becomes" replacement_creature_form
 
 /* A plural hand population grants each card its own costed mechanic. */
 /* @prefer always */
@@ -9440,14 +9307,11 @@ triggered_random_grant_event_subject ::= random_grant_event "," random_grant_eve
 source_becomes_typed_creature ::= "it" "becomes" "a" number_digits "/" number_digits becomes_types "creature"
 
 /* Keyword payment reductions retain the payer, mechanic and generic amount. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players($target_tax_casters), changes:[PlayerRule(KeywordCost{keyword:$reduced_payment_keyword, cards:Any, change:Reduce($keyword_reduction_amount)})]}) */
-static_keyword_payment_reduction ::= reduced_payment_keyword "costs" target_tax_casters "pay" "cost" keyword_reduction_amount "less" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($target_tax_casters), changes:[PlayerRule(KeywordCost{keyword:$reduced_payment_keyword, cards:Any, change:Reduce($single_generic_reduction)})]}) */
+static_keyword_payment_reduction ::= reduced_payment_keyword "costs" target_tax_casters "pay" "cost" single_generic_reduction "less" "."
 
 /* @sem Mechanic::Dash */
 reduced_payment_keyword ::= "dash"
-
-/* @sem Operand::Term{family:CostReductionSymbol, form:CostReduceGeneric, operands:[Integer($number)]} */
-keyword_reduction_amount ::= "{" NUMBER "}"
 
 /* The controlled subtype population is fixed when the keyword is granted. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$controlled_grant_subtype, ControlledBy(One(AbilityController))])}), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot} */
@@ -9504,11 +9368,8 @@ clause_ref_add_creature_type_choice ::= object_ref "becomes" embedded_creature_t
 chosen_creature_skip_next_untap ::= "the" "chosen" "creature" "doesn't" "untap" "during" "its" "controller's" "next" "untap" "step"
 
 /* Base stats and a retained keyword apply after other abilities are removed. */
-/* @sem Change::[...$static_singular_base_stats, RemoveAllAbilities, GrantKeyword($keyword_value)] */
-static_base_keyword_other_loss ::= static_singular_base_stats "," "has" keyword_value "," "and" "loses" "all" "other" "abilities"
-
-/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}] */
-static_singular_base_stats ::= "has" "base" "power" "and" "toughness" value "/" value
+/* @sem Change::[...$singular_base_stats, RemoveAllAbilities, GrantKeyword($keyword_value)] */
+static_base_keyword_other_loss ::= singular_base_stats "," "has" keyword_value "," "and" "loses" "all" "other" "abilities"
 
 /* The noted player's draft record and the combat count remain independent. */
 /* @sem PlayerSet::Matching{binding:0, condition:NotedForDraft{player:Bound(0), note:_{kind:Player, player:AbilityController, card:$referenced_card_name}}} */
@@ -9586,10 +9447,7 @@ lost_keyword_pair ::= lost_keyword "and" lost_keyword_tail
 /* @sem Change::[LosesAbility($lost_list_keyword), ...$lost_comma_tail] */
 lost_comma_list ::= lost_list_keyword "," lost_comma_tail
 
-lost_comma_tail ::= lost_comma_more | lost_comma_final
-
-/* @sem Change::[LosesAbility($lost_list_keyword), ...$lost_comma_tail] */
-lost_comma_more ::= lost_list_keyword "," lost_comma_tail
+lost_comma_tail ::= lost_comma_list | lost_comma_final
 
 /* @sem Change::[LosesAbility($lost_list_keyword)] */
 lost_comma_final ::= "and" lost_list_keyword
@@ -9663,8 +9521,8 @@ pump_granted_valued_mechanic ::= pump_granted_valued_name value
 pump_granted_valued_name ::= defined_amount_mechanic_name | granted_valued_name
 
 /* A pump and an additive artifact type apply to the same subject. */
-/* @sem Change::[...$static_singular_pump, ...$singular_retained_artifact] */
-static_pump_and_retained_artifact ::= static_singular_pump "and" singular_retained_artifact
+/* @sem Change::[...$singular_pump, ...$singular_retained_artifact] */
+static_pump_and_retained_artifact ::= singular_pump "and" singular_retained_artifact
 
 /* @sem Change::[AddCardType(Artifact)] */
 singular_retained_artifact ::= "is" "an" "artifact" "in" "addition" "to" "its" "other" "types"
@@ -9689,11 +9547,10 @@ continuous_switch_characteristics ::= "switch" "the" switch_characteristics "of"
 duration_plural_defined_base_stats ::= duration "," affected "have" "base" "power" "and" "toughness" base_stats_x_change "," "where" "X" "is" owned_public_zone_count
 
 /* A retained creature subtype and a separately scoped quoted trigger. */
-/* @sem Change::CreatureTypes{mode:Add, types:Listed([@subtype_name($subtype)])} */
-shared_added_a_type ::= "is" "a" subtype "in" "addition" "to" "its" "other" "types"
+/* shared_added_a_type is shared as shared_added_singular_type. */
 
-/* @sem Change::[$shared_added_a_type, $shared_granted_trigger_closed] */
-shared_a_type_and_trigger ::= shared_added_a_type "and" "has" shared_granted_trigger_closed
+/* @sem Change::[$shared_added_singular_type, $shared_granted_trigger_closed] */
+shared_a_type_and_trigger ::= shared_added_singular_type "and" "has" shared_granted_trigger_closed
 
 /* A permanent may be protected from being attacked. */
 /* @sem Change::[Rule(Prohibit(BeAttacked))] */
@@ -9770,8 +9627,8 @@ replacement_named_state ::= it_state | condition_state
 instructions_replace_creature_type_word ::= "change" "the" "text" "of" affected "by" "replacing" "all" "instances" "of" "one" "creature" "type" "with" creature_subtype
 
 /* A creature population gets temporary changes, then that same population is untapped. */
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($pump_untap_creatures), changes:[...$plural_pump_change, ...$plural_gain_change], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:SetTapped{objects:$pump_untap_creatures}}] */
-instructions_creature_pump_grant_untap ::= pump_untap_creatures plural_pump_change "and" plural_gain_change duration "." "untap" "those" "creatures"
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($pump_untap_creatures), changes:[...$plural_private_pump, ...$plural_gain_change], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:SetTapped{objects:$pump_untap_creatures}}] */
+instructions_creature_pump_grant_untap ::= pump_untap_creatures plural_private_pump "and" plural_gain_change duration "." "untap" "those" "creatures"
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), $pump_untap_controller)} */
 pump_untap_creatures ::= "creatures" pump_untap_controller
@@ -9788,13 +9645,7 @@ controlled_creatures_snapshot ::= "creatures" creature_controller_modifier plura
 
 creature_controller_modifier ::= modifier_you_control | modifier_opponents_control
 
-plural_snapshot_change ::= plural_snapshot_pump | plural_snapshot_grant
-
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-plural_snapshot_pump ::= "get" signed "/" signed
-
-/* @sem $grants */
-plural_snapshot_grant ::= "gain" grants
+plural_snapshot_change ::= plural_private_pump | event_creatures_gain
 
 /* @sem Instruction::Effect{result:@next, operation:SetTapped{objects:Affected(@prior)}} */
 untap_affected_creatures ::= "untap" "those" "creatures"
@@ -9803,10 +9654,7 @@ untap_affected_creatures ::= "untap" "those" "creatures"
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$control_untap_creature_filter}), index:0})), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:SetTapped{objects:One(Target{slot:0, index:0}), tapped:false}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:0, index:0})), changes:[GrantKeyword($keyword_name)], duration:$duration_2, evaluation:Snapshot}}] */
 control_untap_creature_keyword ::= "gain" "control" "of" "target" control_untap_creature_filter duration "." "untap" "that" "creature" "." "it" "gains" keyword_name duration
 
-control_untap_creature_filter ::= noun_creature | control_untap_qualified_creature
-
-/* @sem @and($adjective, $noun_creature) */
-control_untap_qualified_creature ::= adjective noun_creature
+control_untap_creature_filter ::= noun_creature | enchanted_creature_adjective
 
 /* The quoted ability is scoped to the granted holder. */
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Target{slot:0, index:0}), changes:[GrantAbility($creature_quoted_static)]}}] */
@@ -9887,11 +9735,8 @@ perpetual_type_pump_keyword ::= "becomes" "a" becomes_type_one "," "gets" signed
 removed_creatures_combat_rules ::= "each" "of" "those" "creatures" "attacks" "that" "combat" "if" "able" "." "they" rule_cant_attack_you "that" "combat"
 
 /* A temporary free cast permission follows the targeted card and redirects the resulting spell. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One($free_cast_target_from_your_graveyard), from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Free, into_exile:true}})], duration:$duration, evaluation:LiveObjects} */
-free_target_graveyard_cast_redirect ::= duration "," "you" "may" "cast" free_cast_target_from_your_graveyard "without" "paying" "its" "mana" "cost" "." "if" "that" "spell" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead"
-
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
-free_cast_target_from_your_graveyard ::= "target" card_filter "card" "from" "your" "graveyard"
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One($choose_cast_graveyard_from), from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Free, into_exile:true}})], duration:$duration, evaluation:LiveObjects} */
+free_target_graveyard_cast_redirect ::= duration "," "you" "may" "cast" choose_cast_graveyard_from "without" "paying" "its" "mana" "cost" "." "if" "that" "spell" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead"
 
 /* The counted counters belong to each affected permanent. */
 /* @sem Change::[SetCardTypes([Creature]), SetBasePowerToughness{power:CountCounters(_{recipients:Objects(One(Affected)), kind:$counter_kind, information:CurrentOrLastKnown}), toughness:CountCounters(_{recipients:Objects(One(Affected)), kind:$counter_kind, information:CurrentOrLastKnown})}] */
@@ -9957,11 +9802,8 @@ event_player_creatures_attack_prohibition ::= "creatures" "they" "control" "can'
 /* @sem Change::[AddCardType(Artifact), AddCardType(Creature)] */
 change_becomes_artifact_creature ::= "becomes" "an" "artifact" "creature"
 
-/* @sem Change::[...$change_becomes_artifact_creature, ...$singular_pump_change] */
-changes_artifact_animation_and_pump ::= change_becomes_artifact_creature "and" singular_pump_change
-
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-singular_pump_change ::= "gets" signed "/" signed
+/* @sem Change::[...$change_becomes_artifact_creature, ...$singular_pump] */
+changes_artifact_animation_and_pump ::= change_becomes_artifact_creature "and" singular_pump
 
 /* A referenced object supplies both the source and affected object of this effect. */
 /* @sem Operation::CreateContinuousEffect{source:$self_explicit_ref, affected:Objects(One($self_explicit_ref)), changes:$singular_pump, duration:$duration, evaluation:Snapshot} */
@@ -10834,11 +10676,10 @@ exile_cast_linked_spells ::= "you" "may" "cast" cast_spells_filter "from" "among
 static_cast_linked_spells ::= exile_cast_linked_spells "."
 
 /* A postnominal type union qualifies the graveyard card population. */
-/* @sem ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2, $filter_phrase_3, $filter_phrase_4]) */
-graveyard_four_filter_union ::= filter_phrase "," filter_phrase "," filter_phrase "," "and" "/" "or" filter_phrase
+/* graveyard_four_filter_union is shared as card_kind_union_four. */
 
-/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, $graveyard_four_filter_union])} */
-graveyard_qualified_card_population ::= "each" filter_phrase "card" "in" "your" "graveyard" "that's" "a" graveyard_four_filter_union
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, $card_kind_union_four])} */
+graveyard_qualified_card_population ::= "each" filter_phrase "card" "in" "your" "graveyard" "that's" "a" card_kind_union_four
 
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($graveyard_qualified_card_population), changes:[GrantAbility(@holder($graveyard_granted_ability))]} */
 static_qualified_graveyard_grant ::= graveyard_qualified_card_population "has" graveyard_granted_ability "."
@@ -10928,30 +10769,23 @@ protection_kept_attached ::= filter_plural "that" "are" "already" "attached" "to
 ability_origin_all_other_battlefield ::= "all" contextual_other_filter "on" "the" "battlefield"
 
 /* A controlled other permanent retains its own combat-state predicate. */
-/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject(Source)), $filter_phrase, ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Not(AnyOf([Attacking, Blocking])))}), changes:$retirement_resting_pump} */
-retirement_other_controlled_resting ::= "each" "other" filter_phrase "you" "control" retirement_resting_pump "as" "long" "as" "it's" "not" "attacking" "or" "blocking" "."
-
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-retirement_resting_pump ::= "gets" signed "/" signed
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject(Source)), $filter_phrase, ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Not(AnyOf([Attacking, Blocking])))}), changes:$singular_pump} */
+retirement_other_controlled_resting ::= "each" "other" filter_phrase "you" "control" singular_pump "as" "long" "as" "it's" "not" "attacking" "or" "blocking" "."
 
 /* Controller and owner remain independent across these two populations. */
-/* @sem ObjectSet::AnyZone(@and($card_filter, ObjectFilter::OwnedBy(One(AbilityController)), ObjectFilter::Not(InZone(Shared(Battlefield))), ObjectFilter::Not(InZone(Shared(Stack))))) */
-retirement_owned_cards_outside_battlefield_stack ::= card_filter "cards" "you" "own" "in" "any" "zone" "other" "than" "the" "battlefield" "or" "the" "stack"
+/* retirement_owned_cards_outside_battlefield_stack is shared as cross_owned_outside_battlefield_stack. */
 
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-retirement_cross_plural_pump ::= "get" signed "/" signed
-
-/* @sem Ability::[Static{kind:Ordinary, affected:Objects($cross_spells), changes:$retirement_cross_plural_pump}, Static{kind:Ordinary, affected:Objects($retirement_owned_cards_outside_battlefield_stack), changes:$retirement_cross_plural_pump}] */
-retirement_spells_and_owned_cards_pump ::= cross_spells "and" retirement_owned_cards_outside_battlefield_stack retirement_cross_plural_pump "."
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects($cross_spells), changes:$plural_private_pump}, Static{kind:Ordinary, affected:Objects($cross_owned_outside_battlefield_stack), changes:$plural_private_pump}] */
+retirement_spells_and_owned_cards_pump ::= cross_spells "and" cross_owned_outside_battlefield_stack plural_private_pump "."
 
 /* The anaphor denotes the controlled population introduced by the condition. */
 /* @sem Ability::Conditional{condition:Controls{player:AbilityController, filter:$draft_noted_name_creatures, minimum:1}, then:[Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject(Source), AllOf([$draft_noted_name_creatures, ControlledBy(One(AbilityController))])])}), changes:$shared_plural_static_changes})]} */
 shared_controlled_noted_creatures_static ::= "as" "long" "as" "you" "control" "one" "or" "more" draft_noted_name_creatures "," "this" "creature" "and" "those" "creatures" shared_plural_static_changes "."
 
-/* @sem Change::[...$plural_pump_change, GrantKeyword($keyword_name)] */
-shared_plural_pump_have_keyword ::= plural_pump_change "and" "have" keyword_name
+/* @sem Change::[...$plural_private_pump, GrantKeyword($keyword_name)] */
+shared_plural_pump_have_keyword ::= plural_private_pump "and" "have" keyword_name
 
-shared_plural_static_changes ::= plural_pump_change | shared_plural_pump_have_keyword
+shared_plural_static_changes ::= plural_private_pump | shared_plural_pump_have_keyword
 
 /* Keep the optional placement and its player-specific combat restriction in one receipt scope. */
 /* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$each_player_counter_attack_restriction} */
@@ -10984,8 +10818,8 @@ change_has_own_color_protection ::= "has" own_color_protection
 own_color_protection ::= "protection" "from" "each" "of" "its" "colors"
 
 /* A cast boon can grant just the singular pump. */
-/* @sem $static_singular_pump */
-cast_boon_pump_only ::= static_singular_pump
+/* @sem $singular_pump */
+cast_boon_pump_only ::= singular_pump
 
 /* The land and spell permissions have independent per-turn allowances. */
 /* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_graveyard_permission_cards, from:Graveyard, action:PlayLand, filter:Any}, terms:_{limit:EachTurn(1), cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_graveyard_permission_cards, from:Graveyard, action:CastSpell, filter:$turn_history_spell}, terms:_{limit:EachTurn(1), cost:Normal}})]})]} */
@@ -11004,11 +10838,8 @@ animation_artifact_loss_grants ::= "becomes" "a" value "/" value becomes_types "
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:$cast_spells_filter, abilities:List([$cast_granted_offspring])})]}) */
 shared_cast_granted_offspring ::= cast_spells_filter "you" "cast" "gain" cast_granted_offspring "as" "you" "cast" "them" "."
 
-/* @sem Operand::Term{family:SpellEffect, form:Offspring, operands:[$cast_offspring_generic]} */
-cast_granted_offspring ::= "offspring" cast_offspring_generic
-
-/* @sem Operand::Term{family:ManaSymbol, form:ManaCostGeneric, operands:[Integer($number)]} */
-cast_offspring_generic ::= "{" NUMBER "}"
+/* @sem Operand::Term{family:SpellEffect, form:Offspring, operands:[$kicker_operand_generic]} */
+cast_granted_offspring ::= "offspring" kicker_operand_generic
 
 /* The plural graveyards population includes every player; the grant belongs to each card. */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($private_all_graveyard_cards), changes:[GrantAbility(@holder($graveyard_granted_ability))]} */
@@ -11108,8 +10939,8 @@ attack_cost_each_controller ::= "can't" "attack" "unless" "their" "controller" "
 
 /* Both changes share the leading duration and affected subject. */
 /* @prefer always */
-/* @sem Change::[...$static_singular_pump, ...$drafted_added_artifact] */
-leading_pump_retained_artifact ::= static_singular_pump "and" drafted_added_artifact
+/* @sem Change::[...$singular_pump, ...$drafted_added_artifact] */
+leading_pump_retained_artifact ::= singular_pump "and" drafted_added_artifact
 
 /* An additive card type retains the subject’s other types. */
 /* change_becomes_retained_artifact is shared as drafted_added_artifact. */
@@ -11557,14 +11388,11 @@ shared_counter_group_creatures ::= "each" "creature" modifier_nonnumeric
 /* @sem Change::[SetArtifactType($singular_artifact_type), SetCardTypes([Artifact]), RemoveAllAbilities, $unpunctuated_quoted_activation] */
 plural_artifact_conversion_grant ::= "become" singular_artifact_type "artifacts" "with" unpunctuated_quoted_activation "and" "lose" "all" "other" "abilities"
 
-unpunctuated_quoted_activation ::= unpunctuated_artifact_activation | unpunctuated_generic_activation
+unpunctuated_quoted_activation ::= unpunctuated_artifact_activation | shared_granted_activation_open
 
 /* @prefer always */
 /* @sem Change::GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$artifact_self_tap_sacrifice_cost, limits:_{}, announcement:@announcement, body:$program})) */
 unpunctuated_artifact_activation ::= '"' artifact_self_tap_sacrifice_cost ":" program '"'
-
-/* @sem Change::GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})) */
-unpunctuated_generic_activation ::= '"' cost ":" program '"'
 
 /* Selection and continuation share the same announced target group. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:$self_explicit_ref, affected:Objects($per_player_other_union_targets), changes:$plural_artifact_conversion_grant, duration:WhileOnBattlefield($self_explicit_ref), evaluation:Snapshot}}] */
@@ -11664,11 +11492,7 @@ controlled_each_temporary_grants ::= "each" noun "you" "control" "gains" grants 
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players($permission_players), changes:[PlayerRule(TargetableDespite{sources:ControlledBy(One(AbilityController)), keyword:$permission_keyword})], duration:$targeting_permission_duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(TargetableDespite{sources:ControlledBy(One(AbilityController)), keyword:$permission_keyword})], duration:$targeting_permission_duration, evaluation:LiveObjects}}] */
 clause_timed_targeting_permission ::= targeting_permission_duration "," permission_players "and" affected permission_keyword
 
-/* @prefer always */
-/* @sem Duration::$until_end_of_turn */
-targeting_permission_end_turn ::= until_end_of_turn
-
-targeting_permission_duration ::= targeting_permission_end_turn | until_next_end_step | until_beginning_next_upkeep | duration_die_roll_earliest | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | until_end_of_next_upkeep | until_next_upkeep | while_you_control | while_on_battlefield | until_player_planeswalks | while_you_control_and_tapped
+targeting_permission_duration ::= control_population_until_end | until_next_end_step | until_beginning_next_upkeep | duration_die_roll_earliest | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | until_end_of_next_upkeep | until_next_upkeep | while_you_control | while_on_battlefield | until_player_planeswalks | while_you_control_and_tapped
 
 /* The excluded object and controller both refer to the last announced target. */
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Target{slot:@last_slot, index:0})), $noun, ControlledBy(One(ControllerOf(Target{slot:@last_slot, index:0})))])} */
@@ -11745,8 +11569,8 @@ paired_event_temporary_changes ::= static_changes duration
 shared_doubled_creature_block ::= "double" double_possessive_target_creature double_stat_change duration "." "that" "creature" be_blocked_requirement this_duration "if" "able"
 
 /* The anaphor retains the controlled creature population in both branches. */
-/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), $creature_controller_modifier])}), changes:$plural_snapshot_pump_2, duration:$duration_2, evaluation:Snapshot}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), $creature_controller_modifier])}), changes:$plural_snapshot_pump, duration:$duration, evaluation:Snapshot}}]}}] */
-controlled_creatures_pump_contrast ::= "creatures" creature_controller_modifier plural_snapshot_pump duration "." NEWLINE? "if" condition "," "those" "creatures" plural_snapshot_pump duration "instead"
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), $creature_controller_modifier])}), changes:$plural_private_pump_2, duration:$duration_2, evaluation:Snapshot}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), $creature_controller_modifier])}), changes:$plural_private_pump, duration:$duration, evaluation:Snapshot}}]}}] */
+controlled_creatures_pump_contrast ::= "creatures" creature_controller_modifier plural_private_pump duration "." NEWLINE? "if" condition "," "those" "creatures" plural_private_pump duration "instead"
 
 /* @prefer always */
 /* @sem ObjectSet::$permission_linked_exile_cards */
@@ -11788,11 +11612,8 @@ program_attacking_type_and_grant ::= attacking_filtered_add_type "." affected sp
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($controlled_type_pump_subject, $modifier_you_control)} */
 static_controlled_type_population ::= controlled_type_pump_subject modifier_you_control
 
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-static_plural_pump ::= "get" signed "/" signed
-
-/* @sem Ability::Static{kind:Ordinary, affected:Objects($static_controlled_type_population), changes:$static_plural_pump} */
-static_controlled_type_pump ::= static_controlled_type_population static_plural_pump "."
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($static_controlled_type_population), changes:$plural_private_pump} */
+static_controlled_type_pump ::= static_controlled_type_population plural_private_pump "."
 
 /* A mana-value-qualified spell class and the prohibition on casting it.
    Keep this dispatch distinct from stack-object prohibitions. */
@@ -12040,11 +11861,8 @@ resolution_combat_controller ::= modifier_opponent_controls | modifier_you_contr
 /* @sem Change::[AddSupertype(Legendary), AddArtifactType(Equipment), AddCardType(Artifact), SetName($referenced_card_name)] */
 named_legendary_equipment_changes ::= "a" "legendary" "Equipment" "artifact" "named" referenced_card_name
 
-/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[Pump{power:$signed, toughness:$signed_2}]} */
-equipped_creature_stat_grant ::= "equipped" "creature" "gets" signed "/" signed
-
-/* @sem Change::[RemoveAllAbilities, GrantAbility(@scope(Ability::Activated{origin:Equip, cost:Cost{parts:[Mana($mana_symbols)]}, limits:_{sorcery:true}, body:_{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), index:0}}}]}, announcement:@announcement})), GrantAbility($equipped_creature_stat_grant)] */
-equipment_replacement_grants ::= "it" "gains" "equip" mana_symbols "and" '"' equipped_creature_stat_grant '"' "and" "loses" "all" "other" "abilities"
+/* @sem Change::[RemoveAllAbilities, GrantAbility(@scope(Ability::Activated{origin:Equip, cost:Cost{parts:[Mana($mana_symbols)]}, limits:_{sorcery:true}, body:_{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), index:0}}}]}, announcement:@announcement})), GrantAbility($token_equipped_pump)] */
+equipment_replacement_grants ::= "it" "gains" "equip" mana_symbols "and" '"' token_equipped_pump '"' "and" "loses" "all" "other" "abilities"
 
 /* A turn-qualified ordered spell and its reduction have independent operands. */
 /* @sem @and($subtype_negated, $filter_phrase, ObjectFilter::HasKeyword($keyword_value)) */
@@ -12072,14 +11890,11 @@ chosen_controlled_attack_requirement ::= "choose" chosen_active_controlled_creat
 
 /* A conditional follow-up refers to the same team immediately after the
    first snapshot effect, with no intervening action changing its membership. */
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($conditional_team), changes:$conditional_team_pump, duration:$duration, evaluation:Snapshot}}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($conditional_team), changes:[GrantKeyword($keyword_name)], duration:$duration_2, evaluation:Snapshot}}]}, otherwise:Program{}}] */
-clause_creature_group_conditional_grant ::= conditional_team conditional_team_pump duration "." NEWLINE "if" condition "," "those" "creatures" "also" "gain" keyword_name duration
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($conditional_team), changes:$plural_private_pump, duration:$duration, evaluation:Snapshot}}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($conditional_team), changes:[GrantKeyword($keyword_name)], duration:$duration_2, evaluation:Snapshot}}]}, otherwise:Program{}}] */
+clause_creature_group_conditional_grant ::= conditional_team plural_private_pump duration "." NEWLINE "if" condition "," "those" "creatures" "also" "gain" keyword_name duration
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])} */
 conditional_team ::= "creatures" "you" "control"
-
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-conditional_team_pump ::= "get" signed "/" signed
 
 /* The targets share a creature type, while their controller remains explicit. */
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly($number), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))]), constraints:[CommonProperty(CreatureTypes)]})) */
@@ -12219,17 +12034,14 @@ copy_stats_vehicle_keyword ::= copy_fixed_stats "," copy_vehicle_artifact_retain
 
 /* A sequence of distinct target slots can assign each recipient its own pump.
    These clauses are scoped to the three-slot spell wrapper below. */
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), changes:$distinct_target_pump, duration:EndOfTurn, evaluation:Snapshot}}] */
-distinct_first_creature_pump ::= "target" "creature" distinct_target_pump
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), changes:$singular_pump, duration:EndOfTurn, evaluation:Snapshot}}] */
+distinct_first_creature_pump ::= "target" "creature" singular_pump
 
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:AllOf([Not(SameObject(Target{slot:0, index:0})), CardType(Creature)])}), index:0})), changes:$distinct_target_pump, duration:EndOfTurn, evaluation:Snapshot}}] */
-distinct_second_creature_pump ::= "up" "to" "one" "other" "target" "creature" distinct_target_pump
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:AllOf([Not(SameObject(Target{slot:0, index:0})), CardType(Creature)])}), index:0})), changes:$singular_pump, duration:EndOfTurn, evaluation:Snapshot}}] */
+distinct_second_creature_pump ::= "up" "to" "one" "other" "target" "creature" singular_pump
 
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:AllOf([Not(SameObject(Target{slot:0, index:0})), Not(SameObject(Target{slot:1, index:0})), CardType(Creature)])}), index:0})), changes:$distinct_target_pump, duration:EndOfTurn, evaluation:Snapshot}}] */
-distinct_third_creature_pump ::= "up" "to" "one" "other" "target" "creature" distinct_target_pump
-
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-distinct_target_pump ::= "gets" signed "/" signed
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:AllOf([Not(SameObject(Target{slot:0, index:0})), Not(SameObject(Target{slot:1, index:0})), CardType(Creature)])}), index:0})), changes:$singular_pump, duration:EndOfTurn, evaluation:Snapshot}}] */
+distinct_third_creature_pump ::= "up" "to" "one" "other" "target" "creature" singular_pump
 
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject(Target{slot:0, index:0}), SameObject(Target{slot:1, index:0}), SameObject(Target{slot:2, index:0})])}), changes:[GrantKeyword($keyword_name)], duration:EndOfTurn, evaluation:Snapshot}}] */
 distinct_three_creatures_grant ::= "those" "creatures" "gain" keyword_name "until" "end" "of" "turn"
@@ -12358,13 +12170,10 @@ count_each_mana_spent_from ::= "mana" "from" "a" filter_phrase "that" "was" "spe
 /* @sem ObjectFilter::AllOf([$counter_single_ability_kind, $modifier_you_control]) */
 controlled_cause_ability ::= counter_single_ability_kind "abilities" modifier_you_control
 
-/* @sem PlayerAction::Sacrifice{objects:$filter_plural} */
-caused_sacrifice_action ::= "sacrifice" filter_plural
-
 /* @sem PlayerAction::ExileObjects($filter_plural) */
 caused_exile_action ::= "exile" filter_plural
 
-caused_single_action ::= caused_sacrifice_action | caused_exile_action
+caused_single_action ::= caused_sacrifice | caused_exile_action
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(CantBeCaused{action:$caused_single_action, by:$controlled_cause_ability})]}) */
 controlled_ability_cant_cause_one ::= controlled_cause_ability "can't" "cause" "you" "to" caused_single_action "."
@@ -12526,10 +12335,7 @@ conditional_plural_changes ::= conditional_plural_change | conditional_plural_ch
 /* @sem Change::[...$conditional_plural_change, ...$conditional_plural_changes] */
 conditional_plural_changes_and ::= conditional_plural_change "and" conditional_plural_changes
 
-conditional_plural_change ::= conditional_plural_pump | conditional_plural_grants
-
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-conditional_plural_pump ::= "get" signed "/" signed
+conditional_plural_change ::= plural_private_pump | conditional_plural_grants
 
 /* @sem $grants */
 conditional_plural_grants ::= "have" grants
@@ -12576,13 +12382,10 @@ entry_subject_block_requirement ::= "have" affected "block" "it" this_duration "
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$plural_duration_change, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected_2)), changes:$plural_duration_change_2, duration:$duration, evaluation:Snapshot}}] */
 clause_shared_plural_duration ::= duration "," affected plural_duration_change "and" affected plural_duration_change
 
-plural_duration_change ::= plural_duration_color | plural_duration_land_type
+plural_duration_change ::= plural_duration_color | plural_become_basic_land
 
 /* @sem Change::[Colors{mode:Set, colors:$token_colors}] */
 plural_duration_color ::= "become" token_colors
-
-/* @sem Change::[SetLandType(Vocabulary{family:LandType, form:@subtype_name($basic_land_types)})] */
-plural_duration_land_type ::= "become" basic_land_types
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$clause_shared_plural_duration]}} */
 spell_shared_plural_duration ::= clause_shared_plural_duration "."
@@ -12721,9 +12524,6 @@ static_first_spell_player_grant ::= "the" "first" first_granted_spell_filter "sp
 /* @sem ObjectFilter::AnyOf([$spell_type_head, $spell_type_head_2]) */
 first_granted_spell_filter ::= spell_type_head "or" spell_type_head
 
-/* @sem Operand::Term{family:SpellEffect, form:Casualty, operands:[Number($value)]} */
-spell_granted_casualty ::= "casualty" value
-
 /* A snapshot population loses a pair of abilities and cannot regain them. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}), changes:$lose_hexproof_shroud, duration:$leading_loss_duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Affected(@prior)), changes:$cant_have_hexproof_shroud, duration:$leading_loss_duration, evaluation:LiveObjects}}] */
 instructions_temporary_lose_pair_cant_have ::= leading_loss_duration "," filter_plural lose_hexproof_shroud "and" cant_have_hexproof_shroud
@@ -12779,10 +12579,6 @@ singular_static_pump_and_keyword ::= "gets" signed "/" signed "and" "has" keywor
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($each_other_controlled_five_kinds), changes:$singular_static_pump_and_keyword}) */
 static_each_other_kind_pump_keyword ::= each_other_controlled_five_kinds singular_static_pump_and_keyword "."
 
-/* @prefer always */
-/* @sem Ability::[$static_each_other_kind_pump_keyword] */
-line_each_other_kind_pump_keyword ::= static_each_other_kind_pump_keyword
-
 /* A temporary color addition preserves the object's other colors. Keep this
    phrase scoped to temporary effects, independently of static change lists. */
 /* @sem Change::[Colors{mode:Add, colors:[$mana_color_word]}] */
@@ -12811,8 +12607,8 @@ cast_repeated_subtype_spells ::= graveyard_grant_first_subtype "spells" "and" su
 
 /* Compose an independently parameterized pump with a card-type landwalk grant. */
 /* @prefer always */
-/* @sem Change::[...$static_singular_pump, GrantKeyword($walk_card_type)] */
-static_card_type_walk_pump ::= static_singular_pump "and" "has" walk_card_type
+/* @sem Change::[...$singular_pump, GrantKeyword($walk_card_type)] */
+static_card_type_walk_pump ::= singular_pump "and" "has" walk_card_type
 
 /* Shared four-kind union and independently qualified battlefield populations. */
 /* @sem ObjectFilter::AnyOf([$subtype_spelled, $subtype_spelled_2, $subtype_spelled_3, $subtype_spelled_4]) */
@@ -12987,11 +12783,8 @@ static_have_subtype_equip ::= "have" keyword_equip_subtype
 /* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$shared_creature_blocks_holder_or_blocked, limits:_{}, announcement:@announcement, body:Program{instructions:$retirement_event_action}})) */
 shared_combat_subject_trigger ::= '"' "whenever" shared_creature_blocks_holder_or_blocked "," retirement_event_action "." '"'
 
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
-shared_singular_stat_pump ::= "gets" signed "/" signed
-
-/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[...$shared_singular_stat_pump, $grant_keyword, $shared_combat_subject_trigger]} */
-shared_pump_keyword_combat_trigger ::= affected shared_singular_stat_pump "and" "has" grant_keyword "and" shared_combat_subject_trigger
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[...$singular_pump, $grant_keyword, $shared_combat_subject_trigger]} */
+shared_pump_keyword_combat_trigger ::= affected singular_pump "and" "has" grant_keyword "and" shared_combat_subject_trigger
 
 /* Define the numeric changes from this ability frame at resolution. */
 /* @sem @where($static_numeric_changes, $resolution_count_value) */
@@ -13016,9 +12809,6 @@ static_players_untap_limit_one ::= "players" "can't" players_untap_limit_one_cha
 /* The quoted activation belongs to the affected artifact. */
 /* @sem Change::[Colors{mode:Set}, ...$singular_artifact_type_change, RemoveAllAbilities, $shared_granted_activation_open] */
 change_colorless_artifact_with_activation_other_abilities ::= "is" "a" "colorless" singular_artifact_type_change "with" shared_granted_activation_open "and" "loses" "all" "other" "abilities"
-
-/* @sem Change::[SetLandType(Vocabulary{family:LandType, form:@subtype_name($basic_land_type_named)})] */
-change_becomes_basic_land_type ::= "becomes" basic_land_type_named
 
 /* Each blocker population retains its own independent filter. */
 /* @sem ObjectFilter::AnyOf([$filter_plural, $filter_plural_2]) */

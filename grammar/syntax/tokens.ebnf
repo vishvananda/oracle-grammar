@@ -88,13 +88,10 @@ token_groups_pair ::= token_group "and" token_group
 /* @sem TokenSpec::[$token_group, ...$token_groups_tail] */
 token_groups_list ::= token_group "," token_groups_tail
 
-token_groups_tail ::= token_groups_last | token_groups_more
+token_groups_tail ::= token_groups_last | token_groups_list
 
 /* @sem TokenSpec::[$token_group] */
 token_groups_last ::= "and" token_group
-
-/* @sem TokenSpec::[$token_group, ...$token_groups_tail] */
-token_groups_more ::= token_group "," token_groups_tail
 
 token_groups_tapped ::= token_groups_tapped_one | token_groups_tapped_pair | token_groups_tapped_list
 
@@ -107,13 +104,10 @@ token_groups_tapped_pair ::= token_group_tapped "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_list ::= token_group_tapped "," token_groups_tapped_tail
 
-token_groups_tapped_tail ::= token_groups_tapped_last | token_groups_tapped_more
+token_groups_tapped_tail ::= token_groups_tapped_last | token_groups_tapped_list
 
 /* @sem TokenSpec::[$token_group_tapped] */
 token_groups_tapped_last ::= "and" token_group_tapped
-
-/* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
-token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
 token_group ::= token_history_quoted_other | named_legendary_equipment_token | token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal | token_named_equal_vote_total | token_variable_square_product | token_defined_named_graveyard | token_copy_stats_added_type | token_named_equal_its_stat | token_defined_live_graveyard_single | token_defined_live_graveyard_plural | token_named_mana_spent_equal | token_defined_equal_opponent_comparison | token_named_equal_nontoken_entries | token_defined_with_opponent_control_count_h3
 
@@ -844,7 +838,7 @@ created_tokens_goaded_subject ::= "the" "tokens"
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:@token_abilities($token_recipe_plain, $chapter_quoted_token_abilities)}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}]} */
 chapter_quoted_token_program ::= "create" token_amount token_recipe_plain "with" chapter_quoted_token_abilities
 
-chapter_quoted_token_abilities ::= chapter_vanishing_quoted_abilities | chapter_token_attack_abilities | chapter_other_quoted_abilities | chapter_token_abilities_list
+chapter_quoted_token_abilities ::= chapter_vanishing_quoted_abilities | chapter_token_attack_abilities | target_other_quote_list | chapter_token_abilities_list
 
 /* Named token identities are independent of their characteristics. */
 /* @sem String::'Minor Demon' */
@@ -923,11 +917,8 @@ tn_feroz_ban ::= "Feroz's" "Ban"
 /* @sem TokenName::Explicit('Tamiyo''s Notebook') */
 notebook_token_name ::= "Tamiyo's" "Notebook"
 
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:$spell_cost_change})]}) */
-quoted_spell_cost_no_period ::= cast_spells_filter "you" "cast" "cost" spell_cost_change "to" "cast"
-
-/* @sem Ability::[@holder($quoted_spell_cost_no_period), $token_quoted_sentence] */
-quoted_cost_and_sentence ::= '"' quoted_spell_cost_no_period '"' "and" token_quoted_sentence
+/* @sem Ability::[@holder($conditional_cast_cost_body), $token_quoted_sentence] */
+quoted_cost_and_sentence ::= '"' conditional_cast_cost_body '"' "and" token_quoted_sentence
 
 /* @sem TokenSpec::TokenSpec{amount:$counter_a, words:CreatingEffect, recipe:Defined{name:$notebook_token_name, supertypes:[Legendary], colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, abilities:$quoted_cost_and_sentence}} */
 named_legendary_scoped_token ::= notebook_token_name "," counter_a "legendary" token_colors token_subtypes token_types "token" "with" quoted_cost_and_sentence
@@ -1054,11 +1045,8 @@ token_choice_tail ::= token_choice_last | token_choice_more
 clause_create_token_choice ::= "create" "your" "choice" "of" token_choice_option "," token_choice_tail
 
 /* A single token already on the battlefield has its own quoted ability. */
-/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:@token_abilities($singular_counted_token_recipe, $before_game_quoted_abilities)} */
-before_game_single_token ::= "a" singular_counted_token_recipe "on" "the" "battlefield" "." "it" "has" before_game_quoted_abilities
-
-/* @sem Ability::[$token_quoted] */
-before_game_quoted_abilities ::= token_quoted
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:@token_abilities($singular_counted_token_recipe, $target_other_quote_list)} */
+before_game_single_token ::= "a" singular_counted_token_recipe "on" "the" "battlefield" "." "it" "has" target_other_quote_list
 
 /* @sem Ability::BeforeGame{when:GameBegins, body:List([Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$before_game_single_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}])} */
 before_game_with_token ::= "you" "begin" "the" "game" "with" before_game_single_token
@@ -1097,10 +1085,7 @@ created_name_reliquary_dragon ::= "Reliquary" "Dragon"
 /* @sem Ability::[$token_quoted] */
 token_final_quoted_last ::= "and" token_quoted
 
-/* @sem Ability::[$token_ability, ...$token_final_quoted_tail] */
-token_final_quoted_more ::= token_ability "," token_final_quoted_tail
-
-token_final_quoted_tail ::= token_final_quoted_last | token_final_quoted_more
+token_final_quoted_tail ::= token_final_quoted_last | token_final_quoted_list
 
 /* @sem Ability::[$token_ability, ...$token_final_quoted_tail] */
 token_final_quoted_list ::= token_ability "," token_final_quoted_tail
@@ -1138,16 +1123,11 @@ clause_created_temporary_gain ::= created_gain_subject "gain" grants duration
 instructions_named_token_animation ::= "create" "a" token_named_recipe "token" "." "it" "becomes" "a" token_stat "/" token_stat "artifact" "creature" "and" "gains" keyword_name
 
 /* @prefer always */
-/* @sem Ability::[$chapter_token_attack_quoted] */
-chapter_token_attack_abilities ::= chapter_token_attack_quoted
-
-/* @sem Ability::[$token_quoted] */
-chapter_other_quoted_abilities ::= token_quoted
+/* @sem Ability::[$named_x_attack_quote] */
+chapter_token_attack_abilities ::= named_x_attack_quote
 
 /* The attack event belongs to the newly created token; its body composes independently. */
-/* @prefer always */
-/* @sem Ability::@holder(Ability::Triggered{event:Object{event:Attacks, objects:SameObject(Source)}, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence}) */
-chapter_token_attack_quoted ::= '"' "whenever" "this" "token" "attacks" "," program_sentence '"'
+/* chapter_token_attack_quoted is shared as named_x_attack_quote. */
 
 /* A linked exiled card and its copy exceptions retain independent operands. */
 /* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyOne{objects:$token_exiled_card, exceptions:$copy_exceptions_plain}} */
@@ -1736,21 +1716,15 @@ event_group_tapped_copy_single ::= "a" "tapped" "token" "that's" "a" "copy" "of"
 event_group_tapped_copy_plural ::= copy_token_plural_amount "tapped" "tokens" "that" "are" "copies" "of"
 
 /* Singular creation requires a singular token noun in both directions. */
-created_singular_recipe ::= created_singular_recipe_typed | created_singular_recipe_untyped
-
-/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
-created_singular_recipe_typed ::= token_stat "/" token_stat token_colors token_subtypes token_types "token"
+created_singular_recipe ::= singular_counted_token_recipe | created_singular_recipe_untyped
 
 /* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2]}) */
 created_singular_recipe_untyped ::= token_stat "/" token_stat token_colors token_types "token"
 
-/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
-rolled_singular_recipe ::= token_stat "/" token_stat token_colors token_subtypes token_types "token"
-
 /* The repeated recipe binds the anaphor in both alternatives, including on print. */
-/* @sem Program::Program{instructions:[If{condition:Compare{left:EventAmount, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$rolled_singular_recipe}, $token_group], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$rolled_singular_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}]} */
+/* @sem Program::Program{instructions:[If{condition:Compare{left:EventAmount, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$singular_counted_token_recipe}, $token_group], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$singular_counted_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}]} */
 /* @prefer always */
-rolled_token_alternative ::= "create" "a" rolled_singular_recipe "." "if" "you" "rolled" value "or" "higher" "," "instead" "create" "that" "token" "and" token_group
+rolled_token_alternative ::= "create" "a" singular_counted_token_recipe "." "if" "you" "rolled" value "or" "higher" "," "instead" "create" "that" "token" "and" token_group
 
 /* @sem Ability::Triggered{event:$rolled_at_least_event, limits:TriggerLimits{}, announcement:@announcement, body:$rolled_token_alternative} */
 /* @prefer always */
@@ -1784,8 +1758,8 @@ copy_override_filter ::= subtype_spelled "," subtype_spelled "," subtype_spelled
 triggered_copy_conditional_quantity ::= event_clause "," copy_attacking_conditional_quantity
 
 /* Keep the graveyard move and its token count in the same receipt scope. */
-/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:$put_each_linked_card, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Transition{result:@marked, phase:After}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
-instructions_linked_graveyard_tokens ::= "put" put_each_linked_card "into" "its" "owner's" "graveyard" "," "then" "create" "a" token_recipe "for" "each" "card" "put" "into" "a" "graveyard" "this" "way"
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:$linked_exiled_each, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Transition{result:@marked, phase:After}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+instructions_linked_graveyard_tokens ::= "put" linked_exiled_each "into" "its" "owner's" "graveyard" "," "then" "create" "a" token_recipe "for" "each" "card" "put" "into" "a" "graveyard" "this" "way"
 
 /* @sem Instruction::[...$instructions_linked_graveyard_tokens, ...$instructions] */
 instructions_linked_graveyard_tokens_more ::= instructions_linked_graveyard_tokens "." instructions
@@ -1877,11 +1851,8 @@ chosen_creature_token ::= chosen_creature_token_fixed | chosen_creature_token_co
 chosen_creature_token_fixed ::= "a" token_stat "/" token_stat "creature" "token" "of" "the" "chosen" "color" "and" "type"
 
 /* A single X definition supplies both statistics, retaining its current counter operands. */
-/* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:FromSubtypes, chosen_color:true, chosen_creature_type:true, card_types:[Creature], power_toughness:[$chosen_token_counter_value, $chosen_token_counter_value]}} */
-chosen_creature_token_counter_stats ::= counter_amount "X" "/" "X" "creature" "token" "of" "the" "chosen" "color" "and" "type" "," "where" "X" "is" chosen_token_counter_value
-
-/* @sem Expr::CountCounters{recipients:Objects($affected), kind:$counter_kind, information:CurrentOrLastKnown} */
-chosen_token_counter_value ::= "the" "number" "of" counter_kind "counters" "on" affected
+/* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:FromSubtypes, chosen_color:true, chosen_creature_type:true, card_types:[Creature], power_toughness:[$activation_counter_count, $activation_counter_count]}} */
+chosen_creature_token_counter_stats ::= counter_amount "X" "/" "X" "creature" "token" "of" "the" "chosen" "color" "and" "type" "," "where" "X" "is" activation_counter_count
 
 /* The definition supplies both statistics of the created token. */
 /* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Multiply([$value, $value_2]), Multiply([$value, $value_2])]}} */
@@ -2063,8 +2034,7 @@ create_role_on_each ::= create_role_on_each_singular | create_role_on_each_plura
 for_each_create_attached_role ::= "for" affected "," create_role_on_each
 
 /* X token quantities require the plural spelling, while retaining the recipe operands. */
-/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
-mill_mana_plural_token_recipe ::= token_stat "/" token_stat token_colors token_subtypes token_types "tokens"
+/* mill_mana_plural_token_recipe is shared as paid_mana_plural_token_recipe. */
 
 /* @sem TokenName::Explicit(Ravage) */
 explicit_token_ravage ::= "Ravage"
@@ -2205,14 +2175,11 @@ created_name_cloud_sprite ::= "Cloud" "Sprite"
 /* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(2), words:CreatingEffect, recipe:$pair_quoted_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:DuplicateCounters{from:CounterSource::On(Objects($affected)), to:Objects(Created(@marked)), copies:OneOfEachKindDistributed}}] */
 clause_created_pair_counter_kinds ::= "create" "two" pair_quoted_token_recipe "then" "for" "each" "kind" "of" "counter" "among" affected "," "put" "a" "counter" "of" "that" "kind" "on" "either" "of" "those" "tokens"
 
-/* @sem TokenRecipe::@token_abilities($pair_plain_token_recipe, $pair_quoted_static) */
-pair_quoted_token_recipe ::= pair_plain_token_recipe "with" pair_quoted_static
+/* @sem TokenRecipe::@token_abilities($paid_mana_plural_token_recipe, $pair_quoted_static) */
+pair_quoted_token_recipe ::= paid_mana_plural_token_recipe "with" pair_quoted_static
 
 /* @sem Ability::[Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})] */
 pair_quoted_static ::= '"' affected static_changes "." '"'
-
-/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
-pair_plain_token_recipe ::= token_stat "/" token_stat token_colors token_subtypes token_types "tokens"
 
 /* Keep the anaphor tied to the creature group announced by the preceding grant. */
 /* @sem Instruction::[Effect{result:@next, operation:$target_creatures_each_change}, ...$clause_each_target_role_attached] */
@@ -2329,14 +2296,11 @@ token_recipe_named_subtyped_land ::= token_subtypes "land" "token" "named" creat
 created_name_new_planet ::= "New" "Planet"
 
 /* The final quoted intrinsic ability closes the creation sentence. */
-/* @sem TokenRecipe::@token_abilities($token_recipe_named_subtyped_land, $token_final_quote_single) */
-token_named_land_final_quote ::= token_recipe_named_subtyped_land "with" token_final_quote_single
+/* @sem TokenRecipe::@token_abilities($token_recipe_named_subtyped_land, $target_other_quote_list) */
+token_named_land_final_quote ::= token_recipe_named_subtyped_land "with" target_other_quote_list
 
 /* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_named_land_final_quote}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}})}] */
 instructions_tapped_named_land_quoted ::= "create" token_amount "tapped" token_named_land_final_quote
-
-/* @sem Ability::[$token_quoted] */
-token_final_quote_single ::= token_quoted
 
 /* The enclosing attack or damage event supplies the token quantity. */
 /* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:EventAmount, words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
@@ -2440,9 +2404,8 @@ clause_create_for_opponents_counters ::= "create" ("a" | "an") token_stat "/" to
 /* A final quoted ability carries the sentence punctuation. */
 /* @sem Ability::[$token_ability, ...$chapter_token_abilities_tail] */
 chapter_token_abilities_list ::= token_ability "," chapter_token_abilities_tail
-/* @sem Ability::[$token_quoted] */
-chapter_token_abilities_last ::= "and" token_quoted
-chapter_token_abilities_tail ::= chapter_token_abilities_last | chapter_token_abilities_list
+
+chapter_token_abilities_tail ::= token_final_quoted_last | chapter_token_abilities_list
 
 /* @prefer always */
 /* @sem @times(Expr::Constant(2), $number) */
@@ -2479,14 +2442,11 @@ explicit_token_frost_tongue ::= SELF_NAME "," "Frost" "Tongue"
 
 equipment_quoted_abilities ::= equipment_quoted_pump_and_equip | equipment_quoted_pump_attack_equip
 
-/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[Pump{power:$signed, toughness:$signed_2}]} */
-equipment_attached_pump ::= "equipped" "creature" "gets" signed "/" signed
-
 /* @sem Ability::Triggered{event:Object{event:Attacks, objects:SameObject(AttachedTo(Source))}, limits:TriggerLimits{}, body:Program{instructions:[Effect{result:@next, operation:SetTapped{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, ControlledBy(One(DefendingPlayerOf(EventSubject)))])}), index:0}), tapped:true}}]}, announcement:@announcement} */
 equipment_attack_tap_defender ::= "whenever" "equipped" "creature" "attacks" "," "tap" "target" noun "defending" "player" "controls"
 
-/* @sem Ability::[@holder($equipment_attached_pump), @holder($equipment_attack_tap_defender), @holder($keyword_equip)] */
-equipment_quoted_pump_attack_equip ::= '"' equipment_attached_pump "," '"' '"' equipment_attack_tap_defender "," '"' "and" keyword_equip
+/* @sem Ability::[@holder($token_equipped_pump), @holder($equipment_attack_tap_defender), @holder($keyword_equip)] */
+equipment_quoted_pump_attack_equip ::= '"' token_equipped_pump "," '"' '"' equipment_attack_tap_defender "," '"' "and" keyword_equip
 
 /* Copy tokens created by each opponent/player are goaded for the rest of the game. */
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:$players_singular, tokens:[TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@marked)), changes:[Rule(GoadedBy(AbilityController))], duration:Indefinite, evaluation:LiveObjects}}]} */
@@ -2651,12 +2611,11 @@ created_name_cordyceps_infected ::= "Cordyceps" "Infected"
 
 /* A named plural recipe and the amount of mana are independently printable operands. */
 /* @prefer always */
-/* @sem TokenSpec::TokenSpec{amount:$token_mana_spent, words:CreatingEffect, recipe:$token_recipe_explicit_plural} */
-token_named_mana_spent_equal ::= "a" "number" "of" token_recipe_explicit_plural "equal" "to" token_mana_spent
+/* @sem TokenSpec::TokenSpec{amount:$exile_mana_spent, words:CreatingEffect, recipe:$token_recipe_explicit_plural} */
+token_named_mana_spent_equal ::= "a" "number" "of" token_recipe_explicit_plural "equal" "to" exile_mana_spent
 
 /* The referenced spell is the operand whose paid mana is counted. */
-/* @sem Expr::ManaSpent{object:$object_ref, filter:SpentManaFilter{}, aggregation:Count} */
-token_mana_spent ::= "the" "amount" "of" "mana" "spent" "to" "cast" object_ref
+/* token_mana_spent is shared as exile_mana_spent. */
 
 /* Keep the casting payment and the measured population in one scope. The two
    population phrases must describe the same sacrificed objects. */
@@ -2704,11 +2663,10 @@ copy_enchanted_token_stats ::= "the" "token" "is" value "/" value
 token_copy_enchanted_stats ::= token_copy_single enchanted_creature_ref "," "except" copy_enchanted_token_stats
 
 /* The same population is compared for each opponent and the ability controller. */
-/* @sem Expr::CountPlayers(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])})}}}])) */
-opponents_controlling_more_than_you ::= "the" "number" "of" "opponents" "who" "control" "more" filter_plural "than" "you"
+/* opponents_controlling_more_than_you is shared as opponents_control_more_count_h3. */
 
-/* @sem TokenSpec::TokenSpec{amount:$opponents_controlling_more_than_you, words:CreatingEffect, recipe:$token_recipe} */
-token_defined_equal_opponent_comparison ::= "a" "number" "of" token_recipe "equal" "to" opponents_controlling_more_than_you
+/* @sem TokenSpec::TokenSpec{amount:$opponents_control_more_count_h3, words:CreatingEffect, recipe:$token_recipe} */
+token_defined_equal_opponent_comparison ::= "a" "number" "of" token_recipe "equal" "to" opponents_control_more_count_h3
 
 /* The unpunctuated artifact exception applies to a copy token, and its
    quantity and copied object remain independently composable. */

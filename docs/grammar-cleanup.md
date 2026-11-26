@@ -16,18 +16,26 @@ cases. The diagnostic allocation run also preserves all 26 sampled parses,
 reading sets, printed texts and reparses. Structural cleanup does not establish
 an overall speedup; timings and allocation measurements use separate builds.
 
-A new incidence census unions production provenance across every accepted
-syntactic derivation before semantic deduplication. On that allowed population:
+A second exact pass shares 421 declarations whose child references and all
+annotations match. Recursive typed lists replace the nine-name conjure list,
+eight creature-type options, and twelve keyword choice classes. List order and
+multiplicity remain operands; the keyword count follows the complete list,
+including its explicit hexproof-family class. Nineteen list helpers bring the
+named declaration total to 31,373.
+
+A new incidence census after both passes unions production provenance across
+every accepted syntactic derivation before semantic deduplication. On that
+allowed population:
 
 | Measurement | Count |
 | --- | ---: |
 | Unique face names | 32,749 |
-| Rules used by supported readings | 27,894 |
-| Rules observed on one unique face name | 17,779 |
-| Rules observed on one face occurrence | 17,778 |
-| Face names with at least one singleton rule | 7,631 |
-| Singleton rules with parameterized semantics | 13,327 |
-| Singleton rules in reference-equal readings only | 17,758 |
+| Rules used by supported readings | 27,582 |
+| Rules observed on one unique face name | 17,497 |
+| Rules observed on one face occurrence | 17,496 |
+| Face names with at least one singleton rule | 7,599 |
+| Singleton rules with parameterized semantics | 13,043 |
+| Singleton rules in reference-equal readings only | 17,476 |
 
 These are observed dependencies, not proof of universal applicability or original
 card authorship. Reusable filters, counts, references, vocabulary and scope

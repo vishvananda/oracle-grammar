@@ -226,10 +226,7 @@ retirement_population_controller ::= condition_control_you | retirement_populati
 /* @sem Change::[Change::Pump{power:$signed, toughness:$signed_2}] */
 retirement_plural_pump ::= "get" signed "/" signed
 
-/* @sem $grants */
-retirement_plural_gain ::= "gain" grants
-
-retirement_plural_changes ::= retirement_plural_pump | retirement_plural_gain
+retirement_plural_changes ::= retirement_plural_pump | event_creatures_gain
 
 /* @sem Program::Program{instructions:[If{condition:ObjectMatches{object:@self, filter:State(Kicked)}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($filter_plural, $filter_plural_2), ControlledBy(One($retirement_population_controller))])}), changes:$retirement_plural_changes_2, duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($filter_plural, $filter_plural_2), ControlledBy(One($retirement_population_controller))])}), changes:$retirement_plural_changes, duration:EndOfTurn, evaluation:Snapshot}}]}}]} */
 retirement_population_override ::= filter_plural retirement_population_controller retirement_plural_changes "until" "end" "of" "turn" "." "if" "this" "spell" "was" "kicked" "," "those" filter_plural retirement_plural_changes "until" "end" "of" "turn" "instead" "."
@@ -247,11 +244,8 @@ retirement_target_combat_event ::= "whenever" "that" "creature" "deals" "combat"
 /* @sem Instruction::[Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:EventAmount}}] */
 retirement_damage_life ::= "you" "gain" "life" "equal" "to" "that" "damage"
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun_creature}), index:0})), changes:$retirement_singular_gain, duration:EndOfTurn, evaluation:Snapshot}}, If{condition:ObjectMatches{object:@self, filter:State(Kicked)}, then:Program{instructions:[Effect{result:@next, operation:CreateTrigger{event:$retirement_target_combat_event, duration:EndOfTurn, body:_{instructions:$retirement_damage_life}, announcement:_{}}}]}, otherwise:Program{}}]} */
-retirement_target_damage_conditional ::= "target" noun_creature retirement_singular_gain "until" "end" "of" "turn" "." retirement_target_combat_event "this" "turn" "," "if" "this" "spell" "was" "kicked" "," retirement_damage_life "."
-
-/* @sem $grants */
-retirement_singular_gain ::= "gains" grants
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun_creature}), index:0})), changes:$chosen_creature_grant, duration:EndOfTurn, evaluation:Snapshot}}, If{condition:ObjectMatches{object:@self, filter:State(Kicked)}, then:Program{instructions:[Effect{result:@next, operation:CreateTrigger{event:$retirement_target_combat_event, duration:EndOfTurn, body:_{instructions:$retirement_damage_life}, announcement:_{}}}]}, otherwise:Program{}}]} */
+retirement_target_damage_conditional ::= "target" noun_creature chosen_creature_grant "until" "end" "of" "turn" "." retirement_target_combat_event "this" "turn" "," "if" "this" "spell" "was" "kicked" "," retirement_damage_life "."
 
 /* A promised gift is fixed at casting time. The repeated source denotes
    the same object in both sentences. */
@@ -398,10 +392,7 @@ replacement_initial_count ::= replacement_initial_words | observed_choice_a
 /* @sem $number_words */
 replacement_initial_words ::= number_words
 
-replacement_token_recipe ::= token_recipe | replacement_copy_recipe
-
-/* @sem TokenRecipe::Copy{object:$object_ref, exceptions:[]} */
-replacement_copy_recipe ::= "token" "that's" "a" "copy" "of" object_ref
+replacement_token_recipe ::= token_recipe | counted_copy_recipe
 
 /* The cleave payment removes the subtype restriction but retains the target and move. */
 /* @sem Ability::CostBranch{keyword:Cleave, cost:$cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$cleave_subtype_pair, CardType(Creature)])}), index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}})} */
@@ -618,7 +609,4 @@ kicker_fraction_mill_override ::= clause "." "if" condition_cast_kicked "," "ins
 /* @sem Ability::CostBranch{keyword:Teamwork, cost:Cost{parts:[Teamwork($number)]}, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$teamwork_if_followup]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}})} */
 spell_teamwork_if_paid_branch ::= "teamwork" NUMBER NEWLINE instructions "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," teamwork_if_followup "."
 
-teamwork_if_followup ::= teamwork_if_draw | clause
-
-/* @sem Instruction::[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}] */
-teamwork_if_draw ::= "draw" card_count
+teamwork_if_followup ::= top_reveal_draw | clause

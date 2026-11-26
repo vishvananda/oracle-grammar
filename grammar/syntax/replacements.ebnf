@@ -180,7 +180,7 @@ prevent_damage ::= historical_any_damage | historical_combat_damage | damage_kin
 /* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$prevent_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
 prevent_all_dealt ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" prevent_duration
 
-prevent_to ::= prevent_to_player_or_noun | prevent_to_any_target | prevent_to_target | damage_to_you | prevent_to_it | prevent_to_self | prevent_to_attached | prevent_to_group | prevent_to_you_and | prevent_to_players | prevent_to_player_two_kinds
+prevent_to ::= prevent_to_player_or_noun | prevent_to_any_target | prevent_to_target | damage_to_you | prevent_to_it | prevent_to_self | prevent_to_attached | shield_to_group | prevent_to_you_and | prevent_to_players | prevent_to_player_two_kinds
 
 /* @sem DamageRecipients::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:Any}), index:0} */
 prevent_to_any_target ::= "any" "target"
@@ -195,8 +195,7 @@ prevent_to_it ::= it_ref
 prevent_to_self ::= self_explicit_ref
 /* @sem DamageRecipients::Objects(ObjectFilter::SameObject($attached_ref)) */
 prevent_to_attached ::= attached_ref
-/* @sem DamageRecipients::Objects($filter_plural) */
-prevent_to_group ::= filter_plural
+
 /* @sem DamageRecipients::ObjectsAndPlayers{objects:$filter_plural, players:One(AbilityController)} */
 prevent_to_you_and ::= "you" "and" filter_plural
 /* @sem DamageRecipients::Players(All) */
@@ -416,10 +415,7 @@ hand_pick_source_plain ::= hand_pick "from" "it"
 /* @sem @and($hand_pick, $modifiers) */
 hand_pick_source_modified ::= hand_pick "from" "it" modifiers
 
-hand_pick ::= a_card_any | hand_pick_filter
-
-/* @sem $card_filter */
-hand_pick_filter ::= ("a" | "an") card_filter "card"
+hand_pick ::= a_card_any | top_reveal_kind
 
 hand_loss ::= hand_exile | hand_exile_owner | hand_exile_owner_it | hand_discard | hand_subset_discard_single | hand_put_library_depth
 
@@ -460,11 +456,10 @@ replacement_prevent_self_deals ::= "prevent" "all" "damage" "that" self_ref "wou
 /* @sem Ability::Replacement{active:Battlefield, event:Either([Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient})]), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
 replacement_prevent_to_and_by ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" "and" "dealt" "by" object_ref "."
 
-prevent_by_permanents ::= prevent_by_group | prevent_by_object | prevent_by_group_except | prevent_by_without_counters | prevent_by_unblocked_group
+prevent_by_permanents ::= prevent_by_group | event_referenced_subject | prevent_by_group_except | prevent_by_without_counters | prevent_by_unblocked_group
 /* @sem ObjectFilter::$filter_plural */
 prevent_by_group ::= filter_plural
-/* @sem ObjectFilter::SameObject($object_ref) */
-prevent_by_object ::= object_ref
+
 prevent_by_sources ::= prevent_by_kind_sources | prevent_by_other_sources | prevent_by_your_sources | prevent_by_chosen_color | activation_owner_named
 /* @sem ObjectFilter::$adjective */
 prevent_by_kind_sources ::= adjective "sources"
@@ -645,7 +640,7 @@ next_chosen_any ::= "source" "of" "your" "choice"
 next_chosen_kind ::= adjective "source" "of" "your" "choice"
 /* @sem ObjectFilter::Chosen(Color) */
 next_chosen_color ::= "source" "of" "your" "choice" "of" "the" "chosen" "color"
-next_chosen_to ::= next_chosen_to_you_and_objects | next_chosen_to_you | next_chosen_to_object | next_chosen_to_any_target
+next_chosen_to ::= next_chosen_to_you_and_objects | next_chosen_to_you | redirect_object_recipient | next_chosen_to_any_target
 /* @sem DamageRecipients::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:Any}), index:0} */
 next_chosen_to_any_target ::= "to" "any" "target"
 /* The prevention, and life equal to what it prevented. */
@@ -657,8 +652,6 @@ prevented_body_plain ::= "prevent" "that" "damage"
 prevented_body_life ::= "prevent" "that" "damage" "." "you" "gain" "life" "equal" "to" "the" "damage" "prevented" "this" "way"
 /* @sem DamageRecipients::Players(One(AbilityController)) */
 next_chosen_to_you ::= "to" "you"
-/* @sem DamageRecipients::Objects(SameObject($object_ref)) */
-next_chosen_to_object ::= "to" object_ref
 
 prevention_choice_window ::= prevention_choice_next | prevention_choice_all
 /* @sem ReplacementLimit::NextOccurrence */
@@ -1036,14 +1029,11 @@ replacement_player_lose_instead ::= "if" replacement_gain_life_event "," replace
 /* @sem ObjectFilter::AllOf([Not(SameObject(Source)), $adjective_color, ControlledBy(One(AbilityController))]) */
 source_other_color_yours ::= "another" adjective_color "source" "you" "control"
 
-/* @sem ReplacementEvent::ProduceMana{sources:$filter_phrase} */
-replacement_tapped_mana_event ::= "a" filter_phrase "is" "tapped" "for" "mana"
-
 /* @sem EventChange::ReplaceMana(ChooseOne([Amount{color:White, amount:$counter_amount}, Amount{color:Blue, amount:$counter_amount}, Amount{color:Black, amount:$counter_amount}, Amount{color:Red, amount:$counter_amount}, Amount{color:Green, amount:$counter_amount}])) */
 replacement_chosen_color_mana ::= "it" "produces" "mana" "of" counter_amount "color" "of" "your" "choice"
 
-/* @sem Ability::Replacement{active:Battlefield, event:$replacement_tapped_mana_event, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:$replacement_chosen_color_mana}}]}} */
-replacement_mana_color_choice ::= "if" replacement_tapped_mana_event "," replacement_chosen_color_mana "instead" "of" "any" "other" "type" "."
+/* @sem Ability::Replacement{active:Battlefield, event:$retire_mana_event_plain, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:$replacement_chosen_color_mana}}]}} */
+replacement_mana_color_choice ::= "if" retire_mana_event_plain "," replacement_chosen_color_mana "instead" "of" "any" "other" "type" "."
 
 /* The attached land is the event subject, while the Aura is sacrificed. */
 /* @sem ReplacementEvent::Object{event:Destroyed, objects:SameObject(AttachedTo(Source))} */
@@ -1188,28 +1178,24 @@ entry_receipt_ability ::= "as" self_ref "enters" "," entry_receipt_program "."
 
 entry_receipt_program ::= entry_operation_chosen_type_counter_program | entry_sacrifice_program | entry_removed_counter_program | entry_reveal_or_condition_program | entry_coin_program | entry_sacrifice_count_program | entry_sacrifice_stats_program | entry_optional_sacrifice_count_program | entry_dice_counter_program | entry_roll_stats_program | entry_draft_exile_program | entry_removed_counter_doubled_program | entry_optional_exiled_payment_counters | entry_return_payment_program | entry_discard_keyword_counter_program | entry_discard_keyword_counter_list_program
 
-/* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:$affected, choose:AnyNumber}) */
-entry_sacrifice_any ::= "sacrifice" "any" "number" "of" affected
-
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_sacrifice_any}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:CountObjects(Transition{result:@prior, phase:Before})})}}]} */
-entry_sacrifice_count_program ::= entry_sacrifice_any "." SELF_NAME "enters" "with" "that" "many" counter_kind "counters" "on" "it"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$sacrifice_variable_population}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:CountObjects(Transition{result:@prior, phase:Before})})}}]} */
+entry_sacrifice_count_program ::= sacrifice_variable_population "." SELF_NAME "enters" "with" "that" "many" counter_kind "counters" "on" "it"
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_sacrifice_creatures}, Effect{result:@next, operation:ModifyEvent{change:Entry(Changes([SetPower(Aggregate{objects:Transition{result:@prior, phase:Before}, property:Power, aggregation:Sum}), SetToughness(Aggregate{objects:Transition{result:@prior, phase:Before}, property:Toughness, aggregation:Sum})]))}}]} */
 entry_sacrifice_stats_program ::= entry_sacrifice_creatures "." "this" "creature's" "power" "becomes" "the" "total" "power" "of" "those" "creatures" "and" "its" "toughness" "becomes" "their" "total" "toughness"
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_sacrifice_any}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Multiply([Constant(2), CountObjects(Transition{result:@prior, phase:Before})])})}}]} */
-entry_optional_sacrifice_count_program ::= "you" "may" entry_sacrifice_any "." "if" "you" "do" "," "it" "enters" "with" "twice" "that" "many" counter_kind "counters" "on" "it"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$sacrifice_variable_population}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Multiply([Constant(2), CountObjects(Transition{result:@prior, phase:Before})])})}}]} */
+entry_optional_sacrifice_count_program ::= "you" "may" sacrifice_variable_population "." "if" "you" "do" "," "it" "enters" "with" "twice" "that" "many" counter_kind "counters" "on" "it"
 
 /* The aggregate names creatures, so the receipt must contain only creatures. */
 /* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:AnyNumber}) */
 entry_sacrifice_creatures ::= "sacrifice" "any" "number" "of" "creatures"
 
 /* The counter receipt is produced by this exact removal, not an arbitrary action. */
-/* @sem Operation::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), amount:All}]} */
-entry_remove_all_counters ::= "remove" "all" "counters" "from" affected
+/* entry_remove_all_counters is shared as remove_all_counters_any_kind. */
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_remove_all_counters}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:CountersRemoved(@prior)})}}]} */
-entry_removed_counter_program ::= entry_remove_all_counters "." "this" "creature" "enters" "with" "a" counter_kind "counter" "on" "it" "for" "each" "counter" "removed" "this" "way"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$remove_all_counters_any_kind}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:CountersRemoved(@prior)})}}]} */
+entry_removed_counter_program ::= remove_all_counters_any_kind "." "this" "creature" "enters" "with" "a" counter_kind "counter" "on" "it" "for" "each" "counter" "removed" "this" "way"
 
 /* Optional reveal supplies the payment result tested by the next clause. */
 /* @sem Operation::PayCost{player:AbilityController, cost:_{parts:[Reveal{count:Exactly(Constant(1)), filter:$filter_phrase}]}, optional:true} */
@@ -1236,11 +1222,8 @@ prevent_damage_target_range ::= "prevent" "all" "damage" damage_target_range "wo
 /* @sem ReplacementEvent::Counters(_{objects:$counter_replacement_population}) */
 temporary_counter_event ::= "one" "or" "more" "counters" "would" "be" "put" "on" counter_replacement_population
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Add([EventAmount, $number]))}}]} */
-counter_add_each_kind_body ::= "that" "many" "plus" number "of" "each" "of" "those" "kinds" "of" "counters" "are" "put" "on" "that" "permanent" "instead"
-
-/* @sem Operation::CreateReplacement{event:$temporary_counter_event, limit:UntilExpired, duration:$duration, body:$counter_add_each_kind_body} */
-temporary_counter_add_each_kind ::= duration "," "if" temporary_counter_event "," counter_add_each_kind_body
+/* @sem Operation::CreateReplacement{event:$temporary_counter_event, limit:UntilExpired, duration:$duration, body:$team_counter_outcome} */
+temporary_counter_add_each_kind ::= duration "," "if" temporary_counter_event "," team_counter_outcome
 
 /* @sem ReplacementEvent::Counters(_{kind:PowerToughness(1, 1), objects:$counter_replacement_population, by:One(AbilityController)}) */
 temporary_your_pt_counter_event ::= "you" "would" "put" "one" "or" "more" "+" "1" "/" "+" "1" "counters" "on" counter_replacement_population
@@ -1436,11 +1419,8 @@ replacement_untap_counters ::= "if" replacement_untap_event "," replacement_put_
 /* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:$filter_phrase, recipients:ObjectsAndPlayers{objects:$filter_plural, players:One(AbilityController)}, kind:Combat, grouping:SourceRecipient, subject:Recipient}) */
 replacement_combat_you_and_objects ::= "a" filter_phrase "would" "deal" "combat" "damage" "to" "you" "and" "/" "or" "one" "or" "more" filter_plural
 
-/* @sem Ability::Replacement{active:Battlefield, event:$replacement_combat_you_and_objects, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventSomeDamage($value_counters_on_affected)}}]}} */
-replacement_prevent_counted_damage ::= "if" replacement_combat_you_and_objects "," "prevent" "X" "of" "that" "damage" "," "where" "X" "is" value_counters_on_affected "."
-
-/* @sem Expr::CountCounters{recipients:Objects($affected), kind:$counter_kind, information:CurrentOrLastKnown} */
-value_counters_on_affected ::= "the" "number" "of" counter_kind "counters" "on" affected
+/* @sem Ability::Replacement{active:Battlefield, event:$replacement_combat_you_and_objects, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventSomeDamage($activation_counter_count)}}]}} */
+replacement_prevent_counted_damage ::= "if" replacement_combat_you_and_objects "," "prevent" "X" "of" "that" "damage" "," "where" "X" "is" activation_counter_count "."
 
 /* Replacement events and their consequences retain the event subject and amount. */
 /* @sem ReplacementEvent::Player{event:Mill, players:OpponentsOf(AbilityController)} */
@@ -1499,14 +1479,11 @@ replacement_plus_counter_outcome ::= "that" "many" "plus" number "+" "1" "/" "+"
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_plus_counter_event, body:$replacement_plus_counter_outcome} */
 replacement_counter_plus_phrase ::= "if" replacement_plus_counter_event "," replacement_plus_counter_outcome "."
 
-/* @sem ReplacementEvent::Counters(_{objects:$counter_replacement_population}) */
-replacement_any_counter_event ::= "one" "or" "more" "counters" "would" "be" "put" "on" counter_replacement_population
-
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([Constant(2), EventAmount]))}}]} */
 replacement_each_counter_double_outcome ::= "twice" "that" "many" "of" "each" "of" "those" "kinds" "of" "counters" "are" "put" "on" "it" "instead"
 
-/* @sem Ability::Replacement{active:Battlefield, event:$replacement_any_counter_event, body:$replacement_each_counter_double_outcome} */
-replacement_counter_each_double_phrase ::= "if" replacement_any_counter_event "," replacement_each_counter_double_outcome "."
+/* @sem Ability::Replacement{active:Battlefield, event:$temporary_counter_event, body:$replacement_each_counter_double_outcome} */
+replacement_counter_each_double_phrase ::= "if" temporary_counter_event "," replacement_each_counter_double_outcome "."
 
 /* @sem ReplacementEvent::Tokens{tokens:$filter_phrase, controllers:One(AbilityController)} */
 replacement_filtered_token_event ::= "one" "or" "more" filter_phrase "tokens" "would" "be" "created" "under" "your" "control"
@@ -1698,14 +1675,13 @@ search_draw_replacement_card ::= "search" "your" "library" "for" draw_replacemen
 draw_replacement_search_choice ::= search_choice_any | search_choice_filtered | search_choice_modified | search_named_one
 
 /* Graveyard-scoped replacement phrases retain their own event and response. */
-/* @sem ReplacementEvent::Enter{objects:$filter_phrase} */
-graveyard_each_entry_event ::= "each" filter_phrase "enters"
+/* graveyard_each_entry_event is shared as each_filtered_entry_event. */
 
 /* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$counter_amount})} */
 graveyard_entry_additional_counter ::= "with" counter_amount "additional" counter_kind "counter" "on" "it"
 
-/* @sem Ability::Scoped{zones:[Graveyard], ability:Replacement{active:Battlefield, event:$graveyard_each_entry_event, body:_{instructions:[Effect{result:@next, operation:$graveyard_entry_additional_counter}]}}} */
-graveyard_creature_entry_replacement ::= "as" "long" "as" "this" "creature" "is" "in" "your" "graveyard" "," graveyard_each_entry_event graveyard_entry_additional_counter "."
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Replacement{active:Battlefield, event:$each_filtered_entry_event, body:_{instructions:[Effect{result:@next, operation:$graveyard_entry_additional_counter}]}}} */
+graveyard_creature_entry_replacement ::= "as" "long" "as" "this" "creature" "is" "in" "your" "graveyard" "," each_filtered_entry_event graveyard_entry_additional_counter "."
 
 /* @sem Program::_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:ChooseAction{actor:One(AbilityController), options:[Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$operation}]}, Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Learn}}]}]}}]} */
 graveyard_learn_may_instead ::= "you" "may" "instead" operation
@@ -1759,13 +1735,12 @@ team_counter_replacement ::= "if" team_counter_event "," team_counter_outcome ".
 
 /* @sem ReplacementEvent::Tokens{tokens:Any, controllers:One(AbilityController)} */
 owned_token_event ::= "one" "or" "more" "tokens" "would" "be" "created" "under" "your" "control"
-/* @sem TokenSpec::TokenSpec{amount:EventAmount, words:CreatingEffect, recipe:$token_recipe} */
-replacement_matching_token_group ::= "that" "many" token_recipe
+
 /* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe} */
 replacement_additional_token_group ::= "an" "additional" token_recipe
 /* @sem TokenSpec::TokenSpec{amount:Constant(1), words:Rules, recipe:$token_named_recipe} */
 replacement_additional_named_group ::= "an" "additional" token_named_recipe "token"
-replacement_extra_token_group ::= replacement_matching_token_group | replacement_additional_token_group | replacement_additional_named_group
+replacement_extra_token_group ::= replacement_token_defined | replacement_additional_token_group | replacement_additional_named_group
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1, tokens:[$replacement_extra_token_group]}}}]} */
 replacement_extra_token_outcome ::= "those" "tokens" "plus" replacement_extra_token_group "are" "created" "instead"
 /* @sem Ability::Replacement{active:Battlefield, event:$owned_token_event, body:$replacement_extra_token_outcome} */
@@ -1811,10 +1786,7 @@ hand_choice_type_except ::= "choose" "a" "card" "type" "other" "than" choice_car
 /* @sem ObjectFilter::InSet(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$replacement_creature_filter}) */
 replacement_creature_population ::= "a" replacement_creature_filter
 
-replacement_creature_filter ::= noun_creature | replacement_creature_modified
-
-/* @sem @and($noun_creature, $modifiers) */
-replacement_creature_modified ::= noun_creature modifiers
+replacement_creature_filter ::= noun_creature | enchanted_creature_modified
 
 /* @sem ReplacementEvent::Counters(_{kind:PowerToughness(1, 1), objects:$replacement_creature_population}) */
 replacement_creature_counter_event ::= "one" "or" "more" "+" "1" "/" "+" "1" "counters" "would" "be" "put" "on" replacement_creature_population
@@ -1857,8 +1829,8 @@ replacement_create_extra_outcome ::= "instead" "create" "those" "tokens" "plus" 
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_you_create_event, body:$replacement_extra_outcome} */
 replacement_you_create_extra ::= "if" replacement_you_create_event "," replacement_extra_outcome "."
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_sacrifice_any}]} */
-entry_sacrifice_program ::= entry_sacrifice_any
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$sacrifice_variable_population}]} */
+entry_sacrifice_program ::= sacrifice_variable_population
 
 next_prevent_event ::= next_target_damage_players | shield_chosen_type_event | next_damage_by_object
 
@@ -2058,8 +2030,8 @@ entry_sacrifice_other ::= "sacrifice" "each" "other" filter_phrase
 /* @sem Condition::Compare{left:$library_count_subject, test:$library_zero_test} */
 draw_library_empty_condition ::= library_count_subject "has" library_zero_test "cards" "in" "it"
 
-/* @sem Condition::Compare{left:$library_count_subject, test:$library_threshold_test} */
-draw_library_threshold_condition ::= library_count_subject "has" library_threshold_test "cards" "in" "it"
+/* @sem Condition::Compare{left:$library_count_subject, test:$condition_at_least} */
+draw_library_threshold_condition ::= library_count_subject "has" condition_at_least "cards" "in" "it"
 
 draw_library_condition ::= draw_library_empty_condition | draw_library_threshold_condition
 
@@ -2148,11 +2120,8 @@ replacement_event_player_skip ::= "that" "player" "skips" "that" "draw" "instead
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_player_draw_event, body:$replacement_event_player_skip} */
 replacement_player_draw_skip_shared ::= "if" replacement_player_draw_event "," replacement_event_player_skip "."
 
-/* @sem ObjectFilter::AllOf([$adjective_color, AnyOf([CardType(Instant), CardType(Sorcery)]), ControlledBy(One(AbilityController))]) */
-replacement_controlled_colored_spell ::= "a" adjective_color "instant" "or" "sorcery" "spell" "you" "control"
-
-/* @sem Ability::Replacement{active:Battlefield, event:Either([Damage(_{source_kind:Spell, sources:$replacement_controlled_colored_spell, recipients:ObjectsAndPlayers{objects:@agree($filter_phrase_2, $filter_phrase_3), players:All}, kind:Any, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Permanent, sources:$filter_phrase, recipients:ObjectsAndPlayers{objects:@agree($filter_phrase_2, $filter_phrase_3), players:All}, kind:Any, grouping:SourceRecipient, subject:Recipient})]), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Add([EventAmount, $value]))}}]}} */
-replacement_spell_or_permanent_bonus ::= "if" replacement_controlled_colored_spell "or" "a" filter_phrase "would" "deal" "damage" "to" "a" filter_phrase "or" "player" "," "it" "deals" "that" "much" "damage" "plus" value "to" "that" filter_phrase "or" "player" "instead" "."
+/* @sem Ability::Replacement{active:Battlefield, event:Either([Damage(_{source_kind:Spell, sources:$replacement_colored_spell_filter, recipients:ObjectsAndPlayers{objects:@agree($filter_phrase_2, $filter_phrase_3), players:All}, kind:Any, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Permanent, sources:$filter_phrase, recipients:ObjectsAndPlayers{objects:@agree($filter_phrase_2, $filter_phrase_3), players:All}, kind:Any, grouping:SourceRecipient, subject:Recipient})]), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Add([EventAmount, $value]))}}]}} */
+replacement_spell_or_permanent_bonus ::= "if" replacement_colored_spell_filter "or" "a" filter_phrase "would" "deal" "damage" "to" "a" filter_phrase "or" "player" "," "it" "deals" "that" "much" "damage" "plus" value "to" "that" filter_phrase "or" "player" "instead" "."
 
 /* This entire body owns the draw receipt consumed by reveal and discard. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@mark, operation:Draw{players:One(EventSubject), amount:Constant(1)}}, Effect{result:@next, operation:Reveal{objects:Transition{result:@marked, phase:After}}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$replacement_revealed_card_kind}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:PayCost{player:FirstWilling(One(EventSubject)), cost:_{parts:[Life($number)]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:DiscardObjects{objects:Transition{result:@marked, phase:After}}}]}, otherwise:_{}}]}, otherwise:_{}}]} */
@@ -2350,10 +2319,7 @@ replacement_damage_fixed_amount ::= "if" "any" "source" "would" "deal" number "o
 /* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:Chosen(Color), recipients:$chosen_prevention_recipient, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}] */
 chosen_color_prevention ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" chosen_prevention_recipient this_duration "by" "sources" "of" "the" "color" "of" "your" "choice"
 
-chosen_prevention_recipient ::= prevent_to | chosen_prevention_player_or_noun
-
-/* @sem DamageRecipients::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:$noun, players:All}), index:0} */
-chosen_prevention_player_or_noun ::= "target" "player" "or" noun
+chosen_prevention_recipient ::= prevent_to | prevent_to_player_or_noun
 
 /* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:Chosen(Color), recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}] */
 chosen_color_prevention_sources ::= "prevent" "all" prevent_damage "that" "sources" "of" "the" "color" "of" "your" "choice" "would" "deal" this_duration
@@ -2721,13 +2687,10 @@ entry_discard_keyword_counter_list_program ::= entry_discard_keyword_producer ".
 /* @sem Instruction::[$entry_discard_keyword_item, ...$entry_discard_keyword_tail] */
 entry_discard_keyword_list ::= entry_discard_keyword_item "," entry_discard_keyword_tail
 
-/* @sem Instruction::[$entry_discard_keyword_item, ...$entry_discard_keyword_tail] */
-entry_discard_keyword_tail_more ::= entry_discard_keyword_item "," entry_discard_keyword_tail
-
 /* @sem Instruction::[$entry_discard_keyword_item] */
 entry_discard_keyword_tail_last ::= "and" entry_discard_keyword_item
 
-entry_discard_keyword_tail ::= entry_discard_keyword_tail_more | entry_discard_keyword_tail_last
+entry_discard_keyword_tail ::= entry_discard_keyword_list | entry_discard_keyword_tail_last
 
 entry_discard_keyword_item ::= entry_discard_keyword_flying | entry_discard_keyword_firststrike | entry_discard_keyword_doublestrike | entry_discard_keyword_deathtouch | entry_discard_keyword_hexproof | entry_discard_keyword_haste | entry_discard_keyword_indestructible | entry_discard_keyword_lifelink | entry_discard_keyword_menace | entry_discard_keyword_reach | entry_discard_keyword_trample | entry_discard_keyword_vigilance
 
@@ -2886,10 +2849,7 @@ optional_chosen_copy_replacement ::= optional_chosen_creature_copy | optional_ch
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$chosen_copy_creature_filter}, count:AsManyAsCan(Constant(1))}}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:0, tokens:[_{amount:EventAmount, words:CreatingEffect, recipe:Copy{object:Result{result:@prior, phase:After, index:0}, exceptions:[]}}]}}}]}, otherwise:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1}}}]}}]} */
 optional_chosen_creature_copy ::= "you" "may" "instead" "choose" "a" chosen_copy_creature_filter "and" "create" "that" "many" "tokens" "that" "are" "copies" "of" "that" "creature"
 
-chosen_copy_creature_filter ::= noun_creature | chosen_copy_modified_creature
-
-/* @sem @and($noun_creature, $modifiers) */
-chosen_copy_modified_creature ::= noun_creature modifiers
+chosen_copy_creature_filter ::= noun_creature | enchanted_creature_modified
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, count:AsManyAsCan(Constant(1))}}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:0, tokens:[_{amount:EventAmount, words:CreatingEffect, recipe:Copy{object:Result{result:@prior, phase:After, index:0}, exceptions:[]}}]}}}]}, otherwise:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1}}}]}}]} */
 optional_chosen_permanent_copy ::= "you" "may" "instead" "choose" "a" filter_phrase "and" "create" "that" "many" "tokens" "that" "are" "copies" "of" "that" "permanent"
@@ -3095,9 +3055,6 @@ activated_next_attacker_damage_redirect ::= cost ":" next_attacker_damage_redire
 /* @sem ReplacementEvent::Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject(Source)), kind:Any, grouping:SourceRecipient, subject:Recipient}) */
 replacement_damage_to_this_creature ::= "damage" "would" "be" "dealt" "to" "this" "creature"
 
-/* @sem Condition::ObjectMatches{object:Source, filter:Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})} */
-replacement_while_holder_has_counter ::= "it" "has" "a" counter_kind "counter" "on" "it"
-
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One(EventSubject)), kind:$counter_kind, amount:Count(Exactly(EventAmount))}]}}]} */
 replacement_prevent_remove_event_amount ::= "prevent" "that" "damage" "and" "remove" "that" "many" counter_kind "counters" "from" "this" "creature"
 
@@ -3109,8 +3066,8 @@ replacement_prevent_remove_holder_counters ::= "prevent" "that" "damage" "and" "
 
 replacement_prevent_remove_holder ::= replacement_prevent_remove_event_amount | replacement_prevent_remove_holder_counter | replacement_prevent_remove_holder_counters
 
-/* @sem Ability::Conditional{condition:$replacement_while_holder_has_counter, then:[Replacement{active:Battlefield, event:$replacement_damage_to_this_creature, body:$replacement_prevent_remove_holder}]} */
-replacement_damage_while_holder_counter ::= "if" replacement_damage_to_this_creature "while" replacement_while_holder_has_counter "," replacement_prevent_remove_holder "."
+/* @sem Ability::Conditional{condition:$damage_holder_has_counter, then:[Replacement{active:Battlefield, event:$replacement_damage_to_this_creature, body:$replacement_prevent_remove_holder}]} */
+replacement_damage_while_holder_counter ::= "if" replacement_damage_to_this_creature "while" damage_holder_has_counter "," replacement_prevent_remove_holder "."
 
 /* A damage event to the named holder supplies the antecedent for both the
    while-condition and the prevention follow-up. */
@@ -3359,8 +3316,7 @@ entry_artifact_chosen_type_counter ::= "this" "artifact" "enters" "with" "a" cou
 entry_operation_chosen_type_counter_program ::= operation "." entry_artifact_chosen_type_counter
 
 /* The counter test belongs to the recipient of this particular damage event. */
-/* @sem Condition::ObjectMatches{object:Source, filter:Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})} */
-replacement_self_counter_condition ::= "it" "has" "a" counter_kind "counter" "on" "it"
+/* replacement_self_counter_condition is shared as damage_holder_has_counter. */
 
 /* Removal and the subsequent counter count form one producer-consumer phrase. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@mark, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One(EventSubject)), kind:PowerToughness([1, 1]), amount:Count(Exactly(Performed(@prior)))}]}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Players(All), kind:$counter_kind, amount:CountersRemoved(@marked)}]}}]} */
@@ -3372,8 +3328,8 @@ prevent_remove_reflexive_damage ::= "prevent" "that" "damage" "and" "remove" "th
 
 replacement_self_counter_body ::= prevent_remove_give_counter | prevent_remove_reflexive_damage
 
-/* @sem Ability::Conditional{condition:$replacement_self_counter_condition, then:[Replacement{active:Battlefield, event:$replacement_damage_to_this_creature, body:$replacement_self_counter_body}]} */
-conditional_self_counter_prevention ::= "if" replacement_damage_to_this_creature "while" replacement_self_counter_condition "," replacement_self_counter_body "."
+/* @sem Ability::Conditional{condition:$damage_holder_has_counter, then:[Replacement{active:Battlefield, event:$replacement_damage_to_this_creature, body:$replacement_self_counter_body}]} */
+conditional_self_counter_prevention ::= "if" replacement_damage_to_this_creature "while" damage_holder_has_counter "," replacement_self_counter_body "."
 
 /* Prevention and the reflexive sacrifice share the same marked result. */
 /* @sem Program::@reflexive(Program::Program{instructions:[Effect{result:@mark, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:$affected, choose:AsManyAsCan($counter_amount)})}]}})}]}) */
@@ -3382,14 +3338,11 @@ prevent_damage_reflexive_sacrifice ::= "prevent" "that" "damage" "." "when" "dam
 /* @sem Ability::Conditional{condition:ObjectMatches{object:$object_ref, filter:State(Equipped)}, then:[Replacement{active:Battlefield, event:Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:Any, grouping:SourceRecipient, subject:Recipient}), body:$prevent_damage_reflexive_sacrifice}]} */
 conditional_equipped_damage_prevention ::= "if" "damage" "would" "be" "dealt" "to" object_ref "while" "it's" "equipped" "," prevent_damage_reflexive_sacrifice "."
 
-/* @sem ReplacementEvent::Enter{objects:AllOf([Not(SameObject(Source)), $filter_phrase, ControlledBy(One(AbilityController))])} */
-replacement_other_controlled_entrants ::= "each" "other" filter_phrase "you" "control" "enters"
-
 /* @sem BattlefieldState::CountersOf{object:Source, one_of_each:true} */
 entry_one_of_each_self_counter ::= "with" "a" "counter" "of" "that" "kind" "on" "it"
 
-/* @sem Ability::Conditional{condition:ObjectMatches{object:$self_ref_named, filter:Counters(_{comparison:Greater, value:Constant(0)})}, then:[Replacement{active:Battlefield, event:$replacement_other_controlled_entrants, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry($entry_one_of_each_self_counter)}}]}}]} */
-replacement_other_entry_each_counter_kind ::= "for" "each" "kind" "of" "counter" "on" self_ref_named "," replacement_other_controlled_entrants entry_one_of_each_self_counter "."
+/* @sem Ability::Conditional{condition:ObjectMatches{object:$self_ref_named, filter:Counters(_{comparison:Greater, value:Constant(0)})}, then:[Replacement{active:Battlefield, event:$singular_other_controlled_entry, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry($entry_one_of_each_self_counter)}}]}}]} */
+replacement_other_entry_each_counter_kind ::= "for" "each" "kind" "of" "counter" "on" self_ref_named "," singular_other_controlled_entry entry_one_of_each_self_counter "."
 
 /* The repeated revealed-card filter describes the optional payment above it;
    the alternative condition is independent of that filter. */
@@ -4432,10 +4385,7 @@ entry_opponent_names ::= "as" object_ref "enters" "," entry_each_choose_name "."
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$prevention_graveyard_card}, count:AsManyAsCan(Performed(@prior))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]} */
 prevention_graveyard_exile_body ::= "prevent" "that" "damage" "." "exile" prevention_graveyard_card "from" "your" "graveyard" "for" "each" "1" "damage" "prevented" "this" "way"
 
-prevention_graveyard_card ::= a_card_any | prevention_filtered_graveyard_card
-
-/* @sem $card_filter */
-prevention_filtered_graveyard_card ::= "a" card_filter "card"
+prevention_graveyard_card ::= a_card_any | hand_singular_filtered
 
 /* @sem Ability::Replacement{active:Battlefield, event:$damage_dealt_event, body:$prevention_graveyard_exile_body} */
 replacement_prevention_graveyard_exile ::= "if" damage_dealt_event "," prevention_graveyard_exile_body "."
