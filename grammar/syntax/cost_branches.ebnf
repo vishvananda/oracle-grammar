@@ -97,13 +97,11 @@ kicker_operand_snow ::= "{S}"
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[If{condition:ObjectMatches{object:@self, filter:$kicker_entry_test}, then:Program{instructions:$kicker_entry_changes}, otherwise:Program{}}]}}) */
 kicker_entry_conditional ::= "if" self_ref "was" kicker_entry_test "," "it" "enters" "with" kicker_entry_changes "."
 
-kicker_entry_test ::= kicker_test_with | kicker_test_twice | kicker_test_any
+kicker_entry_test ::= kicker_test_with | kicker_test_twice | mana_kicked
 /* @sem ObjectFilter::KickedWith($kicker_operands) */
 kicker_test_with ::= "kicked" "with" "its" kicker_operands "kicker"
 /* @sem ObjectFilter::State(KickedTwice) */
 kicker_test_twice ::= "kicked" "twice"
-/* @sem ObjectFilter::State(Kicked) */
-kicker_test_any ::= "kicked"
 
 kicker_entry_changes ::= kicker_entry_counters | kicker_entry_counters_and_grants
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$counter_amount})}}] */
@@ -218,13 +216,12 @@ kicker_exile_receipt_override ::= exile_single_graveyard_targets "." "if" condit
 exile_single_graveyard_targets ::= "exile" "up" "to" count_plural "target" "cards" "from" "a" "single" "graveyard"
 
 /* A repeated population is checked against its antecedent in both directions. */
-/* @sem PlayerRef::AbilityController */
-retirement_population_controller_you ::= "you" "control"
+/* retirement_population_controller_you is shared as condition_control_you. */
 
 /* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:All}), index:0} */
 retirement_population_controller_target ::= "target" "player" "controls"
 
-retirement_population_controller ::= retirement_population_controller_you | retirement_population_controller_target
+retirement_population_controller ::= condition_control_you | retirement_population_controller_target
 
 /* @sem Change::[Change::Pump{power:$signed, toughness:$signed_2}] */
 retirement_plural_pump ::= "get" signed "/" signed
@@ -310,11 +307,8 @@ prevention_targeted ::= "prevent" "the" "next" number "damage" "that" "would" "b
 prevention_same_target ::= "prevent" "the" "next" number "damage" "that" "would" "be" "dealt" "to" "that" "permanent" "or" "player" prevent_duration
 
 /* The first operation creates the extra turn used by both dependent effects. */
-/* @sem Ability::CostBranch{keyword:Cleave, cost:$cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$cleave_take_extra_turn}, Effect{result:@next, operation:$cleave_extra_turn_damage}, ...$clause_2]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$cleave_take_extra_turn}, Effect{result:@next, operation:$cleave_extra_turn_damage}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:ExtraTurn(0), body:Program{instructions:$clause}}}, ...$clause_2]}})} */
-spell_cleave_extra_turn_delayed ::= "cleave" cost NEWLINE cleave_take_extra_turn "." cleave_extra_turn_damage "." "[" "At" "the" "beginning" "of" "that" "turn's" "end" "step" "," clause "." "]" NEWLINE clause "."
-
-/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::TakeExtraTurn{}} */
-cleave_take_extra_turn ::= "take" "an" "extra" "turn" "after" "this" "one"
+/* @sem Ability::CostBranch{keyword:Cleave, cost:$cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$take_extra_turn}, Effect{result:@next, operation:$cleave_extra_turn_damage}, ...$clause_2]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$take_extra_turn}, Effect{result:@next, operation:$cleave_extra_turn_damage}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:ExtraTurn(0), body:Program{instructions:$clause}}}, ...$clause_2]}})} */
+spell_cleave_extra_turn_delayed ::= "cleave" cost NEWLINE take_extra_turn "." cleave_extra_turn_damage "." "[" "At" "the" "beginning" "of" "that" "turn's" "end" "step" "," clause "." "]" NEWLINE clause "."
 
 /* @sem Operation::GameEffect{until:ExtraTurn(0), effect:Term{family:GameEffect, form:DamageCantBePrevented}} */
 cleave_extra_turn_damage ::= "during" "that" "turn" "," "damage" "can't" "be" "prevented"
@@ -399,14 +393,10 @@ kicker_search_battlefield_animation ::= "search" "your" "library" "for" "up" "to
 chosen_creatures_conditional_counter_fight ::= "choose" "target" "creature" "you" "control" "and" "target" "creature" "you" "don't" "control" "." "put" "a" counter_kind "counter" "on" "the" "creature" "you" "control" "if" condition_gift_promised "." "then" "those" "creatures" "fight" "each" "other" "."
 
 /* The first quantity and recipe are shared by both branch specializations. */
-replacement_initial_count ::= replacement_initial_words | replacement_initial_article
+replacement_initial_count ::= replacement_initial_words | observed_choice_a
 
 /* @sem $number_words */
 replacement_initial_words ::= number_words
-
-/* @prefer always */
-/* @sem Expr::Constant(1) */
-replacement_initial_article ::= "a"
 
 replacement_token_recipe ::= token_recipe | replacement_copy_recipe
 

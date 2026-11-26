@@ -140,9 +140,8 @@ activation_limits ::= limit_x_nonzero_your_turn | limit_instant | limit_once_eve
 /* Oracle writes two activations as "twice" and more as "N times". */
 /* @sem ActivationLimits::ActivationLimits{modifiers:[Change::ActivationRule(MaxPerTurn($activation_times))]} */
 limit_max_per_turn ::= "activate" "no" "more" "than" activation_times "each" "turn"
-activation_times ::= activation_twice | activation_n_times
-/* @sem Expr::Constant(2) */
-activation_twice ::= "twice"
+activation_times ::= revealed_stat_factor | activation_n_times
+
 /* @sem $activation_times_count */
 activation_n_times ::= activation_times_count "times"
 activation_times_count ::= n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10
@@ -455,7 +454,6 @@ chosen_player ::= target_player | target_opponent
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::Move{objects:@zone_members(ObjectSet::InZone{objects:One($object_ref), zone:Graveyard}), destination:Battlefield{controller:Player($that_player), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
 clause_player_put_card ::= that_player "puts" object_ref "from" "its" "owner's" "graveyard" "onto" "the" "battlefield" "under" "their" "control"
 
-
 /* @sem Instruction::[@choose(PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:Intersection([OpponentsOf(PlayerRef::AbilityController), Matching{binding:0, condition:Compare{left:Expr::PlayerNumber{player:Bound(0), number:Life}, test:NumberTest::Compare{comparison:Greater, value:Expr::PlayerNumber{player:AbilityController, number:Life}}}}])}), index:0})] */
 clause_choose_richer ::= "choose" "target" "opponent" "who" "has" "more" "life" "than" "you" "do" "as" "you" "activate" "this" "ability"
 /* @sem Instruction::[@choose(PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:Intersection([OpponentsOf(PlayerRef::AbilityController), Matching{binding:0, condition:Compare{left:Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(Bound(0))))}), test:NumberTest::Compare{comparison:Greater, value:Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)))})}}}])}), index:0})] */
@@ -657,9 +655,8 @@ specializes_graveyard_return_grant ::= "return" "it" "from" "your" "graveyard" s
 
 /* The explicit source zone remains the scoped graveyard. A changed destination
    and the granted ability are read from the current native operands. */
-specializes_return_destination ::= specializes_return_battlefield | specializes_return_hand
-/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
-specializes_return_battlefield ::= "to" "the" "battlefield"
+specializes_return_destination ::= random_partition_entry | specializes_return_hand
+
 /* @sem MovementDestination::Hand{player:AbilityController, arrival:CardArrival{counters:[], states:[]}} */
 specializes_return_hand ::= "to" "your" "hand"
 
@@ -834,7 +831,6 @@ clause_random_player_fight ::= "choose" "a" "player" "at" "random" "." "when" "y
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$clause_random_player_fight}} */
 activated_random_player_fight ::= cost ":" clause_random_player_fight "."
 
-
 /* Damage may be unpreventable. Capture the proposed amount before changing
    the event; granted holder/controller and damaged player are separate roles. */
 /* @sem Ability::Replacement{active:Battlefield, event:Damage{source_kind:Permanent, sources:SameObject(Source), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Recipient}, body:Program{instructions:[Effect{result:@mark, operation:BindValue{value:EventAmount}}, Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:Draw{players:Union([One(AbilityController), One(PlayerRef::EventSubject)]), amount:Divide{numerator:BoundValue(@marked), denominator:Constant(2), rounding:Down}}}]}} */
@@ -929,10 +925,8 @@ ordered_named_reveal_discard ::= cost ":" "choose" "a" "card" "name" "." chosen_
 
 /* These two sentences install independent delayed triggers at activation resolution.
    The lexical target is shared; the sacrifice names the holder or named creator. */
-/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{condition:Window(BeforeBlockersDeclared)}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Operation::@scope(Operation::CreateTrigger{event:Damage{source_kind:Permanent, sources:SameObject($paired_damage_target), recipients:Objects(AllOf([CardType(Creature), Not(Subtype(Wall))])), kind:Combat, grouping:SourceRecipient, subject:Source}, duration:EndOfTurn, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:One(Damage(Recipient)), regeneration:true}}]}})}, Effect{result:@next, operation:Operation::@scope(Operation::CreateTrigger{event:Object{event:LeavesBattlefield, objects:SameObject(ObjectRef::@it)}, duration:EndOfTurn, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One($self_explicit_ref)}}]}})}]}} */
-paired_combat_leave_delayed ::= cost ":" "whenever" paired_damage_target "deals" "combat" "damage" "to" "a" "non-Wall" "creature" "this" "turn" "," "destroy" "that" "non-Wall" "creature" "." "when" "the" "targeted" "creature" "leaves" "the" "battlefield" "this" "turn" "," "sacrifice" self_explicit_ref "." "activate" "only" "before" "blockers" "are" "declared" "."
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0} */
-paired_damage_target ::= "target" "creature"
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{condition:Window(BeforeBlockersDeclared)}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Operation::@scope(Operation::CreateTrigger{event:Damage{source_kind:Permanent, sources:SameObject($reveal_target_creature), recipients:Objects(AllOf([CardType(Creature), Not(Subtype(Wall))])), kind:Combat, grouping:SourceRecipient, subject:Source}, duration:EndOfTurn, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:One(Damage(Recipient)), regeneration:true}}]}})}, Effect{result:@next, operation:Operation::@scope(Operation::CreateTrigger{event:Object{event:LeavesBattlefield, objects:SameObject(ObjectRef::@it)}, duration:EndOfTurn, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One($self_explicit_ref)}}]}})}]}} */
+paired_combat_leave_delayed ::= cost ":" "whenever" reveal_target_creature "deals" "combat" "damage" "to" "a" "non-Wall" "creature" "this" "turn" "," "destroy" "that" "non-Wall" "creature" "." "when" "the" "targeted" "creature" "leaves" "the" "battlefield" "this" "turn" "," "sacrifice" self_explicit_ref "." "activate" "only" "before" "blockers" "are" "declared" "."
 
 /* Target membership reuses the established Pair(Crews,Candidate,Vehicle)
    predicate. This owning attack/block header proves that EventSubject is the
@@ -1028,11 +1022,10 @@ instructions_next_x_stack_copy ::= operation "." "when" "you" "next" "cast" "a" 
    native-shaped view without deleting the old combined-predicate view. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:SpellOrActivation{players:One(AbilityController), spells:AnyOf([@and(ObjectFilter::OnStack(Spell), ObjectFilter::CardType(Instant)), @and(ObjectFilter::OnStack(Spell), ObjectFilter::CardType(Sorcery))]), abilities:OnStack(Loyalty)}, start:Immediately, expires:EndOfTurn, body:Program{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventStackObject, times:$delayed_stack_copy_times, targets:May}}]}}}] */
 instructions_next_typed_stack_copy ::= "when" "you" "next" "cast" "an" "instant" "spell" "," "cast" "a" "sorcery" "spell" "," "or" "activate" "a" "loyalty" "ability" "this" "turn" "," "copy" "that" "spell" "or" "ability" delayed_stack_copy_times "." "you" "may" "choose" "new" "targets" "for" "the" "copies"
-/* @sem Expr::Constant(2) */
-delayed_stack_copy_times_twice ::= "twice"
+
 /* @sem $number */
 delayed_stack_copy_times_number ::= number "times"
-delayed_stack_copy_times ::= delayed_stack_copy_times_twice | delayed_stack_copy_times_number
+delayed_stack_copy_times ::= revealed_stat_factor | delayed_stack_copy_times_number
 
 /* Only an actual written damage producer owns the capped-damage receipt. */
 clamped_damage_producer ::= deal_damage | deal_damage_equal | deal_damage_equal_first | deal_damage_that_much
@@ -1169,9 +1162,7 @@ self_target_named_tokens ::= "create" self_target_count token_named_recipe ("tok
 self_target_gain_life ::= "you" "gain" number "life" "."
 
 /* This body count cannot depend on either event's amount or object. */
-self_target_count ::= self_target_article | number
-/* @sem Expr::Constant(1) */
-self_target_article ::= "a" | "an"
+self_target_count ::= counter_a | number
 
 /* Native canonicalization coalesces these two independent identical-body
    triggers. These companions print precisely that canonical representation;
@@ -1476,18 +1467,12 @@ mill_history_player ::= mill_history_enchanted | player_ref
 /* @sem PlayerRef::EnchantedBy(ObjectRef::Source) */
 mill_history_enchanted ::= "enchanted" "player"
 
-history_graveyard_cards ::= history_graveyard_any_cards | history_graveyard_filtered_cards
-
-/* @sem ObjectFilter::Any */
-history_graveyard_any_cards ::= "cards"
+history_graveyard_cards ::= random_any_cards | history_graveyard_filtered_cards
 
 /* @sem $card_filter */
 history_graveyard_filtered_cards ::= card_filter "cards"
 
-history_graveyard_window ::= history_graveyard_turn | history_graveyard_game
-
-/* @sem HistoryWindow::ThisTurn */
-history_graveyard_turn ::= "this" "turn"
+history_graveyard_window ::= bound_attack_this_turn | history_graveyard_game
 
 /* @sem HistoryWindow::ThisGame */
 history_graveyard_game ::= "this" "game"
@@ -1639,13 +1624,7 @@ instructions_draft_single_entry ::= draft_single_book "and" "put" "it" draft_sin
 /* @sem Operation::DraftFromSpellbook{actor:One(AbilityController), spellbook:Planets, times:Constant(1)} */
 draft_single_book ::= "draft" "a" "card" "from" "the" "Planets" "Spellbook"
 
-draft_single_destination ::= draft_single_tapped | draft_single_untapped
-
-/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}} */
-draft_single_tapped ::= "onto" "the" "battlefield" "tapped"
-
-/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
-draft_single_untapped ::= "onto" "the" "battlefield"
+draft_single_destination ::= look_battlefield_tapped | selected_onto_battlefield
 
 /* The timing, blocking predicate, and frequency all constrain this activation. */
 /* @sem ActivationLimits::ActivationLimits{once_each_turn:true, condition:AllOf([$activation_window, $blocking_count_condition])} */
@@ -1774,10 +1753,7 @@ instructions_tap_active_player_creature_damage_prevent ::= "tap" "target" "creat
 /* @sem ObjectFilter::AllOf([Not(Supertype(Legendary)), CardType(Creature)]) */
 copy_choice_nonlegendary_creature ::= "nonlegendary" "creature"
 
-/* @sem ObjectFilter::CardType(Creature) */
-copy_choice_creature ::= "creature"
-
-copy_choice_filter ::= copy_choice_nonlegendary_creature | copy_choice_creature
+copy_choice_filter ::= copy_choice_nonlegendary_creature | noun_creature
 
 /* @sem Instruction::[Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$copy_choice_filter}, count:AsManyAsCan(Constant(1))}}] */
 choose_battlefield_copy_creature ::= "choose" "a" copy_choice_filter
@@ -1827,13 +1803,10 @@ instructions_draw_discard_exile_copy ::= "draw" card_count "," "then" "discard" 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy($goaded_creature_controller)])} */
 goaded_opponents_creatures ::= "all" "creatures" goaded_creature_controller
 
-goaded_creature_controller ::= goaded_creature_opponents | goaded_creature_own | goaded_creature_active
+goaded_creature_controller ::= goaded_creature_opponents | mixed_target_you | goaded_creature_active
 
 /* @sem PlayerSet::OpponentsOf(AbilityController) */
 goaded_creature_opponents ::= "your" "opponents" "control"
-
-/* @sem PlayerSet::One(AbilityController) */
-goaded_creature_own ::= "you" "control"
 
 /* @sem PlayerSet::One(Active) */
 goaded_creature_active ::= "the" "active" "player" "controls"
@@ -2101,7 +2074,7 @@ cast_subject_history_trigger ::= repeat_cast_header "," "if" cast_subject_histor
 /* @sem Instruction::[If{condition:Window(BeforeFirstCombat), then:_{instructions:[Effect{result:@next, operation:AddPhases{actor:One(AbilityController), phases:Combat, count:Constant(1), at_start:Program($added_combat_start_program)}}]}, otherwise:_{}}] */
 instructions_first_combat_extra ::= "after" "the" "first" "combat" "phase" "this" "turn" "," "there's" "an" "additional" "combat" "phase" "." added_combat_start_program
 
-source_cast_body ::= program_sentence | source_cast_counter_unless_sentence | cast_subject_copy_counter_kinds | cast_subject_copy_history_program | cast_subject_copy_it | cast_subject_copy_times
+source_cast_body ::= program_sentence | source_cast_counter_unless_sentence | cast_subject_copy_counter_kinds | cast_subject_copy_history_program | cast_event_copy_it | cast_subject_copy_times
 
 /* A single player's draft supplies the card and the player who may cast it.
    Keeping both instructions together proves the producer for the reference. */
@@ -3217,8 +3190,8 @@ instructions_excess_damage_named_tokens ::= deal_damage "." "if" "excess" "damag
 excess_token_recipient ::= "a" "permanent"
 
 /* Compose the equipped damage event with the retained exiling permission reading. */
-/* @sem Ability::Triggered{event:$event_equipped_combat_player, limits:_{}, announcement:@announcement, body:_{instructions:[...$event_graveyard_cast_exiling]}} */
-triggered_equipped_graveyard_permission_exiling ::= "whenever" event_equipped_combat_player "," event_graveyard_cast_exiling "."
+/* @sem Ability::Triggered{event:$hidden_equipped_event, limits:_{}, announcement:@announcement, body:_{instructions:[...$event_graveyard_cast_exiling]}} */
+triggered_equipped_graveyard_permission_exiling ::= "whenever" hidden_equipped_event "," event_graveyard_cast_exiling "."
 
 /* Return modes bind each target within its own mode. */
 /* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:$number_words, maximum:$number_words}, options:$return_owner_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */

@@ -179,7 +179,6 @@ fraction_sacrifice_plural_as_many ::= hand_plural_players "sacrifices" "half" "t
 /* @sem Instruction::[ForEachPlayer{players:$hand_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(Bound(0)), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly(Divide{numerator:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(Bound(0))))}), denominator:Constant(2), rounding:$rounding_words})})}]}}] */
 fraction_sacrifice_plural_exact ::= hand_plural_players "sacrifices" "half" "the" filter_plural "they" "control" "of" "their" "choice" "," rounding_words
 
-
 /* @sem () */
 hand_words ::= "their" "hand" | "all" "the" "cards" "in" "their" "hand"
 /* Winning or losing the game, said of the clause's subject. */
@@ -298,7 +297,6 @@ graveyard_return_actor ::= graveyard_return_target "returns" graveyard_return_on
 
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$card_filter}, count:Exactly($graveyard_return_one)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
 graveyard_return_you ::= "you" "return" graveyard_return_one card_filter "card" "from" "your" "graveyard" "to" "your" "hand"
-
 
 /* Restrict the first actor contract to an explicitly introduced player target.
    The possessive is its own later lexical reference, rather than a second target. */
@@ -568,7 +566,6 @@ move_opponent_graveyard_their_control ::= "return" target_card_opponent_graveyar
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Harness{object:$object_ref}} */
 operation_harness ::= "harness" object_ref
 
-
 /* A past-tense characteristic test names the original target even when
    destruction fails. Performed transition receipts can be empty on failure. */
 /* @sem Instruction::[Effect{result:@mark, operation:Destroy{objects:One($target_object), regeneration:true}}, If{condition:ObjectMatches{object:$target_object, filter:$destroy_before_predicate}, then:Program{instructions:$clause}, otherwise:Program{}}] */
@@ -599,11 +596,9 @@ named_conjure_actor_ref ::= target_player | target_opponent
 clause_return_owner_exiles ::= "return" object_ref "to" "its" "owner's" "hand" "," "then" "that" "player" "exiles" card_count "from" "their" "hand"
 
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:One($object_ref), destination:OwnersHand(CardArrival{}), qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(OwnerOf($object_ref))), changes:[PlayerRule(Prohibit(CastSpell{filter:SharesNameWith($object_ref)}))], duration:$duration, evaluation:LiveObjects}}] */
-clause_return_owner_cast_restriction ::= "return" object_ref "to" "its" "owner's" "hand" "." return_owner_possessive "owner" "can't" "cast" "spells" "with" "the" "same" "name" "as" return_owner_words duration
+clause_return_owner_cast_restriction ::= "return" object_ref "to" "its" "owner's" "hand" "." return_owner_possessive "owner" "can't" "cast" "spells" "with" "the" "same" "name" "as" that_noun_word duration
 /* @sem () */
 return_owner_possessive ::= "its" | "that" ("creature's" | "permanent's" | "artifact's" | "enchantment's" | "land's")
-/* @sem () */
-return_owner_words ::= "that" ("creature" | "permanent" | "artifact" | "enchantment" | "land")
 
 /* Each optional reanimation addresses only the announced target owned by the
    player currently iterated. The controller makes every optional decision. */
@@ -677,7 +672,6 @@ sacrifice_choice_third_post ::= "sacrifices" counter_amount sacrifice_choice_fil
    This production owns one Draw component, at index zero of its payment. */
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Draw{count:$card_count}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Discard{players:One(AbilityController), amount:RequestedDrawCount{payment:Resolution(@marked), component:[0]}, random:false}}]}, otherwise:Program{}}] */
 clause_requested_optional_draw ::= "you" "may" "draw" card_count "." "if" "you" "do" "," ("you")? "discard" "that" "many" "cards"
-
 
 /* A named player and one verb, where a single operation stands inside a larger
    sentence ("instead that player draws three cards"). Clauses keep their own
@@ -760,7 +754,6 @@ continuous_attack_if_able ::= attack_plural_subject "attack" this_duration "if" 
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(AttackException{ignore:Defender, defenders:Any})], duration:$this_duration, evaluation:LiveObjects} */
 continuous_attack_despite_defender ::= "can" "attack" this_duration "as" "though" affected "didn't" "have" "defender"
-
 
 /* @sem Operation::Move{objects:One($owner_target_permanent), destination:Library{position:TopOrBottom{chooser:Owners}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]} */
 owner_puts_top_or_bottom ::= owner_target_permanent "owner" "puts" "it" "on" "their" "choice" "of" "the" "top" "or" "bottom" "of" "their" "library"
@@ -895,13 +888,12 @@ instead_optional_seek_conjure ::= conjure_named_hand "." "if" condition "," "you
 
 /* Each operation resolves for every player before the next operation begins.
    The trailing instruction supplies the rounding mode to each fraction. */
-/* @sem Expr::Constant(2) */
-fraction_half_word ::= "half"
+/* fraction_half_word is shared as starting_life_fraction. */
 
 /* @sem Expr::Constant(3) */
 fraction_third_word ::= "a" "third" "of"
 
-fraction_denominator ::= fraction_half_word | fraction_third_word | fraction_tenth_word
+fraction_denominator ::= starting_life_fraction | fraction_third_word | fraction_tenth_word
 
 /* @sem Instruction::[...$fractional_each_actions] */
 fractional_each_sequence ::= "each" "player" fractional_each_actions "." "round" "up" "each" "time"
@@ -1047,16 +1039,7 @@ personal_zone_count_any ::= "the" "number" "of" "cards" "in" "their" personal_co
 /* @sem Expr::CountObjects(Zone{scope:Players{zone:$personal_count_zone, players:One(Bound(0))}, kind:Card, filter:$card_filter}) */
 personal_zone_count_filtered ::= "the" "number" "of" card_filter "cards" "in" "their" personal_count_zone
 
-personal_count_zone ::= personal_count_hand | personal_count_graveyard | personal_count_library
-
-/* @sem ZoneName::Hand */
-personal_count_hand ::= "hand"
-
-/* @sem ZoneName::Graveyard */
-personal_count_graveyard ::= "graveyard"
-
-/* @sem ZoneName::Library */
-personal_count_library ::= "library"
+personal_count_zone ::= greatest_hand | greatest_graveyard | greatest_library
 
 /* @sem Instruction::[Effect{result:@next, operation:$put_counters_direct}] */
 instead_counters_put ::= put_counters_direct
@@ -1083,10 +1066,7 @@ verbs_third_named_graveyard_life ::= "gains" number_digits "life" "," "then" "ga
 /* @sem Operation::Conjure{actor:One(AbilityController), card:Duplicate(One($target_card_your_graveyard)), count:$conjure_duplicate_quantity, owner:AbilityController, destination:$conjure_spellbook_zone} */
 conjure_chosen_graveyard_duplicate ::= "choose" target_card_your_graveyard "." "conjure" conjure_duplicate_quantity "of" "it" conjure_spellbook_zone
 
-conjure_duplicate_quantity ::= conjure_duplicate_one | conjure_duplicate_plural
-
-/* @sem Expr::Constant(1) */
-conjure_duplicate_one ::= "a" "duplicate"
+conjure_duplicate_quantity ::= event_duplicate_one | conjure_duplicate_plural
 
 /* @sem $count_plural */
 conjure_duplicate_plural ::= count_plural "duplicates"
@@ -1106,11 +1086,10 @@ spent_pair_count ::= "for" "each" spent_symbol_pair "spent" "to" "cast" object_r
 discard_spent_pair ::= spent_pair_count "," players_singular "discards" "a" "card"
 
 /* Target selection and its count remain operands of the action. */
-/* @sem PlayerSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:All})) */
-any_target_players ::= "any" "number" "of" "target" "players"
+/* any_target_players is shared as announced_all_players. */
 
-/* @sem @apply($any_target_players, $discard_number_base) */
-discard_target_players ::= any_target_players "each" discard_number_base
+/* @sem @apply($announced_all_players, $discard_number_base) */
+discard_target_players ::= announced_all_players "each" discard_number_base
 
 /* @sem Operation::Discard{players:@subject, amount:$card_count_a_number} */
 discard_number_base ::= "discard" card_count_a_number
@@ -1122,7 +1101,7 @@ discard_event_damage_third ::= "discards" "cards" "equal" "to" "the" "damage"
 /* @sem Operation::PlayCards{actor:One(AbilityController), action:CastSpell, cards:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AllOf([$shared_observed_literal_13fb31f66220, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:EventAmount}}])}), count:Exactly($counter_amount), cost:Free} */
 shared_literal_fold_6c9948ecc47d ::= "cast" counter_amount shared_observed_literal_13fb31f66220 "spell" "from" "your" "hand" "with" "mana" "value" "less" "than" "or" "equal" "to" "that" "damage" "without" "paying" "its" "mana" "cost"
 
-shared_observed_literal_13fb31f66220 ::= callback_flashback_either | spell_sorcery
+shared_observed_literal_13fb31f66220 ::= filter_instant_or_sorcery | spell_sorcery
 
 /* Its intensity is measured on the current damage source. */
 /* @sem Operation::DealDamage{source:$damage_source_ref, recipients:$recipients, amount:ObjectProperty{object:$damage_source_ref, property:Intensity, information:CurrentOrLastKnown}, preventable:true} */
@@ -1205,7 +1184,6 @@ timed_next_damage_replacement ::= "the" "next" "time" next_damage_event this_dur
 
 /* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:SameObject($self_explicit_ref), recipients:$replacement_damage_to, kind:Any, grouping:SourceRecipient, subject:Recipient}) */
 next_self_damage_event ::= self_explicit_ref "would" "deal" "damage" "to" replacement_damage_to
-
 
 /* Mana replacement predicates and replacement amounts retain independent operands. */
 /* @sem Operation::CreateReplacement{event:$mana_replacement_event, limit:UntilExpired, duration:$duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:$mana_replacement_change}}]}} */
@@ -1590,10 +1568,7 @@ each_player_return_own_graveyard_tail ::= "returns" "up" "to" count each_player_
 /* @sem Instruction::[...$each_player_discard_hand, ...$each_player_return_own_graveyard_tail] */
 instructions_each_player_discard_return ::= each_player_discard_hand "," "then" each_player_return_own_graveyard_tail
 
-each_player_return_cards ::= each_player_return_any_cards | search_filter_many
-
-/* @sem ObjectFilter::Any */
-each_player_return_any_cards ::= "cards"
+each_player_return_cards ::= random_any_cards | search_filter_many
 
 /* A resolution choice combines independently meaningful instruction branches. */
 /* @sem Instruction::[ChooseOne{decider:AbilityController, options:[Program{instructions:$resolution_choice_branch}, Program{instructions:$resolution_choice_branch_2}]}] */
@@ -1701,22 +1676,7 @@ instead_revealed_hand_choice ::= "that" "player" "reveals" "their" "hand" "," "y
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$owner_target_kind}), index:0} */
 owner_target_permanent ::= "target" owner_target_kind
 
-owner_target_kind ::= owner_target_creature | owner_target_artifact | owner_target_enchantment | owner_target_land | owner_target_permanent_kind
-
-/* @sem ObjectFilter::CardType(Creature) */
-owner_target_creature ::= "creature's"
-
-/* @sem ObjectFilter::CardType(Artifact) */
-owner_target_artifact ::= "artifact's"
-
-/* @sem ObjectFilter::CardType(Enchantment) */
-owner_target_enchantment ::= "enchantment's"
-
-/* @sem ObjectFilter::CardType(Land) */
-owner_target_land ::= "land's"
-
-/* @sem ObjectFilter::Any */
-owner_target_permanent_kind ::= "permanent's"
+owner_target_kind ::= chosen_color_creature | chosen_color_artifact | chosen_color_enchantment | chosen_color_land | chosen_color_permanent
 
 /* The possessive identifies the moved object and its owner. */
 /* @sem Operation::Move{objects:One($owner_possessive_shuffle_object), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]} */
@@ -1773,11 +1733,8 @@ conjure_three_named_shuffled_library ::= "conjure" "cards" "named" referenced_ca
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:SetTapped{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(Tapped), @agree($plural, $plural_2), ControlledBy(One(EventSubject)), $object_did_not_attack_turn])}, tapped:true}}, Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Players(One(EventSubject)), amount:CountObjects(Transition{result:@prior, phase:Before}), preventable:true}}]} */
 program_tap_nonattackers_receipt_damage ::= "tap" "all" "untapped" plural "that" "player" "controls" "that" object_did_not_attack_turn "." self_explicit_ref "deals" "damage" "to" "the" "player" "equal" "to" "the" "number" "of" plural "tapped" "this" "way"
 
-/* @sem Ability::Triggered{event:$turn_end_each_players_explicit, limits:_{}, announcement:@announcement, body:$program_tap_nonattackers_receipt_damage} */
-trigger_end_tap_nonattackers_receipt_damage ::= "at" turn_end_each_players_explicit "," program_tap_nonattackers_receipt_damage "."
-
-/* @sem EventSpec::Turn{point:EndStepBegins, players:All} */
-turn_end_each_players_explicit ::= "the" "beginning" "of" "each" "player's" "end" "step"
+/* @sem Ability::Triggered{event:$tap_count_each_player_end, limits:_{}, announcement:@announcement, body:$program_tap_nonattackers_receipt_damage} */
+trigger_end_tap_nonattackers_receipt_damage ::= "at" tap_count_each_player_end "," program_tap_nonattackers_receipt_damage "."
 
 /* The card filter and duration are independent operands of the game effect. */
 /* @sem Operation::GameEffect{until:$exile_entry_prohibition_duration, effect:Term{family:GameEffect, form:CardsCantEnterTheBattlefieldFromExile, operands:[Filter($global_card_filter)]}} */
@@ -1965,13 +1922,10 @@ instructions_damage_receipt_pump ::= deal_damage "." "if" "a" noun "is" "dealt" 
 /* @sem Operation::Destroy{objects:One($destroy_singular_creature), regeneration:false} */
 destroy_creature_no_regeneration ::= "destroy" destroy_singular_creature "." "the" "creature" "can't" "be" "regenerated"
 
-destroy_singular_creature ::= destroy_named_creature | destroy_target_creature
+destroy_singular_creature ::= destroy_named_creature | paid_copy_creature_target
 
 /* @sem ObjectRef::@remember_operand($named_creature) */
 destroy_named_creature ::= named_creature
-
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:CardType(Creature)}), index:0} */
-destroy_target_creature ::= "target" "creature"
 
 /* A damage-producing instruction and its receipt-dependent condition stay together. */
 /* @sem Instruction::[Effect{result:@next, operation:$deal_damage}, If{condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$damage_receipt_filter, DamagedBy(@prior)])}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:$damage_receipt_followup}, otherwise:Program{}}] */
@@ -2003,7 +1957,7 @@ exile_opponent_graveyard_target ::= target_any_card_opponent_graveyard | target_
 /* @sem Operation::CreateDelayedTrigger{event:$opponent_control_time, start:Immediately, body:Program{instructions:$clause_opponent_gains_control}} */
 delayed_opponent_control ::= clause_opponent_gains_control "at" opponent_control_time
 
-opponent_control_time ::= delayed_move_end_event | temporary_return_upkeep
+opponent_control_time ::= delayed_move_end_event | delayed_move_any_upkeep
 
 /* The delayed action expires if this turn ends before combat does. */
 /* @sem Operation::CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, expires:EndOfTurn, body:Program{instructions:[Effect{result:@next, operation:$destroy}]}} */
@@ -2023,21 +1977,12 @@ redirect_damage_limit_all ::= "all"
 /* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($pair_graveyard_card, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0}), SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(Target{slot:0, index:0})), $pair_graveyard_card_2, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0})])}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:0, index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Targets(1), destination:$pair_library_destination, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
 instead_graveyard_pair_hand ::= "return" "target" pair_graveyard_card "from" "your" "graveyard" "to" "your" "hand" "." "put" "up" "to" "one" "other" "target" pair_graveyard_card "from" "your" "graveyard" pair_library_destination "." "exile" SELF_NAME "." NEWLINE "if" condition "," "instead" "return" "those" "cards" "to" "your" "hand" "and" "exile" SELF_NAME
 
-pair_graveyard_card ::= pair_graveyard_any | pair_graveyard_typed
-
-/* @sem ObjectFilter::Any */
-pair_graveyard_any ::= "card"
+pair_graveyard_card ::= hand_one_any | pair_graveyard_typed
 
 /* @sem $card_filter */
 pair_graveyard_typed ::= card_filter "card"
 
-/* @sem MovementDestination::Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
-pair_library_top ::= "on" "top" "of" "your" "library"
-
-/* @sem MovementDestination::Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
-pair_library_bottom ::= "on" "the" "bottom" "of" "your" "library"
-
-pair_library_destination ::= pair_library_top | pair_library_bottom
+pair_library_destination ::= self_put_top | top_reveal_bottom
 
 /* A named player can choose to pay a sacrifice cost during resolution. */
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:$player_ref, cost:$resolving_sacrifice_choice_cost, optional:true}}] */
@@ -2078,11 +2023,8 @@ each_other_same_controller ::= "each" "other" "creature" "that" "player" "contro
 /* @sem Operation::DealDamage{source:$opponent_controlled_damage_source, recipients:Objects($another_target_same_controller), amount:ObjectProperty{object:Target{slot:0, index:0}, property:Power, information:CurrentOrLastKnown}, preventable:true} */
 opponent_target_power_damage ::= opponent_controlled_damage_source "deals" "damage" "equal" "to" "its" "power" "to" another_target_same_controller
 
-/* @sem Instruction::[Effect{result:@next, operation:DealDamage{source:$opponent_controlled_creature_damage_source, recipients:Objects($each_other_same_controller), amount:ObjectProperty{object:Target{slot:0, index:0}, property:Power, information:CurrentOrLastKnown}, preventable:true}}, Effect{result:@next, operation:DealDamageFromEach{sources:$each_other_same_controller, recipients:Objects(One(Target{slot:0, index:0})), amount:ObjectProperty{object:Affected, property:Power, information:CurrentOrLastKnown}}}] */
-opponent_population_mutual_damage ::= opponent_controlled_creature_damage_source "deals" "damage" "equal" "to" "its" "power" "to" each_other_same_controller "," "then" "each" "of" "those" "creatures" "deals" "damage" "equal" "to" "its" "power" "to" "that" "creature"
-
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(OpponentsOf(AbilityController))])}), index:0} */
-opponent_controlled_creature_damage_source ::= "target" "creature" "an" "opponent" "controls"
+/* @sem Instruction::[Effect{result:@next, operation:DealDamage{source:$fight_excess_opponent_target, recipients:Objects($each_other_same_controller), amount:ObjectProperty{object:Target{slot:0, index:0}, property:Power, information:CurrentOrLastKnown}, preventable:true}}, Effect{result:@next, operation:DealDamageFromEach{sources:$each_other_same_controller, recipients:Objects(One(Target{slot:0, index:0})), amount:ObjectProperty{object:Affected, property:Power, information:CurrentOrLastKnown}}}] */
+opponent_population_mutual_damage ::= fight_excess_opponent_target "deals" "damage" "equal" "to" "its" "power" "to" each_other_same_controller "," "then" "each" "of" "those" "creatures" "deals" "damage" "equal" "to" "its" "power" "to" "that" "creature"
 
 /* The condition tests the before receipt of this exact single-target destruction. */
 /* @sem Instruction::[Effect{result:@mark, operation:Destroy{objects:One($target_object), regeneration:true}}, If{condition:ObjectMatches{object:Result{result:@marked, phase:Before, index:0}, filter:$destroyed_receipt_filter}, then:Program{instructions:$clause}, otherwise:Program{}}] */
@@ -2691,8 +2633,8 @@ attached_deals_own_property_other_target ::= attached_ref "deals" "damage" "equa
 remove_any_number_counters ::= "remove" "any" "number" "of" "counters" "from" affected
 
 /* Apply the selected players to the shared token-creation action. */
-/* @sem Operation::@apply($any_target_players, $create_base) */
-target_players_each_create ::= any_target_players "each" create_base
+/* @sem Operation::@apply($announced_all_players, $create_base) */
+target_players_each_create ::= announced_all_players "each" create_base
 
 damage_amount ::= number | damage_amount_product
 
@@ -2810,10 +2752,7 @@ clause_that_player_action_unless_pay ::= that_player that_player_return_owner_ha
 /* @sem Instruction::[ForEachPlayer{players:$players_each_opponent, binding:0, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(Bound(0)), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(Bound(0))), Property{property:$stat, test:NumberTest::Compare{comparison:Equal, value:Aggregate{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(Bound(0)))])}, property:$stat, aggregation:Maximum}}}])}, choose:AsManyAsCan(Constant(1))})}]}}] */
 shared_each_sacrifice_controlled_extreme ::= players_each_opponent "sacrifices" "a" filter_phrase "they" "control" "with" "the" "greatest" stat
 
-owner_possessive_shuffle_object ::= owner_target_permanent | owner_possessive_shuffle_holder
-
-/* @sem ObjectRef::@self */
-owner_possessive_shuffle_holder ::= "this" "creature's"
+owner_possessive_shuffle_object ::= owner_target_permanent | exchange_stat_holder
 
 /* The named player loses life measured by a live battlefield population. */
 /* @sem Operation::LoseLife{players:@subject, amount:$live_battlefield_count} */
@@ -3229,14 +3168,11 @@ unattached_equipment_divided_damage_he ::= "he" "deals" "damage" "equal" "to" "t
 /* The callback is evaluated within the prevention replacement and names its
    own ModifyEvent receipt. Recipients, sources, duration and damage target
    remain independent operands of the composed phrase. */
-/* @sem Operation::CreateReplacement{event:Damage{source_kind:Any, sources:$prevent_callback_sources, recipients:$prevent_callback_recipients, kind:Any, grouping:SourceRecipient, subject:Recipient}, limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Effect{result:@mark, operation:ModifyEvent{change:PreventDamage}}, $prevent_damage_optional_callback]}} */
-prevent_filtered_damage_callback ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" prevent_callback_recipients this_duration "by" prevent_callback_sources "." prevent_damage_optional_callback
+/* @sem Operation::CreateReplacement{event:Damage{source_kind:Any, sources:$prevent_by_other_sources, recipients:$prevent_callback_recipients, kind:Any, grouping:SourceRecipient, subject:Recipient}, limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Effect{result:@mark, operation:ModifyEvent{change:PreventDamage}}, $prevent_damage_optional_callback]}} */
+prevent_filtered_damage_callback ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" prevent_callback_recipients this_duration "by" prevent_by_other_sources "." prevent_damage_optional_callback
 
 /* @sem DamageRecipients::ObjectsAndPlayers{objects:ControlledBy(One(AbilityController)), players:One(AbilityController)} */
 prevent_callback_recipients ::= "you" "and" "permanents" "you" "control"
-
-/* @sem ObjectFilter::ControlledBy(OthersThan(AbilityController)) */
-prevent_callback_sources ::= "sources" "you" "don't" "control"
 
 /* The condition and amount share the prevention result, never an unrelated
    preceding action. */
@@ -3255,10 +3191,7 @@ attach_controlled_subtype_to_target ::= "attach" "any" "number" "of" subtype_plu
 /* @sem Instruction::[Effect{result:@mark, operation:Destroy{objects:One($death_token_creature_target), regeneration:true}}, If{condition:ObjectMatches{object:Result{result:@marked, phase:Before, index:0}, filter:Any}, then:Program{instructions:$clause_create_death_stated_stats_token}, otherwise:Program{}}] */
 instructions_destroy_creature_death_token ::= "destroy" death_token_creature_target "." NEWLINE? "if" "that" "creature" "dies" "this" "way" "," clause_create_death_stated_stats_token
 
-death_token_creature_target ::= death_token_creature_target_bare | target_qualified_creature
-
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0} */
-death_token_creature_target_bare ::= "target" "creature"
+death_token_creature_target ::= unregenerable_target | target_qualified_creature
 
 /* A temporary event trigger can carry a token creation as its own body. */
 /* @sem Operation::CreateTrigger{event:$event_clause, duration:$this_duration, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$create_quoted_block_token}]}} */
@@ -3385,13 +3318,7 @@ verbs_base_and_history_draw ::= verb_base "and" "draw" "cards" "equal" "to" draw
 /* @sem Expr::EventHistory{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Players($players_singular), kind:$historical_damage_kind, grouping:SourceRecipient, subject:Recipient}), window:$draw_damage_history_window, measure:TotalAmount} */
 draw_damage_history_amount ::= "the" historical_damage_kind "dealt" "to" players_singular draw_damage_history_window
 
-draw_damage_history_window ::= draw_damage_history_this_turn | draw_damage_history_last_turn
-
-/* @sem HistoryWindow::ThisTurn */
-draw_damage_history_this_turn ::= "this" "turn"
-
-/* @sem HistoryWindow::LastTurn */
-draw_damage_history_last_turn ::= "last" "turn"
+draw_damage_history_window ::= bound_attack_this_turn | life_history_last_turn
 
 /* A type test and a single counter action retain their independently bound references. */
 /* @sem Vec<Instruction>::@returned_conditional([If{condition:$condition_or_if_it_a, then:Program{instructions:[Effect{result:@next, operation:$resolution_counter_placement}]}, otherwise:Program{}}]) */

@@ -415,13 +415,12 @@ top_reveal_you_and ::= clause_you "and" clause_you
 /* @sem Instruction::[Effect{result:@next, operation:$continuous_snapshot}] */
 top_reveal_continuous ::= continuous_snapshot
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}, destination:$top_reveal_destination, qualifiers:[]}}] */
-top_reveal_put ::= "put" top_reveal_it top_reveal_destination
+top_reveal_put ::= "put" found_one top_reveal_destination
 /* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$top_reveal_put}}] */
 top_reveal_may_put ::= "you" "may" top_reveal_put
 /* @sem Instruction::[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}] */
 top_reveal_draw ::= "draw" card_count
-/* @sem () */
-top_reveal_it ::= "it" | "that" "card"
+
 top_reveal_destination ::= until_hand | until_battlefield | look_battlefield_tapped | top_reveal_graveyard | top_reveal_bottom | top_reveal_counter_added_vowel | top_reveal_counter_added_consonant
 /* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
 top_reveal_graveyard ::= "into" "your" "graveyard"
@@ -484,7 +483,7 @@ dig_put_all ::= "put" "all" search_filter_many dig_all_among dig_destination
 /* @sem () */
 dig_all_among ::= "from" "among" "them" | "revealed" "this" "way"
 
-dig_destination ::= until_hand | until_battlefield | look_battlefield_tapped | look_battlefield_attacking | look_battlefield_counter
+dig_destination ::= until_hand | until_battlefield | look_battlefield_tapped | until_battlefield_tapped_attacking | look_battlefield_counter
 
 /* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[[$counter_kind, $counter_amount]], states:[]}} */
 look_battlefield_counter ::= "onto" "the" "battlefield" "with" counter_amount counter_kind "counter" "on" "it"
@@ -540,7 +539,6 @@ until_destination ::= until_hand | until_battlefield | look_battlefield_tapped |
 until_hand ::= "into" "your" "hand"
 /* @sem MovementDestination::Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
 until_battlefield ::= "onto" "the" "battlefield"
-
 
 /* "If it's a land card, you may reveal it and put it into your hand": an optional move
    of the top card that only a matching card can make. A later sentence about putting
@@ -783,11 +781,9 @@ search_named_one ::= "a" "card" "named" SELF_NAME
 /* @sem SearchChoice::SearchChoice{filter:Name(@card_name), count:$named_search_count} */
 search_named_many ::= named_search_count "cards" "named" SELF_NAME
 
-named_search_count ::= named_search_upto | named_search_any
+named_search_count ::= named_search_upto | count_any_number
 /* @sem Count::UpTo($number) */
 named_search_upto ::= "up" "to" number
-/* @sem Count::AnyNumber */
-named_search_any ::= "any" "number" "of"
 
 /* Card targets keep their graveyard domain, quantity and owner restrictions. */
 graveyard_target_cards ::= graveyard_different_names_typed_many | graveyard_modified_any_many | graveyard_distinct_values_many | graveyard_typed_modified_many | graveyard_budget_one | graveyard_budget_many | graveyard_any_one | graveyard_any_many | graveyard_typed_one | graveyard_typed_many | graveyard_common_any_one | graveyard_common_any_many | graveyard_common_typed_one | graveyard_common_typed_many | graveyard_target_owner_one | graveyard_target_owner_typed_one | graveyard_typed_ability_many
@@ -848,7 +844,6 @@ graveyard_scope_opponents ::= ("from" | "in") "your" "opponents'" "graveyards"
    targets whose eligibility uses that player's graveyard. */
 /* @sem ObjectFilter::InZone(Players{zone:Graveyard, players:One($target_possessive)}) */
 graveyard_scope_target ::= ("from" | "in") target_possessive "graveyard"
-
 
 /* One opponent's graveyard is a common owner, not an independent opponent
    choice for each targeted card. A single graveyard has the same constraint. */
@@ -1143,11 +1138,8 @@ exiled_card_while_exiled_spending ::= "you" "may" exiled_play_action exiled_card
 clause_exile_while_exiled ::= exile_objects "." "you" "may" exiled_play_action "that" "card" "for" "as" "long" "as" "it" "remains" "exiled"
 /* @sem Instruction::[Effect{result:@next, operation:$exile_objects}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:$exiled_play_action, filter:Any}, terms:_{cost:Normal, spend_as:$exiled_spending}})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}] */
 clause_exile_while_exiled_spending ::= exile_objects "." "you" "may" exiled_play_action "that" "card" "for" "as" "long" "as" "it" "remains" "exiled" "," "and" exiled_spending
-exiled_play_action ::= exiled_cast_action | exiled_play_either
-/* @sem CardPlayAction::CastSpell */
-exiled_cast_action ::= "cast"
-/* @sem CardPlayAction::Either */
-exiled_play_either ::= "play"
+exiled_play_action ::= draft_cast_verb | draft_play_verb
+
 exiled_spending ::= exiled_spending_any_type | exiled_spending_any_color | exiled_spending_colorless
 /* @sem SpendAs::AnyType */
 exiled_spending_any_type ::= "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" exiled_spell_ref
@@ -1233,7 +1225,7 @@ program_sentence_search_and_move ::= search "and" found_action "." "then" "shuff
    reveal/move payments, which have supplied no observation receipt. */
 observed_top_reveal_branch ::= observed_top_entry_grant_sacrifice | observed_top_reveal_put | observed_top_reveal_may_put | top_reveal_draw | top_reveal_continuous | clause_you | top_reveal_you_and | observed_reveal_life_pair_then_put
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:$top_reveal_destination, qualifiers:[]}}] */
-observed_top_reveal_put ::= "put" top_reveal_it top_reveal_destination
+observed_top_reveal_put ::= "put" found_one top_reveal_destination
 /* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$observed_top_reveal_put}}] */
 observed_top_reveal_may_put ::= "you" "may" observed_top_reveal_put
 
@@ -1336,18 +1328,12 @@ cast_free_hand_qualified ::= "cast" hand_spell_choice "from" "your" "hand" "with
 /* @sem Count::UpTo($value) */
 hand_cast_plural_count_up_to ::= "up" "to" value
 
-/* @sem Count::AnyNumber */
-hand_cast_plural_count_any ::= "any" "number" "of"
-
-hand_cast_plural_count ::= hand_cast_plural_count_up_to | hand_cast_plural_count_any
-
-/* @sem ObjectFilter::Any */
-hand_cast_plural_any ::= "spells"
+hand_cast_plural_count ::= hand_cast_plural_count_up_to | count_any_number
 
 /* @sem $spell_adjectives */
 hand_cast_plural_filtered ::= spell_adjectives "spells"
 
-hand_cast_plural_filter ::= hand_cast_plural_any | hand_cast_plural_filtered
+hand_cast_plural_filter ::= cast_any_spells | hand_cast_plural_filtered
 
 /* @sem Operation::PlayCards{actor:One(AbilityController), action:CastSpell, cards:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$hand_cast_plural_filter}, count:$hand_cast_plural_count, cost:Free} */
 cast_free_hand_plural ::= "you" "may" "cast" hand_cast_plural_count hand_cast_plural_filter "from" "your" "hand" "without" "paying" "their" "mana" "costs"
@@ -1605,10 +1591,7 @@ mixed_library_non_type ::= adjective_nontype "permanent"
 /* @sem Expr::Constant(2) */
 library_ordinal_second ::= "second"
 
-/* @sem Expr::Constant(3) */
-library_ordinal_third ::= "third"
-
-library_ordinal ::= library_ordinal_second | library_ordinal_third
+library_ordinal ::= library_ordinal_second | ordinal_third
 
 /* @sem ObjectFilter::AnyOf([$adjective_color, $adjective_color_2]) */
 mixed_library_color_pair ::= adjective_color "or" adjective_color
@@ -1706,10 +1689,7 @@ shuffle_own_zone_pair ::= your_zone "and" shuffle_own_zone
 /* @sem EventZone::Hand */
 shuffle_own_hand ::= "hand"
 
-/* @sem EventZone::Graveyard */
-shuffle_own_zone_graveyard ::= "graveyard"
-
-shuffle_own_zone ::= shuffle_own_hand | shuffle_own_zone_graveyard
+shuffle_own_zone ::= shuffle_own_hand | ordered_graveyard
 
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:$shuffle_own_zone_pair, destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
 clause_shuffle_own_zones ::= "shuffle" shuffle_own_zone_pair "into" "your" "library"
@@ -1851,8 +1831,8 @@ library_except_bottom ::= "all" "but" "the" "bottom" "card" "of" player_possessi
 /* @sem Instruction::[Effect{result:@mark, operation:$exile_top_card_receipt}, If{condition:ObjectMatches{object:Result{result:@marked, phase:After, index:0}, filter:$card_filter}, then:Program{instructions:$exiled_top_branch}, otherwise:Program{instructions:$exiled_top_branch_2}}] */
 instructions_exiled_top_object_otherwise ::= exile_top_card_receipt "." "if" "it's" "a" card_filter "card" "," exiled_top_branch "." "otherwise" "," exiled_top_branch
 
-/* @sem Operation::@exiled_card_result(Operation::Move{objects:$hidden_library_top_card, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}) */
-exile_top_card_you ::= "exile" hidden_library_top_card
+/* @sem Operation::@exiled_card_result(Operation::Move{objects:$own_library_top_card, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}) */
+exile_top_card_you ::= "exile" own_library_top_card
 
 exiled_top_branch ::= exiled_top_create_tokens | exiled_top_cast_it | exiled_top_to_hand | exiled_top_put_counter
 
@@ -2300,13 +2280,7 @@ instructions_look_own_optional_move ::= "look" "at" own_library_top_card "." "yo
 /* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top} */
 own_library_top_card ::= "the" "top" "card" "of" "your" "library"
 
-own_looked_top_destination ::= own_looked_top_graveyard | own_looked_top_bottom
-
-/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
-own_looked_top_graveyard ::= "into" "your" "graveyard"
-
-/* @sem MovementDestination::Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
-own_looked_top_bottom ::= "on" "the" "bottom" "of" "your" "library"
+own_looked_top_destination ::= top_reveal_graveyard | top_reveal_bottom
 
 /* The search choice carries the selected cards through the battlefield move.
    Each player performs and decides their own search and shuffle. */
@@ -2361,8 +2335,6 @@ instructions_reveal_type_selection ::= revealed_type_program
 
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:$reveal_top}, Effect{result:@next, operation:WithSelections{steps:[_{binding:@selection_id(0), chooser:Players(One(AbilityController)), objects:InZone{objects:Observed(@marked), zone:Library}, count:AnyNumber, constraints:[OneForEachCardType(All)]}], action:Move{objects:Prepared(@selection_id(0)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, end:Bottom, order:$library_order}}]} */
 revealed_type_program ::= reveal_top "." "for" "each" "card" "type" "," "you" "may" "put" "a" "card" "of" "that" "type" "from" "among" "the" "revealed" "cards" "into" "your" "hand" "." "put" "the" "rest" "on" "the" "bottom" "of" "your" "library" library_order
-
-
 
 /* Keep the observation and immediate move together with its value consumer. */
 /* @sem Instruction::[...$reveal_top_hand_that, Effect{result:@next, operation:LoseLife{players:$players_singular, amount:ObjectProperty{object:Query{objects:Observed(0), index:0}, property:ManaValue, information:CurrentOrLastKnown}}}] */
@@ -2480,13 +2452,7 @@ instructions_event_owner_life_exile_top ::= player_one life_exile_verbs
 /* @sem Instruction::[Effect{result:@mark, operation:$player_reveals_top}, Effect{result:@next, operation:ChooseObjects{player:OneOf(One(AbilityController)), objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$selected_revealed_card_destination, qualifiers:[]}}] */
 instructions_player_reveal_choose_move ::= player_reveals_top "." "you" "choose" "one" "of" "those" "cards" "and" "put" "it" "into" selected_revealed_card_destination
 
-selected_revealed_card_destination ::= selected_revealed_card_graveyard | selected_revealed_card_hand
-
-/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
-selected_revealed_card_graveyard ::= "their" "graveyard"
-
-/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
-selected_revealed_card_hand ::= "their" "hand"
+selected_revealed_card_destination ::= opponent_owned_graveyard | opponent_owned_hand
 
 /* Selection and permission refer to the immediately preceding exile. */
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:$ordered_cards, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Transition{result:@prior, phase:After}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:$play_that_card_permission}] */
@@ -2590,10 +2556,7 @@ reveal_until_qualified_card ::= reveal_until_other_prefix card_count reveal_unti
 /* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:Add([$value, ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[2], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown}])}} */
 reveal_until_mana_quality ::= "with" "mana" "value" "equal" "to" value "plus" "the" "exiled" "spell's" "mana" "value"
 
-reveal_until_card_quality ::= reveal_until_mana_quality | reveal_until_name_quality
-
-/* @sem ObjectFilter::Chosen(CardName) */
-reveal_until_name_quality ::= "with" "the" "chosen" "name"
+reveal_until_card_quality ::= reveal_until_mana_quality | modifier_chosen_name
 
 /* @sem Operation::RevealUntil{library:$reveal_until_prior_prefix, filter:$reveal_until_shared_type_filter, count:Constant(1)} */
 reveal_until_shared_type ::= reveal_until_prior_prefix "a" reveal_until_shared_type_filter
@@ -2799,13 +2762,10 @@ instructions_look_own_top_exile_then ::= "look" "at" "the" "top" "card" "of" "yo
 /* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:$look_top_exile_destination, qualifiers:[]}}]}}] */
 instructions_look_own_top_exile_optional ::= "look" "at" "the" "top" "card" "of" "your" "library" "." "you" "may" look_top_exile_destination
 
-look_top_exile_destination ::= look_top_exile_face_down | look_top_exile_face_up
+look_top_exile_destination ::= look_top_exile_face_down | chosen_card_exile
 
 /* @sem MovementDestination::Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}} */
 look_top_exile_face_down ::= "exile" "it" "face" "down"
-
-/* @sem MovementDestination::Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}} */
-look_top_exile_face_up ::= "exile" "that" "card"
 
 /* The permission consumes the immediately preceding top-of-library exile. */
 /* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects}}] */
@@ -2836,21 +2796,15 @@ spell_instructions_positive_x ::= instructions "." "x" "can't" "be" "0" "."
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:$shuffle_choice_zone, players:One(AbilityController)}, kind:Card, filter:$shuffle_hand_card_kind}, count:$shuffle_hand_count}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
 clause_shuffle_hand_choice ::= "shuffle" shuffle_hand_count shuffle_hand_card_kind "from" shuffle_choice_zone "into" "your" "library"
 
-/* @sem Count::AnyNumber */
-shuffle_hand_any_count ::= "any" "number" "of"
-
 /* @sem Count::UpTo($count_plural) */
 shuffle_hand_up_to_count ::= "up" "to" count_plural
 
-shuffle_hand_count ::= shuffle_hand_any_count | shuffle_hand_up_to_count
-
-/* @sem ObjectFilter::Any */
-shuffle_hand_any_cards ::= "cards"
+shuffle_hand_count ::= count_any_number | shuffle_hand_up_to_count
 
 /* @sem $card_filter */
 shuffle_hand_filtered_cards ::= card_filter "cards"
 
-shuffle_hand_card_kind ::= shuffle_hand_any_cards | shuffle_hand_filtered_cards
+shuffle_hand_card_kind ::= random_any_cards | shuffle_hand_filtered_cards
 
 /* The observation is bound by the adjacent reveal, and both consumers use it. */
 /* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:LibraryTops(All)}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:Zone{scope:Players{zone:Library, players:All}, kind:Card, filter:AllOf([$filter_phrase, InSet(Observed(@marked))])}, exceptions:$revealed_copy_exceptions}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$filter_phrase_2}), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}}, then:$then_condition_program, otherwise:Program{}}] */
@@ -2996,24 +2950,18 @@ search_three_filtered ::= "search" "your" "library" "for" search_choice_filtered
 clause_search_three_reveal_hand ::= search_three_filtered "." "reveal" "those" "cards" "," "put" "them" "into" "your" "hand" "," "then" "shuffle"
 
 /* The same selected card is revealed, then either branch moves that selection. */
-/* @sem Instruction::[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$search_selected_reveal}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:$search_branch_tapped}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$search_branch_hand}]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
-clause_search_reveal_branch ::= search "and" search_selected_reveal "." "if" condition "," search_branch_tapped "." "otherwise" "," search_branch_hand "." "then" "shuffle"
+/* @sem Instruction::[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$search_selected_reveal}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:$search_branch_tapped}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$found_it_hand}]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+clause_search_reveal_branch ::= search "and" search_selected_reveal "." "if" condition "," search_branch_tapped "." "otherwise" "," found_it_hand "." "then" "shuffle"
 
 /* @sem Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]} */
 search_branch_tapped ::= "put" "it" "onto" "the" "battlefield" "tapped"
 
-/* @sem Operation::Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
-search_branch_hand ::= "put" "it" "into" "your" "hand"
-
 /* A revealed search choice may branch on the revealed card's name. */
-/* @sem Instruction::[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$search_selected_reveal}, If{condition:Compare{left:CountObjects(Matching{objects:Selected(@marked), filter:Name($referenced_card_name)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:$search_branch_untapped}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$search_branch_hand_card}]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
-clause_search_reveal_named_branch ::= search "and" search_selected_reveal "." "if" "you" "reveal" "a" "card" "named" referenced_card_name "this" "way" "," search_branch_untapped "." "otherwise" "," search_branch_hand_card "." "then" "shuffle"
+/* @sem Instruction::[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$search_selected_reveal}, If{condition:Compare{left:CountObjects(Matching{objects:Selected(@marked), filter:Name($referenced_card_name)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:$search_branch_untapped}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$search_selected_hand}]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+clause_search_reveal_named_branch ::= search "and" search_selected_reveal "." "if" "you" "reveal" "a" "card" "named" referenced_card_name "this" "way" "," search_branch_untapped "." "otherwise" "," search_selected_hand "." "then" "shuffle"
 
 /* @sem Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
 search_branch_untapped ::= "put" "it" "onto" "the" "battlefield"
-
-/* @sem Operation::Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
-search_branch_hand_card ::= "put" "that" "card" "into" "your" "hand"
 
 /* This search choice is used only in the matching single-creature casting
    sacrifice scope; its query refers to that payment's input. */
@@ -3187,16 +3135,7 @@ instructions_player_half_draw_life ::= player_ref fraction_count_draw_words "and
 /* @sem Zone::$fraction_count_zone */
 fraction_count_draw_words ::= "draws" "cards" "equal" "to" "half" "the" "number" "of" "cards" "in" "their" fraction_count_zone
 
-fraction_count_zone ::= fraction_count_library | fraction_count_hand | fraction_count_graveyard
-
-/* @sem Zone::Library */
-fraction_count_library ::= "library"
-
-/* @sem Zone::Hand */
-fraction_count_hand ::= "hand"
-
-/* @sem Zone::Graveyard */
-fraction_count_graveyard ::= "graveyard"
+fraction_count_zone ::= exchange_private_library | exchange_private_hand | hand_exile_graveyard
 
 fraction_round_each ::= fraction_round_up_each | fraction_round_down_each
 
@@ -3290,13 +3229,7 @@ greater_value_reveal_program ::= reveal_until_your_library counter_amount card_f
 /* @sem MovementDestination::Library{position:$cost_library_end, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
 cost_plural_owner_library ::= cost_library_end "of" "their" "owner's" "library"
 
-/* @sem LibraryPosition::Bottom */
-cost_library_end_bottom ::= "on" "the" "bottom"
-
-/* @sem LibraryPosition::Top */
-cost_library_end_top ::= "on" "top"
-
-cost_library_end ::= cost_library_end_bottom | cost_library_end_top
+cost_library_end ::= library_end_bottom | library_end_top
 
 /* The conditional tests the controller's top card; the following anaphor
    refers to that same card, so keep the two clauses in one scoped production. */
@@ -3503,13 +3436,10 @@ fraction_top_library_amount ::= "half" "of" "their" "library" "," rounding_words
 /* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, starting_with:$shared_payment_first_player, body:Program{instructions:[Optional{decider:Bound(0), body:Program{instructions:[Effect{result:@next, operation:PayAnyAmount{actor:One(Bound(0)), resource:Mana}}]}}]}}, ForEachPlayer{players:$players_singular_2, binding:0, body:Program{instructions:[Effect{result:@next, operation:Search{searcher:Bound(0), library_owner:Bound(0), choices:[_{filter:$filter_phrase, count:UpTo(PerformedTotal(@prior))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$shared_search_destination, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}] */
 shared_payment_search_instructions ::= "starting" "with" shared_payment_first_player "," players_singular "may" "pay" "any" "amount" "of" "mana" "." players_singular "searches" "their" "library" "for" "up" "to" "X" filter_phrase "cards" "," "where" "X" "is" "the" "total" "amount" "of" "mana" "paid" "this" "way" "," "puts" "them" shared_search_destination "," "then" "shuffles"
 
-shared_search_destination ::= shared_search_battlefield | shared_search_hand
+shared_search_destination ::= shared_search_battlefield | named_reveal_hand
 
 /* @sem MovementDestination::Battlefield{controller:Player(Bound(0)), arrival:$search_option_entry} */
 shared_search_battlefield ::= search_option_entry
-
-/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
-shared_search_hand ::= "into" "their" "hand"
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$shared_payment_search_instructions]}} */
 shared_payment_search_spell ::= shared_payment_search_instructions "."
@@ -3543,11 +3473,10 @@ spell_search_outside_opponent_partition ::= search_library_or_outside_owned reve
 /* The reveal, property payment, and both moves share the same library top.
    Keeping them in one program prevents an unrelated observation from becoming
    the antecedent of "that card". */
-/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top} */
-process_your_top_card ::= "the" "top" "card" "of" "your" "library"
+/* process_your_top_card is shared as own_library_top_card. */
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:Reveal{objects:$process_your_top_card}}, Effect{result:@next, operation:PayCost{player:Acting, cost:Cost{parts:[Life(ObjectProperty{object:Query{objects:Observed(@prior), index:0}, property:$receipt_stat, information:CurrentOrLastKnown})]}, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:Move{objects:$process_your_top_card, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Move{objects:$process_your_top_card, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}]} */
-process_reveal_pay_property ::= "reveal" process_your_top_card "." "that" "player" "may" "pay" "life" "equal" "to" "that" "card's" receipt_stat "." "if" "they" "do" "," "exile" "that" "card" "." "otherwise" "," "put" "it" "into" "your" "hand"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Reveal{objects:$own_library_top_card}}, Effect{result:@next, operation:PayCost{player:Acting, cost:Cost{parts:[Life(ObjectProperty{object:Query{objects:Observed(@prior), index:0}, property:$receipt_stat, information:CurrentOrLastKnown})]}, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:Move{objects:$own_library_top_card, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Move{objects:$own_library_top_card, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}]} */
+process_reveal_pay_property ::= "reveal" own_library_top_card "." "that" "player" "may" "pay" "life" "equal" "to" "that" "card's" receipt_stat "." "if" "they" "do" "," "exile" "that" "card" "." "otherwise" "," "put" "it" "into" "your" "hand"
 
 /* These two branches refer to the card discarded by the enclosing cycle event.
    Keep them under that event so the anaphor cannot acquire another producer. */
@@ -4130,13 +4059,7 @@ clause_look_target_library_exile ::= "look" "at" "the" "top" number_words "cards
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$discard_one_payment]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Property{property:ManaValue, test:NumberTest::Compare{comparison:$seek_relative_comparison, value:ObjectProperty{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}}, count:AsManyAsCan(Constant(1)), constraints:[AtRandom]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$seek_permission_duration, evaluation:LiveObjects}}]}, otherwise:Program{}}] */
 optional_discard_relative_seek_exile_play ::= "you" "may" discard_one_payment "." "if" "you" "do" "," "seek" "a" "card" "with" seek_relative_comparison "mana" "value" "and" "exile" "it" "." seek_permission_duration "," "you" "may" "play" "the" "exiled" "card"
 
-seek_relative_comparison ::= seek_relative_greater | seek_relative_less
-
-/* @sem Comparison::Greater */
-seek_relative_greater ::= "greater"
-
-/* @sem Comparison::Less */
-seek_relative_less ::= "lesser"
+seek_relative_comparison ::= kin_greater | kin_lesser
 
 seek_permission_duration ::= until_end_of_your_next_turn | until_end_of_turn
 
@@ -4177,21 +4100,12 @@ clause_seek_then_tapped_battlefield ::= clause_seek_card "," "then" "put" "it" "
 /* @sem Instruction::[Effect{result:@next, operation:RevealUntil{library:$reveal_until_named_library, filter:Chosen(CardName), count:Constant(1)}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@last_result), filter:Chosen(CardName)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ReorderLibrary{chooser:$reveal_until_named_library, library_owner:$reveal_until_named_library, objects:Matching{objects:Observed(@prior), filter:Chosen(CardName)}, end:$named_reveal_end, order:Chosen}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(3)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:$named_reveal_rest_destination, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Shuffle{players:One($reveal_until_named_library)}}]}}] */
 named_reveal_conditional_partition ::= reveal_until_named_library "until" "a" "card" "with" "that" "name" "is" "revealed" "." "if" "it" "is" "," "that" "player" "puts" "the" "rest" "of" "the" "revealed" "cards" named_reveal_rest_destination "and" "puts" "the" "card" "with" "the" "chosen" "name" "on" named_reveal_end "of" "their" "library" "." "otherwise" "," "the" "player" "shuffles"
 
-named_reveal_rest_destination ::= named_reveal_rest_graveyard | named_reveal_rest_hand
-
-/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
-named_reveal_rest_graveyard ::= "into" "their" "graveyard"
-
-/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
-named_reveal_rest_hand ::= "into" "their" "hand"
+named_reveal_rest_destination ::= named_reveal_graveyard | named_reveal_hand
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$choose_reveal_name}, ...$named_reveal_conditional_partition]}} */
 spell_choose_named_reveal_partition ::= choose_reveal_name "." named_reveal_conditional_partition "."
 
-named_reveal_end ::= ordered_top | named_reveal_the_bottom
-
-/* @sem SequenceEnd::Bottom */
-named_reveal_the_bottom ::= "the" "bottom"
+named_reveal_end ::= ordered_top | planar_first_bottom
 
 choose_reveal_name ::= choose_a_card_name | choose_reveal_expansion_name
 
@@ -4227,10 +4141,7 @@ opponent_controlled_search_target ::= "target" noun named_search_controller
 
 named_search_controller ::= modifier_opponent_controls | modifier_not_controlled
 
-named_search_entry ::= battlefield_control | named_search_tapped_entry
-
-/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}} */
-named_search_tapped_entry ::= "tapped" "under" "your" "control"
+named_search_entry ::= battlefield_control | linked_battlefield_tapped
 
 /* Four independently described card types form one choice. */
 /* @prefer always */
@@ -4543,18 +4454,11 @@ instructions_exile_controller_reveal ::= exile_opponent_controlled_target "." co
 
 /* A private-zone move and its search continuation share one receipt.  Keeping
    the producer in this scope makes the counted transition safe to print. */
-/* @sem Zone::Hand */
-private_cards_hand ::= "hand"
+/* private_cards_hand is shared as exchange_private_hand. */
 
-/* @sem Zone::Graveyard */
-private_cards_graveyard ::= "graveyard"
+private_cards_origin ::= exchange_private_hand | hand_exile_graveyard
 
-private_cards_origin ::= private_cards_hand | private_cards_graveyard
-
-/* @sem ObjectFilter::Any */
-counted_search_any_cards ::= "cards"
-
-counted_search_filter ::= counted_search_any_cards | search_filter_many
+counted_search_filter ::= random_any_cards | search_filter_many
 
 hand_search_target ::= target_player | target_opponent
 
@@ -4592,14 +4496,11 @@ searched_partition_episode ::= "search" "your" "library" "for" partition_search_
 
 partition_search_choice ::= partition_search_count | partition_search_distinct
 
-/* @sem SearchChoice::SearchChoice{filter:$partition_search_filter, count:AsManyAsCan($count)} */
-partition_search_count ::= count partition_search_filter
+/* @sem SearchChoice::SearchChoice{filter:$random_any_cards, count:AsManyAsCan($count)} */
+partition_search_count ::= count random_any_cards
 
-/* @sem SearchChoice::SearchChoice{filter:$partition_search_filter, count:UpTo($count), constraints:[DifferentNames]} */
-partition_search_distinct ::= "up" "to" count partition_search_filter "with" "different" "names"
-
-/* @sem ObjectFilter::Any */
-partition_search_filter ::= "cards"
+/* @sem SearchChoice::SearchChoice{filter:$random_any_cards, count:UpTo($count), constraints:[DifferentNames]} */
+partition_search_distinct ::= "up" "to" count random_any_cards "with" "different" "names"
 
 partition_choice_and_move ::= partition_choice_one | partition_choice_many
 
@@ -4609,13 +4510,7 @@ partition_choice_one ::= target_opponent "chooses" "one" "." "put" "that" "card"
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$target_opponent, objects:Selected(@marked), count:AsManyAsCan($count_plural), constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$partition_destination, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Unselected(@back(3)), destination:$partition_destination_2, qualifiers:[]}}] */
 partition_choice_many ::= target_opponent "chooses" count_plural "of" "those" "cards" "." "put" "the" "chosen" "cards" partition_destination "and" "the" "rest" partition_destination
 
-partition_destination ::= partition_hand | partition_graveyard
-
-/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
-partition_hand ::= "into" "your" "hand"
-
-/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
-partition_graveyard ::= "into" "your" "graveyard"
+partition_destination ::= until_hand | top_reveal_graveyard
 
 /* The color population defines both X and the available color choices; the permission refers to the actual exile move. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:RevealUntil{library:AbilityController, filter:$card_filter, count:CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, property:Colors}}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@prior), zone:Library}, count:UpTo(Constant(5)), constraints:[OneForEach([AllOf([Color(White), Condition(Compare{left:CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, filter:Color(White)}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})]), AllOf([Color(Blue), Condition(Compare{left:CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, filter:Color(Blue)}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})]), AllOf([Color(Black), Condition(Compare{left:CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, filter:Color(Black)}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})]), AllOf([Color(Red), Condition(Compare{left:CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, filter:Color(Red)}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})]), AllOf([Color(Green), Condition(Compare{left:CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, filter:Color(Green)}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})])]), CanMoveTo{destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}}, Effect{result:@mark, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@marked, phase:After}, from:Exile, action:CastSpell, filter:Any})], duration:$this_duration, evaluation:LiveObjects}}]} */
@@ -4648,11 +4543,7 @@ player_search_battlefield ::= search_player "searches" "their" "library" "for" p
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:One($target_another), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ReturnAfter{objects:Transition{result:@prior, phase:After}, duration:WhileOnBattlefield($self_ref)}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@back(3), phase:After, index:0}), from:Exile, action:$exiled_play_action, filter:Any}, terms:_{cost:Normal, spend_as:$exile_return_spending}})], duration:WhileExiled(Result{result:@back(3), phase:After, index:0}), evaluation:LiveObjects}}] */
 instructions_exile_until_leaves_cast_spending ::= "exile" target_another "until" self_ref "leaves" "the" "battlefield" "." "you" "may" exiled_play_action "that" "card" "for" "as" "long" "as" "it" "remains" "exiled" "," "and" exile_return_spending
 
-exile_return_spending ::= exile_return_spending_that_spell | exiled_spending
-
-/* @prefer always */
-/* @sem SpendAs::AnyType */
-exile_return_spending_that_spell ::= "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "that" "spell"
+exile_return_spending ::= hidden_exile_any_type | exiled_spending
 
 /* The alternatives form one choice; the name constraint applies to the whole selection. */
 /* @sem SearchChoice::SearchChoice{filter:AnyOf([AllOf([Supertype(Basic), $noun]), $subtype]), count:UpTo($number), constraints:[DifferentNames]} */
@@ -4724,10 +4615,7 @@ reveal_until_exile_remainder_cast ::= reveal_until_exile_remainder "." look_cast
 /* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:$reveal_until_card, count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$reveal_until_card}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:$rest_bottom}] */
 reveal_until_exile_remainder ::= reveal_until_exile_prefix reveal_until_card "." "exile" "that" "card" "and" "put" rest_bottom
 
-reveal_until_exile_prefix ::= reveal_until_exile_it
-
-/* @sem () */
-reveal_until_exile_it ::= "reveal" "cards" "from" "the" "top" "of" "it" "until" "you" "reveal"
+reveal_until_exile_prefix ::= reveal_until_it_library
 
 /* An initial instruction can precede the scoped reveal and exile sequence. */
 /* @sem Instruction::[Effect{result:@next, operation:$shuffle_your_library}, ...$reveal_until_exile_remainder_cast] */
@@ -4766,13 +4654,7 @@ repeat_exile_bottom_card ::= "exile" "the" "bottom" "card" "of" "your" "library"
 
 repeat_exiled_card_filter ::= chosen_permanent_card_filter | card_filter
 
-repeat_exiled_battlefield ::= repeat_exiled_battlefield_untapped | repeat_exiled_battlefield_tapped
-
-/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
-repeat_exiled_battlefield_untapped ::= "onto" "the" "battlefield"
-
-/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}} */
-repeat_exiled_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
+repeat_exiled_battlefield ::= selected_onto_battlefield | look_battlefield_tapped
 
 /* @sem Cost::Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:One(Result{result:@marked, phase:After, index:0}), zone:Exile}, destination:$repeat_exiled_battlefield, qualifiers:[]}}]}}]} */
 repeat_exiled_put_cost ::= "you" "may" "put" "it" repeat_exiled_battlefield
@@ -5097,16 +4979,13 @@ instructions_graveyard_name_exile_shuffle ::= instructions_graveyard_name_exile 
 /* @sem Operation::WithSelections{steps:[_{binding:@selection_id(0), chooser:Players(One(AbilityController)), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$destroy_per_player_land_filter}, count:PerPlayer{players:All, each:UpTo(Constant(1))}, constraints:[]}], action:Destroy{objects:Prepared(@selection_id(0)), regeneration:true}} */
 destroy_per_player_land ::= "for" "each" "player" "," "destroy" "up" "to" "one" destroy_per_player_land_filter "that" "player" "controls"
 
-destroy_per_player_land_filter ::= destroy_per_player_nonbasic_land | destroy_per_player_basic_land | destroy_per_player_nonsnow_land
+destroy_per_player_land_filter ::= destroy_per_player_nonbasic_land | sacrificed_basic_land | destroy_per_player_nonsnow_land
 
 /* @sem ObjectFilter::AllOf([Not(Supertype(Basic)), CardType(Land)]) */
 destroy_per_player_nonbasic_land ::= "nonbasic" "land"
 
 /* @sem ObjectFilter::AllOf([Not(Supertype(Snow)), CardType(Land)]) */
 destroy_per_player_nonsnow_land ::= "nonsnow" "land"
-
-/* @sem ObjectFilter::AllOf([Supertype(Basic), CardType(Land)]) */
-destroy_per_player_basic_land ::= "basic" "land"
 
 /* @sem Instruction::[Effect{result:@mark, operation:$destroy_per_player_land}, ForEachPlayer{players:Matching{binding:0, condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:Before}, filter:ControlledBy(One(Bound(0)))}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}}, binding:0, body:Program{instructions:[Optional{decider:Bound(0), body:Program{instructions:[Effect{result:@next, operation:Search{searcher:Bound(0), library_owner:Bound(0), choices:[_{filter:$filter_phrase, count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(Bound(0)), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}]}}] */
 destroy_per_player_land_search ::= destroy_per_player_land "." "for" "each" "land" "destroyed" "this" "way" "," "its" "controller" "may" "search" "their" "library" "for" "a" filter_phrase "card" "," "put" "it" "onto" "the" "battlefield" "tapped" "," "then" "shuffle"
@@ -5253,8 +5132,7 @@ optional_look_artifact_or_sorcery ::= "an" noun_artifact "or" spell_sorcery
 search_other_die_result ::= "search" "your" "library" "for" "a" "number" "of" search_filter_many "equal" "to" "the" "other" "result" "," "put" "them" search_option_entry "," "then" "shuffle"
 
 /* The owner chooses which end of their library receives the object. */
-/* @sem MovementDestination::Library{position:TopOrBottom{chooser:Owners}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
-owner_library_end_choice ::= "on" "their" "choice" "of" "the" "top" "or" "bottom" "of" "their" "library"
+/* owner_library_end_choice is shared as owner_library_choice_destination. */
 
 shuffle_owned_population ::= plural_permanent | plural_creature | plural_artifact | plural_enchantment | plural_land | plural_planeswalker | plural_token
 
@@ -5316,13 +5194,7 @@ planar_first_top ::= "the" "top"
 
 planar_first_end ::= planar_first_bottom | planar_first_top
 
-/* @sem SequenceEnd::Top */
-planar_other_top ::= "top"
-
-/* @sem SequenceEnd::Bottom */
-planar_other_bottom ::= "bottom"
-
-planar_other_end ::= planar_other_top | planar_other_bottom
+planar_other_end ::= ordered_top | ordered_bottom
 
 /* The opponent partitions the search selection. Keep both moves tied to that
    choice even though the first move intervenes before the remainder. */
@@ -5349,11 +5221,8 @@ paid_singular_search ::= "search" "your" "library" "for" search_choice_filtered
 paid_search_shuffle ::= "then" "shuffle"
 
 /* The optional entry and the subsequent shuffle retain their separate results. */
-/* @sem Instruction::[...$until_optional_entry, $then_shuffle_library] */
-reveal_until_optional_entry_shuffle ::= until_optional_entry "." then_shuffle_library
-
-/* @sem Instruction::Effect{result:@next, operation:Shuffle{players:One(AbilityController)}} */
-then_shuffle_library ::= "then" "shuffle"
+/* @sem Instruction::[...$until_optional_entry, $paid_search_shuffle] */
+reveal_until_optional_entry_shuffle ::= until_optional_entry "." paid_search_shuffle
 
 /* The loop consumes only the immediately preceding exile move, including its destination. */
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$exile_permanent_population_action}, ForEachObject{objects:Transition{result:@marked, phase:After}, binding:0, body:Program{instructions:$exiled_controller_shared_type_reveal}}]}} */
@@ -5409,9 +5278,6 @@ spell_reveal_partition_source_damage ::= own_reveal_partition_program "." reveal
 
 /* @sem Operation::DealDamage{source:Source, recipients:Players(One(AbilityController)), amount:CountObjects(Observed(@back(4))), preventable:true} */
 reveal_partition_source_damage ::= SELF_NAME "deals" "damage" "to" "you" "equal" "to" "the" "number" "of" "cards" "revealed" "this" "way"
-
-/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top} */
-hidden_library_top_card ::= "the" "top" "card" "of" "your" "library"
 
 /* Keep the sacrificed population and its counted reveal together so the
    inverse cannot attach this wording to a different transition producer. */
@@ -5764,12 +5630,9 @@ looked_top_damage_program ::= top_card_look looked_top_play_or_hand
 /* @sem SearchChoice::SearchChoice{filter:AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:Add($number_digits, ObjectProperty{object:Query{objects:CostObjects{payment:Casting{ability:0}, component:[0], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown})}}]), count:UpTo(Constant(1))} */
 casting_sacrifice_capped_choice ::= "a" filter_phrase "card" "with" "mana" "value" "X" "or" "less" "," "where" "X" "is" number_digits "plus" "the" "sacrificed" "creature's" "mana" "value"
 
-/* @sem Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
-search_selected_card_battlefield ::= "put" "that" "card" "onto" "the" "battlefield"
-
 /* The selected card and the shuffle share the immediately preceding search. */
-/* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$casting_sacrifice_capped_choice]}}, Effect{result:@next, operation:$search_selected_card_battlefield}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
-casting_sacrifice_capped_search ::= "search" "your" "library" "for" casting_sacrifice_capped_choice "." search_selected_card_battlefield "," "then" "shuffle"
+/* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$casting_sacrifice_capped_choice]}}, Effect{result:@next, operation:$scoped_found_battlefield}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+casting_sacrifice_capped_search ::= "search" "your" "library" "for" casting_sacrifice_capped_choice "." scoped_found_battlefield "," "then" "shuffle"
 
 /* @sem Program::Program{instructions:[...$casting_sacrifice_capped_search, Effect{result:@next, operation:$operation}]} */
 casting_sacrifice_capped_followup ::= casting_sacrifice_capped_search "." operation "."
@@ -5786,10 +5649,7 @@ instructions_reveal_until_owner_graveyard ::= reveal_until_other_many "." "that"
 /* @sem ObjectFilter::@and($card_filter, ObjectFilter::AnyOf(@unordered([$search_keyword_predicate, $search_keyword_predicate_2, $search_keyword_predicate_3, $search_keyword_predicate_4]))) */
 search_filter_four_keywords ::= card_filter "card" "with" search_keyword_predicate "," search_keyword_predicate "," search_keyword_predicate "," "or" search_keyword_predicate
 
-search_keyword_predicate ::= search_keyword_family_hexproof | search_keyword_plain_predicate
-
-/* @sem ObjectFilter::HasKeywordFamily(Hexproof) */
-search_keyword_family_hexproof ::= "hexproof"
+search_keyword_predicate ::= so_on_hexproof | search_keyword_plain_predicate
 
 /* @sem ObjectFilter::HasKeyword($search_keyword_plain) */
 search_keyword_plain_predicate ::= search_keyword_plain
@@ -5813,13 +5673,7 @@ instructions_reveal_chosen_count_shuffle ::= "reveal" "cards" "from" "the" "top"
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$target_player_ref, objects:Zone{scope:Players{zone:Hand, players:One($target_player_ref)}, kind:Card, filter:Any}, count:AsManyAsCan($card_count_many), constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:$chosen_hand_library_position, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
 chosen_hand_cards_to_library ::= target_player_ref "chooses" card_count_many "from" "their" "hand" "and" "puts" "them" chosen_hand_library_position "of" "their" "library" "in" "any" "order"
 
-/* @sem LibraryPosition::Top */
-chosen_hand_library_top ::= "on" "top"
-
-/* @sem LibraryPosition::Bottom */
-chosen_hand_library_bottom ::= "on" "the" "bottom"
-
-chosen_hand_library_position ::= chosen_hand_library_top | chosen_hand_library_bottom
+chosen_hand_library_position ::= library_end_top | library_end_bottom
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$chosen_hand_cards_to_library}} */
 spell_chosen_hand_cards_to_library ::= chosen_hand_cards_to_library "."
@@ -5858,13 +5712,10 @@ grouped_reveal_opponent_partition ::= reveal_until_named_player "reveals" "cards
 reveal_partition_type ::= noun_creature | noun_land
 
 /* The positive type is the excluded portion of the observation. */
-reveal_partition_complement ::= reveal_partition_noncreature | reveal_partition_nonland
+reveal_partition_complement ::= reveal_partition_noncreature | draw_kind_complement
 
 /* @sem ObjectFilter::CardType(Creature) */
 reveal_partition_noncreature ::= "noncreature"
-
-/* @sem ObjectFilter::CardType(Land) */
-reveal_partition_nonland ::= "nonland"
 
 reveal_partition_destination ::= reveal_partition_entry | reveal_partition_entry_tapped
 
@@ -5942,13 +5793,10 @@ revealed_pile_split ::= "separate" "them" "into" "two" "piles" "." "an" "opponen
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Selected(@prior), count:AsManyAsCan($pile_card_count)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
 revealed_pile_take ::= "put" pile_card_count "from" "the" "chosen" "pile" "into" "your" "hand"
 
-/* @sem Expr::Constant(1) */
-pile_card_count_one ::= "a" "card"
-
 /* @sem $number */
 pile_card_count_many ::= number "cards"
 
-pile_card_count ::= pile_card_count_one | pile_card_count_many
+pile_card_count ::= count_a_card | pile_card_count_many
 
 /* @sem Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@back(1), phase:Before}])}, zone:Library}, end:Bottom, order:$library_order} */
 revealed_pile_rest ::= "put" "all" "other" "cards" "revealed" "this" "way" "on" "the" "bottom" "of" "your" "library" library_order
@@ -5964,13 +5812,7 @@ player_observed_top_branch ::= player_observed_top_move_copy | top_reveal_draw
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:$player_observed_destination, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[CopyOf{object:Earlier{what:Revealed}, exceptions:[]}], duration:Indefinite, evaluation:Snapshot}}] */
 player_observed_top_move_copy ::= "the" "player" "puts" "the" "card" player_observed_destination "and" "this" "enchantment" "becomes" "a" "copy" "of" "that" "card"
 
-player_observed_destination ::= player_observed_graveyard | player_observed_hand
-
-/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
-player_observed_graveyard ::= "into" "their" "graveyard"
-
-/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
-player_observed_hand ::= "into" "their" "hand"
+player_observed_destination ::= named_reveal_graveyard | named_reveal_hand
 
 /* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$player_observed_top_test}} */
 trigger_player_observed_top_test ::= "at" turn_event "," player_observed_top_test "."
@@ -6033,11 +5875,8 @@ mill_hand_choices ::= "you" "may" "put" "any" "number" "of" quality_unscoped "an
 mill_hand_none ::= "you" "put" "no" "cards" "into" "your" "hand" "this" "way"
 
 /* A tested observation remains in scope for the immediately following move. */
-/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:$player_revealed_destination, qualifiers:[]}}, Effect{result:@next, operation:$revealed_card_copy_self}]}, otherwise:Program{}}] */
-instructions_player_reveal_test_move ::= player_ref "reveals" "the" "top" "card" "of" "their" "library" "." "if" "it's" top_reveal_quality "," "the" "player" "puts" "the" "card" player_revealed_destination "and" revealed_card_copy_self
-
-/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
-player_revealed_destination ::= "into" "their" "graveyard"
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:$named_reveal_graveyard, qualifiers:[]}}, Effect{result:@next, operation:$revealed_card_copy_self}]}, otherwise:Program{}}] */
+instructions_player_reveal_test_move ::= player_ref "reveals" "the" "top" "card" "of" "their" "library" "." "if" "it's" top_reveal_quality "," "the" "player" "puts" "the" "card" named_reveal_graveyard "and" revealed_card_copy_self
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_explicit_ref)), changes:[CopyOf{object:Earlier{what:Revealed}, exceptions:[]}], duration:Indefinite, evaluation:Snapshot} */
 revealed_card_copy_self ::= self_explicit_ref "becomes" "a" "copy" "of" "that" "card"
@@ -6246,13 +6085,10 @@ clause_seek_postcondition ::= instead_seek_action "if" condition
 /* @sem ObjectSet::Take{objects:Zone(_{scope:Players{zone:Library, players:One($look_exile_library_owner)}, kind:Card, filter:Any}), count:Constant(1), from:Top} */
 look_exile_library_top ::= "the" "top" "card" "of" look_exile_library_owner "library"
 
-look_exile_library_owner ::= look_exile_event_owner | look_exile_own_owner
+look_exile_library_owner ::= look_exile_event_owner | zone_your
 
 /* @sem PlayerRef::EventSubject */
 look_exile_event_owner ::= "that" "player's"
-
-/* @sem PlayerRef::AbilityController */
-look_exile_own_owner ::= "your"
 
 /* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:$look_exile_library_top}}, Effect{result:@mark, operation:Move{objects:$look_exile_library_top, destination:$look_top_exile_destination, qualifiers:[]}}, ...$linked_single_play_spending] */
 look_exile_top_play ::= "look" "at" look_exile_library_top "," "then" look_top_exile_destination "." linked_single_play_spending
@@ -6372,14 +6208,11 @@ sacrificed_target_reveal_group ::= sacrificed_target_reveal_one | sacrificed_tar
 /* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:ControllerOf(Target{slot:@last_slot, index:0}), filter:AllOf([$sacrificed_target_reveal_filter, Shares{property:CardTypes, with:Target{slot:@last_slot, index:0}}]), count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:AllOf([$sacrificed_target_reveal_filter, Shares{property:CardTypes, with:Target{slot:@last_slot, index:0}}])}, destination:Battlefield{controller:Player(ControllerOf(Target{slot:@last_slot, index:0})), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(ControllerOf(Target{slot:@last_slot, index:0}))}}] */
 sacrificed_target_reveal_one ::= "they" "reveal" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" "a" sacrificed_target_reveal_filter "that" "shares" "a" "card" "type" "with" "the" "sacrificed" "permanent" "," "put" "that" "card" "onto" "the" "battlefield" "," "then" "shuffle"
 
-/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:ControllerOf(Target{slot:@last_slot, index:0}), filter:AllOf([$sacrificed_target_reveal_plural_filter, Shares{property:CardTypes, with:Target{slot:@last_slot, index:0}}]), count:$count_plural}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:AllOf([$sacrificed_target_reveal_plural_filter, Shares{property:CardTypes, with:Target{slot:@last_slot, index:0}}])}, destination:Battlefield{controller:Player(ControllerOf(Target{slot:@last_slot, index:0})), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(ControllerOf(Target{slot:@last_slot, index:0}))}}] */
-sacrificed_target_reveal_many ::= "they" "reveal" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" count_plural sacrificed_target_reveal_plural_filter "that" "share" "a" "card" "type" "with" "the" "sacrificed" "permanent" "," "put" "those" "cards" "onto" "the" "battlefield" "," "then" "shuffle"
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:ControllerOf(Target{slot:@last_slot, index:0}), filter:AllOf([$dig_permanent_cards, Shares{property:CardTypes, with:Target{slot:@last_slot, index:0}}]), count:$count_plural}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:AllOf([$dig_permanent_cards, Shares{property:CardTypes, with:Target{slot:@last_slot, index:0}}])}, destination:Battlefield{controller:Player(ControllerOf(Target{slot:@last_slot, index:0})), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(ControllerOf(Target{slot:@last_slot, index:0}))}}] */
+sacrificed_target_reveal_many ::= "they" "reveal" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" count_plural dig_permanent_cards "that" "share" "a" "card" "type" "with" "the" "sacrificed" "permanent" "," "put" "those" "cards" "onto" "the" "battlefield" "," "then" "shuffle"
 
 /* @sem ObjectFilter::AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)]) */
 sacrificed_target_reveal_filter ::= "permanent" "card"
-
-/* @sem ObjectFilter::AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)]) */
-sacrificed_target_reveal_plural_filter ::= "permanent" "cards"
 
 /* Independent search choices share their selection through both follow-up actions. */
 search_choices_reveal_producer ::= search_three_graveyard_choices | search_four_library_choices
@@ -6509,11 +6342,8 @@ clause_each_any_hand_entry ::= hand_entry_players "may" "put" "any" "number" "of
 instructions_shuffle_hand_owned_permanents_draw ::= clause_shuffle_hand_owned_permanents_draw "." instructions
 
 /* Both conditional branches retain their own reveal, selection, and move receipts. */
-/* @sem Instruction::[If{condition:$dig_conditional_test, then:Program{instructions:[Effect{result:@next, operation:$reveal_top}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@prior), zone:Library}, filter:@agree($a_card, $search_filter_many)}, count:UpTo($count), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(4)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:$dig_conditional_rest_destination, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$reveal_top}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@prior), zone:Library}, filter:@agree($a_card, $search_filter_many)}, count:UpTo(Expr::@agree(Constant(1), $number)), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(4)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:$dig_conditional_rest_destination, qualifiers:[]}}]}}] */
-dig_conditional_reveal_selection ::= reveal_top "." "you" "may" "put" a_card "from" "among" "them" "into" "your" "hand" "." "put" "the" "rest" dig_conditional_rest_destination "." NEWLINE "if" dig_conditional_test "," "put" "up" "to" count search_filter_many "from" "among" "the" "revealed" "cards" "into" "your" "hand" "instead" "of" number
-
-/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
-dig_conditional_rest_destination ::= "into" "your" "graveyard"
+/* @sem Instruction::[If{condition:$dig_conditional_test, then:Program{instructions:[Effect{result:@next, operation:$reveal_top}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@prior), zone:Library}, filter:@agree($a_card, $search_filter_many)}, count:UpTo($count), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(4)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:$top_reveal_graveyard, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$reveal_top}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@prior), zone:Library}, filter:@agree($a_card, $search_filter_many)}, count:UpTo(Expr::@agree(Constant(1), $number)), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(4)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:$top_reveal_graveyard, qualifiers:[]}}]}}] */
+dig_conditional_reveal_selection ::= reveal_top "." "you" "may" "put" a_card "from" "among" "them" "into" "your" "hand" "." "put" "the" "rest" top_reveal_graveyard "." NEWLINE "if" dig_conditional_test "," "put" "up" "to" count search_filter_many "from" "among" "the" "revealed" "cards" "into" "your" "hand" "instead" "of" number
 
 dig_conditional_test ::= dig_conditional_graveyard_union | condition
 
@@ -6542,11 +6372,8 @@ reveal_loss_remainder ::= reveal_loss_remainder_up | reveal_loss_remainder_down
 /* @sem Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$choose_a_card_name}, ...$reveal_move_exile_loss]}} */
 spell_choose_name_reveal_exile_loss ::= choose_a_card_name "." reveal_move_exile_loss "."
 
-/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:$reveal_loss_plural_filter, count:$count_plural}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$reveal_loss_plural_filter}, destination:$until_destination, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:$reveal_loss_remainder, qualifiers:[]}}, Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:CountObjects(Transition{result:@prior, phase:Before})}}] */
-reveal_move_exile_loss_plural ::= reveal_until_your_library count_plural reveal_loss_plural_filter "," "then" "put" "those" "cards" until_destination "." reveal_loss_remainder "," "and" "you" "lose" "1" "life" "for" "each" "of" "the" "exiled" "cards"
-
-/* @sem ObjectFilter::Chosen(CardName) */
-reveal_loss_plural_filter ::= "cards" "with" "that" "name"
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:$discard_chosen_name, count:$count_plural}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$discard_chosen_name}, destination:$until_destination, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:$reveal_loss_remainder, qualifiers:[]}}, Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:CountObjects(Transition{result:@prior, phase:Before})}}] */
+reveal_move_exile_loss_plural ::= reveal_until_your_library count_plural discard_chosen_name "," "then" "put" "those" "cards" until_destination "." reveal_loss_remainder "," "and" "you" "lose" "1" "life" "for" "each" "of" "the" "exiled" "cards"
 
 /* @sem Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$choose_a_card_name}, ...$reveal_move_exile_loss_plural]}} */
 spell_choose_name_reveal_exile_loss_plural ::= choose_a_card_name "." reveal_move_exile_loss_plural "."
@@ -6569,7 +6396,6 @@ reveal_entry_card_filter ::= card_filter "card" modifier_mana_value_numeric
 
 /* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$reveal_optional_entry_move}]}}]}, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:Program{}}] */
 instructions_reveal_optional_entry_fallback ::= "reveal" "the" "top" "card" "of" "your" "library" "." reveal_optional_entry_move "." "otherwise" "," "put" "that" "card" "into" "your" "hand"
-
 
 /* A relative mana-value restriction compares the qualifying card with the named object. */
 /* @prefer always */
@@ -7247,19 +7073,16 @@ clause_shuffle_own_zones_and_permanents ::= "shuffle" your_zone "," your_zone ",
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($number), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
 observed_number_hand_bare ::= "put" number "into" "your" "hand"
 
-/* @sem Instruction::Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}} */
-observed_hand_rest_exile ::= "and" "exile" "the" "rest"
-
 /* This operation is scoped by the activation below: component 2 is the
    unique singleton creature sacrifice, including during inverse printing. */
 /* @sem Operation::Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[2], view:Inputs, phase:Before}, index:0}, property:$receipt_stat, information:CurrentOrLastKnown}, from:Top}} */
 reveal_activation_sacrifice_stat ::= "reveal" "a" "number" "of" "cards" "from" "the" "top" "of" "your" "library" "equal" "to" "the" "sacrificed" "creature's" receipt_stat
 
-/* @sem Instruction::[Effect{result:@mark, operation:$reveal_activation_sacrifice_stat}, ...$observed_number_hand_bare, $observed_hand_rest_exile] */
-activation_sacrifice_reveal_partition ::= reveal_activation_sacrifice_stat "." observed_number_hand_bare observed_hand_rest_exile
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_activation_sacrifice_stat}, ...$observed_number_hand_bare, $look_rest_exile_and] */
+activation_sacrifice_reveal_partition ::= reveal_activation_sacrifice_stat "." observed_number_hand_bare look_rest_exile_and
 
-/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $cost_tap, $cost_single_creature_sacrifice]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$activation_sacrifice_reveal_partition}} */
-activated_sacrifice_reveal_partition ::= cost_mana "," cost_tap "," "↑" cost_single_creature_sacrifice ":" activation_sacrifice_reveal_partition "."
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $cost_tap, $receipt_cast_sacrifice_creature]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$activation_sacrifice_reveal_partition}} */
+activated_sacrifice_reveal_partition ::= cost_mana "," cost_tap "," "↑" receipt_cast_sacrifice_creature ":" activation_sacrifice_reveal_partition "."
 
 /* The observation, chosen hand movement, and its remaining library cards share one scope. */
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top_spelled_count}, ...$look_choose_them_hand, $look_rest_exile_and] */
@@ -7272,10 +7095,7 @@ look_rest_exile_and ::= "and" "exile" "the" "rest"
 /* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}} */
 optional_reveal_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
 
-/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
-optional_reveal_hand ::= "into" "your" "hand"
-
-optional_reveal_destination ::= optional_reveal_battlefield_tapped | optional_reveal_hand
+optional_reveal_destination ::= optional_reveal_battlefield_tapped | until_hand
 
 /* The observation belongs to the revealed hand card, while the following
    search actions keep the search selection as their referent. */
@@ -7855,14 +7675,11 @@ instructions_keep_hand_then_mana ::= clause_each_keep_hand_shuffle_rest "." clau
 search_permanent_subtype_temporary_change ::= "search" "your" "library" "for" "a" subtype "permanent" "card" "," "put" "that" "card" "onto" "the" "battlefield" "," "then" "shuffle" "." "that" subtype static_changes duration
 
 /* Keep the any-number search selection bound through reveal, shuffle and reorder. */
-/* @sem Instruction::[Effect{result:@mark, operation:$search_any_number}, Effect{result:@next, operation:$found_plural_reveal_those}, ...$search_shuffle_top_them] */
-clause_search_any_number_reveal_top ::= search_any_number "," found_plural_reveal_those search_shuffle_top_them
+/* @sem Instruction::[Effect{result:@mark, operation:$search_any_number}, Effect{result:@next, operation:$found_those_reveal}, ...$search_shuffle_top_them] */
+clause_search_any_number_reveal_top ::= search_any_number "," found_those_reveal search_shuffle_top_them
 
 /* @sem Instruction::[Effect{result:@next, operation:Shuffle{players:One(AbilityController), excluding:Selected(@marked)}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@marked), end:Top, order:Chosen}}] */
 search_shuffle_top_them ::= "," "then" "shuffle" "and" "put" "them" "on" "top"
-
-/* @sem Operation::Reveal{objects:Selected(@marked)} */
-found_plural_reveal_those ::= "reveal" "those" "cards"
 
 /* Keep the reveal, exile arrival, comparison and cast in one scope: both
    references identify the card on which this particular reveal stopped. */
@@ -7989,11 +7806,8 @@ sacrifice_creature_qualifier ::= noun_artifact | noun_enchantment
 /* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:@agree($top_count, $top_count_2), from:Top}}}, Repeatable{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$cost, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:@agree($top_count, $top_count_2), from:Top}, zone:Library}, end:Bottom, order:Chosen}}, Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:@agree($top_count, $top_count_2), from:Top}}}, Effect{result:@next, operation:RepeatProcess}]}, otherwise:Program{}}]}, Effect{result:@mark, operation:NoteObjects{objects:InZone{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:@agree($top_count, $top_count_2), from:Top}, zone:Library}}}] */
 look_repeat_paid_bottom ::= "look" "at" "the" "top" top_count "of" "your" "library" "." "as" "many" "times" "as" "you" "choose" "," "you" "may" cost "," "put" "those" "cards" "on" "the" "bottom" "of" "your" "library" "in" "any" "order" "," "then" "look" "at" "the" "top" top_count "of" "your" "library"
 
-/* @sem Instruction::[Effect{result:@next, operation:Shuffle{players:One(AbilityController), excluding:Selected(@marked)}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@marked), end:Top, order:Chosen}}] */
-shuffle_put_last_looked_top ::= "then" "shuffle" "and" "put" "the" "last" "cards" "you" "looked" "at" "this" "way" "on" "top" "in" "any" "order"
-
-/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$look_repeat_paid_bottom, ...$shuffle_put_last_looked_top]}} */
-spell_repeat_paid_look ::= look_repeat_paid_bottom "." shuffle_put_last_looked_top "."
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$look_repeat_paid_bottom, ...$last_look_shuffle_top]}} */
+spell_repeat_paid_look ::= look_repeat_paid_bottom "." last_look_shuffle_top "."
 
 /* The permission consumes the arrival of this exact exile action. */
 /* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:CastSpell, filter:Any})], duration:$duration, evaluation:LiveObjects}}] */
@@ -8059,10 +7873,7 @@ clause_paid_search_noun_or_basic ::= "you" "may" payment "." "if" "you" "do" ","
 /* @sem SearchChoice::SearchChoice{filter:AnyOf([HasKeywordFamily($search_keyword_family), HasKeywordFamily($search_keyword_family_2)]), count:UpTo(Constant(1))} */
 search_choice_keyword_family_pair ::= "a" "card" "with" search_keyword_family "or" search_keyword_family
 
-search_keyword_family ::= search_family_flashback | mechanic_disturb_name | mechanic_embalm_name | mechanic_eternalize_name | mechanic_mutate_name
-
-/* @sem Mechanic::Flashback */
-search_family_flashback ::= "flashback"
+search_keyword_family ::= payment_keyword | mechanic_disturb_name | mechanic_embalm_name | mechanic_eternalize_name | mechanic_mutate_name
 
 /* The selected cards and the remainder share the reveal observation. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:ObjectProperty{object:Source, property:$stat, information:CurrentOrLastKnown}, from:Top}}}, Effect{result:@next, operation:WithSelections{steps:[_{binding:@selection_id(0), chooser:Players(One(AbilityController)), objects:Matching{objects:InZone{objects:Observed(@prior), zone:Library}, filter:AnyOf([$noun, $subtype])}, count:AnyNumber, constraints:[$return_different_property]}], action:Move{objects:Prepared(@selection_id(0)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Observed(@back(3)), zone:Library}, end:Bottom, order:$library_order}}]} */
@@ -8202,8 +8013,8 @@ trigger_optional_observed_top_test ::= event_clause "," "you" "may" observed_top
 look_put_following ::= look_put_ordered "." instructions
 
 /* The selection and subsequent random discard have independent counts. */
-/* @sem Instruction::[Effect{result:@mark, operation:$unrestricted_search_one}, Effect{result:@next, operation:$found_hand_that}, ...$random_discard_search_tail] */
-clause_search_unrestricted_random_one ::= unrestricted_search_one "," found_hand_that random_discard_search_tail
+/* @sem Instruction::[Effect{result:@mark, operation:$unrestricted_search_one}, Effect{result:@next, operation:$search_selected_hand}, ...$random_discard_search_tail] */
+clause_search_unrestricted_random_one ::= unrestricted_search_one "," search_selected_hand random_discard_search_tail
 
 /* @sem Instruction::[Effect{result:@mark, operation:$unrestricted_search_many}, Effect{result:@next, operation:$found_plural_those_hand}, ...$random_discard_search_tail] */
 clause_search_unrestricted_random_many ::= unrestricted_search_many "," found_plural_those_hand random_discard_search_tail
@@ -8216,9 +8027,6 @@ unrestricted_search_many ::= "search" "your" "library" "for" count_plural "cards
 
 /* @sem Instruction::[Effect{result:@next, operation:$search_random_discard}, ...$search_shuffle] */
 random_discard_search_tail ::= "," search_random_discard search_shuffle
-
-/* @sem Operation::Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
-found_hand_that ::= "put" "that" "card" "into" "your" "hand"
 
 /* @sem Operation::Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
 found_plural_those_hand ::= "put" "those" "cards" "into" "your" "hand"
@@ -8294,11 +8102,8 @@ activation_sacrificed_shared_type_search ::= "search" "your" "library" "for" act
 activation_sacrifice_creature_shared_type_search ::= cost_mana "," cost_tap "," "↑" "sacrifice" "a" "creature" ":" activation_sacrificed_shared_type_search "." limit_sorcery "."
 
 /* The searched selection remains in scope through optional entry and the hand fallback. */
-/* @sem Instruction::[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$search_selected_reveal}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:$search_optional_that_card_entry}]}, otherwise:Program{}}, Effect{result:@next, operation:$search_fallback_hand}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
-clause_search_optional_entry_fallback ::= search "and" search_selected_reveal "." "if" condition "," search_optional_that_card_entry "." "if" "you" "don't" "put" "the" "card" "onto" "the" "battlefield" "," search_fallback_hand "." "then" "shuffle"
-
-/* @sem Operation::Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
-search_fallback_hand ::= "put" "it" "into" "your" "hand"
+/* @sem Instruction::[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$search_selected_reveal}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:$search_optional_that_card_entry}]}, otherwise:Program{}}, Effect{result:@next, operation:$found_it_hand}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+clause_search_optional_entry_fallback ::= search "and" search_selected_reveal "." "if" condition "," search_optional_that_card_entry "." "if" "you" "don't" "put" "the" "card" "onto" "the" "battlefield" "," found_it_hand "." "then" "shuffle"
 
 /* @sem Operation::WithSelections{steps:[_{binding:@selection_id(0), chooser:Players(One(AbilityController)), objects:Selected(@marked), count:AnyNumber, constraints:[]}], action:Move{objects:Prepared(@selection_id(0)), destination:Battlefield{controller:Owner, arrival:$search_option_entry}, qualifiers:[]}} */
 search_optional_that_card_entry ::= "you" "may" "put" "that" "card" search_option_entry
@@ -8318,13 +8123,10 @@ instructions_exile_until_cast_cleanup ::= exile_until_player_library exile_until
 /* @sem Instruction::[ChooseOne{decider:AbilityController, options:[_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$hand_library_choice_cards}, count:AsManyAsCan($n2)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:$cost_library_end, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}, _{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$hand_library_choice_cards}, count:AsManyAsCan($n2)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:$cost_library_end_2, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}]}] */
 clause_hand_library_end_choice ::= "put" n2 hand_library_choice_cards "from" "your" "hand" "both" cost_library_end "of" "your" "library" "or" "both" cost_library_end "of" "your" "library"
 
-/* @sem ObjectFilter::Any */
-hand_library_choice_cards_any ::= "cards"
-
 /* @sem $card_filter */
 hand_library_choice_cards_filtered ::= card_filter "cards"
 
-hand_library_choice_cards ::= hand_library_choice_cards_any | hand_library_choice_cards_filtered
+hand_library_choice_cards ::= random_any_cards | hand_library_choice_cards_filtered
 
 /* The complete span proves that the name search consumes the preceding
    hand selection's exile arrivals, including during inverse printing. */
@@ -8398,13 +8200,7 @@ observed_hand_bottom_exile_partition ::= "put" "one" "of" "them" "into" "your" "
 /* @sem Instruction::[Effect{result:@mark, operation:LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:$partition_observation_count, from:Top}}}, ...$observed_hand_bottom_exile_partition] */
 look_hand_bottom_exile_partition ::= "look" "at" "the" "top" partition_observation_count "cards" "of" "your" "library" "." observed_hand_bottom_exile_partition
 
-partition_observation_count ::= partition_observe_two | partition_observe_three
-
-/* @sem Expr::Constant(2) */
-partition_observe_two ::= "two"
-
-/* @sem Expr::Constant(3) */
-partition_observe_three ::= "three"
+partition_observation_count ::= n2 | n3
 
 /* The permission refers to the arrival of this partition's exile move. */
 /* @sem Instruction::Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$this_duration, evaluation:LiveObjects}} */
@@ -8663,16 +8459,13 @@ clause_search_revealed_cast_origin ::= search_single_library "," "reveal" "it" "
 /* @sem ObjectFilter::AnyOf([AllOf([$filter_phrase, HasActivatedAbility(Mana)]), $filter_phrase_2]) */
 search_filter_mana_ability_or ::= filter_phrase "card" "with" "a" "mana" "ability" "or" "a" filter_phrase "card"
 
-/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}} */
-look_battlefield_attacking ::= "onto" "the" "battlefield" "tapped" "and" "attacking"
-
 /* Keep the separate-sentence spelling for this observed attacking entry. */
 /* @prefer always */
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_put_may_attacking, $dig_rest_put] */
 dig_look_attacking_split ::= look_top "." dig_put_may_attacking "." dig_rest_put
 
-/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:$look_battlefield_attacking}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$look_battlefield_attacking, qualifiers:[]}}] */
-dig_put_may_attacking ::= "you" "may" "put" a_card "from" "among" "them" look_battlefield_attacking
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:$until_battlefield_tapped_attacking}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$until_battlefield_tapped_attacking, qualifiers:[]}}] */
+dig_put_may_attacking ::= "you" "may" "put" a_card "from" "among" "them" until_battlefield_tapped_attacking
 
 /* The inspected library slice and its exile receipt stay within one phrase. */
 /* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_possessive)}, kind:Card, filter:Any}, count:$top_many, from:Top}}}, Effect{result:@next, operation:Move{objects:InZone{objects:Observed(@prior), zone:Library}, destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any}, terms:_{cost:Normal, spend_as:AnyType}})], duration:WhileAnyExiled(Transition{result:@prior, phase:After}), evaluation:LiveObjects}}] */
@@ -8817,13 +8610,7 @@ clause_search_reveal_shuffle_branch ::= search_single_library "," "reveal" "it" 
 /* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:Mill{players:One($target_player), amount:Multiply([$scaled_mill_factor, $card_count])}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Mill{players:One(Target{slot:@last_slot, index:0}), amount:$card_count}}]}}] */
 instructions_target_player_mill_conditional_scaled ::= target_player "mills" card_count "." "if" condition "," "that" "player" "mills" scaled_mill_factor "that" "many" "cards" "instead"
 
-/* @sem Expr::Constant(2) */
-scaled_mill_twice ::= "twice"
-
-/* @sem Expr::Constant(3) */
-scaled_mill_three_times ::= "three" "times"
-
-scaled_mill_factor ::= scaled_mill_twice | scaled_mill_three_times
+scaled_mill_factor ::= revealed_stat_factor | entry_roll_three_times
 
 /* @sem Operation::Conjure{actor:One(AbilityController), card:Random(Term{family:CardsInOracle, form:And, operands:[Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]}, Term{family:CardsInOracle, form:ManaValueIs, operands:[Comparison(Equal, AnnouncedX)]}]}), count:Constant(1), destination:Battlefield(BattlefieldArrival{tapped:false, counters:[], states:[]})} */
 conjure_random_creature_mv_x_battlefield ::= "conjure" "a" "random" "creature" "card" "with" "mana" "value" "X" "onto" "the" "battlefield"
@@ -8844,8 +8631,6 @@ clause_seek_source_counters_exile_face_down ::= "seek" "a" "card" "with" "mana" 
 /* @prefer always */
 /* @sem Instruction::[If{condition:ObjectMatches{object:EventSubject, filter:InZone(Shared(Battlefield))}, then:Program{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:AllOf([@agree($subtype, @agree($subtype_2, $subtype_3)), CouldEnchant(One(EventSubject))]), count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo(EventSubject)]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:AllOf([@agree($subtype, @agree($subtype_2, $subtype_3)), CouldEnchant(One(EventSubject))]), count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}}] */
 clause_search_enchant_battlefield_or_hand ::= "search" "your" "library" "for" "an" subtype "card" "that" "could" "enchant" "it" "." "if" self_holder_text "is" "still" "on" "the" "battlefield" "," "put" "that" subtype "card" "onto" "the" "battlefield" "attached" "to" "it" "." "otherwise" "," "reveal" "the" subtype "card" "and" "put" "it" "into" "your" "hand" "." "then" "shuffle"
-
-
 
 /* Reveal and exile the matching card as one producer; its filter is shared,
    and the named library owner performs the shuffle. */
@@ -8923,13 +8708,7 @@ discard_choice_word ::= discard_choice_word_ambitious | discard_choice_word_expe
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Property{property:ManaValue, test:NumberTest::Compare{comparison:$discard_value_comparison, value:ObjectProperty{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}}, count:AsManyAsCan($card_count), constraints:[AtRandom]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
 discard_mana_value_seek ::= "seek" card_count "with" discard_value_comparison "mana" "value" "than" "the" "discarded" "card"
 
-/* @sem Comparison::Greater */
-discard_value_greater ::= "greater"
-
-/* @sem Comparison::Less */
-discard_value_lesser ::= "lesser"
-
-discard_value_comparison ::= discard_value_greater | discard_value_lesser
+discard_value_comparison ::= kin_greater | kin_lesser
 
 /* A loop over players moves each player's own top library cards to exile. */
 /* @sem Instruction::ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}]}} */
@@ -8991,16 +8770,15 @@ search_follow_bare_more ::= "," found_action search_follow_bare_shuffle
 search_filter_either_mana_ceiling ::= card_filter "card" "or" "a" card_filter "card" "with" "mana" "value" value "or" "less"
 
 /* The selection and remainder are bound to the same private look. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan(Constant(1)), constraints:[CanMoveTo{destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
-look_exile_one_of_them_face_down ::= "exile" "one" "of" "them" "face" "down"
+/* look_exile_one_of_them_face_down is shared as look_exile_one_among_face_down. */
 
 /* This continuation refers to the one face-down exile produced by the enclosing
    look/selection/reorder sequence. Its fallback uses that same arrival. */
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Matching{objects:One(Result{result:@back(4), phase:After, index:0}), filter:AllOf([$exile_cast_instant, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$number_digits}}])}, count:Exactly(Constant(1)), cost:Free}}]}}]}, optional:true}}, If{condition:Not(PaymentChosen(@prior)), then:_{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:One(Result{result:@back(5), phase:After, index:0}), zone:Exile}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:_{}}] */
 look_hidden_exile_cast_or_hand ::= "you" "may" "cast" "the" "exiled" "card" "without" "paying" "its" "mana" "cost" "if" "it's" exile_cast_instant "spell" "with" "mana" "value" number_digits "or" "less" "." "if" "you" "don't" "," "put" "that" "card" "into" "your" "hand"
 
-/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$look_top}, ...$look_exile_one_of_them_face_down, ...$look_exile_remainder, ...$look_hidden_exile_cast_or_hand]}} */
-spell_look_hidden_exile_cast_or_hand ::= look_top "." look_exile_one_of_them_face_down "and" look_exile_remainder "." look_hidden_exile_cast_or_hand "."
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$look_top}, ...$look_exile_one_among_face_down, ...$look_exile_remainder, ...$look_hidden_exile_cast_or_hand]}} */
+spell_look_hidden_exile_cast_or_hand ::= look_top "." look_exile_one_among_face_down "and" look_exile_remainder "." look_hidden_exile_cast_or_hand "."
 
 /* The searched selection remains the referent after its reveal and move. */
 /* @sem Instruction::[Effect{result:@mark, operation:$search_single_library}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, If{condition:Compare{left:CountObjects(Matching{objects:Selected(@marked), filter:$search_selected_trait}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:$program, otherwise:_{}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
@@ -9157,13 +8935,7 @@ instructions_exile_until_lesser_cast_bottom ::= clause_exile_until_lesser "." "y
 /* @sem Instruction::[If{condition:ObjectMatches{object:Query{objects:Zone{scope:Players{zone:Graveyard, players:One($target_possessive)}, kind:Card, filter:Any}, index:0}, filter:$card_filter}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Graveyard, players:One($target_possessive)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:$graveyard_top_library_destination, qualifiers:[]}}]}, otherwise:Program{}}] */
 clause_top_graveyard_kind_to_library ::= "if" "the" "top" "card" "of" target_possessive "graveyard" "is" "a" card_filter "card" "," "put" "that" "card" graveyard_top_library_destination
 
-graveyard_top_library_destination ::= graveyard_top_to_top | graveyard_top_to_bottom
-
-/* @sem MovementDestination::Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
-graveyard_top_to_top ::= "on" "top" "of" "that" "player's" "library"
-
-/* @sem MovementDestination::Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
-graveyard_top_to_bottom ::= "on" "the" "bottom" "of" "that" "player's" "library"
+graveyard_top_library_destination ::= optional_look_top | optional_look_bottom
 
 /* @sem MovementDestination::Library{position:BottomRandom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
 graveyard_move_random_bottom ::= "on" "the" "bottom" "of" "their" "library" "in" "a" "random" "order"
@@ -9305,13 +9077,9 @@ triggered_exile_top_play_both_actions ::= event_clause "," exile_top_play_both_a
 
 /* The look, singular exile and permission share one library query and one
    immediately produced exile arrival. */
-/* @sem PlayerRef::EventSubject */
-linked_look_event_owner ::= "that" "player's"
+/* linked_look_event_owner is shared as look_exile_event_owner. */
 
-/* @sem PlayerRef::AbilityController */
-linked_look_own_owner ::= "your"
-
-linked_look_library_owner ::= linked_look_event_owner | linked_look_own_owner
+linked_look_library_owner ::= look_exile_event_owner | zone_your
 
 /* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One($linked_look_library_owner)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($linked_look_library_owner)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:$look_top_exile_destination, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:$exiled_play_action, filter:Any}, terms:_{cost:Normal, spend_as:$linked_look_spending}})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}] */
 linked_look_top_exile_play ::= "look" "at" "the" "top" "card" "of" linked_look_library_owner "library" "," "then" look_top_exile_destination "." "you" "may" exiled_play_action "it" "for" "as" "long" "as" "it" "remains" "exiled" "." linked_look_spending
@@ -9345,21 +9113,12 @@ instructions_event_top_hidden_permission ::= "look" "at" "the" "top" "card" "of"
 /* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One($hidden_top_library_owner)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One($hidden_top_library_owner)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:$exiled_play_action, filter:Any}, terms:_{cost:Normal, spend_as:$hidden_top_spending}})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}] */
 instructions_look_top_hidden_play ::= "look" "at" "the" "top" "card" "of" hidden_top_library_owner "library" "," "then" "exile" "it" "face" "down" "." "for" "as" "long" "as" "it" "remains" "exiled" "," "you" "may" exiled_play_action "it" "," "and" hidden_top_spending
 
-hidden_top_library_owner ::= hidden_top_their | hidden_top_your
+hidden_top_library_owner ::= hidden_top_their | zone_your
 
 /* @sem PlayerRef::EventSubject */
 hidden_top_their ::= "their"
 
-/* @sem PlayerRef::AbilityController */
-hidden_top_your ::= "your"
-
-hidden_top_spending ::= hidden_top_spending_any_type | hidden_top_spending_any_color
-
-/* @sem SpendAs::AnyType */
-hidden_top_spending_any_type ::= "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "that" "spell"
-
-/* @sem SpendAs::AnyColor */
-hidden_top_spending_any_color ::= "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "that" "spell"
+hidden_top_spending ::= chosen_exile_spending_type | chosen_exile_spending_color
 
 /* This entry pairs the reusable instruction with an equipped-creature event. */
 /* @sem Ability::Triggered{event:$hidden_equipped_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$instructions_look_top_hidden_play}} */
@@ -9582,13 +9341,12 @@ instructions_look_entry_reflexive_damage ::= look_top "." look_entry_reflexive_d
 look_entry_reflexive_damage ::= "you" "may" "put" "a" noun_creature "card" "from" "among" "them" "onto" "the" "battlefield" "." "put" "the" "rest" "on" "the" "bottom" "of" "your" "library" "in" "a" "random" "order" "." "when" "a" "creature" "is" "put" "onto" "the" "battlefield" "this" "way" "," "it" "deals" "damage" "equal" "to" "its" stat "to" recipients_target_opponent_controls
 
 /* Keep the optional mill and the selection of its arrivals in one contract. */
-/* @sem Expr::EventAmount */
-optional_mill_event_count ::= "that" "many" "cards"
+/* optional_mill_event_count is shared as mill_cast_event_amount. */
 
 /* @sem $card_count_many */
 optional_mill_fixed_count ::= card_count_many
 
-optional_mill_count ::= optional_mill_event_count | optional_mill_fixed_count
+optional_mill_count ::= mill_cast_event_amount | optional_mill_fixed_count
 
 /* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$optional_mill_count}}]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_phrase}, count:AnyNumber}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$look_battlefield_tapped, qualifiers:[]}}] */
 instructions_optional_mill_choose_battlefield ::= "you" "may" "mill" optional_mill_count "." "put" "any" "number" "of" filter_phrase "cards" "from" "among" "them" look_battlefield_tapped
@@ -9610,21 +9368,7 @@ triggered_mill_pay_take_cards ::= "at" turn_event "," instructions_mill_pay_take
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(EventSubject)}, kind:Card, filter:Any}), count:$count_plural, from:Top}}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@prior), zone:Library}, count:AsManyAsCan(Constant(1)), constraints:[CanMoveTo{destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(4)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@back(3), phase:After, index:0}), from:Exile, action:$exiled_play_action, filter:Any}, terms:_{cost:Normal, spend_as:$event_library_spending}})], duration:WhileExiled(Result{result:@back(3), phase:After, index:0}), evaluation:LiveObjects}}]} */
 event_library_exile_remainder_permission ::= "look" "at" "the" "top" count_plural "cards" "of" "that" "player's" "library" "," "exile" "one" "of" "them" "face" "down" "," "then" "put" "the" "rest" "into" "their" "graveyard" "." "you" "may" exiled_play_action "that" "card" "for" "as" "long" "as" "it" "remains" "exiled" "," "and" event_library_spending
 
-event_library_spending ::= event_library_spending_any_type | event_library_spending_any_type_it | event_library_spending_any_color | event_library_spending_any_color_it | event_library_spending_colorless | event_library_spending_colorless_it
-
-/* @prefer always */
-/* @sem SpendAs::AnyType */
-event_library_spending_any_type ::= "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "that" "spell"
-
-/* @sem SpendAs::AnyType */
-event_library_spending_any_type_it ::= "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "it"
-
-/* @prefer always */
-/* @sem SpendAs::AnyColor */
-event_library_spending_any_color ::= "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "that" "spell"
-
-/* @sem SpendAs::AnyColor */
-event_library_spending_any_color_it ::= "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "it"
+event_library_spending ::= hidden_exile_any_type | hidden_exile_any_type_it | choice_two_zones_spending_color | exile_table_spending_it | event_library_spending_colorless | event_library_spending_colorless_it
 
 /* @prefer always */
 /* @sem SpendAs::ColorlessAsAnyColor */
@@ -9685,14 +9429,11 @@ conditional_top_exile_play_spell ::= conditional_top_exile_play "."
 search_two_union ::= "up" "to" "two" filter_phrase "cards" "and" "/" "or" filter_phrase "cards"
 
 /* Reuse the search and its original selected identities for both destinations. */
-/* @sem Instruction::[Effect{result:@mark, operation:$search_two}, Effect{result:@next, operation:$search_pair_reveal}, ...$search_pair_battlefield_hand, ...$search_shuffle] */
-clause_search_pair_reveal_split ::= search_two "," search_pair_reveal "," search_pair_battlefield_hand search_shuffle
+/* @sem Instruction::[Effect{result:@mark, operation:$search_two}, Effect{result:@next, operation:$found_those_reveal}, ...$search_pair_battlefield_hand, ...$search_shuffle] */
+clause_search_pair_reveal_split ::= search_two "," found_those_reveal "," search_pair_battlefield_hand search_shuffle
 
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Selected(@marked), count:AsManyAsCan(Constant(1)), constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
 search_pair_battlefield_hand ::= "put" "one" "onto" "the" "battlefield" "tapped" "and" "the" "other" "into" "your" "hand"
-
-/* @sem Operation::Reveal{objects:Selected(@marked)} */
-search_pair_reveal ::= "reveal" "those" "cards"
 
 /* Scope both branches over their own search and selection results. */
 /* @sem Instruction::[If{condition:$condition_alternative_mana_paid, then:Program{instructions:[Effect{result:@next, operation:$search}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Selected(@back(3)), count:AsManyAsCan($count)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(OneOf(OpponentsOf(AbilityController))), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:WithSelections{steps:[_{binding:@selection_id(0), chooser:Players(One(AbilityController)), objects:Selected(@back(5)), count:Exactly($count_2), constraints:[]}], action:Move{objects:Prepared(@selection_id(0)), destination:Battlefield{controller:Player(AbilityController), arrival:$search_option_entry_2}, qualifiers:[]}}}, Effect{result:@next, operation:Move{objects:Selected(@back(6)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$search}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:WithSelections{steps:[_{binding:@selection_id(0), chooser:Players(One(AbilityController)), objects:Selected(@back(3)), count:Exactly($count_2), constraints:[]}], action:Move{objects:Prepared(@selection_id(0)), destination:Battlefield{controller:Player(AbilityController), arrival:$search_option_entry_2}, qualifiers:[]}}}, Effect{result:@next, operation:Move{objects:Selected(@back(4)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}}] */
@@ -9826,20 +9567,13 @@ instructions_look_exile_remainder_cast ::= look_top "." look_exile_cast_split
 /* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:LibraryTops($players_singular)}}, ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@next, operation:LoseLife{players:One(Bound(0)), amount:Aggregate{objects:Matching{objects:Recorded(@marked), filter:OwnedBy(One(Bound(0)))}, property:$receipt_stat, aggregation:Sum}}}]}}, ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:$each_revealed_top_destination, qualifiers:[]}}]}}] */
 instructions_each_reveal_value_move ::= players_singular "reveals" "the" "top" "card" "of" "their" "library" "," "loses" "life" "equal" "to" "that" "card's" receipt_stat "," "then" "puts" "it" each_revealed_top_destination
 
-each_revealed_top_destination ::= each_revealed_top_hand | each_revealed_top_graveyard
-
-/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
-each_revealed_top_hand ::= "into" "their" "hand"
-
-/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
-each_revealed_top_graveyard ::= "into" "their" "graveyard"
+each_revealed_top_destination ::= named_reveal_hand | named_reveal_graveyard
 
 /* A single library slice is both inspected and offered for casting. */
-/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top} */
-look_cast_single_top ::= "the" "top" "card" "of" "your" "library"
+/* look_cast_single_top is shared as own_library_top_card. */
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:PlayersDo{players:One(AbilityController), any_one:false, optional:true, once_each_turn:true, body:[Program{instructions:[Effect{result:@next, operation:LookAt{player:AbilityController, objects:$look_cast_single_top}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:$look_cast_single_top, count:Exactly(Constant(1)), terms:_{cost:Free}}}]}}]}], otherwise:[]}}]} */
-program_look_top_cast_once ::= "look" "at" look_cast_single_top "." "you" "may" "cast" "that" "card" "without" "paying" "its" "mana" "cost" "." "do" "this" "only" "once" "each" "turn" "."
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PlayersDo{players:One(AbilityController), any_one:false, optional:true, once_each_turn:true, body:[Program{instructions:[Effect{result:@next, operation:LookAt{player:AbilityController, objects:$own_library_top_card}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:$own_library_top_card, count:Exactly(Constant(1)), terms:_{cost:Free}}}]}}]}], otherwise:[]}}]} */
+program_look_top_cast_once ::= "look" "at" own_library_top_card "." "you" "may" "cast" "that" "card" "without" "paying" "its" "mana" "cost" "." "do" "this" "only" "once" "each" "turn" "."
 
 /* Permanent cards use the common permanent-type union. */
 /* @sem $bound_permanent_card_filter */
@@ -9933,8 +9667,8 @@ look_referenced_private_cards ::= "look" "at" referenced_private_cards
 /* @sem Instruction::[If{condition:$condition_died, then:Program{instructions:[Effect{result:@next, operation:$search_optional_that_card_entry}]}, otherwise:Program{}}] */
 search_later_death_option ::= search_optional_that_card_entry "instead" "of" "putting" "it" "into" "your" "hand" "if" condition_died
 
-/* @sem Instruction::[Effect{result:@mark, operation:$search_single_library}, Effect{result:@next, operation:$search_selected_reveal}, ...$search_later_death_option, Effect{result:@next, operation:$search_fallback_hand}, ...$search_shuffle] */
-clause_search_later_death_option ::= search_single_library "," search_selected_reveal "," search_fallback_hand search_shuffle "." NEWLINE search_later_death_option
+/* @sem Instruction::[Effect{result:@mark, operation:$search_single_library}, Effect{result:@next, operation:$search_selected_reveal}, ...$search_later_death_option, Effect{result:@next, operation:$found_it_hand}, ...$search_shuffle] */
+clause_search_later_death_option ::= search_single_library "," search_selected_reveal "," found_it_hand search_shuffle "." NEWLINE search_later_death_option
 
 /* The choice and search remain together to bind the name to the chosen land. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:AllOf([Supertype(Basic), $filter_phrase, SharesNameWith(Result{result:@prior, phase:After, index:0})]), count:UpTo($value)}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]} */
@@ -9973,13 +9707,7 @@ owned_search_filter ::= owned_search_canonical | owned_search_union | filter_phr
 /* @sem $filter_instant_or_sorcery */
 owned_search_canonical ::= filter_instant_or_sorcery
 
-owned_search_atom ::= noun_atomic | owned_search_instant | owned_search_sorcery
-
-/* @sem ObjectFilter::CardType(Instant) */
-owned_search_instant ::= "instant"
-
-/* @sem ObjectFilter::CardType(Sorcery) */
-owned_search_sorcery ::= "sorcery"
+owned_search_atom ::= noun_atomic | spell_instant | spell_sorcery
 
 /* @sem ObjectFilter::AnyOf([$owned_search_atom, $owned_search_atom_2]) */
 owned_search_union ::= owned_search_atom "or" owned_search_atom

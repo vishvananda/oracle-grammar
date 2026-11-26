@@ -96,11 +96,7 @@ clause_copy_paid_stack_groups ::= "you" "may" "pay" copy_fixed_payment "." "if" 
 
 /* Only this cast-spell producer supplies the marked result. Both copies use
    one shared filter choice, retaining two identical copy actions (one pool). */
-copy_cast_spell_domain ::= copy_cast_spell_guard | copy_cast_spell_members
-/* @sem ObjectFilter::OnStack(Spell) */
-copy_cast_spell_guard ::= "spells"
-/* @sem ObjectFilter::Any */
-copy_cast_spell_members ::= "spells"
+copy_cast_spell_domain ::= paired_target_spells | cast_any_spells
 
 /* @sem Ability::Scoped{zones:[Stack], ability:Static(_{kind:Ordinary, affected:Objects(Zone(_{scope:Shared(Stack), kind:Spell, filter:SameObject(Source)})), changes:[Rule(Prohibit(Copy))]})} */
 stack_self_copy_prohibition ::= "this" "spell" "can't" "be" "copied" "."
@@ -131,14 +127,11 @@ copy_stack_spell_except ::= "copy" target_stack_spell "," "except" copy_stack_co
 /* @sem Operation::CopyOnStack{actor:One(AbilityController), object:$object_ref, times:Constant(1), targets:Same, exceptions:[$copy_stack_ref_exception]} */
 copy_stack_ref_except ::= "copy" object_ref "," "except" copy_stack_ref_exception
 
-copy_stack_ref_exception ::= copy_stack_nonlegendary | copy_stack_artifact
+copy_stack_ref_exception ::= stack_copy_exception | copy_stack_artifact
 
 /* @prefer always */
 /* @sem $copy_remove_legendary */
 copy_stack_conditional_nonlegendary ::= copy_remove_legendary "if" "the" "spell" "is" "legendary"
-
-/* @sem CopyException::RemoveSupertypes([Legendary]) */
-copy_stack_nonlegendary ::= "the" "copy" "isn't" "legendary"
 
 /* @sem CopyException::AddCardTypes([Artifact]) */
 copy_stack_artifact ::= "the" "copy" "is" "an" "artifact" "in" "addition" "to" "its" "other" "types"
@@ -214,8 +207,8 @@ clause_copy_spell_return_owner ::= "copy" target_stack_spell "," "then" "return"
 clause_copy_linked_free ::= "copy" linked_exiled_card "." copy_cast_free
 
 /* This consumer is scoped to its explicit exile producer and its arrival receipt. */
-/* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([InSet(Transition{result:@prior, phase:After}), $cast_instant_or_sorcery_filter])}), times:$value}}, $copy_cast_copies_free] */
-clause_exile_top_copy_selection ::= exile_top_cards_of_your_library "." "choose" "an" cast_instant_or_sorcery_filter "card" "exiled" "this" "way" "and" "copy" "it" value "times" "." copy_cast_copies_free
+/* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([InSet(Transition{result:@prior, phase:After}), $filter_instant_or_sorcery])}), times:$value}}, $copy_cast_copies_free] */
+clause_exile_top_copy_selection ::= exile_top_cards_of_your_library "." "choose" "an" filter_instant_or_sorcery "card" "exiled" "this" "way" "and" "copy" "it" value "times" "." copy_cast_copies_free
 
 /* @sem Instruction::Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Copies(@prior), count:AnyNumber, cost:Free}}]}} */
 copy_cast_copies_free ::= "you" "may" "cast" "the" "copies" "without" "paying" "their" "mana" "costs"
@@ -320,10 +313,7 @@ conjoined_copy_retarget_followup ::= "copy" object_ref "," "you" "may" "choose" 
 /* @sem ObjectFilter::OnStack(Loyalty) */
 next_copy_loyalty_ability ::= "loyalty" "ability"
 
-/* @sem ObjectFilter::OnStack(Activated) */
-next_copy_activated_ability ::= "activated" "ability"
-
-next_copy_ability_kind ::= next_copy_loyalty_ability | next_copy_activated_ability
+next_copy_ability_kind ::= next_copy_loyalty_ability | counter_stack_activated
 
 /* @prefer always */
 /* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:Activated{players:One(AbilityController), abilities:$next_copy_ability_kind}, duration:$this_duration, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventStackObject, times:Constant(1), targets:May}}]}, once:true}}] */
@@ -331,13 +321,10 @@ copy_next_activated_retarget ::= "copy" "the" "next" next_copy_ability_kind "you
 
 /* A stack copy may carry a copiable exception and its own retargeting permission. */
 /* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$object_ref, times:Constant(1), targets:May, exceptions:[$stack_copy_exception]}}] */
-clause_copy_ref_exception_retarget ::= "copy" object_ref "," "except" stack_copy_exception "." copy_retarget_permission
+clause_copy_ref_exception_retarget ::= "copy" object_ref "," "except" stack_copy_exception "." copy_single_retarget_permission
 
 /* @sem CopyException::RemoveSupertypes([Legendary]) */
 stack_copy_exception ::= "the" "copy" "isn't" "legendary"
-
-/* @sem () */
-copy_retarget_permission ::= "you" "may" "choose" "new" "targets" "for" "the" "copy"
 
 /* The copy's color is an exception to its copiable values; its target and
    the chosen color remain independent operands. */
@@ -364,16 +351,15 @@ target_spell_targeting_you ::= "target" stack_target_spell_filter "spell" "that"
 spell_targets_you_filter ::= "targets" "you"
 
 /* A next activation and the action on its stack object compose independently. */
-/* @sem ObjectFilter::AllOf([OnStack(Keyword(Exhaust)), Not(OnStack(Mana))]) */
-next_activation_exhaust_nonmana ::= "an" "exhaust" "ability" "that" "isn't" "a" "mana" "ability"
+/* next_activation_exhaust_nonmana is shared as activation_copy_exhaust_nonmana. */
 
 /* @sem $next_copy_loyalty_ability */
 next_activation_loyalty ::= "a" next_copy_loyalty_ability
 
-/* @sem $next_copy_activated_ability */
-next_activation_activated ::= "an" next_copy_activated_ability
+/* @sem $counter_stack_activated */
+next_activation_activated ::= "an" counter_stack_activated
 
-next_activation_filter ::= next_activation_exhaust_nonmana | next_activation_loyalty | next_activation_activated
+next_activation_filter ::= activation_copy_exhaust_nonmana | next_activation_loyalty | next_activation_activated
 
 /* @sem EventSpec::Activated{players:One(AbilityController), abilities:$next_activation_filter} */
 next_activation_event ::= "you" "next" "activate" next_activation_filter

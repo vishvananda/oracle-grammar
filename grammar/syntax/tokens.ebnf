@@ -181,11 +181,9 @@ token_recipe_with ::= token_recipe_base token_ability_description
 /* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2]}) */
 token_recipe_no_subtype ::= token_stat "/" token_stat token_colors token_types ("token" | "tokens")
 
-
 /* A characteristic-defining ability can supply statistics instead of numerals. */
 /* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Expr::Constant(0), Expr::Constant(0)]}) */
 token_recipe_statless ::= token_colors token_subtypes token_types ("token" | "tokens")
-
 
 /* Oracle's following sentence states intrinsic token abilities too. It is part
    of the recipe, rather than an instruction granting an ability after creation. */
@@ -256,18 +254,7 @@ token_color_two ::= token_color "and" token_color
 /* @sem ManaColor::[$token_color, $token_color_2, $token_color_3] */
 token_color_three ::= token_color "," token_color "," "and" token_color
 
-token_color ::= tc_white | tc_blue | tc_black | tc_red | tc_green
-
-/* @sem ManaColor::White */
-tc_white ::= "white"
-/* @sem ManaColor::Blue */
-tc_blue ::= "blue"
-/* @sem ManaColor::Black */
-tc_black ::= "black"
-/* @sem ManaColor::Red */
-tc_red ::= "red"
-/* @sem ManaColor::Green */
-tc_green ::= "green"
+token_color ::= dc_white | dc_blue | dc_black | dc_red | dc_green
 
 token_subtypes ::= token_subtype_one | token_subtype_more
 
@@ -329,10 +316,7 @@ attach_created_optional ::= "you" "may" attach_created_required
 
 /* A bare pronoun still needs current token focus. The explicit token noun
    names the prior produced batch even after another object was moved. */
-created_attachment_host ::= created_attachment_pronoun | created_attachment_token | created_attachment_the_token
-
-/* @sem ObjectSet::@created_reference_single */
-created_attachment_pronoun ::= "it"
+created_attachment_host ::= created_ordinary_singular | created_attachment_token | created_attachment_the_token
 
 /* @sem ObjectSet::@created_named_reference */
 /* @prefer value(Created) */
@@ -454,7 +438,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_stoneforged_blade | created_name_new_planet | created_name_wolves_of_the_hunt | created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite | created_name_sword | created_name_cloud_sprite | created_name_koma_coil | created_name_ornithopter | created_name_twin | created_name_cordyceps_infected | created_name_lightning_rager | created_name_goldmeadow_harrier
+created_token_name ::= created_name_stoneforged_blade | created_name_new_planet | card_name_wolves_of_the_hunt | created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | card_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite | created_name_sword | created_name_cloud_sprite | created_name_koma_coil | card_name_ornithopter | created_name_twin | created_name_cordyceps_infected | card_name_lightning_rager | created_name_goldmeadow_harrier
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -594,10 +578,7 @@ token_cleanup_singular ::= "exile" "that" "token" "at" token_cleanup_event
 /* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:$token_cleanup_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(0), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}} */
 token_cleanup_plural ::= "exile" "the" "tokens" "at" token_cleanup_event
 
-token_cleanup_event ::= turn_end_combat | token_cleanup_end_step
-
-/* @sem EventSpec::Turn{point:EndStepBegins, players:All} */
-token_cleanup_end_step ::= "the" "beginning" "of" "the" "next" "end" "step"
+token_cleanup_event ::= turn_end_combat | delayed_move_any_end
 
 /* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$create_named_attacking_sentence}, $token_cleanup_singular]}} */
 triggered_named_attacking_token_cleanup ::= event_clause "," create_named_attacking_sentence "." token_cleanup_singular "."
@@ -1021,7 +1002,6 @@ scoped_paid_token_program ::= "you" "may" pay_mana "." "if" "you" "do" "," condi
 /* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:$created_reference, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}} */
 scoped_token_exile_end ::= "exile" created_reference "at" "the" "beginning" "of" "the" "next" "end" "step"
 
-
 /* @sem Operation::CreateTrigger{event:$event, duration:$this_duration, announcement:@announcement, body:$temporary_attacking_tokens_program} */
 temporary_trigger_attacking_tokens ::= "whenever" event this_duration "," temporary_attacking_tokens_program
 
@@ -1235,8 +1215,7 @@ paid_exile_token_name ::= paid_exile_name_vecna | explicit_legendary_name
 paid_exile_name_vecna ::= "Vecna"
 
 /* The name is independent of the token characteristics. */
-/* @sem String::'Wirefly' */
-created_name_wirefly ::= "Wirefly"
+/* created_name_wirefly is shared as card_name_wirefly. */
 
 /* A named token count reads the Before receipt of the immediately preceding
    destroy or sacrifice action. Keeping both instructions in the same production
@@ -1596,8 +1575,8 @@ random_mana_copy_cards ::= random_copy_card_type "card" "with" "mana" "value" nu
 
 random_copy_card_type ::= random_copy_creature | random_copy_artifact | random_copy_instant | random_copy_sorcery
 
-/* @sem $conjured_oracle_creature */
-random_copy_creature ::= "a" conjured_oracle_creature
+/* @sem $card_name_creature */
+random_copy_creature ::= "a" card_name_creature
 
 /* @sem $conjured_oracle_artifact */
 random_copy_artifact ::= "an" conjured_oracle_artifact
@@ -1884,8 +1863,8 @@ land_token_name_everywhere ::= "Everywhere"
 controlled_target_copy_token ::= "token" "that's" "a" "copy" "of" "target" noun "you" "control"
 
 /* The delayed sacrifice consumes the receipt of this particular creation. */
-/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$controlled_target_copy_token], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:$token_cleanup_end_step, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]} */
-program_attacking_copy_sacrifice ::= "create" "a" "tapped" "and" "attacking" controlled_target_copy_token "." "sacrifice" "the" "token" "at" token_cleanup_end_step
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$controlled_target_copy_token], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:$delayed_move_any_end, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]} */
+program_attacking_copy_sacrifice ::= "create" "a" "tapped" "and" "attacking" controlled_target_copy_token "." "sacrifice" "the" "token" "at" delayed_move_any_end
 
 /* The entry payment determines both characteristics of this token recipe. */
 /* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Game(LifePaid), Game(LifePaid)]}) */
@@ -2039,9 +2018,6 @@ token_named_end_multiple ::= token_ability "," token_ability "," "and" '"' trigg
 
 /* @sem Ability::[Mechanic{mechanic:BandsWithOthers, filter:AllOf([$filter_plural, Name($created_token_name)])}] */
 token_named_end_bands ::= '"' "↓" "bands" "with" "other" filter_plural "named" created_token_name "." '"'
-
-/* @sem String::'Wolves of the Hunt' */
-created_name_wolves_of_the_hunt ::= "Wolves" "of" "the" "Hunt"
 
 /* The copied population is linked to this ability's source, independently of
    the opponent attacked by each token. */
@@ -2540,9 +2516,6 @@ instructions_create_x_quoted ::= "create" token_defined_x_after
 /* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One($target_card_your_graveyard), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:Power, information:CurrentOrLastKnown}, ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:Toughness, information:CurrentOrLastKnown}]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
 instructions_exile_card_stat_token ::= "exile" target_card_your_graveyard "." "create" "a" token_colors token_subtypes token_types "token" "." "its" "power" "is" "equal" "to" "that" "card's" "power" "and" "its" "toughness" "is" "equal" "to" "that" "card's" "toughness"
 
-/* @sem String::'Ornithopter' */
-created_name_ornithopter ::= "Ornithopter"
-
 /* The two following characteristic expressions belong to the token recipe. */
 /* @sem TokenRecipe::Defined{name:Explicit($created_token_name), colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$value, $value_2]} */
 token_named_separate_stats ::= token_colors token_subtypes token_types "token" "named" created_token_name "that's" "attacking" "." "its" "power" "is" "equal" "to" value "and" "its" "toughness" "is" "equal" "to" value
@@ -2701,8 +2674,7 @@ token_named_each_tapped_arrival ::= "a" "tapped" token_named_recipe "token" "for
 clause_you_named_tapped_arrivals ::= "you" "create" token_named_each_tapped_arrival
 
 /* Explicit names remain independent of token characteristics. */
-/* @sem String::'Lightning Rager' */
-created_name_lightning_rager ::= "Lightning" "Rager"
+/* created_name_lightning_rager is shared as card_name_lightning_rager. */
 
 /* @sem TokenName::Explicit(Keimi) */
 explicit_token_keimi ::= "Keimi"

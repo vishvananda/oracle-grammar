@@ -422,7 +422,6 @@ event_discard_third ::= event_player "discards" "a" "card"
 /* @sem EventSpec::Discard{players:One(PlayerRef::AbilityController), cards:Any, kind:CausedBy(ControlledBy(OpponentsOf(AbilityController))), grouping:Card} */
 event_opponent_discard ::= opponent_spell_or_ability "causes" "you" "to" "discard" "a" "card"
 
-
 /* @sem EventSpec::Player{event:Sacrifices, players:$event_player, objects:$filter_phrase} */
 event_sacrifice_third ::= event_player "sacrifices" ("a" | "an") filter_phrase
 
@@ -433,10 +432,8 @@ event_cast_nth ::= "you" "cast" "your" cast_spell_ordinal "spell" "each" "turn"
 /* @sem EventSpec::NthEachTurn{event:Spell{event:Cast, players:$event_player, spells:Any}, test:NumberTest::Compare{comparison:Equal, value:$ordinal}} */
 event_cast_nth_third ::= event_player "casts" "their" ordinal "spell" "each" "turn"
 
-ordinal ::= ordinal_second | ordinal_third | ordinal_fourth | ordinal_sixth | ordinal_twelfth
+ordinal ::= library_ordinal_second | ordinal_third | library_depth_fourth | ordinal_sixth | ordinal_twelfth
 
-/* @sem Expr::Constant(2) */
-ordinal_second ::= "second"
 /* @sem Expr::Constant(3) */
 ordinal_third ::= "third"
 
@@ -556,7 +553,6 @@ spell_noun ::= spell_non_subtype_noun | subtype_spelled
 spell_non_subtype_noun ::= noun_outlaw | noun_creature | noun_artifact | noun_enchantment | noun_land | noun_planeswalker | card_permanent
     | noun_token | noun_battle | noun_commander | noun_wall_folded
 
-
 /* @sem ObjectFilter::CardType(Instant) */
 spell_instant ::= "instant"
 /* @sem ObjectFilter::CardType(Sorcery) */
@@ -571,7 +567,7 @@ event_cast_opponents_turn ::= "you" "cast" spell_filter "during" "an" "opponent'
 /* @sem EventSpec::Spell{event:Cast, players:$event_player, spells:$third_cast_spell_filter} */
 event_cast_third ::= event_player "casts" third_cast_spell_filter
 
-event_player ::= event_an_opponent | event_a_player | event_another_player | event_enchanted_player | event_enchanted_opponent
+event_player ::= event_an_opponent | event_a_player | event_another_player | event_enchanted_player | players_enchanted_opponent
 
 /* @sem PlayerSet::OpponentsOf(PlayerRef::AbilityController) */
 event_an_opponent ::= "an" "opponent"
@@ -591,11 +587,9 @@ event_enchanted_player ::= "enchanted" "player"
 /* @sem EventSpec::Filtered{event:Player{event:$named_controller_action, players:Intersection([$event_player, Matching{binding:0, condition:Controls{player:Bound(0), filter:@and($filter_phrase, ObjectFilter::Name(@card_name)), minimum:1}}])}, condition:PlayerIsActive(EventSubject)} */
 event_named_controller_own_turn ::= event_player "who" "controls" ("a" | "an") filter_phrase "named" SELF_NAME named_controller_action "during" "their" "turn"
 
-named_controller_action ::= named_controller_draw | named_controller_gain_life
+named_controller_action ::= named_controller_draw | event_gains_life_action
 /* @sem PlayerEvent::Draws */
 named_controller_draw ::= "draws" "a" "card"
-/* @sem PlayerEvent::GainsLife */
-named_controller_gain_life ::= "gains" "life"
 
 /* @sem EventSpec::Player{event:GainsLife, players:One(PlayerRef::AbilityController)} */
 event_gain_life ::= "you" "gain" "life"
@@ -666,7 +660,6 @@ owner_all ::= "each" ("player's")?
 /* List order follows the canonical IR; the words still name entering first. */
 /* @sem EventSpec::@either_event(EventSpec::ZoneChange{objects:$event_object, from:Battlefield, to:Graveyard}, EventSpec::ZoneChange{objects:$event_object, to:Battlefield}) */
 event_enters_or_dies ::= event_object "enters" "or" "dies"
-
 
 /* A card's owner supplies "your graveyard"; a controller filter cannot replace
    that restriction when the event can originate outside the battlefield. */
@@ -748,7 +741,6 @@ turn_controller_self ::= "this" turn_controller_possessive_noun
 /* @sem () */
 turn_controller_possessive_noun ::= "creature's" | "permanent's" | "artifact's" | "enchantment's" | "land's" | "planeswalker's" | "battle's"
 
-
 /* Trigger suppression concerns the event that causes a trigger, rather than
    only abilities of the entering/dying objects. A shared filter is applied
    independently to both zone changes. */
@@ -783,7 +775,6 @@ target_union_counter ::= "counter" "that" "spell" "or" "ability" "unless" target
 /* @sem () */
 target_union_payer ::= "its" "controller" | "that" "player"
 
-
 target_union_payment ::= counter_unless_cost | target_union_life_cost
 /* @sem Cost::Cost{parts:[Life($number)]} */
 target_union_life_cost ::= number "life"
@@ -808,28 +799,14 @@ tapless_ability_of ::= "an" "ability" "of" event_object
 /* @sem $tapless_possessive_kind */
 tapless_ability_possessive ::= ("a" | "an") tapless_possessive_kind "ability"
 
-tapless_possessive_kind ::= tapless_artifact_possessive | tapless_creature_possessive | tapless_land_possessive | tapless_permanent_possessive
-/* @sem ObjectFilter::CardType(Artifact) */
-tapless_artifact_possessive ::= "artifact's"
-/* @sem ObjectFilter::CardType(Creature) */
-tapless_creature_possessive ::= "creature's"
-/* @sem ObjectFilter::CardType(Land) */
-tapless_land_possessive ::= "land's"
-/* @sem ObjectFilter::Any */
-tapless_permanent_possessive ::= "permanent's"
+tapless_possessive_kind ::= chosen_color_artifact | chosen_color_creature | chosen_color_land | chosen_color_permanent
 
 /* Passive damage says nothing about an individual source. One occurrence per
    recipient damage event is distinct from source/recipient combat triggers. */
 /* @sem EventSpec::Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Players($passive_combat_player), kind:Combat, grouping:Recipient, subject:Recipient}) */
 event_passive_combat_recipient ::= "combat" "damage" "is" "dealt" "to" passive_combat_player
 
-passive_combat_player ::= passive_combat_you | passive_combat_any | passive_combat_opponent
-/* @sem PlayerSet::One(PlayerRef::AbilityController) */
-passive_combat_you ::= "you"
-/* @sem PlayerSet::All */
-passive_combat_any ::= "a" "player"
-/* @sem PlayerSet::OpponentsOf(PlayerRef::AbilityController) */
-passive_combat_opponent ::= "an" "opponent"
+passive_combat_player ::= player_rule_you | event_a_player | event_an_opponent
 
 /* The player rule changes the draw procedure; only its actual first-card
    revelation supplies the following trigger. This is not a Draw trigger. */
@@ -898,7 +875,6 @@ event_self_enters_saddled_attack ::= self_explicit_ref "enters" "and" "whenever"
 /* @sem EventSpec::@either_event(EventSpec::Object{event:TurnsFaceUp, objects:$event_self}, EventSpec::Object{event:TurnsFaceUp, objects:@and(ObjectFilter::Not($event_self), $filter_phrase)}) */
 event_own_or_other_faceup ::= event_self "or" "another" filter_phrase "is" "turned" "face" "up"
 
-
 /* Conjuring a batch containing other cards is one player event, not a loop
    over its cards or a distinguished first-card reference. */
 /* @sem EventSpec::Player{event:ConjuresOther, players:One(AbilityController)} */
@@ -955,7 +931,6 @@ event_ring_tempts_you ::= "the" "Ring" "tempts" "you"
 
 /* @sem EventSpec::Object{event:FinalChapterResolves, objects:$chapter_ability_object} */
 event_final_chapter_resolves ::= chapter_ability_object "resolves"
-
 
 /* The event's damage source supplies the relative owner/controller, rather
    than an unrelated lexical source or a free continuous-effect candidate. */
@@ -1098,7 +1073,6 @@ event_attacks_while_saddled ::= object_ref "attacks" "while" "saddled"
 /* @sem EventSpec::State{condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])}), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}}} */
 event_control_none ::= "you" "control" "no" filter_plural
 
-
 /* A creature dealt damage this turn by the named source dies. */
 /* @sem EventSpec::ZoneChange{objects:AllOf([$filter_phrase, Condition(Compare{left:EventHistory{event:Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Objects(SameObject(Candidate)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$counter_amount}})]), from:Battlefield, to:Graveyard} */
 event_damaged_by_dies ::= counter_amount filter_phrase "dealt" "damage" "by" object_ref "this" "turn" "dies"
@@ -1215,7 +1189,6 @@ event_discard_filtered_card ::= "you" "discard" "a" filter_phrase "card"
 /* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$filter_phrase, recipients:Players(One(AbilityController)), kind:Combat, grouping:SourceRecipient, subject:Source}) */
 event_combat_damage_to_you ::= "a" filter_phrase "deals" "combat" "damage" "to" "you"
 
-
 /* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:OwnedBy(OthersThan(AbilityController))} */
 event_cast_spell_you_dont_own ::= "you" "cast" "a" "spell" "you" "don't" "own"
 
@@ -1258,9 +1231,8 @@ graveyard_card_singular_movement ::= graveyard_card_subject "is" "put" "into" gr
 /* @sem ObjectFilter::AllOf([$filter_phrase, $graveyard_plural_owner, Not(Token)]) */
 graveyard_card_plural_movement ::= "one" "or" "more" filter_phrase "cards" "are" "put" "into" graveyard_plural_owner
 
-graveyard_card_subject ::= graveyard_card_unqualified | graveyard_card_another | graveyard_card_filtered
-/* @sem ObjectFilter::Any */
-graveyard_card_unqualified ::= "a" "card"
+graveyard_card_subject ::= a_card_any | graveyard_card_another | graveyard_card_filtered
+
 /* @sem ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)) */
 graveyard_card_another ::= "another" "card"
 /* @sem $graveyard_card_filter */
@@ -1315,13 +1287,7 @@ combat_group_compound_controlled ::= "one" "or" "more" filter_phrase filter_plur
 /* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$combat_group_source, recipients:Players($combat_single_recipient), kind:Combat, grouping:Recipient, subject:Source}) */
 event_group_combat_recipient ::= combat_group_source "deal" "combat" "damage" "to" combat_single_recipient
 
-combat_single_recipient ::= combat_recipient_you | combat_recipient_player
-
-/* @sem PlayerSet::One(AbilityController) */
-combat_recipient_you ::= "you"
-
-/* @sem PlayerSet::All */
-combat_recipient_player ::= "a" "player"
+combat_single_recipient ::= hexproof_you | event_a_player
 
 /* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$combat_group_source, recipients:Players($combat_batch_recipients), kind:Combat, grouping:Batch, subject:Source}) */
 event_group_combat_batch ::= combat_group_source "deal" "combat" "damage" "to" combat_batch_recipients
@@ -1614,7 +1580,7 @@ dungeon_completer_third ::= event_player "completes"
 /* @sem EventSpec::Batch{event:Attack{attackers:Any, by:$event_player, defenders:Players($attack_player_defender)}, per:Defender} */
 event_player_attacks_defender ::= event_player "attacks" attack_player_defender
 
-attack_player_defender ::= attack_player_you | attack_player_opponent | attack_player_initiative_holder
+attack_player_defender ::= player_rule_you | attack_player_opponent | attack_player_initiative_holder
 
 /* Both alternatives retain the same event actor and current spell filter. */
 /* @sem EventSpec::@either_event(EventSpec::Spell{event:Cast, players:$event_player, spells:$spell_filter}, EventSpec::Spell{event:Copy, players:$event_player, spells:$spell_filter}) */
@@ -1830,10 +1796,7 @@ event_during_window ::= event_zone_during_window | event_controlled_during_windo
 /* @sem EventSpec::Player{event:DrawsRevealedCard, players:$revealed_draw_player, objects:$revealed_draw_card} */
 event_draw_revealed ::= revealed_draw_player "draws" "a" revealed_draw_card
 
-revealed_draw_player ::= event_player | revealed_draw_chosen_player
-
-/* @sem PlayerSet::One(PlayerRef::Chosen) */
-revealed_draw_chosen_player ::= "the" "chosen" "player"
+revealed_draw_player ::= event_player | event_chosen_player
 
 revealed_draw_card ::= revealed_draw_filtered_card | revealed_draw_negative_card | revealed_draw_modified_card
 
@@ -1851,7 +1814,6 @@ revealed_draw_modified_card ::= "card" modifier_chosen_name
 event_first_each_turn_shared ::= event_first_each_turn_operand "for" "the" "first" "time" "each" "turn"
 
 event_first_each_turn_operand ::= event_combat_damage_player | event_dealt_damage | event_object_becomes_crewed | event_you_investigate | event_holder_counters_put | event_you_scry | event_discard_many | event_active_discard_many | event_cycle_card | event_you_discard_filtered_batch
-
 
 /* Filter the cast itself by the stated condition or controller timing. */
 /* @sem EventSpec::Filtered{event:Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:$spell_filter}, condition:$condition} */
@@ -1904,13 +1866,10 @@ turn_first_game_upkeep ::= "the" "beginning" "of" first_upkeep_players "first" "
 /* @sem PlayerSet::All */
 first_upkeep_all ::= "the"
 
-/* @sem PlayerSet::One(AbilityController) */
-first_upkeep_you ::= "your"
-
 /* @sem PlayerSet::OthersThan(AbilityController) */
 first_upkeep_other ::= "each" "other" "player's"
 
-first_upkeep_players ::= first_upkeep_all | first_upkeep_you | first_upkeep_other
+first_upkeep_players ::= first_upkeep_all | hand_size_yours | first_upkeep_other
 
 /* A named object and a disjoint filtered population retain their separate
    event subjects. The shared filter phrase carries its own qualifiers. */
@@ -1988,7 +1947,7 @@ event_damage_to_player ::= "damage" "is" "dealt" "to" damage_recipient_player
 /* @sem EventSpec::Damage(_{source_kind:Any, sources:Any, recipients:Players($damage_recipient_player), kind:Prevented, grouping:Recipient, subject:Recipient}) */
 event_prevented_to_player ::= "damage" "that" "would" "be" "dealt" "to" damage_recipient_player "is" "prevented"
 
-damage_recipient_player ::= passive_combat_you | event_player | damage_chosen_players
+damage_recipient_player ::= player_rule_you | event_player | damage_chosen_players
 
 /* @sem PlayerSet::Matching{binding:0, condition:ValueChosenIs(Bound(0))} */
 damage_chosen_players ::= "one" "of" "the" "chosen" "players"
@@ -1999,10 +1958,7 @@ event_death_base ::= event_dies | event_object_dies
 /* @sem EventSpec::Filtered{event:$event_death_base, condition:$death_qualifier} */
 event_qualified_death ::= event_death_base death_qualifier
 
-death_qualifier ::= death_during_your_turn | death_during_combat | death_while_in_your_graveyard
-
-/* @sem Condition::PlayerIsActive(AbilityController) */
-death_during_your_turn ::= "during" "your" "turn"
+death_qualifier ::= window_your_turn | death_during_combat | death_while_in_your_graveyard
 
 /* @sem Condition::Window(Combat) */
 death_during_combat ::= "during" "combat"
@@ -2014,14 +1970,11 @@ death_while_in_your_graveyard ::= "while" object_ref "is" "in" "your" "graveyard
 /* @sem EventSpec::Discard{players:One($history_discard_subject), cards:Any, kind:Any, grouping:Card} */
 history_discard_event ::= history_discard_subject "discarded"
 
-history_discard_subject ::= history_discard_you | history_discard_youve
+history_discard_subject ::= history_discard_you | history_draw_you
 
 /* @prefer always */
 /* @sem PlayerRef::AbilityController */
 history_discard_you ::= "you"
-
-/* @sem PlayerRef::AbilityController */
-history_discard_youve ::= "you've"
 
 /* The triggering event and the holder of the resulting ability are independent. */
 /* @sem Ability::TriggerRule{cause:$retrigger_cause, abilities:AbilityOf($retrigger_cause_holder), rule:TriggersAgain} */
@@ -2124,22 +2077,13 @@ event_player_choice_base ::= "you" player_event_base "or" player_event_base_seco
 
 player_event_base_second ::= player_event_base
 
-player_event_base ::= player_event_scry_base | player_event_surveil_base | player_event_search_base
-
-/* @sem PlayerEvent::Scries */
-player_event_scry_base ::= "scry"
-
-/* @sem PlayerEvent::Surveils */
-player_event_surveil_base ::= "surveil"
+player_event_base ::= you_action_scry | you_action_surveil | player_event_search_base
 
 /* @sem PlayerEvent::SearchesLibrary */
 player_event_search_base ::= "search" "your" "library"
 
-/* @sem EventSpec::AnyOf([Player{event:$player_event_third, players:$event_choice_player}, Player{event:$player_event_third_second, players:$event_choice_player}, Player{event:$player_event_third_third, players:$event_choice_player}]) */
-event_player_choice_third ::= event_choice_player player_event_third "," player_event_third_second "," "or" player_event_third_third
-
-/* @sem PlayerSet::OpponentsOf(AbilityController) */
-event_choice_player ::= "an" "opponent"
+/* @sem EventSpec::AnyOf([Player{event:$player_event_third, players:$fewer_an_opponent}, Player{event:$player_event_third_second, players:$fewer_an_opponent}, Player{event:$player_event_third_third, players:$fewer_an_opponent}]) */
+event_player_choice_third ::= fewer_an_opponent player_event_third "," player_event_third_second "," "or" player_event_third_third
 
 player_event_third_second ::= player_event_third
 
@@ -2169,13 +2113,7 @@ transform_choose_player ::= SELF_NAME "," "choose" transform_player_choice
 /* @sem Operand::Term{family:TransformAction, form:AttachPermanentToAPlayer, operands:[Object($object_ref), Players($transform_player_choice)]} */
 transform_attach_player ::= object_ref "," "attach" "it" "to" transform_player_choice
 
-transform_player_choice ::= transform_any_player | transform_opponent | transform_active_opponent | transform_chosen_opponent
-
-/* @sem PlayerSet::All */
-transform_any_player ::= "a" "player"
-
-/* @sem PlayerSet::OpponentsOf(PlayerRef::AbilityController) */
-transform_opponent ::= "an" "opponent"
+transform_player_choice ::= event_a_player | event_an_opponent | transform_active_opponent | transform_chosen_opponent
 
 /* @sem PlayerSet::OpponentsOf(PlayerRef::Active) */
 transform_active_opponent ::= "an" "opponent" "of" "the" "active" "player"
@@ -2295,20 +2233,14 @@ seeking_player_you ::= "you" "seek"
 /* @sem $event_player */
 seeking_player_third ::= event_player "seeks"
 
-/* @sem PlayerSet::One(PlayerRef::EnchantedBy(ObjectRef::Source)) */
-event_enchanted_opponent ::= "enchanted" "opponent"
-
 /* Player keyword events retain the actor independently of the action. */
 /* @sem EventSpec::Player{event:$you_keyword_event, players:One(AbilityController)} */
 event_you_keyword_action ::= "you" you_keyword_event
 
-you_keyword_event ::= you_keyword_event_forage | you_keyword_event_surveil
+you_keyword_event ::= you_keyword_event_forage | you_action_surveil
 
 /* @sem PlayerEvent::Forages */
 you_keyword_event_forage ::= "forage"
-
-/* @sem PlayerEvent::Surveils */
-you_keyword_event_surveil ::= "surveil"
 
 /* The subject and the resulting event kind compose independently. */
 /* @sem EventSpec::Object{event:$singular_becomes_kind, objects:$event_singular_subject} */
@@ -2325,13 +2257,10 @@ singular_becomes_monstrous ::= "monstrous"
 /* @sem EventSpec::Object{event:$object_event_action, objects:SameObject($object_ref)} */
 event_object_action ::= object_ref object_event_action
 
-/* @sem ObjectEvent::Mutates */
-object_event_mutates ::= "mutates"
-
 /* @sem ObjectEvent::Evolves */
 object_event_evolves ::= "evolves"
 
-object_event_action ::= object_event_mutates | object_event_evolves
+object_event_action ::= first_object_mutates | object_event_evolves
 
 /* Foretelling is a player event; the grammatical subject retains its own player set. */
 /* @sem EventSpec::Player{event:Foretells, players:$foretell_event_actor} */
@@ -2407,7 +2336,7 @@ event_keyword_you ::= "you" event_keyword_base
 /* @sem EventSpec::Player{event:$event_keyword_third_action, players:$event_player} */
 event_keyword_third ::= event_player event_keyword_third_action
 
-event_keyword_base ::= event_keyword_manifest | event_keyword_proliferate | event_keyword_surveil
+event_keyword_base ::= event_keyword_manifest | event_keyword_proliferate | you_action_surveil
 
 /* @sem PlayerEvent::ManifestsDread */
 event_keyword_manifest ::= "manifest" "dread"
@@ -2415,19 +2344,13 @@ event_keyword_manifest ::= "manifest" "dread"
 /* @sem PlayerEvent::Proliferates */
 event_keyword_proliferate ::= "proliferate"
 
-/* @sem PlayerEvent::Surveils */
-event_keyword_surveil ::= "surveil"
-
-event_keyword_third_action ::= event_keyword_manifest_third | event_keyword_proliferate_third | event_keyword_surveil_third
+event_keyword_third_action ::= event_keyword_manifest_third | event_keyword_proliferate_third | player_event_surveil_third
 
 /* @sem PlayerEvent::ManifestsDread */
 event_keyword_manifest_third ::= "manifests" "dread"
 
 /* @sem PlayerEvent::Proliferates */
 event_keyword_proliferate_third ::= "proliferates"
-
-/* @sem PlayerEvent::Surveils */
-event_keyword_surveil_third ::= "surveils"
 
 /* This receipt is scoped to the manifest-dread event that produced it. */
 /* @sem Ability::Triggered{event:$manifest_event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:EventGroup, count:AsManyAsCan($manifest_return_count), constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{}), qualifiers:[]}}]}} */
@@ -2441,10 +2364,7 @@ manifest_event_when ::= "when" "you" event_keyword_manifest
 /* @sem EventSpec::Player{event:$event_keyword_manifest, players:One(AbilityController)} */
 manifest_event_whenever ::= "whenever" "you" event_keyword_manifest
 
-manifest_return_count ::= manifest_return_one | manifest_return_multiple
-
-/* @sem Expr::Constant(1) */
-manifest_return_one ::= "a" "card"
+manifest_return_count ::= count_a_card | manifest_return_multiple
 
 manifest_return_multiple ::= manifest_return_two | manifest_return_three
 
@@ -2497,13 +2417,10 @@ evidence_collector_third ::= event_player "collects"
 /* @sem EventSpec::Player{event:RollsPlanarBlank, players:$planar_blank_roller} */
 event_planar_blank ::= planar_blank_roller "a" "blank" "on" "the" "planar" "die"
 
-/* @sem PlayerSet::One(PlayerRef::AbilityController) */
-planar_blank_roller_you ::= "you" "roll"
-
 /* @sem $event_player */
 planar_blank_roller_third ::= event_player "rolls"
 
-planar_blank_roller ::= planar_blank_roller_you | planar_blank_roller_third
+planar_blank_roller ::= planar_roll_you | planar_blank_roller_third
 
 /* The payment event belongs to the object whose upkeep was paid. */
 /* @sem EventSpec::Object{event:CumulativeUpkeepPaid, objects:SameObject($upkeep_holder)} */
@@ -2542,10 +2459,7 @@ event_player_commits_crime ::= event_player "commits" "a" "crime"
 /* @sem EventSpec::Batch{event:ZoneChange{objects:@and($library_arrival_card_filter, $library_arrival_owner), to:Library}, per:Whole} */
 event_batch_cards_to_library ::= "one" "or" "more" library_arrival_card_filter "are" "put" "into" library_arrival_owner "from" "anywhere"
 
-library_arrival_card_filter ::= library_arrival_any_card | library_arrival_filtered_card
-
-/* @sem ObjectFilter::Any */
-library_arrival_any_card ::= "cards"
+library_arrival_card_filter ::= random_any_cards | library_arrival_filtered_card
 
 /* @sem $filter_phrase */
 library_arrival_filtered_card ::= filter_phrase "cards"
@@ -2643,21 +2557,15 @@ event_you_player_action ::= "you" player_event_action_base
 /* @sem EventSpec::Player{event:$player_event_action_third, players:$event_player} */
 event_third_player_action ::= event_player player_event_action_third
 
-player_event_action_base ::= player_event_action_conjure | player_event_action_proliferate | player_event_action_claim_prize | player_event_action_win_clash
+player_event_action_base ::= player_event_action_conjure | event_keyword_proliferate | player_event_action_claim_prize | player_event_action_win_clash
 
 /* @sem PlayerEvent::Conjures */
 player_event_action_conjure ::= "conjure" "one" "or" "more" "cards"
 
-/* @sem PlayerEvent::Proliferates */
-player_event_action_proliferate ::= "proliferate"
-
-player_event_action_third ::= player_event_action_conjures | player_event_action_proliferates
+player_event_action_third ::= player_event_action_conjures | event_keyword_proliferate_third
 
 /* @sem PlayerEvent::Conjures */
 player_event_action_conjures ::= "conjures" "one" "or" "more" "cards"
-
-/* @sem PlayerEvent::Proliferates */
-player_event_action_proliferates ::= "proliferates"
 
 /* @sem EventSpec::Player{event:RollsADie, players:One(AbilityController)} */
 event_you_roll_die ::= "you" "roll" "a" "die"
@@ -2752,10 +2660,7 @@ event_plural_return_to_hand ::= filter_plural "are" "returned" "to" "hand"
 /* @sem EventSpec::Batch{event:Discard(_{players:$combat_batch_recipients, cards:$batch_discard_cards, kind:Any, grouping:Player}), per:Whole} */
 event_batch_discard ::= combat_batch_recipients "discard" "one" "or" "more" batch_discard_cards
 
-batch_discard_cards ::= batch_discard_any_cards | batch_discard_filtered_cards
-
-/* @sem ObjectFilter::Any */
-batch_discard_any_cards ::= "cards"
+batch_discard_cards ::= random_any_cards | batch_discard_filtered_cards
 
 /* @sem $card_filter */
 batch_discard_filtered_cards ::= card_filter "cards"
@@ -2764,10 +2669,7 @@ batch_discard_filtered_cards ::= card_filter "cards"
 /* @sem PlayerHistory::PlayedFromExile($played_card_filter) */
 played_from_exile_history ::= "play" "a" played_card_filter "from" "exile"
 
-played_card_filter ::= played_any_card | played_filtered_card
-
-/* @sem ObjectFilter::Any */
-played_any_card ::= "card"
+played_card_filter ::= hand_one_any | played_filtered_card
 
 /* @sem $card_filter */
 played_filtered_card ::= card_filter "card"
@@ -2825,13 +2727,7 @@ own_untap_step_event ::= "during" "your" "untap" "step"
 /* @sem EventSpec::Player{event:EntersUnplayed, players:$unplayed_entry_controller, objects:$filter_plural} */
 event_unplayed_entry ::= "one" "or" "more" filter_plural "enter" "under" unplayed_entry_controller "control" "without" "being" "played"
 
-unplayed_entry_controller ::= unplayed_entry_opponent | unplayed_entry_you | unplayed_entry_player
-
-/* @sem PlayerSet::OpponentsOf(PlayerRef::AbilityController) */
-unplayed_entry_opponent ::= "an" "opponent's"
-
-/* @sem PlayerSet::One(PlayerRef::AbilityController) */
-unplayed_entry_you ::= "your"
+unplayed_entry_controller ::= entry_cause_opponent | owner_you | unplayed_entry_player
 
 /* @sem PlayerSet::All */
 unplayed_entry_player ::= "a" "player's"
@@ -2847,10 +2743,7 @@ event_you_pay_cumulative_upkeep ::= "you" "pay" self_possessive "cumulative" "up
 /* @sem EventSpec::Batch{event:ZoneChange{objects:@and($exiled_batch_card_filter, ObjectFilter::OwnedBy(One(PlayerRef::AbilityController))), from:$greatest_card_zone, to:Exile}, per:Whole} */
 event_owned_cards_to_exile ::= "one" "or" "more" exiled_batch_card_filter "are" "put" "into" "exile" "from" "your" greatest_card_zone
 
-exiled_batch_card_filter ::= exiled_batch_any_cards | exiled_batch_filtered_cards
-
-/* @sem ObjectFilter::Any */
-exiled_batch_any_cards ::= "cards"
+exiled_batch_card_filter ::= random_any_cards | exiled_batch_filtered_cards
 
 /* @sem $card_filter */
 exiled_batch_filtered_cards ::= card_filter "cards"
@@ -2906,16 +2799,10 @@ event_object_choice_third ::= event_singular_subject object_event_choice_third "
 
 object_event_choice_third_second ::= object_event_choice_third
 
-object_event_choice_third ::= object_event_choice_specializes | object_event_choice_attacks | object_event_choice_blocks
+object_event_choice_third ::= object_event_choice_specializes | singular_combat_attacks | singular_combat_blocks
 
 /* @sem ObjectEvent::Specializes */
 object_event_choice_specializes ::= "specializes"
-
-/* @sem ObjectEvent::Attacks */
-object_event_choice_attacks ::= "attacks"
-
-/* @sem ObjectEvent::Blocks */
-object_event_choice_blocks ::= "blocks"
 
 /* Singular controlled subjects and their object events compose independently. */
 /* @sem EventSpec::Object{event:$singular_object_action, objects:$controlled_entrant} */
@@ -2940,7 +2827,7 @@ event_losing_player ::= event_player | event_chosen_value_player
 /* @sem EventSpec::AnyOf([ZoneChange{objects:$event_singular_subject, to:Battlefield}, Object{event:$event_object_transition, objects:$event_singular_subject}]) */
 event_enters_or_object_transition ::= event_singular_subject "enters" "or" event_object_transition
 
-event_object_transition ::= event_transition_tapped | event_transition_untapped | event_transition_attacks | event_transition_turned_face_up
+event_object_transition ::= event_transition_tapped | event_transition_untapped | singular_combat_attacks | event_transition_turned_face_up
 
 /* @sem ObjectEvent::BecomesTapped */
 event_transition_tapped ::= "becomes" "tapped"
@@ -3101,13 +2988,7 @@ event_player_attacks_you_while ::= event_player_attacks_you_batch "while" condit
 /* @sem EventSpec::Caused{cause:$caused_spell_ability, event:$caused_card_exile_batch} */
 event_caused_card_exile ::= caused_spell_ability "causes" caused_card_exile_batch
 
-/* @sem ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)) */
-caused_spell_ability_you ::= "a" "spell" "or" "ability" "you" "control"
-
-/* @sem ObjectFilter::ControlledBy(OpponentsOf(PlayerRef::AbilityController)) */
-caused_spell_ability_opponent ::= "a" "spell" "or" "ability" "an" "opponent" "controls"
-
-caused_spell_ability ::= caused_spell_ability_you | caused_spell_ability_opponent
+caused_spell_ability ::= event_cause_you | event_cause_opponent
 
 /* @sem EventSpec::Batch{event:ZoneChange{objects:$caused_card_owner, from:$caused_card_origin, to:Exile}, per:Whole} */
 caused_card_exile_batch ::= "one" "or" "more" "cards" "to" "be" "exiled" "from" caused_card_owner caused_card_origin
@@ -3117,13 +2998,7 @@ caused_card_owner_opponent ::= "an" "opponent's"
 
 caused_card_owner ::= caused_card_owner_opponent
 
-/* @sem Zone::Library */
-caused_card_origin_library ::= "library"
-
-/* @sem Zone::Graveyard */
-caused_card_origin_graveyard ::= "graveyard"
-
-caused_card_origin ::= caused_card_origin_library | caused_card_origin_graveyard
+caused_card_origin ::= exchange_private_library | hand_exile_graveyard
 
 /* Extend the same object event with a player recipient; the actor remains the controller. */
 /* @sem EventSpec::AnyOf([$event_you_put_unspecified_counters, CountersOnPlayer{by:One(AbilityController), players:All}]) */
@@ -3201,13 +3076,7 @@ shared_state_tapped ::= "tapped"
 /* @sem ObjectEvent::BecomesUntapped */
 shared_state_untapped ::= "untapped"
 
-shared_damage_kind ::= shared_damage_any | shared_damage_combat
-
-/* @sem DamageKind::Any */
-shared_damage_any ::= "damage"
-
-/* @sem DamageKind::Combat */
-shared_damage_combat ::= "combat" "damage"
+shared_damage_kind ::= historical_any_damage | historical_combat_damage
 
 /* Group damage keeps recipient grouping distinct from a whole-opponent batch. */
 /* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$filter_plural, recipients:Players(OpponentsOf(AbilityController)), kind:$group_damage_kind, grouping:Batch, subject:Source}) */
@@ -3222,13 +3091,7 @@ group_each_power_above_base ::= filter_plural "each" "with" "power" "greater" "t
 /* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$group_each_power_above_base, recipients:Players(All), kind:$group_damage_kind, grouping:Recipient, subject:Source}) */
 event_group_power_combat_player ::= "one" "or" "more" group_each_power_above_base "deals" group_damage_kind "to" "a" "player"
 
-/* @sem DamageKind::Any */
-group_damage_kind_any ::= "damage"
-
-/* @sem DamageKind::Combat */
-group_damage_kind_combat ::= "combat" "damage"
-
-group_damage_kind ::= group_damage_kind_any | group_damage_kind_combat
+group_damage_kind ::= historical_any_damage | historical_combat_damage
 
 group_combat_opponent_sources ::= group_goaded_creatures
 
@@ -3409,10 +3272,7 @@ activated_ordinary_ability ::= activated_ability_of_filter | activated_ability_u
 /* @sem EventSpec::AnyOf([ZoneChange{objects:AllOf([SameObject($object_ref), OwnedBy(One(AbilityController))]), from:$return_pair_origin, to:Hand}, ZoneChange{objects:AllOf([Not(SameObject($object_ref)), $filter_phrase, OwnedBy(One(AbilityController))]), from:$return_pair_origin, to:Hand}]) */
 event_referenced_or_another_returned_owned ::= object_ref "or" "another" filter_phrase "is" "returned" "to" "your" "hand" "from" return_pair_origin
 
-return_pair_origin ::= return_pair_battlefield | return_pair_graveyard
-
-/* @sem Zone::Battlefield */
-return_pair_battlefield ::= "the" "battlefield"
+return_pair_origin ::= put_zone_battlefield | return_pair_graveyard
 
 /* @sem Zone::Graveyard */
 return_pair_graveyard ::= "the" "graveyard"
@@ -3445,10 +3305,7 @@ referenced_or_another_controlled ::= object_ref "or" "another" controlled_entry_
 /* @sem EventSpec::NthEachTurn{event:Spell{event:Cast, players:One(AbilityController), spells:@and($cast_turn_filter, $cast_turn_origin)}, test:NumberTest::Compare{comparison:Equal, value:$cast_turn_ordinal}} */
 event_cast_nth_filtered_from_graveyard ::= "you" "cast" "your" cast_turn_ordinal cast_turn_filter "spell" "from" "your" cast_turn_origin "each" "turn"
 
-cast_turn_ordinal ::= cast_turn_first | ordinal
-
-/* @sem Expr::Constant(1) */
-cast_turn_first ::= "first"
+cast_turn_ordinal ::= ordinal_first | ordinal
 
 cast_turn_filter ::= filter_phrase | spell_instant | spell_sorcery
 
@@ -3566,13 +3423,10 @@ phase_batch_permanents ::= "permanents"
 /* @sem EventSpec::Batch{event:ZoneChange{objects:$exile_batch_cards, to:Exile}, per:Whole} */
 event_exile_batch ::= "one" "or" "more" exile_batch_cards "are" "put" "into" "exile" "from" "anywhere"
 
-exile_batch_cards ::= exile_batch_other_cards | exile_batch_all_cards
+exile_batch_cards ::= exile_batch_other_cards | random_any_cards
 
 /* @sem ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)) */
 exile_batch_other_cards ::= "other" "cards"
-
-/* @sem ObjectFilter::Any */
-exile_batch_all_cards ::= "cards"
 
 /* A named source with plural agreement shares the event and subject operands. */
 /* @sem EventSpec::Object{event:$named_become_state, objects:$event_named} */
@@ -3593,10 +3447,7 @@ named_event_counter_plural ::= "counters"
 
 named_event_counter_word ::= named_event_counter_singular | named_event_counter_plural
 
-named_become_state ::= named_become_tapped | named_become_untapped
-
-/* @sem ObjectEvent::BecomesTapped */
-named_become_tapped ::= "become" "tapped"
+named_become_state ::= batch_object_tapped | named_become_untapped
 
 /* @sem ObjectEvent::BecomesUntapped */
 named_become_untapped ::= "become" "untapped"
@@ -3742,10 +3593,7 @@ entry_followup_nth_draw ::= "you" "draw" "your" ordinal "card" "each" "turn"
 /* @sem NumberTest::Compare{comparison:NotEqual, value:$cast_excluded_ordinal} */
 cast_except_ordinal ::= "other" "than" "the" cast_excluded_ordinal "spell" "they" "cast" "each" "turn"
 
-cast_excluded_ordinal ::= cast_ordinal_first | ordinal
-
-/* @sem Expr::Constant(1) */
-cast_ordinal_first ::= "first"
+cast_excluded_ordinal ::= ordinal_first | ordinal
 
 /* @sem EventSpec::NthEachTurn{event:Spell{event:Cast, players:$event_enchanted_player, spells:$spell_filter}, test:$cast_except_ordinal} */
 event_cast_except_nth ::= event_enchanted_player "casts" spell_filter cast_except_ordinal
@@ -3766,11 +3614,10 @@ event_source_departure_while ::= event_source_death_or_exile "while" condition_s
 event_source_death_or_exile ::= event_self "dies" "or" "is" "put" "into" "exile"
 
 /* A haunted creature dying triggers the exiled card's ability. */
-/* @sem EventSpec::ZoneChange{objects:SameObject(HauntedBy(Source)), from:Battlefield, to:Graveyard} */
-event_haunted_source_dies ::= "the" "creature" "this" "card" "haunts" "dies"
+/* event_haunted_source_dies is shared as haunted_creature_death. */
 
-/* @sem Ability::Scoped{zones:[Exile], ability:@scope(Ability::Triggered{event:$event_haunted_source_dies, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence})} */
-triggered_haunted_source_dies ::= "when" event_haunted_source_dies "," program_sentence
+/* @sem Ability::Scoped{zones:[Exile], ability:@scope(Ability::Triggered{event:$haunted_creature_death, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence})} */
+triggered_haunted_source_dies ::= "when" haunted_creature_death "," program_sentence
 
 /* Escape entry actions retain the counter and reflexive program operands. */
 /* @sem Ability::AsEvent{object:$object_ref, event:Escapes, actions:List([$escape_counter_action, $escape_reflexive_action])} */
@@ -3928,10 +3775,7 @@ activation_keyword_an ::= "an" activation_keyword_vowel "ability"
 
 activation_keyword_consonant ::= activation_trait_boast | activation_trait_power_up
 
-activation_keyword_vowel ::= activation_trait_exhaust | activation_trait_eternalize | activation_trait_embalm
-
-/* @sem StackTrait::Keyword(Exhaust) */
-activation_trait_exhaust ::= "exhaust"
+activation_keyword_vowel ::= shared_exhaust_kind | activation_trait_eternalize | activation_trait_embalm
 
 /* @sem EventSpec::Filtered{event:ZoneChange{objects:$filter_phrase, to:Battlefield}, condition:$window_your_turn} */
 shared_literal_fold_024fc5826bdc ::= "a" filter_phrase "enters" window_your_turn
@@ -3984,7 +3828,7 @@ event_player_attacks_opponents_batch ::= event_player "attacks" "one" "or" "more
 /* @sem EventSpec::NthEachTurn{event:Spell{event:Cast, players:One(AbilityController), spells:$adjective_nontype}, test:NumberTest::Compare{comparison:Equal, value:$shared_observed_literal_7feb0c98c0b4}} */
 shared_literal_fold_10f9a45b6176 ::= "you" "cast" "your" shared_observed_literal_7feb0c98c0b4 adjective_nontype "spell" "each" "turn"
 
-shared_observed_literal_7feb0c98c0b4 ::= resolution_first | resolution_fourth
+shared_observed_literal_7feb0c98c0b4 ::= ordinal_first | library_depth_fourth
 
 /* @sem EventSpec::ZoneChange{objects:SameObject(@enchanted_operand(ObjectRef::AttachedTo(Source))), from:Battlefield, to:Graveyard} */
 kin_enchanted_creature_death ::= "enchanted" "creature" "dies"
@@ -4214,13 +4058,7 @@ event_combat_ref_unqualified ::= combat_ref_deals
 /* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:SameObject($combat_ref_deals), recipients:Players($combat_ref_recipient), kind:Combat, grouping:SourceRecipient, subject:Source}) */
 event_combat_ref_to_player ::= combat_ref_deals "to" combat_ref_recipient
 
-combat_ref_recipient ::= combat_ref_any_player | combat_ref_opponent
-
-/* @sem PlayerSet::All */
-combat_ref_any_player ::= "a" "player"
-
-/* @sem PlayerSet::OpponentsOf(AbilityController) */
-combat_ref_opponent ::= "an" "opponent"
+combat_ref_recipient ::= event_a_player | fewer_an_opponent
 
 /* The defending player is determined by the same object that dealt damage. */
 /* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:SameObject($combat_ref_deals), recipients:Players(One(DefendingPlayerOf($combat_ref_deals))), kind:Combat, grouping:SourceRecipient, subject:Source}) */
@@ -4369,18 +4207,12 @@ private_or_controlled_exile_batch_clause ::= "whenever" private_exile_batch_even
 /* @sem EventSpec::ZoneChange{objects:$event_owned_cards, from:$private_exile_origin, to:Exile} */
 private_exile_batch_event ::= "one" "or" "more" event_owned_cards "are" "put" "into" "exile" "from" "your" private_exile_origin
 
-private_exile_origin ::= private_exile_hand | ordered_zone
-
-/* @sem EventZone::Hand */
-private_exile_hand ::= "hand"
+private_exile_origin ::= shuffle_own_hand | ordered_zone
 
 /* @sem EventSpec::Caused{cause:ControlledBy(One(AbilityController)), event:ZoneChange{objects:$controlled_exile_permanents, from:Battlefield, to:Exile}} */
 controlled_exile_batch_event ::= "a" "spell" "or" "ability" "you" "control" "exiles" "one" "or" "more" controlled_exile_permanents "from" "the" "battlefield"
 
-controlled_exile_permanents ::= controlled_exile_any_permanents | controlled_exile_filtered_permanents
-
-/* @sem ObjectFilter::Any */
-controlled_exile_any_permanents ::= "permanents"
+controlled_exile_permanents ::= plural_permanent | controlled_exile_filtered_permanents
 
 /* @sem $filter_plural */
 controlled_exile_filtered_permanents ::= filter_plural
@@ -4455,12 +4287,9 @@ library_graveyard_card_a ::= "a" library_graveyard_card_a_type
 /* @sem $library_graveyard_card_an_type */
 library_graveyard_card_an ::= "an" library_graveyard_card_an_type
 
-library_graveyard_card_a_type ::= library_graveyard_permanent | noun_creature | noun_land | noun_planeswalker | noun_battle
+library_graveyard_card_a_type ::= chosen_permanent_card_filter | noun_creature | noun_land | noun_planeswalker | noun_battle
 
 library_graveyard_card_an_type ::= noun_artifact | noun_enchantment
-
-/* @sem ObjectFilter::AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)]) */
-library_graveyard_permanent ::= "permanent"
 
 /* @sem EventSpec::Discard(_{players:One(AbilityController), cards:$adjective_nontype, kind:Any, grouping:Card}) */
 event_discard_non_type_card ::= "you" "discard" "a" adjective_nontype "card"
@@ -4480,10 +4309,7 @@ event_named_attack ::= event_named "attack"
 /* @sem EventSpec::Object{event:PhasesOut, objects:SameObject($object_ref)} */
 event_phases_out ::= object_ref "phases" "out"
 
-combat_damage_player_set ::= combat_damage_any_player | combat_damage_player_more_permanents | event_enchanted_player
-
-/* @sem PlayerSet::All */
-combat_damage_any_player ::= "a" "player"
+combat_damage_player_set ::= event_a_player | combat_damage_player_more_permanents | event_enchanted_player
 
 /* @sem PlayerSet::Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])})}}} */
 combat_damage_player_more_permanents ::= "a" "player" "who" "controls" "more" filter_plural "than" "you"
@@ -4541,19 +4367,10 @@ own_graveyard_whenever ::= "whenever"
 /* @sem EventSpec::ZoneChange{objects:AllOf([SameObject(Source), OwnedBy(One(AbilityController))]), from:$own_graveyard_origin, to:Graveyard} */
 own_library_graveyard_event ::= self_card "is" "put" "into" "your" "graveyard" "from" "your" own_graveyard_origin
 
-own_graveyard_origin ::= own_graveyard_library | own_graveyard_hand
+own_graveyard_origin ::= exchange_private_library | exchange_private_hand
 
-/* @sem Zone::Library */
-own_graveyard_library ::= "library"
-
-/* @sem Zone::Hand */
-own_graveyard_hand ::= "hand"
-
-/* @sem EventSpec::Damage{source_kind:Permanent, sources:SameObject($target_permanent), recipients:Objects($delayed_damage_recipient), kind:Combat, grouping:SourceRecipient, subject:Source} */
-delayed_target_damage_event ::= target_permanent "deals" "combat" "damage" "to" "a" delayed_damage_recipient
-
-/* @sem ObjectFilter::CardType(Creature) */
-delayed_damage_recipient ::= "creature"
+/* @sem EventSpec::Damage{source_kind:Permanent, sources:SameObject($target_permanent), recipients:Objects($noun_creature), kind:Combat, grouping:SourceRecipient, subject:Source} */
+delayed_target_damage_event ::= target_permanent "deals" "combat" "damage" "to" "a" noun_creature
 
 /* Compose a graveyard batch with the controller's turn restriction. */
 /* @sem EventSpec::Filtered{event:$event_cards_leave, condition:ExistsPlayer{players:One(AbilityController), binding:0, condition:PlayerIsActive(Bound(0))}} */
@@ -4634,13 +4451,7 @@ suspended_plural_number ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n11 | 
 /* @sem EventSpec::Damage(_{source_kind:Any, sources:Any, recipients:Players($plural_damage_recipients), kind:$historical_damage_kind, grouping:Batch, subject:Recipient}) */
 event_plural_players_dealt_damage ::= plural_damage_recipients "are" "dealt" historical_damage_kind
 
-plural_damage_recipients ::= plural_damage_opponents | plural_damage_players
-
-/* @sem PlayerSet::OpponentsOf(AbilityController) */
-plural_damage_opponents ::= "your" "opponents"
-
-/* @sem PlayerSet::All */
-plural_damage_players ::= "players"
+plural_damage_recipients ::= choice_life_your_opponents | hands_revealed_all
 
 /* An explicit noncombat damage event retains its source and player recipient. */
 /* @sem EventSpec::Damage(DamageEvent{source_kind:Any, sources:$event_singular_subject, recipients:Players(All), kind:Noncombat, grouping:SourceRecipient, subject:Source}) */
@@ -4752,10 +4563,7 @@ event_controlled_enters_or_unlock ::= controlled_entrant "enters" "and" "wheneve
 /* @sem Ability::Triggered{event:AnyOf([Filtered{event:Damage(_{source_kind:Any, sources:$damage_event_source, recipients:Players(All), kind:Any, grouping:SourceRecipient, subject:Source}), condition:Compare{left:EventAmount, test:NumberTest::Compare{comparison:Equal, value:$number}}}, Filtered{event:Damage(_{source_kind:Any, sources:$damage_event_source, recipients:Objects(Any), kind:Any, grouping:SourceRecipient, subject:Source}), condition:Compare{left:EventAmount, test:NumberTest::Compare{comparison:Equal, value:$number}}}]), limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:DamagedByEvent, amount:$number_2, preventable:true}}]}} */
 triggered_damage_event_recipient ::= "whenever" damage_event_source "deals" "exactly" number "damage" "to" "a" "permanent" "or" "player" "," damage_source_ref "deals" number "damage" "to" "that" "permanent" "or" "player" "."
 
-damage_event_source ::= damage_source | damage_event_another_controlled_source
-
-/* @sem ObjectFilter::AllOf([Not(SameObject(Source)), ControlledBy(One(AbilityController))]) */
-damage_event_another_controlled_source ::= "another" "source" "you" "control"
+damage_event_source ::= damage_source | source_another_yours
 
 /* @sem $event_passive_chosen_mana */
 chosen_mana_tapped_clause ::= "whenever" event_passive_chosen_mana
@@ -4838,8 +4646,7 @@ event_named_counter_removal ::= "one" "or" "more" counter_kind "counters" "are" 
 triggered_named_counter_conditional_reflexive ::= "whenever" event_named_counter_removal "," program_then_conditional_reflexive "."
 
 /* The event records the creator, independently of the token controller. */
-/* @sem ReplacementEvent::FirstEachTurn(Tokens{tokens:Any, creators:One(AbilityController)}) */
-first_tokens_you_would_create ::= "the" "first" "time" "you" "would" "create" "one" "or" "more" "tokens" "each" "turn"
+/* first_tokens_you_would_create is shared as optional_token_event_first. */
 
 /* A colored creature and a spell of that color contribute separate damage events. */
 /* @sem Ability::[Triggered{event:@either_event(EventSpec::Damage(_{source_kind:Permanent, sources:@and($adjective_color, ObjectFilter::CardType(Creature)), recipients:Any, kind:Any, grouping:Source, subject:Source}), EventSpec::Damage(_{source_kind:Spell, sources:$adjective_color, recipients:Any, kind:Any, grouping:Source, subject:Source})), limits:_{}, body:$colored_pair_damage_body, announcement:@announcement}] */
@@ -4909,16 +4716,7 @@ cast_source_from_hand_header ::= "when" "you" "cast" "this" "spell" "from" "your
 /* @sem EventSpec::Spell{event:Cast, players:$event_player, spells:@and($spell_filter, ObjectFilter::Cast{from:Players{zone:$caster_origin_zone, players:One(CasterOf(Candidate))}})} */
 event_player_casts_from_own_zone ::= event_player "casts" spell_filter "from" "their" caster_origin_zone
 
-/* @sem Zone::Hand */
-caster_origin_hand ::= "hand"
-
-/* @sem Zone::Graveyard */
-caster_origin_graveyard ::= "graveyard"
-
-/* @sem Zone::Library */
-caster_origin_library ::= "library"
-
-caster_origin_zone ::= caster_origin_hand | caster_origin_graveyard | caster_origin_library
+caster_origin_zone ::= exchange_private_hand | hand_exile_graveyard | exchange_private_library
 
 /* The payment and its exclusion are scoped together: the excluded cards are
    the actual arrivals of this exact exile payment. */
@@ -4936,9 +4734,6 @@ nth_counter_plan ::= "plan"
 
 /* @sem Operand::Vocabulary{family:CounterType, form:HourCounter} */
 nth_counter_hour ::= "hour"
-
-/* @sem Expr::Constant(4) */
-ordinal_fourth ::= "fourth"
 
 /* @sem Expr::Constant(6) */
 ordinal_sixth ::= "sixth"
@@ -5081,7 +4876,7 @@ scheme_motion_ability ::= "as" "you" "set" "this" "scheme" "in" "motion" "," sch
 /* @sem Operand::Term{family:SetInMotionAction, form:ChooseAPlayer, operands:[Players($scheme_choice_player)]} */
 scheme_motion_action ::= "choose" scheme_choice_player
 
-scheme_choice_player ::= transform_any_player | transform_opponent | transform_active_opponent
+scheme_choice_player ::= event_a_player | event_an_opponent | transform_active_opponent
 
 counted_zone_history ::= history_opponent_controlled_death | history_battlefield_graveyard_arrival
 
@@ -5700,9 +5495,6 @@ other_card_cycling_event ::= "whenever" "you" "cycle" "another" "card"
 /* @sem Ability::Scoped{zones:[Battlefield, Graveyard, Hand, Library, Stack, Exile, Command, Ante], ability:@scope(Ability::Triggered{event:$other_card_cycling_event, limits:TriggerLimits{}, announcement:@announcement, body:$optional_payment_return_program})} */
 other_card_cycling_trigger ::= other_card_cycling_event "," optional_payment_return_program
 
-/* @sem PlayerSet::One(PlayerRef::AbilityController) */
-attack_player_you ::= "you"
-
 /* @sem PlayerSet::OpponentsOf(PlayerRef::AbilityController) */
 attack_player_opponent ::= "one" "of" "your" "opponents"
 
@@ -5823,8 +5615,7 @@ event_self_blocked_by_creature ::= "whenever" self_explicit_ref "becomes" "block
 triggered_blocker_delayed_sacrifice ::= event_self_blocked_by_creature "," blocker_delayed_sacrifice_token "."
 
 /* This event supplies the creature referent in the quoted boon. */
-/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:CardType(Creature)} */
-boon_creature_cast_event ::= "when" "you" "cast" "a" "creature" "spell"
+/* boon_creature_cast_event is shared as boon_creature_cast. */
 
 /* The same boon can follow any supported trigger, including enlist. */
 /* @sem Ability::Triggered{event:$one_time_boon_outer_event, limits:TriggerLimits{}, announcement:@announcement, body:$program_one_time_entry_boon} */
@@ -6041,10 +5832,7 @@ entry_as_trigger_cause ::= "a" noun_creature "entering" "under" entry_cause_cont
 /* @sem PlayerSet::OpponentsOf(PlayerRef::AbilityController) */
 entry_cause_opponent ::= "an" "opponent's"
 
-/* @sem PlayerSet::One(PlayerRef::AbilityController) */
-entry_cause_your ::= "your"
-
-entry_cause_controller ::= entry_cause_opponent | entry_cause_your
+entry_cause_controller ::= entry_cause_opponent | owner_you
 
 trigger_cause_creature ::= attack_as_trigger_cause | entry_as_trigger_cause
 
@@ -6068,16 +5856,10 @@ triggered_turn_exile_graveyard_copy ::= "at" turn_event "," exile_graveyard_card
 /* @sem EventSpec::Turn{point:$explicit_each_player_step, players:All} */
 explicit_each_player_turn ::= "the" "beginning" "of" "each" "player's" explicit_each_player_step
 
-explicit_each_player_step ::= explicit_each_upkeep | explicit_each_draw_step | explicit_each_end_step
-
-/* @sem TurnPoint::UpkeepBegins */
-explicit_each_upkeep ::= "upkeep"
+explicit_each_player_step ::= post_grant_upkeep | explicit_each_draw_step | post_grant_end_step
 
 /* @sem TurnPoint::DrawStepBegins */
 explicit_each_draw_step ::= "draw" "step"
-
-/* @sem TurnPoint::EndStepBegins */
-explicit_each_end_step ::= "end" "step"
 
 /* @prefer always */
 /* @sem Ability::Triggered{event:$explicit_each_player_turn, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$instructions_random_hand_exile_play_cleanup}} */
@@ -6122,14 +5904,11 @@ attack_creature_batch_clause ::= event_attack_with_non_subtype_creatures | event
 /* @sem Ability::Triggered{event:$attack_creature_batch_clause, limits:TriggerLimits{}, announcement:@announcement, body:$event_group_counter_program} */
 triggered_attacker_group_counters ::= attack_creature_batch_clause "," event_group_counter_program "."
 
-death_alternative_destination ::= death_destination_exile | death_destination_command
+death_alternative_destination ::= death_destination_exile | owned_population_command
 
 /* @sem Zone::Exile */
 /* @prefer always */
 death_destination_exile ::= "exile" "from" "the" "battlefield"
-
-/* @sem Zone::Command */
-death_destination_command ::= "the" "command" "zone"
 
 /* The count refers to the kind tested on the event subject; the placed kind
    and the recipient are independent operands. */
@@ -6217,11 +5996,10 @@ triggered_spell_single_target_retarget ::= "whenever" spell_retarget_event "," "
 
 /* This event fixes the attachment to a land; the event subject remains the
    land even if the Aura later becomes attached elsewhere. */
-/* @sem EventSpec::Object{event:BecomesTapped, objects:SameObject(AttachedTo(Source))} */
-shared_enchanted_land_tapped ::= "when" "enchanted" "land" "becomes" "tapped"
+/* shared_enchanted_land_tapped is shared as attached_land_becomes_tapped. */
 
-/* @sem Ability::Triggered{event:$shared_enchanted_land_tapped, limits:_{}, announcement:@announcement, body:Program{instructions:[...$shared_event_subject_damage_pair, ...$shared_event_controller_attach_choice]}} */
-shared_enchanted_land_damage_trigger ::= shared_enchanted_land_tapped "," shared_event_subject_damage_pair "." shared_event_controller_attach_choice "."
+/* @sem Ability::Triggered{event:$attached_land_becomes_tapped, limits:_{}, announcement:@announcement, body:Program{instructions:[...$shared_event_subject_damage_pair, ...$shared_event_controller_attach_choice]}} */
+shared_enchanted_land_damage_trigger ::= attached_land_becomes_tapped "," shared_event_subject_damage_pair "." shared_event_controller_attach_choice "."
 
 /* The roll result belongs to the visit event, and the return phrase proves the
    holder's graveyard scope. Each component retains its own operands. */
@@ -6305,16 +6083,15 @@ singular_object_leaves_if_not_die ::= "leaves" "the" "battlefield" "," "if" "it"
 event_controlled_singular_relative ::= "a" filter_phrase modifier_you_control modifier_singular_enchanted_or_equipped
 
 /* The defending player is determined by the unblocked event's attacker. */
-/* @sem Condition::Compare{left:CountPlayers(Intersection([One(AbilityController), One(DefendingPlayerOf(EventSubject))])), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}} */
-unblocked_defending_controller ::= "you're" "the" "defending" "player"
+/* unblocked_defending_controller is shared as shared_you_defending_attacker. */
 
 /* The blocking token refers to the attacker introduced by this event. */
 /* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[$token_group], entry:BattlefieldArrival{tapped:false, counters:[], states:[Blocking(EventSubject)]}} */
 create_token_blocking_event_subject ::= "create" token_group "that's" "blocking" "that" "creature"
 
 /* The event, condition and token program share the same attacker identity. */
-/* @sem Ability::Triggered{event:$event_unblocked, intervening_if:$unblocked_defending_controller, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$create_token_blocking_event_subject}]}} */
-triggered_unblocked_defending_controller ::= "whenever" event_unblocked "," "if" unblocked_defending_controller "," create_token_blocking_event_subject "."
+/* @sem Ability::Triggered{event:$event_unblocked, intervening_if:$shared_you_defending_attacker, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$create_token_blocking_event_subject}]}} */
+triggered_unblocked_defending_controller ::= "whenever" event_unblocked "," "if" shared_you_defending_attacker "," create_token_blocking_event_subject "."
 
 /* A cast whose sole target is a controlled permanent matching either kind. */
 /* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:AllOf([$single_controlled_target_cast_intro, TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$controlled_target_kind_pair, ControlledBy(One(AbilityController))])}))])} */
@@ -6526,7 +6303,7 @@ event_controlled_attached_alternative ::= "a" noun "you" "control" "that's" past
 /* @sem EventSpec::NthEachTurn{event:Spell{event:Cast, players:OpponentsOf(AbilityController), spells:$adjective_nontype}, test:NumberTest::Compare{comparison:Equal, value:$opponent_cast_ordinal}} */
 event_opponent_cast_nth_nontype ::= "an" "opponent" "casts" "their" opponent_cast_ordinal adjective_nontype "spell" "each" "turn"
 
-opponent_cast_ordinal ::= resolution_first | ordinal
+opponent_cast_ordinal ::= ordinal_first | ordinal
 
 /* A single named counter placement by the ability controller. */
 /* @sem EventSpec::Counters{change:Put, kind:$counter_kind, objects:$filter_phrase, by:One(AbilityController)} */
@@ -6740,9 +6517,6 @@ program_sacrifice_named_source_if_done ::= "sacrifice" "it" "." "if" "you" "do" 
 /* @sem Ability::Triggered{event:$event_named_no_counters, limits:TriggerLimits{}, announcement:@announcement, body:$program_sacrifice_named_source_if_done} */
 triggered_named_no_counters_sacrifice ::= event_named_no_counters "," program_sacrifice_named_source_if_done "."
 
-/* @sem ObjectEvent::Attacks */
-event_transition_attacks ::= "attacks"
-
 /* The named object and the distinct filtered alternatives share the entry controller. */
 /* @sem ObjectFilter::AnyOf([AllOf([Not(SameObject($object_ref)), $filter_phrase]), SameObject($object_ref)]) */
 history_referenced_or_another ::= object_ref "or" "another" filter_phrase
@@ -6766,13 +6540,10 @@ whenever_controlled_entrant_zone_change ::= "whenever" event_controlled_entrant_
 event_subject_attacks_or_enters_attacking ::= controlled_entrant "attacks" "or" "enters" "attacking"
 
 /* These event forms prove that the subject measured in the body is a creature that died. */
-creature_death_for_characteristic ::= controlled_creature_death_for_characteristic | any_creature_death_for_characteristic
+creature_death_for_characteristic ::= controlled_creature_death_for_characteristic | event_a_creature_dies_for_copy
 
 /* @sem EventSpec::ZoneChange{objects:AllOf([CardType(Creature), ControlledBy(One(AbilityController))]), from:Battlefield, to:Graveyard} */
 controlled_creature_death_for_characteristic ::= "a" "creature" "you" "control" "dies"
-
-/* @sem EventSpec::ZoneChange{objects:CardType(Creature), from:Battlefield, to:Graveyard} */
-any_creature_death_for_characteristic ::= "a" "creature" "dies"
 
 /* @sem Ability::Triggered{event:$creature_death_for_characteristic, limits:TriggerLimits{}, announcement:@announcement, body:$death_characteristic_counter_program} */
 creature_death_characteristic_counter_trigger ::= "whenever" creature_death_for_characteristic "," death_characteristic_counter_program "."
@@ -6872,11 +6643,8 @@ source_discard_scoped_trigger ::= "when" caused_discard_source_event "," source_
 discard_cause_active_opponent ::= "a" "spell" "or" "ability" "an" "opponent" "of" "the" "active" "player" "controls"
 
 /* A singular event subject and its explicit movement destination compose. */
-/* @sem EventSpec::ZoneChange{objects:$event_object, from:Battlefield, to:$battlefield_exile_put_destination} */
-event_battlefield_exile_put ::= event_object "is" "put" "into" battlefield_exile_put_destination "from" "the" "battlefield"
-
-/* @sem Zone::Exile */
-battlefield_exile_put_destination ::= "exile"
+/* @sem EventSpec::ZoneChange{objects:$event_object, from:Battlefield, to:$put_zone_exile} */
+event_battlefield_exile_put ::= event_object "is" "put" "into" put_zone_exile "from" "the" "battlefield"
 
 /* Both alternatives retain the same controlled object population. */
 /* @prefer always */
@@ -7246,10 +7014,7 @@ event_entry_or_spell_target ::= event_object "enters" "or" "becomes" "the" "targ
 /* @sem EventSpec::NthEachTurn{event:Spell{event:Cast, players:All, spells:$adjective_nontype}, test:NumberTest::Compare{comparison:Equal, value:$passive_spell_ordinal}} */
 event_passive_nth_filtered_spell_turn ::= "the" passive_spell_ordinal adjective_nontype "spell" "of" "a" "turn" "is" "cast"
 
-passive_spell_ordinal ::= passive_spell_first | ordinal
-
-/* @sem Expr::Constant(1) */
-passive_spell_first ::= "first"
+passive_spell_ordinal ::= ordinal_first | ordinal
 
 /* @sem ObjectFilter::AllOf([$filter_phrase, ControlledBy(One(AbilityController)), HasActivatedAbility(Mana)]) */
 event_controlled_mana_subject ::= "a" filter_phrase "you" "control" "with" "a" "mana" "ability"
@@ -7430,13 +7195,7 @@ spell_damage_response_you ::= "you"
 
 spell_damage_response_recipient ::= spell_damage_response_controller | spell_damage_response_you
 
-/* @sem DamageKind::Any */
-spell_holder_damage_any ::= "damage"
-
-/* @sem DamageKind::Noncombat */
-spell_holder_damage_noncombat ::= "noncombat" "damage"
-
-spell_holder_damage_kind ::= spell_holder_damage_any | spell_holder_damage_noncombat
+spell_holder_damage_kind ::= historical_any_damage | damage_kind_noncombat
 
 /* The spell mentioned by the spending measure is this cast event's subject. */
 /* @sem Ability::Triggered{event:$event_cast, limits:TriggerLimits{}, announcement:@announcement, body:$cast_spending_counters_then_threshold} */
@@ -7465,10 +7224,7 @@ self_damage_other_target ::= "any" "other" "target"
 
 self_damage_target ::= self_damage_other_target
 
-draw_ordinal ::= ordinal | draw_ordinal_fifth
-
-/* @sem Expr::Constant(5) */
-draw_ordinal_fifth ::= "fifth"
+draw_ordinal ::= ordinal | library_depth_fifth
 
 /* Controller draw ordinals compose with any ordinary triggered program. */
 /* @sem Ability::Triggered{event:$event_you_draw_ordinal, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence} */
@@ -7743,8 +7499,7 @@ counted_attack_you_when ::= "when" value "or" "more" filter_plural "attack" "you
 triggered_counted_attack_delayed_combat ::= counted_attack_you_when "," delayed_combat_action "."
 
 /* Damage from the equipped permanent retains the source/recipient pairing. */
-/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:SameObject(AttachedTo(Source)), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}) */
-event_equipped_combat_player ::= "equipped" "creature" "deals" "combat" "damage" "to" "a" "player"
+/* event_equipped_combat_player is shared as hidden_equipped_event. */
 
 /* A turn trigger can resolve a complete conditional program. */
 /* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:$postfix_conditional_program} */
@@ -7769,8 +7524,8 @@ triggered_event_mill_then_reflexive ::= "whenever" event_combat_ref_to_player ",
 /* An entering Aura may replace its enchant restriction before resolving an
    independently described follow-up. The two quoted filters remain independent. */
 /* @prefer always */
-/* @sem Ability::Triggered{event:$aura_source_entry, intervening_if:$aura_entry_battlefield_condition, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[$aura_enchant_restriction_swap, ...$aura_attached_move_and_delayed_sacrifice]}} */
-aura_entry_restriction_swap_trigger ::= aura_source_entry "," "if" aura_entry_battlefield_condition "," aura_enchant_restriction_swap aura_attached_move_and_delayed_sacrifice "."
+/* @sem Ability::Triggered{event:$aura_source_entry, intervening_if:$event_subject_on_battlefield, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[$aura_enchant_restriction_swap, ...$aura_attached_move_and_delayed_sacrifice]}} */
+aura_entry_restriction_swap_trigger ::= aura_source_entry "," "if" event_subject_on_battlefield "," aura_enchant_restriction_swap aura_attached_move_and_delayed_sacrifice "."
 
 /* @prefer always */
 /* @sem Instruction::Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[LosesAbility(Term{family:CheckHasable, form:Enchant, operands:[Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$noun})]}), GrantAbility(Enchant{hosts:Permanents(AllOf([$noun_2, MadeBy(Source)]))})], duration:Indefinite, evaluation:Snapshot}} */
@@ -7783,9 +7538,6 @@ aura_attached_move_and_delayed_sacrifice ::= "put" "enchanted" "creature" "card"
 
 /* @sem EventSpec::ZoneChange{objects:SameObject(Source), to:Battlefield} */
 aura_source_entry ::= "when" "this" "Aura" "enters"
-
-/* @sem Condition::ObjectMatches{object:Source, filter:InZone(Shared(Battlefield))} */
-aura_entry_battlefield_condition ::= "it's" "on" "the" "battlefield"
 
 /* Limit the graveyard reference to the controller's discard event. */
 discarded_group_graveyard_event ::= event_discard_many | event_you_discard_filtered_batch
@@ -8347,9 +8099,6 @@ triggered_cast_kind_counter_it_pref ::= triggered_cast_kind_counter_it
 /* @sem Ability::Triggered{event:Spell{event:Cast, players:$event_player, spells:$noun}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(EventSubject), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}]}} */
 triggered_cast_kind_counter_it ::= "whenever" event_player "casts" ("a" | "an") noun "spell" "," "counter" "it" "."
 
-/* @sem EventSpec::Player{event:GameBegins, players:All} */
-event_game_begins_clause ::= "at" "the" "beginning" "of" "the" "game"
-
 /* Reuse controller_cast_x_spell_event for counter placements without exposing it to event_clause (which would give Zaxara a bogus AnnouncedX reading). */
 /* @sem Ability::Triggered{event:$controller_cast_x_spell_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$put_counters}]}} */
 triggered_cast_x_put_counters ::= "whenever" controller_cast_x_spell_event "," put_counters "."
@@ -8392,7 +8141,7 @@ attack_batch_search_trigger ::= "whenever" event_creatures_attack "," attack_bat
 /* @sem Ability::Triggered{event:$event_creatures_attack, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:EventAmount}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$attack_batch_hand_card_filter}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]}} */
 attack_batch_draw_optional_hand_entry ::= "whenever" event_creatures_attack "," "draw" "that" "many" "cards" "," "then" "you" "may" "put" "a" attack_batch_hand_card_filter "card" "from" "your" "hand" "onto" "the" "battlefield" "."
 
-attack_batch_hand_card_filter ::= qualified_permanent_spell_kind | card_filter
+attack_batch_hand_card_filter ::= chosen_permanent_card_filter | card_filter
 
 /* Counter-placement batches supply the quantity for this optional draw. */
 /* @sem Operation::Draw{players:One(AbilityController), amount:EventAmount} */
@@ -8506,13 +8255,7 @@ perpetual_holder_or_equipped_death ::= "whenever" "this" "creature" "or" "equipp
 /* @sem EventSpec::AnyOf([Damage(_{source_kind:Permanent, sources:AllOf([State(Equipped), CardType($perpetual_equipped_kind), ControlledBy(One(AbilityController))]), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}), Damage(_{source_kind:Permanent, sources:AllOf([State(Equipped), CardType($perpetual_equipped_kind), ControlledBy(One(AbilityController))]), recipients:Objects(Any), kind:Combat, grouping:SourceRecipient, subject:Source})]) */
 perpetual_equipped_combat_player_or_walker ::= "when" "an" "equipped" perpetual_equipped_kind "you" "control" "deals" "combat" "damage" "to" "a" "player" "or" "planeswalker"
 
-perpetual_equipped_kind ::= perpetual_equipped_creature | perpetual_equipped_artifact
-
-/* @sem CardType::Creature */
-perpetual_equipped_creature ::= "creature"
-
-/* @sem CardType::Artifact */
-perpetual_equipped_artifact ::= "artifact"
+perpetual_equipped_kind ::= added_creature | added_artifact
 
 /* These events explicitly identify the holder as the subject of the pronoun. */
 source_foretell_event ::= source_foretell_damage | source_foretell_combat_damage | source_foretell_attacks
@@ -8638,13 +8381,12 @@ triggered_entrant_present ::= "when" event_self_enters "," "if" entrant_on_battl
 entrant_on_battlefield ::= "it's" "on" "the" "battlefield"
 
 /* A possessive end-step header names every turn's player. */
-/* @sem EventSpec::Turn{point:EndStepBegins, players:All} */
-turn_each_player_end_possessive ::= "the" "beginning" "of" "each" "player's" "end" "step"
+/* turn_each_player_end_possessive is shared as tap_count_each_player_end. */
 
 /* Prefer the explicit player when the body refers to that event player. */
 /* @prefer always */
-/* @sem Ability::Triggered{event:$turn_each_player_end_possessive, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$clause_event_damage_unless_opponent_damaged}} */
-triggered_player_history_unless ::= "at" turn_each_player_end_possessive "," clause_event_damage_unless_opponent_damaged "."
+/* @sem Ability::Triggered{event:$tap_count_each_player_end, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$clause_event_damage_unless_opponent_damaged}} */
+triggered_player_history_unless ::= "at" tap_count_each_player_end "," clause_event_damage_unless_opponent_damaged "."
 
 /* @sem EventSpec::Turn{point:PostcombatMainPhaseBegins, players:All} */
 turn_each_postcombat_any ::= "the" "beginning" "of" "each" "postcombat" "main" "phase"
@@ -8734,21 +8476,9 @@ triggered_look_top_move_play ::= event_clause "," program_look_top_move_play_whi
 /* @sem EventSpec::Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Players($damage_history_total_players), kind:$damage_history_total_kind, grouping:SourceRecipient, subject:Recipient}) */
 damage_history_total_event ::= "total" "amount" "of" damage_history_total_kind "damage" "dealt" "to" damage_history_total_players "this" "turn"
 
-damage_history_total_kind ::= damage_history_total_noncombat | damage_history_total_combat
+damage_history_total_kind ::= controlled_noncombat_kind | controlled_combat_kind
 
-/* @sem DamageKind::Noncombat */
-damage_history_total_noncombat ::= "noncombat"
-
-/* @sem DamageKind::Combat */
-damage_history_total_combat ::= "combat"
-
-damage_history_total_players ::= damage_history_total_opponents | damage_history_total_you
-
-/* @sem PlayerSet::OpponentsOf(PlayerRef::AbilityController) */
-damage_history_total_opponents ::= "your" "opponents"
-
-/* @sem PlayerSet::One(PlayerRef::AbilityController) */
-damage_history_total_you ::= "you"
+damage_history_total_players ::= hands_revealed_opponents | player_rule_you
 
 /* The death event retains both the other-object exclusion and its written filter. */
 /* @sem EventSpec::ZoneChange{objects:AllOf([Not(SameObject(Source)), Not(Token), $subtype, ControlledBy(One(AbilityController))]), from:Battlefield, to:Graveyard} */
@@ -8802,10 +8532,7 @@ event_player_casts_card ::= event_player "casts" "a" "card"
 event_attacking_damage_you ::= "an" "attacking" noun "deals" group_damage_kind "to" "you"
 
 /* The cast supplies the X consumed by its dependent resolution action. */
-cast_x_spell_ordinal ::= cast_x_spell_first | ordinal
-
-/* @sem Expr::Constant(1) */
-cast_x_spell_first ::= "first"
+cast_x_spell_ordinal ::= ordinal_first | ordinal
 
 /* @sem EventSpec::NthEachTurn{event:Spell{event:Cast, players:One(AbilityController), spells:State(HasX)}, test:NumberTest::Compare{comparison:Equal, value:$cast_x_spell_ordinal}} */
 event_you_cast_x_spell_nth ::= "you" "cast" "your" cast_x_spell_ordinal "spell" "with" "{" "X" "}" "in" "its" "mana" "cost" "each" "turn"
@@ -8867,13 +8594,7 @@ event_clause_you_attack_batch_defender ::= "whenever" event_you_attack_batch_def
 /* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$filter_plural, recipients:Players($filtered_damage_history_recipient), kind:Any, grouping:SourceRecipient, subject:Recipient}) */
 filtered_damage_history_event ::= "damage" "dealt" "to" filtered_damage_history_recipient "so" "far" "this" "turn" "by" filter_plural
 
-filtered_damage_history_recipient ::= filtered_damage_history_you | filtered_damage_history_opponents
-
-/* @sem PlayerSet::One(PlayerRef::AbilityController) */
-filtered_damage_history_you ::= "you"
-
-/* @sem PlayerSet::OpponentsOf(PlayerRef::AbilityController) */
-filtered_damage_history_opponents ::= "your" "opponents"
+filtered_damage_history_recipient ::= player_rule_you | hands_revealed_opponents
 
 /* A single targeting event may include both the controller and one or more
    controlled permanents. Batch the union so one stack object triggers once. */

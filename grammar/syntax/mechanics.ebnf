@@ -245,10 +245,10 @@ companion_deck_size ::= "your" "starting" "deck" "contains" "at" "least" number 
 
 /* In a deck, permanent must exclude instant and sorcery cards. A battlefield
    noun's Any would lose that restriction, so card populations own this domain. */
-/* @sem ObjectFilter::AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)]) */
-companion_permanent ::= "permanent"
+/* companion_permanent is shared as chosen_permanent_card_filter. */
+
 companion_card_type ::= noun_creature | noun_artifact | noun_battle | noun_enchantment | noun_land | noun_planeswalker
-companion_type ::= companion_permanent | companion_card_type | adjective_nontype | subtype | companion_folded_type
+companion_type ::= chosen_permanent_card_filter | companion_card_type | adjective_nontype | subtype | companion_folded_type
 
 companion_type_filter ::= companion_type_list | companion_type_pair | companion_type
 /* @sem ObjectFilter::AnyOf([$companion_type, $companion_type_2]) */
@@ -469,11 +469,10 @@ suspended_counter_remove_mode ::= "•" "remove" value counter_kind "counters" "
 /* @sem @scope(Mode::Mode{announcement:_{targets:[], modes:_{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:[@scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($suspended_counter_put_domain, ObjectFilter::@agree(ObjectFilter::Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)}), ObjectFilter::Counters(_{kind:$counter_kind_2, comparison:Greater, value:Constant(0)})))}), index:0})), kind:$counter_kind, amount:$value}]}}]}, weight:1}), @scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Exile]}), count:Exactly(Constant(1)), filter:State(Suspended)}), index:0})), kind:$counter_kind, amount:$value}]}}]}, weight:1})], rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Implied}}, body:_{}, weight:1}) */
 suspended_counter_put_mode ::= "•" "put" value counter_kind "counters" "on" "target" suspended_counter_put_domain "with" "a" counter_kind "counter" "on" "it" "or" "suspended" "card" "."
 
-suspended_counter_put_domain ::= suspended_counter_permanent | noun_artifact | noun_battle | noun_creature | noun_enchantment | noun_land | noun_planeswalker
+suspended_counter_put_domain ::= noun_permanent | noun_artifact | noun_battle | noun_creature | noun_enchantment | noun_land | noun_planeswalker
 /* Permanent/Battlefield is already the target domain. Typeless permanents
    remain eligible when they have the printed counter. */
-/* @sem ObjectFilter::Any */
-suspended_counter_permanent ::= "permanent"
+/* suspended_counter_permanent is shared as noun_permanent. */
 
 /* The attack declaration offers exert and links this spell-shaped trigger.
    Its targets belong to the linked ability, never to a resolution payment.
@@ -534,7 +533,7 @@ crew_ability ::= crew_unrestricted | crew_restricted
 /* Cost keywords hold their printed payment as the mechanic's cost. */
 /* @sem Ability::Mechanic{mechanic:$cost_keyword_name, cost:$keyword_payment} */
 mechanic_cost_keyword ::= cost_keyword_name keyword_payment
-cost_keyword_name ::= mechanic_echo_name | mechanic_mutate_name | mechanic_encore_name | mechanic_sneak_name | mechanic_offspring_name | mechanic_reconfigure_name | mechanic_miracle_name | mechanic_mayhem_name | mechanic_embalm_name | mechanic_specialize_name | mechanic_scavenge_name | mechanic_emerge_name | mechanic_squad_name | mechanic_outlast_name | mechanic_harmonize_name | mechanic_transmute_name | mechanic_eternalize_name | mechanic_prowl_name | mechanic_spectacle_name | mechanic_web_slinging_name | mechanic_recover_name | mechanic_fortify_name | mechanic_disturb_name | mechanic_more_than_meets_the_eye_name | mechanic_upkeep_name | mechanic_aura_swap_name | mechanic_beam_name | mechanic_commander_ninjutsu_name | mechanic_cumulative_upkeep_name | mechanic_disguise_name | mechanic_emerge_artifact_name | mechanic_transfigure_name
+cost_keyword_name ::= mechanic_echo_name | mechanic_mutate_name | mechanic_encore_name | mechanic_sneak_name | mechanic_offspring_name | mechanic_reconfigure_name | hand_mechanic_miracle | mechanic_mayhem_name | mechanic_embalm_name | mechanic_specialize_name | mechanic_scavenge_name | mechanic_emerge_name | mechanic_squad_name | mechanic_outlast_name | mechanic_harmonize_name | mechanic_transmute_name | mechanic_eternalize_name | mechanic_prowl_name | mechanic_spectacle_name | mechanic_web_slinging_name | mechanic_recover_name | mechanic_fortify_name | mechanic_disturb_name | mechanic_more_than_meets_the_eye_name | mechanic_upkeep_name | mechanic_aura_swap_name | mechanic_beam_name | mechanic_commander_ninjutsu_name | mechanic_cumulative_upkeep_name | mechanic_disguise_name | mechanic_emerge_artifact_name | mechanic_transfigure_name
 /* @sem Mechanic::Echo */
 mechanic_echo_name ::= "echo"
 /* @sem Mechanic::Mutate */
@@ -547,8 +546,7 @@ mechanic_sneak_name ::= "sneak"
 mechanic_offspring_name ::= "offspring"
 /* @sem Mechanic::Reconfigure */
 mechanic_reconfigure_name ::= "reconfigure"
-/* @sem Mechanic::Miracle */
-mechanic_miracle_name ::= "miracle"
+
 /* @sem Mechanic::Mayhem */
 mechanic_mayhem_name ::= "mayhem"
 /* @sem Mechanic::Embalm */
