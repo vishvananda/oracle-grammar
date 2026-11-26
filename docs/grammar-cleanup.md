@@ -44,3 +44,9 @@ them. The singleton population is too large for one card-specific file. Only a
 reviewed, manageable subset of specialized clauses should move, each naming
 its observed card in a comment. Recount after further deduplication before
 using these numbers for additional moves.
+
+The initial card-specific module contains seven complete clauses backed by
+explicit `Unique` contracts. Each names its observed card face. Generic
+rulebreaker and deck-construction clauses remain in their mechanic modules,
+along with reusable references, filters and vocabulary. The move preserves
+every production and semantic annotation.

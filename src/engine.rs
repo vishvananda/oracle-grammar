@@ -48,6 +48,7 @@ const SYNTAX_MODULES: &[(&str, &str, Option<&str>)] = &[
     syntax_module!("card", "syntax/card.ebnf"),
     syntax_module!("card_notes", "syntax/card_notes.ebnf"),
     syntax_module!("card_names", "syntax/card_names.ebnf"),
+    syntax_module!("card_specific", "syntax/card_specific.ebnf"),
     syntax_module!("actions", "syntax/actions.ebnf"),
     syntax_module!("mana", "syntax/mana.ebnf"),
     syntax_module!("exchange", "syntax/exchange.ebnf"),
