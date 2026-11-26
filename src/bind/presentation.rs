@@ -1,14 +1,14 @@
 //! Presentation belongs to the same ability; it never introduces a rules scope.
 use serde_json::Value;
 
-pub(super) fn core(mut ability: &Value) -> &Value {
+pub(crate) fn core(mut ability: &Value) -> &Value {
     while ability["kind"] == "WithPresentation" {
         ability = &ability["args"]["ability"];
     }
     ability
 }
 
-pub(super) fn core_mut(mut ability: &mut Value) -> &mut Value {
+pub(crate) fn core_mut(mut ability: &mut Value) -> &mut Value {
     while ability["kind"] == "WithPresentation" {
         ability = &mut ability["args"]["ability"];
     }

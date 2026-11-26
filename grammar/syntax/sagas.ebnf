@@ -1,6 +1,31 @@
 /* Sagas. A chapter line names its chapters; each is a trigger on its lore count. */
+line_saga ::= line_saga_plain | line_saga_reminded | line_saga_sacrifice_reminded
 /* @sem Ability::[Ability::Saga{chapters:$chapters}] */
-line_saga ::= chapters
+line_saga_plain ::= chapters
+
+/* The header explains intrinsic Saga rules. Where it names a final chapter,
+   the number has to agree with the trigger list in both directions. */
+/* @sem Ability::[WithPresentation{reminder:true, ability:Saga{chapters:$chapters}}] */
+line_saga_reminded ::= "(" saga_lore_reminder ")" NEWLINE chapters
+/* @sem Ability::[WithPresentation{reminder:true, ability:Saga{chapters:@saga_final_chapter($chapters, $saga_sacrifice_reminder)}}] */
+line_saga_sacrifice_reminded ::= "(" saga_lore_reminder saga_sacrifice_reminder ")" NEWLINE chapters
+/* @sem () */
+saga_lore_reminder ::= "as" "this" "Saga" "enters" "and" "after" "your" "draw" "step" ","? "add" "a" "lore" "counter" "."
+/* @sem $saga_final_numeral */
+saga_sacrifice_reminder ::= "sacrifice" "after" saga_final_numeral "."
+saga_final_numeral ::= saga_final_i | saga_final_ii | saga_final_iii | saga_final_iv | saga_final_v | saga_final_vi
+/* @sem u32::1 */
+saga_final_i ::= "I"
+/* @sem u32::2 */
+saga_final_ii ::= "II"
+/* @sem u32::3 */
+saga_final_iii ::= "III"
+/* @sem u32::4 */
+saga_final_iv ::= "IV"
+/* @sem u32::5 */
+saga_final_v ::= "V"
+/* @sem u32::6 */
+saga_final_vi ::= "VI"
 
 chapters ::= chapters_flavored_next_cast | chapters_one | chapters_more | chapters_ring_tempts_three_pref | chapters_search_exile_face_down_reveal_put | chapters_mill_graveyard_payment_and_life_scry | chapters_phase_out_while_controlled_destroy_tokens | chapters_1_2_3_mill_take_pref3_h3
 

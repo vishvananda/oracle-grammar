@@ -49,7 +49,7 @@ mod guards;
 pub(crate) mod linked_card_actions;
 mod loop_card_focus;
 pub(crate) mod member_focus;
-mod presentation;
+pub(crate) mod presentation;
 mod qualified;
 pub(crate) use filters::operand as filter_operand;
 use guards::{

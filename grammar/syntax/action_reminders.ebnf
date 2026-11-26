@@ -64,7 +64,7 @@ reminder_open_then_reminder ::= reminder_open (sequencer | "," "then") reminder_
 reminder_open_closed ::= reminder_open "."
 
 reminder_closed ::= limited_mana_cost_spending_reminded | reminder_open_closed | proliferate_reminded | proliferate_twice_reminded | proliferate_pair_reminded
-    | scry_reminded | surveil_reminded | investigate_reminded | named_token_reminded
+    | scry_reminded | surveil_reminded | investigate_reminded | named_token_reminded | fight_reminded
     | reminder_if | reminder_optional | reminder_paid
 /* @sem Instruction::[@leading_if(Instruction::If{condition:$condition, then:_{instructions:$reminder_closed}, otherwise:_{}})] */
 reminder_if ::= "if" condition "," reminder_closed
@@ -106,26 +106,48 @@ surveil_look_explanation ::= surveil_look_one | surveil_look_many
 /* @sem Expr::Constant(1) */
 surveil_look_one ::= "look" "at" "the" "top" "card" "of" "your" "library" "." "you" "may" "put" "it" "into" "your" "graveyard" "."
 /* @sem $number_words */
-surveil_look_many ::= "look" "at" "the" "top" number_words "cards" "of" "your" "library" "," "then" "put" "any" "number" "of" "them" "into" "your" "graveyard" "and" "the" "rest" "on" "top" "in" "any" "order" "."
+surveil_look_many ::= "look" "at" "the" "top" number_words "cards" "of" "your" "library" "," "then" "put" "any" "number" "of" "them" "into" "your" "graveyard" "and" "the" "rest" "on" "top" ("of" "your" "library")? "in" "any" "order" "."
+
+/* @sem Instruction::[Effect{result:@next, operation:$fight_action}] */
+fight_reminded ::= fight_action "." "(" "each" "deals" "damage" "equal" "to" "its" "power" "to" "the" "other" "." ")"
 
 /* @sem Instruction::[Effect{result:@next, operation:$investigate_once}] */
 investigate_reminded ::= investigate_once "." "(" "create" "a" "Clue" "token" "." clue_explanation ")"
 /* The receipt and token's activated abilities come from the existing recipe.
    The recognized explanation contributes no extra instructions. */
-/* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:Rules, recipe:$reminded_named_token}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
-named_token_reminded ::= "create" "a" reminded_named_token
+/* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[$reminded_token_batch], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+named_token_reminded ::= "create" reminded_token_batch
+reminded_token_batch ::= reminded_token_single | reminded_token_multiple
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:Rules, recipe:$reminded_named_token} */
+reminded_token_single ::= "a" reminded_named_token
+/* @sem TokenSpec::TokenSpec{amount:@plural_amount($token_amount), words:Rules, recipe:$reminded_named_tokens} */
+reminded_token_multiple ::= token_amount reminded_named_tokens
 
 reminded_named_token ::= reminded_treasure_token | reminded_food_token | reminded_clue_token | reminded_blood_token
 /* @sem $tn_treasure */
-reminded_treasure_token ::= tn_treasure "token" "." "(" "it's" "an" "artifact" "with" '"' "{" "T" "}" "," "↑" "sacrifice" "this" "token" ":" "add" "one" "mana" "of" "any" "color" "." '"' ")"
+reminded_treasure_token ::= tn_treasure "token" "." "(" "it's" "an" "artifact" "with" treasure_reminder_cost ")"
 /* @sem $tn_food */
-reminded_food_token ::= tn_food "token" "." "(" "it's" "an" "artifact" "with" '"' "{" "2" "}" "," "{" "T" "}" "," "↑" "sacrifice" "this" "token" ":" "you" "gain" "3" "life" "." '"' ")"
+reminded_food_token ::= tn_food "token" "." "(" "it's" "an" "artifact" "with" food_reminder_cost ")"
 /* @sem $tn_clue */
 reminded_clue_token ::= tn_clue "token" "." "(" clue_explanation ")"
 /* @sem $tn_blood */
 reminded_blood_token ::= tn_blood "token" "." "(" "it's" "an" "artifact" "with" '"' "{" "1" "}" "," "{" "T" "}" "," "↑" "discard" "a" "card" "," "↑" "sacrifice" "this" "token" ":" "draw" "a" "card" "." '"' ")"
 /* @sem () */
-clue_explanation ::= "it's" "an" "artifact" "with" '"' "{" "2" "}" "," "↑" "sacrifice" "this" "token" ":" "draw" "a" "card" "." '"'
+clue_explanation ::= "it's" "an" "artifact" "with" clue_reminder_cost
+
+reminded_named_tokens ::= reminded_treasure_tokens | reminded_food_tokens | reminded_clue_tokens
+/* @sem $tn_treasure */
+reminded_treasure_tokens ::= tn_treasure "tokens" "." "(" "they're" "artifacts" "with" treasure_reminder_cost ")"
+/* @sem $tn_food */
+reminded_food_tokens ::= tn_food "tokens" "." "(" "they're" "artifacts" "with" food_reminder_cost ")"
+/* @sem $tn_clue */
+reminded_clue_tokens ::= tn_clue "tokens" "." "(" "they're" "artifacts" "with" clue_reminder_cost ")"
+/* @sem () */
+treasure_reminder_cost ::= '"' "{" "T" "}" "," "↑" "sacrifice" "this" ("token" | "artifact") ":" "add" "one" "mana" "of" "any" "color" "." '"'
+/* @sem () */
+food_reminder_cost ::= '"' "{" "2" "}" "," "{" "T" "}" "," "↑" "sacrifice" "this" ("token" | "artifact") ":" "you" "gain" "3" "life" "." '"'
+/* @sem () */
+clue_reminder_cost ::= '"' "{" "2" "}" "," "↑" "sacrifice" "this" ("token" | "artifact") ":" "draw" "a" "card" "." '"'
 
 /* The mode list has at least one reminder-bearing mode. Plain modes keep their
    own scopes; the presentation belongs to the complete modal ability. */

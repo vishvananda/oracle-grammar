@@ -3,10 +3,11 @@
 //! a hole binds a child's value, never an omitted constraint.
 use crate::functions::target_scopes::unify as unify_targets;
 use crate::functions::{
-    agreed, applied, conjunction, continuous_parts, either_event, incremented, negated, product,
-    substituted, subtype_name, unify_agree, unify_and, unify_apply, unify_continuous_parts,
-    unify_either_event, unify_negate, unify_plus_one, unify_subtype_name, unify_times,
-    unify_token_abilities, unify_where, unify_zone, with_token_abilities, zone_card_members,
+    agreed, applied, conjunction, continuous_parts, either_event, entering, incremented, negated,
+    product, saga_chapters, substituted, subtype_name, unify_agree, unify_and, unify_apply,
+    unify_continuous_parts, unify_either_event, unify_negate, unify_plus_one, unify_subtype_name,
+    unify_times, unify_token_abilities, unify_where, unify_zone, with_token_abilities,
+    zone_card_members,
 };
 use crate::model::ir_schema::{Fields, Schema, Ty, TypeDef};
 use serde_json::{Map, Value};
@@ -588,6 +589,9 @@ impl Pattern {
                         return crate::functions::entering::bind(ability);
                     }
                     ("class_levels", [rows]) => return crate::functions::class_levels::lower(rows),
+                    ("saga_final_chapter", [chapters, number]) => {
+                        return saga_chapters::agree(chapters, number);
+                    }
                     ("and_sequence", [head, tail]) => {
                         return crate::functions::optional_scope::sequence(head, tail);
                     }
@@ -901,9 +905,7 @@ impl Pattern {
             "departure_controller" => {
                 return crate::bind::departure_controller::unify(args, value, bindings);
             }
-            "entering_controller" => {
-                return crate::functions::entering::unify(args, value, bindings);
-            }
+            "entering_controller" => return entering::unify(args, value, bindings),
             "copy_subject" => {
                 return crate::functions::copy_subject::unify(args, value, bindings);
             }
@@ -932,6 +934,7 @@ impl Pattern {
                 return crate::bind::return_grants::unify(args, value, bindings);
             }
             "class_levels" => return crate::functions::class_levels::unify(args, value, bindings),
+            "saga_final_chapter" => return saga_chapters::unify(args, value, bindings),
             "and_sequence"
             | "then_sequence"
             | "optional_then"

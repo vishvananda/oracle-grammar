@@ -187,6 +187,24 @@ fn presentation_keeps_native_meaning_and_exact_wording() {
             None,
             true,
         ),
+        (
+            "Crew 2",
+            "Crew 2 (Tap any number of creatures you control with total power 2 or more: This Vehicle becomes an artifact creature until end of turn.)",
+            None,
+            true,
+        ),
+        (
+            "Spree\n+ {2} — Draw a card.\n+ {1} — Scry 1.",
+            "Spree (Choose one or more additional costs.)\n+ {2} — Draw a card.\n+ {1} — Scry 1.",
+            None,
+            true,
+        ),
+        (
+            "Exhaust — {2}: Draw a card.",
+            "Exhaust — {2}: Draw a card. (Activate each exhaust ability only once.)",
+            None,
+            true,
+        ),
     ] {
         let name = "Synthetic example";
         let faces = scryfall(&[raw("one", name, text), raw("two", name, plain)]).unwrap();
@@ -233,6 +251,8 @@ fn unsupported_presentation_cannot_hide_rules_or_contradict_operands() {
         "Partner (Draw a card.)",
         "Create a Food token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
         "Scry 2. (Look at the top card of your library. You may put that card on the bottom.)",
+        "Crew 2 (Tap any number of creatures you control with total power 3 or more: This Vehicle becomes an artifact creature until end of turn.)",
+        "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after II.)\nI — Draw a card.\nIII — Draw two cards.",
         "Choose one —\n• Draw a card.\n• Scry 1.\n• Surveil 1.\nEntwine {2} (Choose both if you pay the entwine cost.)",
     ];
     let records = cases.map(|text| raw("one", "Synthetic example", text));
@@ -267,4 +287,57 @@ fn edited_scry_amount_prints_in_the_action_and_its_reminder() {
     );
     let parsed = engine.parse_card(name, &printed, context).unwrap();
     assert!(parsed.readings.contains(&reading));
+}
+
+#[test]
+fn saga_reminder_prints_the_current_final_chapter() {
+    let engine = crate::test_support::engine();
+    let name = "Synthetic Saga";
+    let text = "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after II.)\nI — Draw a card.\nII — Draw two cards.";
+    let mut record = raw("one", name, text);
+    record["type_line"] = json!("Enchantment — Saga");
+    let faces = scryfall(&[record]).unwrap();
+    let face = &faces[0];
+    let context = &face.context.as_ref().unwrap().0;
+    let row = outcome(engine, face);
+    assert_eq!(row["status"], "unique", "{row}");
+    let mut reading = CardReading {
+        abilities: row["readings"][0]["card"]["abilities"].clone(),
+        notes: vec![],
+    };
+    let trail = engine
+        .card_key_of(name, &reading, context, text, true)
+        .unwrap()
+        .expect("exact Saga trail");
+    assert_eq!(
+        engine
+            .print_card_trail(name, &reading, context, &trail)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+    let stage = reading.abilities[0]["args"]["ability"]["args"]["chapters"]
+        .as_array_mut()
+        .unwrap();
+    let mut third = stage[1].clone();
+    third["args"]["event"]["SagaChapter"] = json!(3);
+    stage.push(third);
+    let edited =
+        text.replace("Sacrifice after II.", "Sacrifice after III.") + "\nIII — Draw two cards.";
+    let trail = engine
+        .card_key_of(name, &reading, context, &edited, true)
+        .unwrap()
+        .expect("exact trail for the current chapter list");
+    let printed = engine
+        .print_card_trail(name, &reading, context, &trail)
+        .unwrap()
+        .expect("verified edited Saga print");
+    assert_eq!(printed, edited);
+    assert!(
+        engine
+            .parse_card(name, &printed, context)
+            .unwrap()
+            .readings
+            .contains(&reading)
+    );
 }

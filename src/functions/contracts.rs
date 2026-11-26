@@ -799,6 +799,22 @@ fn specialized_call(
             )))
         }
         "class_levels" => class_levels_call(args, ty, schema).map(Some),
+        "saga_final_chapter" => {
+            let expected = Ty::Vec(Box::new(Ty::Named("Ability".into())));
+            let [chapters, number] = args else {
+                return Err("@saga_final_chapter needs a chapter list and its final number".into());
+            };
+            if *ty != expected {
+                return Err("@saga_final_chapter produces Vec<Ability>".into());
+            }
+            Ok(Some(Pattern::Symbol(
+                name.into(),
+                vec![
+                    elaborate(chapters, &expected, schema)?,
+                    elaborate(number, &Ty::Named("u32".into()), schema)?,
+                ],
+            )))
+        }
         "and_sequence"
         | "then_sequence"
         | "optional_then"

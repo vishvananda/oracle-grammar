@@ -8,7 +8,7 @@
 //! split again: where the lowered abilities held them apart, and at each cut,
 //! since one sentence can lower to several statics. Reparse still decides
 //! whether a text means the same abilities.
-use crate::model::canonical;
+use crate::{bind::presentation, model::canonical};
 use serde_json::{Value, json};
 
 fn blocker_to_other(value: &mut Value) {
@@ -183,8 +183,9 @@ pub(super) fn split_statics(abilities: &Value) -> Vec<Value> {
     };
     let mut views = Vec::new();
     for (index, item) in items.iter().enumerate() {
-        if item["kind"] == "Class" {
-            views.extend(split_levels(items, index));
+        let core = presentation::core(item);
+        if core["kind"] == "Class" {
+            views.extend(split_levels(items, index, core));
             continue;
         }
         let count = changes(item);
@@ -203,15 +204,15 @@ pub(super) fn split_statics(abilities: &Value) -> Vec<Value> {
 
 /// A Class level holds its own abilities, and a static joined within one level
 /// splits the same way. Levels hold no Class, so this recursion ends.
-fn split_levels(items: &[Value], index: usize) -> Vec<Value> {
-    let Some(levels) = items[index]["args"]["levels"].as_array() else {
+fn split_levels(items: &[Value], index: usize, class: &Value) -> Vec<Value> {
+    let Some(levels) = class["args"]["levels"].as_array() else {
         return Vec::new();
     };
     let mut views = Vec::new();
     for (at, level) in levels.iter().enumerate() {
         for split in split_statics(&level["abilities"]) {
             let mut view = items.to_vec();
-            view[index]["args"]["levels"][at]["abilities"] = split;
+            presentation::core_mut(&mut view[index])["args"]["levels"][at]["abilities"] = split;
             views.push(Value::Array(view));
         }
     }

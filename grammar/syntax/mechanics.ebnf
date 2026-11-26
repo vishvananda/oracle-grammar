@@ -36,6 +36,7 @@ labelled_mechanic_reminder ::= ability_label "—" mechanic_reminded_text
 
 mechanic_reminded_text ::= ingest_reminded_text | convoke_reminded_text | delve_reminded_text
     | deck_rule_reminded_text | triggered_mechanic_reminded_text | standalone_mechanic_reminded_text
+    | banding_reminded_text | bushido_reminded_text | affinity_reminded_text
 
 /* @sem $mechanic_ingest */
 ingest_reminded_text ::= mechanic_ingest "(" "whenever" reminder_subject "deals" "combat" "damage" "to" "a" "player" "," "that" "player" "exiles" "the" "top" "card" "of" "their" "library" "." ")"
@@ -89,6 +90,17 @@ fuse_reminded_text ::= bare_fuse "(" "you" "may" "cast" "one" "or" "both" "halve
 /* @sem $bare_aftermath */
 aftermath_reminded_text ::= bare_aftermath "(" "cast" "this" "spell" "only" "from" "your" "graveyard" "." "then" "exile" "it" "." ")"
 
+/* @sem $mechanic_banding */
+banding_reminded_text ::= mechanic_banding "(" "any" "creatures" "with" "banding" "," "and" "up" "to" "one" "without" "," "can" "attack" "in" "a" "band" "." "bands" "are" "blocked" "as" "a" "group" "." "if" "any" "creatures" "with" "banding" "you" "control" "are" "blocking" "or" "being" "blocked" "by" "a" "creature" "," "you" "divide" "that" "creature's" "combat" "damage" "," "not" "its" "controller" "," "among" "any" "of" "the" "creatures" "it's" "being" "blocked" "by" "or" "is" "blocking" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:Bushido, amount:Expr::@agree($number_digits, $bushido_reminder_amount)} */
+bushido_reminded_text ::= "bushido" number_digits "(" "whenever" "this" "creature" "blocks" "or" "becomes" "blocked" "," "it" "gets" bushido_reminder_amount "until" "end" "of" "turn" "." ")"
+/* @sem Expr::@agree($number_digits, $number_digits_2) */
+bushido_reminder_amount ::= "+" number_digits "/" "+" number_digits
+
+/* @sem Ability::Mechanic{mechanic:Affinity, filter:ObjectFilter::@agree($filter_plural, $filter_phrase)} */
+affinity_reminded_text ::= "affinity" "for" filter_plural "(" "this" "spell" "costs" "{" "1" "}" "less" "to" "cast" "for" "each" filter_phrase "you" "control" "." ")"
+
 /* Suspend's explanation repeats its native mechanic operands. It is presentation
    on that ability, not another ability or an unparsed text fragment. */
 /* @sem Ability::Mechanic{mechanic:Suspend, cost:$cost, amount:$value} */
@@ -126,7 +138,7 @@ line_prototype ::= "prototype" mana_symbols "—" NUMBER "/" NUMBER
 
 /* A stage owner consumes the complete remaining card body. Prefix abilities
    stay outside; stage suffixes cannot escape as ordinary top-level lines. */
-stage_owning_abilities ::= line_level_up | line_class
+stage_owning_abilities ::= line_level_up | line_class | class_with_reminder
 
 /* Level up: its cost, then one stage to a range of levels. */
 /* @sem Ability::[Ability::CounterStages{counter:Named(LevelCounter), level_up:$cost, stages:$level_stages}] */
@@ -152,7 +164,7 @@ level_stage_tail ::= NEWLINE level_stage_abilities
 level_from ::= "LEVEL" NUMBER "⁺" NEWLINE NUMBER "/" NUMBER level_stage_tail?
 
 /* Spree: each mode adds its cost. */
-line_spree ::= line_spree_leading_loss | line_spree_plain
+line_spree ::= line_spree_leading_loss | line_spree_plain | line_spree_reminded
 
 spree_modes ::= spree_modes_one | spree_modes_more
 
@@ -204,8 +216,20 @@ line_backup_pair ::= "backup" NUMBER "," "backup" NUMBER NEWLINE backup_stage_ab
 line_backup_triple ::= "backup" NUMBER "," "backup" NUMBER "," "backup" NUMBER NEWLINE backup_stage_abilities
 
 /* A Class: each level after the first has a cost and its lines. */
-/* @sem Ability::[Ability::Class{levels:@class_levels($class_levels)}] */
-line_class ::= class_levels
+/* @sem Ability::[$class_ability] */
+line_class ::= class_ability
+/* @sem Ability::Class{levels:@class_levels($class_levels)} */
+class_ability ::= class_levels
+
+/* The first-level abilities precede the Class's stage list. The reminder
+   belongs to that Class even when it prints before the first-level text. */
+/* @sem $reminded_class_body */
+class_with_reminder ::= "(" "gain" "the" "next" "level" "as" "a" "sorcery" "to" "add" "its" "ability" "." ")" NEWLINE reminded_class_body
+reminded_class_body ::= reminded_class_levels | reminded_class_prefix
+/* @sem Ability::[WithPresentation{reminder:true, ability:$class_ability}] */
+reminded_class_levels ::= class_ability
+/* @sem Ability::[...$line, ...$reminded_class_body] */
+reminded_class_prefix ::= line NEWLINE reminded_class_body
 
 class_levels ::= class_levels_one | class_levels_more
 
@@ -566,7 +590,7 @@ commander_chosen_property ::= self_text "is" "the" "chosen" "color" "."
 /* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(Source)), changes:$cross_colors} */
 commander_defined_property ::= self_text "is" cross_colors "."
 
-crew_ability ::= crew_unrestricted | crew_restricted
+crew_ability ::= crew_unrestricted | crew_restricted | crew_reminded
 
 /* Cost keywords hold their printed payment as the mechanic's cost. */
 /* @sem Ability::Mechanic{mechanic:$cost_keyword_name, cost:$keyword_payment} */
@@ -940,6 +964,8 @@ line_spree_leading_loss ::= "spree" NEWLINE spree_mode_lose_abilities NEWLINE sp
 
 /* @sem Ability::[Ability::Spree{modes:$spree_modes}] */
 line_spree_plain ::= "spree" NEWLINE spree_modes
+/* @sem Ability::[WithPresentation{reminder:true, ability:Spree{modes:$spree_modes}}] */
+line_spree_reminded ::= "spree" "(" "choose" "one" "or" "more" "additional" "costs" "." ")" NEWLINE spree_modes
 
 /* @prefer always */
 /* Mode-specific shapes keep the chosen population and keyword in the current IR. */
@@ -1008,6 +1034,14 @@ crew_unrestricted ::= crew_payment
 
 /* @sem Ability::Activated{origin:Crew, cost:$crew_payment, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[AddCardType(Artifact), AddCardType(Creature)], duration:EndOfTurn, evaluation:Snapshot}}]}} */
 crew_restricted ::= crew_payment "." activation_limits "."
+
+/* The total power is repeated by the explanation. */
+/* @sem Ability::WithPresentation{reminder:true, ability:Activated{origin:Crew, cost:$crew_reminded_payment, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[AddCardType(Artifact), AddCardType(Creature)], duration:EndOfTurn, evaluation:Snapshot}}]}}} */
+crew_reminded ::= crew_reminded_payment
+/* @sem Cost::Cost{parts:[Constrained{part:ChangeTapState{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Not(SameObject(Source)), ObjectFilter::Not(Tapped))}, choose:AnyNumber}], tapped:true}, constraints:[TotalProperty{property:Power, comparison:GreaterOrEqual, amount:@agree($number, $crew_reminder_number)}]}]} */
+crew_reminded_payment ::= "crew" number "(" crew_reminder_number ":" "this" "Vehicle" "becomes" "an" "artifact" "creature" "until" "end" "of" "turn" "." ")"
+/* @sem $number */
+crew_reminder_number ::= "tap" "any" "number" "of" "creatures" "you" "control" "with" "total" "power" number "or" "more"
 
 /* Keep this explicit return wording within a spree mode. */
 /* @prefer always */

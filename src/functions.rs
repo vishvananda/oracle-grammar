@@ -34,6 +34,7 @@ mod objects;
 pub(crate) mod optional_scope;
 mod repeated;
 pub(crate) mod repeated_damage_actor;
+pub(crate) mod saga_chapters;
 pub(crate) mod shared_statics;
 pub(crate) mod target_scopes;
 mod tokens;

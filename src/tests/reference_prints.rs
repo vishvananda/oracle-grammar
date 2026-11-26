@@ -232,11 +232,17 @@ fn one_sentence_for_two_triggers_prints_once() {
 /// Statics a Class level writes apart print apart.
 #[test]
 fn a_class_level_prints_its_statics_apart() {
-    assert_prints_as_written(
-        "Ranger Class",
-        "Enchantment Class",
-        "When this Class enters, create a 2/2 green Wolf creature token.\n{1}{G}: Level 2\nWhenever you attack, put a +1/+1 counter on target attacking creature.\n{3}{G}: Level 3\nYou may look at the top card of your library any time.\nYou may cast creature spells from the top of your library.",
-    );
+    let body = "When this Class enters, create a 2/2 green Wolf creature token.\n{1}{G}: Level 2\nWhenever you attack, put a +1/+1 counter on target attacking creature.\n{3}{G}: Level 3\nYou may look at the top card of your library any time.\nYou may cast creature spells from the top of your library.";
+    for reminder in [
+        "",
+        "(Gain the next level as a sorcery to add its ability.)\n",
+    ] {
+        assert_prints_as_written(
+            "Ranger Class",
+            "Enchantment Class",
+            &format!("{reminder}{body}"),
+        );
+    }
 }
 
 /// A reference's own lowered form, equal to the parse only canonically, still
