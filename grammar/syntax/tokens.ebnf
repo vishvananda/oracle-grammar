@@ -525,8 +525,15 @@ clause_players_create_per_untapped ::= players_singular "creates" "a" token_reci
 instructions_chosen_opponents_tokens ::= "choose" "any" "number" "of" "target" "opponents" "." "create" "X" token_recipe "," "where" "X" "is" "the" "number" "of" filter_plural "those" "opponents" "control"
 
 /* Each alternative is a separate action and carries its own token recipe. */
-/* @sem Operation::ChooseAtRandom(_{kind:Action, options:[$random_green_option, $random_green_option_2, $random_green_option_3, $random_green_option_4]}) */
-random_green_token_choice ::= "create" "a" "green" "creature" "token" "that's" random_green_option "," random_green_option "," random_green_option "," "or" random_green_option "," "chosen" "at" "random"
+/* @sem Operation::ChooseAtRandom(_{kind:Action, options:$random_green_options}) */
+random_green_token_choice ::= "create" "a" "green" "creature" "token" "that's" random_green_options "," "chosen" "at" "random"
+
+/* @sem Operand::[$random_green_option, ...$random_green_options_tail] */
+random_green_options ::= random_green_option "," random_green_options_tail
+
+random_green_options_tail ::= random_green_options_last_pair | random_green_options
+/* @sem Operand::[$random_green_option, $random_green_option_2] */
+random_green_options_last_pair ::= random_green_option "," "or" random_green_option
 
 random_green_option ::= random_green_plain | random_green_keyword
 
@@ -1751,8 +1758,8 @@ triggered_self_entry_emerge_tokens ::= "when" event_self_enters "," program_emer
 /* @sem Program::Program{instructions:[If{condition:ObjectMatches{object:$object_ref, filter:$copy_override_filter}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}]}}]} */
 copy_attacking_conditional_quantity ::= "create" "a" "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" object_ref "." "if" "that" "creature" "is" "a" copy_override_filter "," "create" counter_amount "of" "those" "tokens" "instead" "."
 
-/* @sem ObjectFilter::AnyOf(@unordered([$subtype_spelled, $subtype_spelled_2, $subtype_spelled_3, $subtype_spelled_4])) */
-copy_override_filter ::= subtype_spelled "," subtype_spelled "," subtype_spelled "," "or" subtype_spelled
+/* @sem ObjectFilter::AnyOf(@unordered([$subtype_spelled, ...$subtype_or_three])) */
+copy_override_filter ::= subtype_spelled "," subtype_or_three
 
 /* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$copy_attacking_conditional_quantity} */
 triggered_copy_conditional_quantity ::= event_clause "," copy_attacking_conditional_quantity

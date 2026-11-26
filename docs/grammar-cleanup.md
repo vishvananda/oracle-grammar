@@ -50,3 +50,7 @@ explicit `Unique` contracts. Each names its observed card face. Generic
 rulebreaker and deck-construction clauses remain in their mechanic modules,
 along with reusable references, filters and vocabulary. The move preserves
 every production and semantic annotation.
+
+The [repetition review](grammar-repetition-review.md) records the disposition
+of all 89 candidates after these passes, including the shared list changes and
+the remaining scope-sensitive cases.

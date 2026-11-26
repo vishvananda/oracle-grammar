@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= enchanted_creature_and_attached_population | objects_each_that_crewed_this_turn | objects_targets_common_creature_type | objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set | objects_target_total_budget | objects_up_to_sticker_letters | objects_it_and_target | graveyard_cards_arrived_battlefield_this_turn | same_name_graveyard_battlefield_population | personal_graveyard_named_cards | chosen_filtered_graveyard_cards | controlled_population_with_two_exceptions | objects_any_targets_different_controllers | opponents_private_zone_population | objects_self_and_plural | objects_each_entered_under_you_this_turn | objects_targets_and_attached | objects_each_attacked_this_turn | all_graveyards_postqualified_cards | objects_each_self_comparison_controlled | objects_each_self_comparison | object_and_other_controlled_sharing_type | graveyard_subtype_union_permanent_targets | objects_target_and_visited_up_to | cards_from_paired_player_zones | chosen_type_filtered_graveyard_cards | objects_each_historical_combat | objects_blocked_by | objects_each_controlled_modular | objects_each_controlled_three_union | objects_each_convoked | self_and_other_same_name | self_object_set_him | self_object_set_her | objects_it_and_all_population
+object_set ::= enchanted_creature_and_attached_population | objects_each_that_crewed_this_turn | objects_targets_common_creature_type | objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_serial_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set | objects_target_total_budget | objects_up_to_sticker_letters | objects_it_and_target | graveyard_cards_arrived_battlefield_this_turn | same_name_graveyard_battlefield_population | personal_graveyard_named_cards | chosen_filtered_graveyard_cards | controlled_population_with_two_exceptions | objects_any_targets_different_controllers | opponents_private_zone_population | objects_self_and_plural | objects_each_entered_under_you_this_turn | objects_targets_and_attached | objects_each_attacked_this_turn | all_graveyards_postqualified_cards | objects_each_self_comparison_controlled | objects_each_self_comparison | object_and_other_controlled_sharing_type | graveyard_subtype_union_permanent_targets | objects_target_and_visited_up_to | cards_from_paired_player_zones | chosen_type_filtered_graveyard_cards | objects_each_historical_combat | objects_blocked_by | objects_each_controlled_modular | objects_each_controlled_three_union | objects_each_convoked | self_and_other_same_name | self_object_set_him | self_object_set_her | objects_it_and_all_population
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -77,8 +77,15 @@ objects_two_targets ::= target_object "and" target_object
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($target_object_2), SameObject($target_object_3)])} */
 objects_three_targets ::= target_object "," target_object "," "and" target_object
 
-/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($target_object_2), SameObject($target_object_3), SameObject($target_object_4)])} */
-objects_four_targets ::= target_object "," target_object "," target_object "," "and" target_object
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf($target_object_series)} */
+objects_serial_targets ::= target_object_series
+
+/* @sem ObjectFilter::[SameObject($target_object), ...$target_object_series_tail] */
+target_object_series ::= target_object "," target_object_series_tail
+
+target_object_series_tail ::= target_object_series_last_pair | target_object_series
+/* @sem ObjectFilter::[SameObject($target_object), SameObject($target_object_2)] */
+target_object_series_last_pair ::= target_object "," "and" target_object
 
 /* @sem ObjectSet::One($object_ref) */
 object_one ::= object_ref
@@ -287,7 +294,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_attacking_creature | named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_seat_controlled_permanent | target_saddler_of_event_subject | target_controller_controls_land | target_extreme_battlefield | target_controlled_kind_union | target_controlled_subtype_or_filter | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | other_target_up_to | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled | target_blocking_controlled | target_opponent_choice_controlled | target_attacked_this_turn | target_relative_event_stat | target_attached_to_permanent | target_six_subtype_union | target_up_to_controlled_lesser_event | target_optional_other_double_faced_controlled | target_attacking_same_event | target_attached_to_indefinite | target_controlled_without_counter
+target_object ::= target_seat_controlled_permanent | target_saddler_of_event_subject | target_controller_controls_land | target_extreme_battlefield | target_controlled_kind_union | target_controlled_subtype_or_filter | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | other_target_up_to | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled | target_blocking_controlled | target_opponent_choice_controlled | target_attacked_this_turn | target_relative_event_stat | target_attached_to_permanent | target_serial_subtype_union | target_up_to_controlled_lesser_event | target_optional_other_double_faced_controlled | target_attacking_same_event | target_attached_to_indefinite | target_controlled_without_counter
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -352,7 +359,7 @@ target_exactly ::= count
 /* @sem Count::UpTo($count) */
 target_up_to ::= "up" "to" count
 
-filter_phrase ::= filter_two_heads_two_colors | filter_stated_stats | mana_kicked | subtype_spell_pair | card_filter_and | filter_permanent_of_that_color | filter_qualified_three_heads | filter_legendary_three_kinds | filter_unequal_stats | filter_lowest_mana_value | filter_activated_or_tapped | creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter | filter_instant_or_sorcery | filter_instant_and_or_sorcery | filter_mixed_nonbasic_list | filter_mixed_tapped_list | filter_that_is_three_kinds | filter_coin_tails | filter_urzas_land_subtypes | filter_three_heads | filter_three_heads_middle_keyword | filter_three_colors_or | filter_controlled_extreme | filter_with_tap_cost_ability | filter_either_kind_either_color | seven_subtype_union | filter_negative_type_pair | filter_three_last_tapped_controlled | controlled_singular_named_counters | filter_with_morph_ability | filter_two_object_exclusions | filter_mixed_nonbasic_controlled | filter_supertype_or_producible | filter_commander_that_is_a | suspected_controlled_noun | filter_same_name_exception | other_filter_phrase_h3
+filter_phrase ::= filter_two_heads_two_colors | filter_stated_stats | mana_kicked | subtype_spell_pair | card_filter_and | filter_permanent_of_that_color | filter_qualified_three_heads | filter_legendary_three_kinds | filter_unequal_stats | filter_lowest_mana_value | filter_activated_or_tapped | creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter | filter_instant_or_sorcery | filter_instant_and_or_sorcery | filter_mixed_nonbasic_list | filter_mixed_tapped_list | filter_that_is_three_kinds | filter_coin_tails | filter_urzas_land_subtypes | filter_three_heads | filter_three_heads_middle_keyword | filter_three_colors_or | filter_controlled_extreme | filter_with_tap_cost_ability | filter_either_kind_either_color | serial_subtype_union | filter_negative_type_pair | filter_three_last_tapped_controlled | controlled_singular_named_counters | filter_with_morph_ability | filter_two_object_exclusions | filter_mixed_nonbasic_controlled | filter_supertype_or_producible | filter_commander_that_is_a | suspected_controlled_noun | filter_same_name_exception | other_filter_phrase_h3
 
 /* @sem @and($quality, ObjectFilter::AnyOf([$noun, $noun_2, $noun_3]), $modifier) */
 filter_quality_list ::= quality noun "," noun "," "and" noun modifier
@@ -1007,7 +1014,7 @@ players_each_opponent ::= "each" "opponent" | "each" "of" "your" "opponents"
 players_each ::= "each" "player"
 
 /* Damage recipients. */
-recipients ::= recipients_you_and_any_target | recipients_defined_up_to_targets | recipients_target_group_with_keyword | recipients_players_and_protected | recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls | recipients_opponent_or_two_controlled | recipients_target_spell_controller | recipients_target_described_spell_controller | recipients_attached_controller | recipients_each_two_types_that_player | recipients_damage_event_permanent_or_player | recipients_target_opponent_and_controlled | recipients_random_damage_target | recipients_previously_damaged_target | recipients_opponent_or_battle | recipients_any_target_not_subtype | recipients_chosen_player | recipients_each_without_four_keywords | recipients_each_three_types | recipients_you_and_each | recipients_you_and_target_object | recipients_another_event_object_or_opponent | recipients_any_target_not_commander | recipients_target_controlled_or_protected | recipients_affected_and_shared_type | recipients_random_target_opponent
+recipients ::= recipients_you_and_any_target | recipients_defined_up_to_targets | recipients_target_group_with_keyword | recipients_players_and_protected | recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls | recipients_opponent_or_two_controlled | recipients_target_spell_controller | recipients_target_described_spell_controller | recipients_attached_controller | recipients_each_two_types_that_player | recipients_damage_event_permanent_or_player | recipients_target_opponent_and_controlled | recipients_random_damage_target | recipients_previously_damaged_target | recipients_opponent_or_battle | recipients_any_target_not_subtype | recipients_chosen_player | recipients_each_without_keywords | recipients_each_three_types | recipients_you_and_each | recipients_you_and_target_object | recipients_another_event_object_or_opponent | recipients_any_target_not_commander | recipients_target_controlled_or_protected | recipients_affected_and_shared_type | recipients_random_target_opponent
 
 /* @sem Recipients::Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_phrase, $filter_phrase_2])}) */
 recipients_each_and_each ::= "each" filter_phrase "and" "each" filter_phrase
@@ -1254,8 +1261,8 @@ sharing_query_adjectives ::= adjectives sharing_query_filter
    and the existing singular attack event. Capitals remain spelling metadata. */
 /* @sem ObjectFilter::@and(ObjectFilter::CardType(Creature), ObjectFilter::Not($five_subtype_union)) */
 creature_not_five_subtypes ::= "creature" "that" "isn't" ("a" | "an") five_subtype_union
-/* @sem ObjectFilter::AnyOf([$subtype_spelled, $subtype_spelled_2, $subtype_spelled_3, $subtype_spelled_4, $subtype_spelled_5]) */
-five_subtype_union ::= subtype_spelled "," subtype_spelled "," subtype_spelled "," subtype_spelled "," "or" subtype_spelled
+/* @sem ObjectFilter::AnyOf([$subtype_spelled, $subtype_spelled_2, ...$subtype_or_three]) */
+five_subtype_union ::= subtype_spelled "," subtype_spelled "," subtype_or_three
 subtype_spelled ::= subtype | subtype_marked_kraken | subtype_marked_leviathan | subtype_marked_merfolk
 /* @sem ObjectFilter::Subtype(Kraken) */
 subtype_marked_kraken ::= "↑" "kraken"
@@ -1725,14 +1732,20 @@ graveyards_return_population ::= "all" filter_phrase "cards" "in" "graveyards"
 
 /* Independent optional announcements are combined as a graveyard population,
    retaining their individual target slots. */
-return_graveyard_selection ::= return_optional_five | return_optional_three | return_optional_pair | return_optional_four | return_common_type_cards | return_cycling_cards | return_chosen_type_card | return_shared_type_exact_cards
+return_graveyard_selection ::= return_optional_targets | return_common_type_cards | return_cycling_cards | return_chosen_type_card | return_shared_type_exact_cards
 
-/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([$return_optional_member, $return_optional_member_2])} */
-return_optional_pair ::= return_optional_member "and" return_optional_member
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf($return_optional_items)} */
+return_optional_targets ::= return_optional_items
 
-/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([$return_optional_member, $return_optional_member_2, $return_optional_member_3, $return_optional_member_4])} */
-return_optional_four ::= return_optional_member "," return_optional_member "," return_optional_member "," "and" return_optional_member
+return_optional_items ::= return_optional_items_pair | return_optional_items_serial
+/* @sem ObjectFilter::[$return_optional_member, $return_optional_member_2] */
+return_optional_items_pair ::= return_optional_member "and" return_optional_member
+/* @sem ObjectFilter::[$return_optional_member, ...$return_optional_items_tail] */
+return_optional_items_serial ::= return_optional_member "," return_optional_items_tail
 
+return_optional_items_tail ::= return_optional_items_last_pair | return_optional_items_serial
+/* @sem ObjectFilter::[$return_optional_member, $return_optional_member_2] */
+return_optional_items_last_pair ::= return_optional_member "," "and" return_optional_member
 return_optional_member ::= return_optional_plain | return_optional_no_abilities
 
 /* @sem ObjectFilter::SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:AllOf([$return_member_filter, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0}) */
@@ -2820,13 +2833,14 @@ opponent_permanent_targets ::= "up" "to" number "target" adjective_nontype "perm
 /* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:Exactly(Constant(1)), filter:$counter_stack_union_filter}), index:0}) */
 counter_stack_union ::= "target" counter_stack_union_filter
 
-counter_stack_union_filter ::= counter_stack_union_three | counter_stack_union_four
+/* @sem ObjectFilter::AnyOf([$counter_stack_member, ...$counter_stack_union_tail]) */
+counter_stack_union_filter ::= counter_stack_member "," counter_stack_union_tail
 
-/* @sem ObjectFilter::AnyOf([$counter_stack_member, $counter_stack_member_2, $counter_stack_member_3]) */
-counter_stack_union_three ::= counter_stack_member "," counter_stack_member "," "or" counter_stack_member
-
-/* @sem ObjectFilter::AnyOf([$counter_stack_member, $counter_stack_member_2, $counter_stack_member_3, $counter_stack_member_4]) */
-counter_stack_union_four ::= counter_stack_member "," counter_stack_member "," counter_stack_member "," "or" counter_stack_member
+counter_stack_union_tail ::= counter_stack_union_last_pair | counter_stack_union_more
+/* @sem ObjectFilter::[$counter_stack_member, $counter_stack_member_2] */
+counter_stack_union_last_pair ::= counter_stack_member "," "or" counter_stack_member
+/* @sem ObjectFilter::[$counter_stack_member, ...$counter_stack_union_tail] */
+counter_stack_union_more ::= counter_stack_member "," counter_stack_union_tail
 
 counter_stack_member ::= counter_stack_instant | counter_stack_sorcery | counter_stack_activated | counter_stack_triggered | counter_stack_qualified_spell
 
@@ -2860,8 +2874,11 @@ counter_stack_all_player_pair ::= "all" "spells" "all" "players" "control" "and"
 target_card_exile_counter ::= "target" card_filter "card" "in" "exile" modifier_named_counter_on_it
 
 /* A three-head union can be reused by scoped population instructions. */
-/* @sem ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2, $filter_phrase_3]) */
-filter_three_and_heads ::= filter_phrase "," filter_phrase "," "and" filter_phrase
+/* @sem ObjectFilter::AnyOf($filter_three_and_members) */
+filter_three_and_heads ::= filter_three_and_members
+
+/* @sem ObjectFilter::[$filter_phrase, $filter_phrase_2, $filter_phrase_3] */
+filter_three_and_members ::= filter_phrase "," filter_phrase "," "and" filter_phrase
 
 /* A shared qualifier applies to the entire union of the two populations. */
 /* @sem @and(ObjectFilter::AnyOf([@and($noun_atomic, $plural_simple), $plural]), $modifiers) */
@@ -3294,13 +3311,19 @@ graveyard_required_optional_targets ::= graveyard_required_target "and" graveyar
 graveyard_required_target ::= "target" card_filter "card"
 
 /* @prefer always */
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and($graveyard_four_subtypes, $noun_creature, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0} */
-graveyard_optional_target ::= "up" "to" "one" "target" graveyard_four_subtypes noun_creature "card"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and($graveyard_subtype_union, $noun_creature, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0} */
+graveyard_optional_target ::= "up" "to" "one" "target" graveyard_subtype_union noun_creature "card"
 
 /* A four-way creature subtype choice remains one card filter. */
 /* @prefer always */
-/* @sem ObjectFilter::AnyOf(@unordered([$subtype, $subtype_2, $subtype_3, $subtype_4])) */
-graveyard_four_subtypes ::= subtype "," subtype "," subtype "," "or" subtype
+/* @sem ObjectFilter::AnyOf(@unordered([$subtype, ...$graveyard_subtype_tail])) */
+graveyard_subtype_union ::= subtype "," graveyard_subtype_tail
+
+graveyard_subtype_tail ::= graveyard_subtype_last_pair | graveyard_subtype_more
+/* @sem ObjectFilter::[$subtype, $subtype_2] */
+graveyard_subtype_last_pair ::= subtype "," "or" subtype
+/* @sem ObjectFilter::[$subtype, ...$graveyard_subtype_tail] */
+graveyard_subtype_more ::= subtype "," graveyard_subtype_tail
 
 /* Target card groups in the event player's graveyard retain that player's identity. */
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number), filter:InZone(Players{zone:Graveyard, players:One(EventSubject)})})) */
@@ -3570,9 +3593,6 @@ owned_controlled_population_filter ::= "all" filter_plural "you" "both" "own" "a
 /* @sem ObjectFilter::AllOf([$filter_plural, OwnedBy(One(AbilityController)), AttachedTo(InSet($affected))]) */
 owned_attached_population_filter ::= "all" filter_plural "you" "own" "attached" "to" affected
 
-/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([$return_optional_member, $return_optional_member_2, $return_optional_member_3])} */
-return_optional_three ::= return_optional_member "," return_optional_member "," "and" return_optional_member
-
 /* A union whose second card type excludes a subtype. */
 /* @sem ObjectFilter::AnyOf([$noun, AllOf([Not(Subtype(Aura)), $noun_2])]) */
 card_type_or_non_aura_type ::= noun "and" "/" "or" "non-Aura" noun
@@ -3774,8 +3794,11 @@ modifier_dealt_damage_to_object_this_turn ::= "that" "dealt" "damage" "to" objec
 object_ref_pair ::= object_ref "and" object_ref
 
 /* Four source types share the ordinary ability-source filter. */
+/* @sem $noun_or_four */
+counter_source_four_nouns ::= "an" noun_or_four
+
 /* @sem ObjectFilter::AnyOf([$noun, $noun_2, $noun_3, $noun_4]) */
-counter_source_four_nouns ::= "an" noun "," noun "," noun "," "or" noun
+noun_or_four ::= noun "," noun "," noun "," "or" noun
 
 /* A list of permanent types qualifies the source of the targeted ability. */
 /* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Ability, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([$counter_ability_kind, AbilityOf($counter_source_four_nouns)])}), index:0}) */
@@ -3809,8 +3832,8 @@ modifier_singular_enchanted_or_equipped ::= "that's" "enchanted" "or" "equipped"
 recipients_player_or_walker_required ::= "target" "player" "or" "planeswalker"
 
 /* A four-way card filter composes with graveyard arrival origins. */
-/* @sem ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2, $filter_phrase_3, $filter_phrase_4]) */
-filter_four_and_heads ::= filter_phrase "," filter_phrase "," filter_phrase "," "and" filter_phrase
+/* @sem ObjectFilter::AnyOf([$filter_phrase, ...$filter_three_and_members]) */
+filter_four_and_heads ::= filter_phrase "," filter_three_and_members
 
 /* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:@and($filter_four_and_heads, $graveyard_arrival_origin)} */
 bound_graveyard_arrivals ::= "all" filter_four_and_heads "cards" "in" "their" "graveyard" graveyard_arrival_origin
@@ -3832,8 +3855,15 @@ linked_exile_card_source ::= "cards" "exiled" "with" object_ref
 recipients_target_group_with_keyword ::= "each" "of" "those" filter_plural "with" keyword_value
 
 /* A battlefield population excluding each of four independently specified keywords. */
-/* @sem Recipients::Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, Not(HasKeyword($keyword_value)), Not(HasKeyword($keyword_value_2)), Not(HasKeyword($keyword_value_3)), Not(HasKeyword($keyword_value_4))])}) */
-recipients_each_without_four_keywords ::= "each" filter_phrase "that" "doesn't" "have" keyword_value "," keyword_value "," keyword_value "," "or" keyword_value
+/* @sem Recipients::Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ...$excluded_keywords])}) */
+recipients_each_without_keywords ::= "each" filter_phrase "that" "doesn't" "have" excluded_keywords
+
+/* @sem ObjectFilter::[Not(HasKeyword($keyword_value)), ...$excluded_keywords_tail] */
+excluded_keywords ::= keyword_value "," excluded_keywords_tail
+
+excluded_keywords_tail ::= excluded_keywords_last_pair | excluded_keywords
+/* @sem ObjectFilter::[Not(HasKeyword($keyword_value)), Not(HasKeyword($keyword_value_2))] */
+excluded_keywords_last_pair ::= keyword_value "," "or" keyword_value
 
 /* A color choice qualifies the complete union of permanent kinds. */
 /* @sem ObjectFilter::AllOf([$noun_either, AnyOf([$adjective_color, $adjective_color_2])]) */
@@ -4040,11 +4070,14 @@ card_kind_union ::= card_kind_union_two | card_kind_union_three | card_kind_unio
 /* @sem ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2]) */
 card_kind_union_two ::= filter_phrase "and" "/" "or" filter_phrase
 
-/* @sem ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2, $filter_phrase_3]) */
-card_kind_union_three ::= filter_phrase "," filter_phrase "," "and" "/" "or" filter_phrase
+/* @sem ObjectFilter::AnyOf($card_kind_union_three_members) */
+card_kind_union_three ::= card_kind_union_three_members
 
-/* @sem ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2, $filter_phrase_3, $filter_phrase_4]) */
-card_kind_union_four ::= filter_phrase "," filter_phrase "," filter_phrase "," "and" "/" "or" filter_phrase
+/* @sem ObjectFilter::[$filter_phrase, $filter_phrase_2, $filter_phrase_3] */
+card_kind_union_three_members ::= filter_phrase "," filter_phrase "," "and" "/" "or" filter_phrase
+
+/* @sem ObjectFilter::AnyOf([$filter_phrase, ...$card_kind_union_three_members]) */
+card_kind_union_four ::= filter_phrase "," card_kind_union_three_members
 
 /* The card filter and mana ceiling independently constrain this target. */
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:AllOf([AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:@in_filter($value)}}]), InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0} */
@@ -4139,8 +4172,15 @@ target_card_exiled_with_artifact ::= "target" noun "card" "exiled" "with" "this"
 damage_recipient_choice ::= player_ref "or" "a" filter_phrase
 
 /* A seven-member subtype disjunction retains each independently editable operand. */
-/* @sem ObjectFilter::AnyOf([$seven_subtype_member, $seven_subtype_member_2, $seven_subtype_member_3, $seven_subtype_member_4, $seven_subtype_member_5, $seven_subtype_member_6, $seven_subtype_member_7]) */
-seven_subtype_union ::= seven_subtype_member "," seven_subtype_member "," seven_subtype_member "," seven_subtype_member "," seven_subtype_member "," seven_subtype_member "," "or" seven_subtype_member
+/* @sem ObjectFilter::AnyOf($subtype_union_members) */
+serial_subtype_union ::= subtype_union_members
+
+/* @sem ObjectFilter::[$seven_subtype_member, ...$subtype_union_members_tail] */
+subtype_union_members ::= seven_subtype_member "," subtype_union_members_tail
+
+subtype_union_members_tail ::= subtype_union_members_last_pair | subtype_union_members
+/* @sem ObjectFilter::[$seven_subtype_member, $seven_subtype_member_2] */
+subtype_union_members_last_pair ::= seven_subtype_member "," "or" seven_subtype_member
 
 seven_subtype_member ::= subtype | list_capital_vampire
 
@@ -4150,9 +4190,6 @@ leading_named_and_plural_exceptions ::= "except" "for" named_plural_population "
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$leading_named_and_plural_exceptions, $filter_plural, ControlledBy(One(AbilityController))])} */
 controlled_population_with_two_exceptions ::= leading_named_and_plural_exceptions filter_plural "you" "control"
-
-/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([$return_optional_member, $return_optional_member_2, $return_optional_member_3, $return_optional_member_4, $return_optional_member_5])} */
-return_optional_five ::= return_optional_member "," return_optional_member "," return_optional_member "," return_optional_member "," "and" return_optional_member
 
 /* @sem ObjectFilter::CouldProduceManaOf($object_ref) */
 modifier_could_produce_referenced_mana ::= "that" "could" "produce" "any" "type" "of" "mana" object_ref "could" "produce"
@@ -4788,8 +4825,15 @@ visited_attractions_count ::= "the" "number" "of" "Attractions" "you've" "visite
 non_battle ::= "nonbattle"
 
 /* A six-way subtype list denotes one target in the shared battlefield. */
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AnyOf([$union_subtype, $union_subtype_2, $union_subtype_3, $union_subtype_4, $union_subtype_5, $union_subtype_6])}), index:0} */
-target_six_subtype_union ::= "target" union_subtype "," union_subtype "," union_subtype "," union_subtype "," union_subtype "," "or" union_subtype
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AnyOf($target_subtype_members)}), index:0} */
+target_serial_subtype_union ::= "target" target_subtype_members
+
+/* @sem ObjectFilter::[$union_subtype, ...$target_subtype_members_tail] */
+target_subtype_members ::= union_subtype "," target_subtype_members_tail
+
+target_subtype_members_tail ::= target_subtype_members_last_pair | target_subtype_members
+/* @sem ObjectFilter::[$union_subtype, $union_subtype_2] */
+target_subtype_members_last_pair ::= union_subtype "," "or" union_subtype
 
 union_subtype ::= subtype | companion_folded_cat
 
@@ -5252,8 +5296,15 @@ cards_from_possessive_paired_zones ::= "all" "cards" "from" paired_zone_owners p
 cards_from_all_paired_zones ::= "all" "cards" "from" "all" paired_card_zone "and" paired_card_zone_second
 
 /* Five subtype alternatives qualify the same population. */
-/* @sem ObjectFilter::AnyOf([$controlled_kind_spelled, $controlled_kind_spelled_2, $controlled_kind_spelled_3, $controlled_kind_spelled_4, $controlled_kind_spelled_5]) */
-controlled_kind_union ::= controlled_kind_spelled "," controlled_kind_spelled "," controlled_kind_spelled "," controlled_kind_spelled "," "or" controlled_kind_spelled
+/* @sem ObjectFilter::AnyOf($controlled_kind_members) */
+controlled_kind_union ::= controlled_kind_members
+
+/* @sem ObjectFilter::[$controlled_kind_spelled, ...$controlled_kind_members_tail] */
+controlled_kind_members ::= controlled_kind_spelled "," controlled_kind_members_tail
+
+controlled_kind_members_tail ::= controlled_kind_members_last_pair | controlled_kind_members
+/* @sem ObjectFilter::[$controlled_kind_spelled, $controlled_kind_spelled_2] */
+controlled_kind_members_last_pair ::= controlled_kind_spelled "," "or" controlled_kind_spelled
 
 controlled_kind_spelled ::= subtype | companion_folded_elemental | companion_folded_cat
 

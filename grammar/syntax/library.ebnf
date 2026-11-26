@@ -163,7 +163,7 @@ search_either_one ::= "and" found_action
 /* @sem Instruction::[Effect{result:@next, operation:$found_action}, Effect{result:@next, operation:$found_action_2}] */
 search_either_two ::= "," found_action "," ("and" | "then") found_action
 
-search_filter ::= search_filter_four_keywords | search_filter_permanent_kind | search_filter_subtype_list | exiled_card_test | search_filter_modified | search_filter_either | search_filter_either_bare | search_filter_distinct_controlled_name | search_filter_shared_object_name | search_filter_keyword_alternative | search_filter_basic_plains_list | search_filter_no_abilities | search_filter_mana_ceiling | search_filter_three_repeated | search_filter_mana_ability_or | search_filter_either_mana_ceiling | search_filter_same_total_event | search_filter_same_name_graveyard | search_filter_head_union
+search_filter ::= search_filter_serial_keywords | search_filter_permanent_kind | search_filter_subtype_list | exiled_card_test | search_filter_modified | search_filter_either | search_filter_either_bare | search_filter_distinct_controlled_name | search_filter_shared_object_name | search_filter_keyword_alternative | search_filter_basic_plains_list | search_filter_no_abilities | search_filter_mana_ceiling | search_filter_three_repeated | search_filter_mana_ability_or | search_filter_either_mana_ceiling | search_filter_same_total_event | search_filter_same_name_graveyard | search_filter_head_union
 
 /* "A basic land card or a Desert card": either kind, each with its own noun. */
 /* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
@@ -3880,11 +3880,11 @@ instructions_pay_life_look_choose_exile ::= "pay" "any" "amount" "of" "life" ","
 instructions_exile_until_play_remainder ::= "exile" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "exile" "a" card_filter "card" "." "you" "may" "play" "that" "card" "for" "as" "long" "as" object_ref "remains" "on" "the" "battlefield" "." "put" "the" "rest" "of" "those" "exiled" "cards" "on" "the" "bottom" "of" "your" "library" "in" "a" "random" "order"
 
 /* Three independent choices retain the same search receipt through the follow-up. */
-/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_filtered, $search_choice_filtered_2, $search_choice_filtered_3]} */
-search_three_choices ::= "search" "your" "library" "for" search_choice_filtered "," search_choice_filtered "," "and" search_choice_filtered
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:$search_filtered_three} */
+search_three_choices ::= "search" "your" "library" "for" search_filtered_three
 
-/* @sem Instruction::[Effect{result:@mark, operation:$search_three_choices}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
-instructions_search_three_reveal_hand ::= search_three_choices "." "reveal" "those" "cards" "," "put" "them" "into" "your" "hand" "," "then" "shuffle"
+/* @sem SearchChoice::[$search_choice_filtered, $search_choice_filtered_2, $search_choice_filtered_3] */
+search_filtered_three ::= search_choice_filtered "," search_choice_filtered "," "and" search_choice_filtered
 
 /* @sem Instruction::[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Discard{players:One(AbilityController), amount:$card_count, random:true}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
 instructions_search_reveal_hand_discard ::= search "and" "reveal" "that" "card" "." "put" "it" "into" "your" "hand" "," "then" "discard" card_count "at" "random" "." "then" "shuffle"
@@ -4123,8 +4123,8 @@ named_search_entry ::= battlefield_control | linked_battlefield_tapped
 
 /* Four independently described card types form one choice. */
 /* @prefer always */
-/* @sem ObjectFilter::AnyOf([$noun, $noun_2, $noun_3, $noun_4]) */
-search_filter_four_alternatives ::= noun "," noun "," noun "," "or" noun "card"
+/* @sem $noun_or_four */
+search_filter_four_alternatives ::= noun_or_four "card"
 
 /* Epic is appended to the spell's existing instructions in the same scope. */
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Epic}}]}} */
@@ -4849,8 +4849,8 @@ replacement_observed_top_split ::= reveal_top "instead" "." "if" "it's" top_reve
 replacement_top_branch ::= top_reveal_branch | payment_leading_operation
 
 /* Independent choices and follow-ups preserve the original search receipt. */
-/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_filtered, $search_choice_filtered_2, $search_choice_filtered_3, $search_choice_filtered_4, $search_choice_filtered_5]} */
-search_five_choices ::= "search" "your" "library" "for" search_choice_filtered "," search_choice_filtered "," search_choice_filtered "," search_choice_filtered "," "and" search_choice_filtered
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_filtered, $search_choice_filtered_2, ...$search_filtered_three]} */
+search_five_choices ::= "search" "your" "library" "for" search_choice_filtered "," search_choice_filtered "," search_filtered_three
 
 /* @sem Instruction::[Effect{result:@mark, operation:$search_five_choices}, Effect{result:@next, operation:$found_those_reveal}, ...$search_plural_follow] */
 clause_search_five_choices ::= search_five_choices "." found_those_reveal search_plural_follow
@@ -5602,8 +5602,14 @@ casting_sacrifice_value_program ::= casting_sacrifice_value_search_program | cas
 instructions_reveal_until_owner_graveyard ::= reveal_until_other_many "." "that" "player" "puts" "all" "cards" "revealed" "this" "way" "into" "their" "graveyard"
 
 /* Four independently described keyword predicates qualify the found card. */
-/* @sem ObjectFilter::@and($card_filter, ObjectFilter::AnyOf(@unordered([$search_keyword_predicate, $search_keyword_predicate_2, $search_keyword_predicate_3, $search_keyword_predicate_4]))) */
-search_filter_four_keywords ::= card_filter "card" "with" search_keyword_predicate "," search_keyword_predicate "," search_keyword_predicate "," "or" search_keyword_predicate
+/* @sem ObjectFilter::@and($card_filter, ObjectFilter::AnyOf(@unordered([$search_keyword_predicate, ...$search_keyword_list_tail]))) */
+search_filter_serial_keywords ::= card_filter "card" "with" search_keyword_predicate "," search_keyword_list_tail
+
+search_keyword_list_tail ::= search_keyword_list_pair | search_keyword_list_more
+/* @sem ObjectFilter::[$search_keyword_predicate, $search_keyword_predicate_2] */
+search_keyword_list_pair ::= search_keyword_predicate "," "or" search_keyword_predicate
+/* @sem ObjectFilter::[$search_keyword_predicate, ...$search_keyword_list_tail] */
+search_keyword_list_more ::= search_keyword_predicate "," search_keyword_list_tail
 
 search_keyword_predicate ::= so_on_hexproof | search_keyword_plain_predicate
 
@@ -6092,8 +6098,8 @@ clause_search_reveal_opponent_partition ::= search_constrained_plural "and" "rev
 searched_opponent_partition_hand ::= "an" "opponent" "chooses" value "of" "those" "cards" "." "shuffle" "the" "chosen" "cards" "into" "your" "library" "and" "put" "the" "rest" "into" "your" "hand"
 
 /* Four independently described choices share one search selection. */
-/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_filtered, $search_choice_filtered_2, $search_choice_filtered_3, $search_choice_filtered_4]} */
-search_four_choices ::= "search" "your" "library" "for" search_choice_filtered "," search_choice_filtered "," search_choice_filtered "," "and" search_choice_filtered
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_filtered, ...$search_filtered_three]} */
+search_four_choices ::= "search" "your" "library" "for" search_choice_filtered "," search_filtered_three
 
 /* Follow-ups refer to the complete selection produced by the search. */
 /* @sem Instruction::[Effect{result:@mark, operation:$search_four_choices}, Effect{result:@next, operation:$found_those_reveal}, ...$search_plural_follow] */

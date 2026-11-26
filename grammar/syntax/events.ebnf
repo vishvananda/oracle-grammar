@@ -3434,8 +3434,11 @@ spell_targeting_self ::= "that" "targets" self_ref
 /* @sem $spell_color_four */
 spell_color_disjunction ::= "a" "spell" "that's" spell_color_four
 
-/* @sem ObjectFilter::AnyOf([$adjective_color, $adjective_color_2, $adjective_color_3, $adjective_color_4]) */
-spell_color_four ::= adjective_color "," adjective_color "," adjective_color "," "or" adjective_color
+/* @sem ObjectFilter::AnyOf([$adjective_color, ...$spell_colors_three]) */
+spell_color_four ::= adjective_color "," spell_colors_three
+
+/* @sem ObjectFilter::[$adjective_color, $adjective_color_2, $adjective_color_3] */
+spell_colors_three ::= adjective_color "," adjective_color "," "or" adjective_color
 
 /* These suffixes apply to the spell in the you-cast event. */
 /* @prefer always */
@@ -6199,8 +6202,15 @@ attack_threshold ::= attack_threshold_words | value
 /* @prefer always */
 attack_threshold_words ::= count_plural
 
-/* @sem ObjectFilter::AllOf([$filter_plural, AnyOf([HasKeyword($keyword_name), HasKeyword($keyword_name_2), HasKeyword($keyword_name_3), HasKeyword($keyword_name_4)])]) */
-attack_qualified_plural ::= filter_plural "that" "have" keyword_name "," keyword_name "," keyword_name "," "and" "/" "or" keyword_name
+/* @sem ObjectFilter::AllOf([$filter_plural, AnyOf($attack_keyword_options)]) */
+attack_qualified_plural ::= filter_plural "that" "have" attack_keyword_options
+
+/* @sem ObjectFilter::[HasKeyword($keyword_name), ...$attack_keyword_options_tail] */
+attack_keyword_options ::= keyword_name "," attack_keyword_options_tail
+
+attack_keyword_options_tail ::= attack_keyword_options_last_pair | attack_keyword_options
+/* @sem ObjectFilter::[HasKeyword($keyword_name), HasKeyword($keyword_name_2)] */
+attack_keyword_options_last_pair ::= keyword_name "," "and" "/" "or" keyword_name
 
 /* The attacker and defending player are independently represented in the batch. */
 /* @sem EventSpec::Batch{event:Attack{attackers:Any, by:One(AbilityController), defenders:Players($attack_player_defender)}, per:Defender} */
@@ -7677,11 +7687,18 @@ triggered_draft_cast_grants ::= event_clause "," instructions_draft_cast_grants
 spell_shares_commander_type ::= "that" "shares" "a" "creature" "type" "with" "your" "commander"
 
 /* A batch of other controlled entrants can match any of four subtypes. */
-/* @sem ObjectFilter::AnyOf([$plural_subtype_word, $plural_subtype_word_2, $plural_subtype_word_3, $plural_subtype_word_4]) */
-four_plural_subtypes_and_or ::= plural_subtype_word "," plural_subtype_word "," plural_subtype_word "," "and" "/" "or" plural_subtype_word
+/* @sem ObjectFilter::AnyOf($plural_subtypes_and_or_items) */
+plural_subtypes_and_or ::= plural_subtypes_and_or_items
 
-/* @sem EventSpec::Batch{event:ZoneChange{objects:AllOf([Not(SameObject(Source)), $four_plural_subtypes_and_or, ControlledBy(One(AbilityController))]), to:Battlefield}, per:Whole} */
-whenever_other_four_subtypes_enter ::= "whenever" "one" "or" "more" "other" four_plural_subtypes_and_or "you" "control" "enter"
+/* @sem ObjectFilter::[$plural_subtype_word, ...$plural_subtypes_and_or_items_tail] */
+plural_subtypes_and_or_items ::= plural_subtype_word "," plural_subtypes_and_or_items_tail
+
+plural_subtypes_and_or_items_tail ::= plural_subtypes_and_or_items_last_pair | plural_subtypes_and_or_items
+/* @sem ObjectFilter::[$plural_subtype_word, $plural_subtype_word_2] */
+plural_subtypes_and_or_items_last_pair ::= plural_subtype_word "," "and" "/" "or" plural_subtype_word
+
+/* @sem EventSpec::Batch{event:ZoneChange{objects:AllOf([Not(SameObject(Source)), $plural_subtypes_and_or, ControlledBy(One(AbilityController))]), to:Battlefield}, per:Whole} */
+whenever_other_four_subtypes_enter ::= "whenever" "one" "or" "more" "other" plural_subtypes_and_or "you" "control" "enter"
 
 /* The anaphoric condition is scoped to the opponent whose turn began. */
 /* @sem Ability::Triggered{event:$opponents_turn_event, intervening_if:$opponent_turn_cast_threshold, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence} */

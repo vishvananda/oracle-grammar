@@ -7617,8 +7617,12 @@ colored_creature_singular ::= mana_color_word "creature"
 /* @sem Ability::Static(_{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(Source)), changes:[CreatureTypes{mode:Add, types:Listed($added_type_list)}]}) */
 static_self_also_type_list ::= SELF_NAME "is" "also" "a" added_type_list "."
 
-/* @sem CreatureType::[@subtype_name($subtype), @subtype_name($subtype_2), @subtype_name($subtype_3), @subtype_name($subtype_4)] */
-added_type_list ::= subtype "," subtype "," subtype "," "and" subtype
+/* @sem CreatureType::[@subtype_name($subtype), ...$added_type_list_tail] */
+added_type_list ::= subtype "," added_type_list_tail
+
+added_type_list_tail ::= added_type_list_last_pair | added_type_list
+/* @sem CreatureType::[@subtype_name($subtype), @subtype_name($subtype_2)] */
+added_type_list_last_pair ::= subtype "," "and" subtype
 
 /* The follow-up grants a new keyword after removing the old abilities. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[...$base_subtypes, RemoveAllAbilities, GrantKeyword($keyword_value)]}) */
@@ -7660,8 +7664,10 @@ duration_affected_attack_cost ::= duration "," affected attack_you_or_planeswalk
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:$additional_count_pump_changes, duration:EndOfTurn, evaluation:Snapshot} */
 continuous_target_additional_count_pump ::= target_object additional_count_pump_changes
 
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}, Pump{power:@times($signed_3, $count_controlled_population), toughness:@times($signed_4, $count_controlled_population)}] */
-additional_count_pump_changes ::= "gets" signed "/" signed "until" "end" "of" "turn" "." "it" "gets" "an" "additional" signed "/" signed "until" "end" "of" "turn" "for" "each" count_controlled_population
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}, Pump{power:@times($signed_3, $additional_pump_count), toughness:@times($signed_4, $additional_pump_count)}] */
+additional_count_pump_changes ::= "gets" signed "/" signed "until" "end" "of" "turn" "." "it" "gets" "an" "additional" signed "/" signed "until" "end" "of" "turn" "for" "each" additional_pump_count
+
+additional_pump_count ::= count_controlled_population | count_named_card_your_graveyard
 
 /* A singular target receives a live rule restriction and a separately fixed
    characteristic change; their durations and target remain independent. */
@@ -9291,11 +9297,15 @@ random_grant_option_protection ::= "protection" "from" adjective_color
 
 random_grant_option ::= random_grant_option_keyword | random_grant_option_protection
 
-/* @sem Operand::[$random_grant_option, $random_grant_option_2, $random_grant_option_3, $random_grant_option_4, $random_grant_option_5, $random_grant_option_6, $random_grant_option_7] */
-random_grant_seven_options ::= random_grant_option "," random_grant_option "," random_grant_option "," random_grant_option "," random_grant_option "," random_grant_option "," "and" random_grant_option
+/* @sem Operand::[$random_grant_option, ...$random_grant_options_tail] */
+random_grant_options ::= random_grant_option "," random_grant_options_tail
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Ability, terms:_{options:$random_grant_seven_options, random:true, count:Exactly($number)}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(EventSubject)), changes:[ChosenAbility], duration:Indefinite, evaluation:Snapshot}}]} */
-random_grant_event_subject_program ::= "it" "gains" number "abilities" "chosen" "at" "random" "from" "among" random_grant_seven_options "."
+random_grant_options_tail ::= random_grant_options_last_pair | random_grant_options
+/* @sem Operand::[$random_grant_option, $random_grant_option_2] */
+random_grant_options_last_pair ::= random_grant_option "," "and" random_grant_option
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Ability, terms:_{options:$random_grant_options, random:true, count:Exactly($number)}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(EventSubject)), changes:[ChosenAbility], duration:Indefinite, evaluation:Snapshot}}]} */
+random_grant_event_subject_program ::= "it" "gains" number "abilities" "chosen" "at" "random" "from" "among" random_grant_options "."
 
 random_grant_event ::= event_clause | whenever_controlled_entrant_zone_change
 
@@ -11857,11 +11867,8 @@ own_turn_ordered_spell_cost ::= ordered_own_turn_keyword_spell "costs" spell_cos
 /* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Name($referenced_card_name)}) */
 count_named_card_your_graveyard ::= "card" "named" referenced_card_name "in" "your" "graveyard"
 
-/* @sem Change::[Pump{power:$signed, toughness:$signed_2}, Pump{power:@times($signed_3, $count_named_card_your_graveyard), toughness:@times($signed_4, $count_named_card_your_graveyard)}] */
-additional_counted_pump_changes ::= "gets" signed "/" signed "until" "end" "of" "turn" "." "it" "gets" "an" "additional" signed "/" signed "until" "end" "of" "turn" "for" "each" count_named_card_your_graveyard
-
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:$additional_counted_pump_changes, duration:EndOfTurn, evaluation:Snapshot}}] */
-instructions_target_additional_counted_pump ::= target_object additional_counted_pump_changes
+/* @sem Instruction::[Effect{result:@next, operation:$continuous_target_additional_count_pump}] */
+instructions_target_additional_counted_pump ::= continuous_target_additional_count_pump
 
 /* Choosing announces the target; the later anaphor refers to that same object. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($chosen_active_controlled_creature)), changes:[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects}}] */
@@ -12590,8 +12597,11 @@ cast_repeated_subtype_spells ::= graveyard_grant_first_subtype "spells" "and" su
 static_card_type_walk_pump ::= singular_pump "and" "has" walk_card_type
 
 /* Shared four-kind union and independently qualified battlefield populations. */
-/* @sem ObjectFilter::AnyOf([$subtype_spelled, $subtype_spelled_2, $subtype_spelled_3, $subtype_spelled_4]) */
-four_kind_union ::= subtype_spelled "," subtype_spelled "," subtype_spelled "," "or" subtype_spelled
+/* @sem ObjectFilter::AnyOf([$subtype_spelled, ...$subtype_or_three]) */
+four_kind_union ::= subtype_spelled "," subtype_or_three
+
+/* @sem ObjectFilter::[$subtype_spelled, $subtype_spelled_2, $subtype_spelled_3] */
+subtype_or_three ::= subtype_spelled "," subtype_spelled "," "or" subtype_spelled
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, Not($four_kind_union)])} */
 scaled_excluded_type_population ::= "then" "each" filter_phrase "that" "isn't" "an" four_kind_union

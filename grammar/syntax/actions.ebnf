@@ -1761,7 +1761,7 @@ support_action ::= "support" number
 choose_a_color ::= "choose" single_color_choice
 
 /* Choosing a player, a type, a number or colors. */
-choose_value ::= choose_color_among_permanents | player_chooses_permanent_options | choose_many_colors | choose_card_types_five | choose_land_types_pair | choose_color_pair | choose_planeswalker_type | choose_two_basic_land_types | choose_friend_or_foe | choose_opponent | choose_a_player | choose_land_type | choose_basic_land_type | choose_number_between | choose_a_number | choose_two_colors | choose_color_other | choose_creature_type_plain | choose_ability_options_three | choose_color_type_options_five | choose_card_types_pair | choose_land_or_nonland | choose_ability_options | choose_number_threshold | choose_land_class | choose_direction | choose_creature_type_options | choose_hand_colors | choose_secret_interval | player_chooses_color | player_chooses_player | choose_color_word_shared | choose_letter_shared | choose_graveyard_color_shared | choose_unchosen_names_shared | choose_named_type | choose_card_types_three | choose_secret_player | choose_secret_creature_types_three | choose_a_letter
+choose_value ::= choose_color_among_permanents | player_chooses_permanent_options | choose_many_colors | choose_serial_card_types | choose_land_types_pair | choose_color_pair | choose_planeswalker_type | choose_two_basic_land_types | choose_friend_or_foe | choose_opponent | choose_a_player | choose_land_type | choose_basic_land_type | choose_number_between | choose_a_number | choose_two_colors | choose_color_other | choose_creature_type_plain | choose_ability_options_three | choose_color_type_options | choose_card_types_pair | choose_land_or_nonland | choose_ability_options | choose_number_threshold | choose_land_class | choose_direction | choose_creature_type_options | choose_hand_colors | choose_secret_interval | player_chooses_color | player_chooses_player | choose_color_word_shared | choose_letter_shared | choose_graveyard_color_shared | choose_unchosen_names_shared | choose_named_type | choose_card_types_three | choose_secret_player | choose_secret_creature_types_three | choose_a_letter
 /* @sem Operation::ChooseValue{choosers:$players_singular, kind:Word, terms:_{count:Exactly(Constant(1)), options:[Text(Friend), Text(Foe)]}} */
 choose_friend_or_foe ::= "for" players_singular "," "choose" "friend" "or" "foe"
 /* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[$single_player_choice]}} */
@@ -2256,8 +2256,15 @@ exchange_life_with_player ::= "exchange" "life" "totals" "with" player_ref
 control_player_next_turn ::= "control" player_ref "during" "that" "player's" "next" "turn"
 
 /* Choice lists retain each current vocabulary operand in its printed position. */
-/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardType, terms:_{count:Exactly(Constant(1)), options:[$choice_card_type, $choice_card_type_2, $choice_card_type_3, $choice_card_type_4, $choice_card_type_5]}} */
-choose_card_types_five ::= "choose" choice_card_type "," choice_card_type "," choice_card_type "," choice_card_type "," "or" choice_card_type
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardType, terms:_{count:Exactly(Constant(1)), options:$card_type_options}} */
+choose_serial_card_types ::= "choose" card_type_options
+
+/* @sem Operand::[$choice_card_type, ...$card_type_options_tail] */
+card_type_options ::= choice_card_type "," card_type_options_tail
+
+card_type_options_tail ::= card_type_options_last_pair | card_type_options
+/* @sem Operand::[$choice_card_type, $choice_card_type_2] */
+card_type_options_last_pair ::= choice_card_type "," "or" choice_card_type
 
 /* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:LandType, terms:_{count:Exactly(Constant(1)), options:[$choice_land_type, $choice_land_type_2]}} */
 choose_land_types_pair ::= "choose" choice_land_type "or" choice_land_type
@@ -2829,8 +2836,15 @@ choose_ability_options_three ::= "choose" value "abilities" "from" "among" keywo
 /* @sem Operand::Term{family:ColorAndCreatureType, form:ColorAndCreatureType, operands:[Vocabulary{family:Color, form:$token_color}, Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)}]} */
 choice_color_type ::= token_color creature_subtype
 
-/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:ColorAndCreatureType, terms:_{count:Exactly(Constant(1)), options:[$choice_color_type, $choice_color_type_2, $choice_color_type_3, $choice_color_type_4, $choice_color_type_5]}} */
-choose_color_type_options_five ::= "choose" choice_color_type "," choice_color_type "," choice_color_type "," choice_color_type "," "or" choice_color_type
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:ColorAndCreatureType, terms:_{count:Exactly(Constant(1)), options:$color_type_options}} */
+choose_color_type_options ::= "choose" color_type_options
+
+/* @sem Operand::[$choice_color_type, ...$color_type_options_tail] */
+color_type_options ::= choice_color_type "," color_type_options_tail
+
+color_type_options_tail ::= color_type_options_last_pair | color_type_options
+/* @sem Operand::[$choice_color_type, $choice_color_type_2] */
+color_type_options_last_pair ::= choice_color_type "," "or" choice_color_type
 
 /* @sem Operand::Term{family:CardsInOracle, form:And, operands:[Term{family:CardsInOracle, form:IsSupertype, operands:[Vocabulary{family:SuperType, form:Basic}]}, Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Land}]}]} */
 card_name_basic_land ::= "basic" "land"
@@ -6486,8 +6500,15 @@ return_own_graveyard_kind ::= filter_phrase
 /* @sem Instruction::[...$return_own_graveyard_kind, ...$return_own_graveyard_kind_2] */
 clause_return_two_graveyard_kinds ::= "return" "a" return_own_graveyard_kind "card" "and" "a" return_own_graveyard_kind "card" "from" "your" "graveyard" "to" "your" "hand"
 
-/* @sem Instruction::[...$return_own_graveyard_kind, ...$return_own_graveyard_kind_2, ...$return_own_graveyard_kind_3, ...$return_own_graveyard_kind_4] */
-clause_return_four_graveyard_kinds ::= "return" "a" return_own_graveyard_kind "card" "from" "your" "graveyard" "to" "your" "hand" "," "then" "do" "the" "same" "for" return_own_graveyard_kind "," return_own_graveyard_kind "," "and" return_own_graveyard_kind
+/* @sem Instruction::[...$return_own_graveyard_kind, ...$return_more_graveyard_kinds] */
+clause_return_repeated_graveyard_kinds ::= "return" "a" return_own_graveyard_kind "card" "from" "your" "graveyard" "to" "your" "hand" "," "then" "do" "the" "same" "for" return_more_graveyard_kinds
+
+/* @sem Instruction::[...$return_own_graveyard_kind, ...$return_more_graveyard_kinds_tail] */
+return_more_graveyard_kinds ::= return_own_graveyard_kind "," return_more_graveyard_kinds_tail
+
+return_more_graveyard_kinds_tail ::= return_more_graveyard_kinds_last_pair | return_more_graveyard_kinds
+/* @sem Instruction::[...$return_own_graveyard_kind, ...$return_own_graveyard_kind_2] */
+return_more_graveyard_kinds_last_pair ::= return_own_graveyard_kind "," "and" return_own_graveyard_kind
 
 /* The loop binds both the chooser and the owner of the graveyard. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Zone{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:$filter_phrase}, count:Exactly(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
@@ -7908,11 +7929,15 @@ choose_color_among_permanents ::= "choose" color_among_permanents
 /* @sem Operand::Term{family:ChoosableColor, form:ColorAmoungPermanents, operands:[$choice_permanent]} */
 color_among_permanents ::= "a" "color" "of" "a" choice_permanent
 
-/* @sem Operation::ChooseValue{choosers:$players_singular, kind:Filter, terms:_{count:Exactly(Constant(1)), options:$four_permanent_options}} */
-player_chooses_permanent_options ::= players_singular "chooses" four_permanent_options
+/* @sem Operation::ChooseValue{choosers:$players_singular, kind:Filter, terms:_{count:Exactly(Constant(1)), options:$serial_permanent_options}} */
+player_chooses_permanent_options ::= players_singular "chooses" serial_permanent_options
 
-/* @sem Operand::[$choice_permanent, $choice_permanent_2, $choice_permanent_3, $choice_permanent_4] */
-four_permanent_options ::= choice_permanent "," choice_permanent "," choice_permanent "," "or" choice_permanent
+/* @sem Operand::[$choice_permanent, ...$serial_permanent_options_tail] */
+serial_permanent_options ::= choice_permanent "," serial_permanent_options_tail
+
+serial_permanent_options_tail ::= serial_permanent_options_last_pair | serial_permanent_options
+/* @sem Operand::[$choice_permanent, $choice_permanent_2] */
+serial_permanent_options_last_pair ::= choice_permanent "," "or" choice_permanent
 
 /* @sem Operation::AddMana{players:One(AbilityController), mana:Amount{color:Chosen, amount:$value}} */
 add_mana_of_that_color ::= "add" value "mana" "of" "that" "color"
@@ -9665,8 +9690,15 @@ choose_graveyard_color_shared ::= "choose" choice_graveyard_colors
 /* @sem Operand::Term{family:CardsInOracle, form:IsNamed, operands:[Term{family:NameFilter, form:NamedCard, operands:[Text($referenced_card_name)]}]} */
 choice_named_card ::= referenced_card_name
 
-/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardName, terms:_{count:Exactly(Constant(1)), unchosen:true, options:[Term{family:CardsInOracle, form:Or, operands:[$choice_named_card, $choice_named_card_2, $choice_named_card_3, $choice_named_card_4, $choice_named_card_5, $choice_named_card_6]}]}} */
-choose_unchosen_names_shared ::= "choose" "a" "card" "name" "that" "hasn't" "been" "chosen" "from" "among" choice_named_card "," choice_named_card "," choice_named_card "," choice_named_card "," choice_named_card "," "and" choice_named_card
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardName, terms:_{count:Exactly(Constant(1)), unchosen:true, options:[Term{family:CardsInOracle, form:Or, operands:$unchosen_card_names}]}} */
+choose_unchosen_names_shared ::= "choose" "a" "card" "name" "that" "hasn't" "been" "chosen" "from" "among" unchosen_card_names
+
+/* @sem Operand::[$choice_named_card, ...$unchosen_card_names_tail] */
+unchosen_card_names ::= choice_named_card "," unchosen_card_names_tail
+
+unchosen_card_names_tail ::= unchosen_card_names_last_pair | unchosen_card_names
+/* @sem Operand::[$choice_named_card, $choice_named_card_2] */
+unchosen_card_names_last_pair ::= choice_named_card "," "and" choice_named_card
 
 /* @sem Instruction::[Effect{result:@next, operation:$choose_number_threshold}, Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[$single_color_choice]}}}] */
 clause_threshold_and_color ::= choose_number_threshold "and" single_color_choice
@@ -9771,8 +9803,8 @@ distribute_three_counters_among_population ::= "distribute" "three" counter_kind
 connive_object_defined ::= object_ref "connives" keyword_defined_x
 
 /* The options are object populations; the event player makes the choice. */
-/* @sem Operation::ChooseValue{choosers:One(EventSubject), kind:Filter, terms:_{count:Exactly(Constant(1)), options:[Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase_2}), Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase_3}), Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase_4})]}} */
-event_player_filter_choice ::= "that" "player" "chooses" filter_phrase "," filter_phrase "," filter_phrase "," "or" filter_phrase
+/* @sem Operation::ChooseValue{choosers:One(EventSubject), kind:Filter, terms:_{count:Exactly(Constant(1)), options:$serial_permanent_options}} */
+event_player_filter_choice ::= "that" "player" "chooses" serial_permanent_options
 
 /* Each choice belongs to its bound player and produces the selection receipt. */
 /* @sem Instruction::[ForEachPlayer{players:All, binding:0, starting_with:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:ControlledBy(One(Bound(0)))}, count:UpTo($number)}}]}}] */
@@ -12429,8 +12461,11 @@ combat_self_attack_grant ::= SELF_NAME "gain" '"' SELF_NAME "can't" "attack" '"'
 combat_no_tap_rule ::= "attacking" "doesn't" "cause" plural "you" "control" "to" "tap" "this" "combat" "if" SELF_NAME "is" "untapped"
 
 /* Each table row translates one die result into a separate conditional grant. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::RollDie{sides:6, times:Constant(2)}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[Pump{power:Dice(Matching([Equal, Constant(1)])), toughness:Dice(Matching([Equal, Constant(1)]))}], duration:EndOfTurn, evaluation:Snapshot}}, ...$dice_keyword_row, ...$dice_keyword_row_2, ...$dice_keyword_row_3, ...$dice_keyword_row_4, ...$dice_keyword_row_5, If{condition:Compare{left:Dice(MostEqual), test:NumberTest::Compare{comparison:Equal, value:Constant(2)}}, then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[GrantKeyword($keyword_name)], duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:_{}}]} */
-dice_table_program ::= "roll" "two" "six-sided" "dice" "." "for" "each" "result" "of" "1" "," "this" "creature" "gets" "+" "1" "/" "+" "1" "until" "end" "of" "turn" "." "for" "each" "other" "result" "," "it" "gains" "the" "indicated" "ability" "until" "end" "of" "turn" "." "if" "you" "rolled" "doubles" "," "it" "also" "gains" keyword_name "until" "end" "of" "turn" "." NEWLINE dice_keyword_row NEWLINE dice_keyword_row NEWLINE dice_keyword_row NEWLINE dice_keyword_row NEWLINE dice_keyword_row
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::RollDie{sides:6, times:Constant(2)}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[Pump{power:Dice(Matching([Equal, Constant(1)])), toughness:Dice(Matching([Equal, Constant(1)]))}], duration:EndOfTurn, evaluation:Snapshot}}, ...$dice_keyword_pair, ...$dice_keyword_pair_2, ...$dice_keyword_row, If{condition:Compare{left:Dice(MostEqual), test:NumberTest::Compare{comparison:Equal, value:Constant(2)}}, then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[GrantKeyword($keyword_name)], duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:_{}}]} */
+dice_table_program ::= "roll" "two" "six-sided" "dice" "." "for" "each" "result" "of" "1" "," "this" "creature" "gets" "+" "1" "/" "+" "1" "until" "end" "of" "turn" "." "for" "each" "other" "result" "," "it" "gains" "the" "indicated" "ability" "until" "end" "of" "turn" "." "if" "you" "rolled" "doubles" "," "it" "also" "gains" keyword_name "until" "end" "of" "turn" "." NEWLINE dice_keyword_pair NEWLINE dice_keyword_pair NEWLINE dice_keyword_row
+
+/* @sem Instruction::[...$dice_keyword_row, ...$dice_keyword_row_2] */
+dice_keyword_pair ::= dice_keyword_row NEWLINE dice_keyword_row
 
 /* @sem Instruction::[If{condition:Compare{left:Dice(Matching([Equal, $number])), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[GrantKeyword($keyword_name)], duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:_{}}] */
 dice_keyword_row ::= "•" number "—" "↓" keyword_name
@@ -13241,10 +13276,17 @@ clause_choice_exiles_it ::= choose_battlefield_other "and" "exiles" "it"
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:$filter_phrase})) */
 optional_battlefield_target ::= "up" "to" "one" "target" filter_phrase
 
-/* @sem ObjectSet::Union([$optional_battlefield_target, $optional_battlefield_target_2, $optional_battlefield_target_3, $optional_battlefield_target_4, $optional_battlefield_target_5]) */
-five_optional_battlefield_targets ::= optional_battlefield_target "," optional_battlefield_target "," optional_battlefield_target "," optional_battlefield_target "," "and" "/" "or" optional_battlefield_target
+/* @sem ObjectSet::Union($optional_battlefield_targets) */
+serial_optional_battlefield_targets ::= optional_battlefield_targets
 
-exile_permanent_population ::= five_optional_battlefield_targets | optional_battlefield_target
+/* @sem ObjectSet::[$optional_battlefield_target, ...$optional_battlefield_targets_tail] */
+optional_battlefield_targets ::= optional_battlefield_target "," optional_battlefield_targets_tail
+
+optional_battlefield_targets_tail ::= optional_battlefield_targets_last_pair | optional_battlefield_targets
+/* @sem ObjectSet::[$optional_battlefield_target, $optional_battlefield_target_2] */
+optional_battlefield_targets_last_pair ::= optional_battlefield_target "," "and" "/" "or" optional_battlefield_target
+
+exile_permanent_population ::= serial_optional_battlefield_targets | optional_battlefield_target
 
 /* @sem Operation::Move{objects:$exile_permanent_population, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
 exile_permanent_population_action ::= "exile" exile_permanent_population
@@ -19269,8 +19311,11 @@ instructions_reveal_filtered_discard_followup ::= callback_hand_player "reveals"
 uncontrolled_kind ::= counter_source_noun_a | counter_source_noun_an
 
 /* All four repeated uncontrolled permanent choices feed the shuffle owner union. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$target_opponent, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:Target{slot:@last_slot, index:0}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind_2, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:Target{slot:@last_slot, index:0}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind_3, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:Target{slot:@last_slot, index:0}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind_4, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:Matching{binding:0, condition:Compare{left:CountObjects(Matching{objects:Union([Recorded(@back(9)), Recorded(@back(7)), Recorded(@back(5)), Recorded(@back(3))]), filter:OwnedBy(One(Bound(0)))}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}}}] */
-instructions_repeat_top_library_four_shuffle ::= target_opponent "chooses" uncontrolled_kind "you" "don't" "control" "and" "puts" "it" "on" "top" "of" "its" "owner's" "library" "," "then" "repeats" "this" "process" "for" uncontrolled_kind "," uncontrolled_kind "," "and" uncontrolled_kind "." "then" "the" "owner" "of" "each" "permanent" "chosen" "this" "way" "shuffles"
+/* @sem Instruction::[...$repeat_top_library_choices, Effect{result:@next, operation:Shuffle{players:Matching{binding:0, condition:Compare{left:CountObjects(Matching{objects:Union([Recorded(@back(9)), Recorded(@back(7)), Recorded(@back(5)), Recorded(@back(3))]), filter:OwnedBy(One(Bound(0)))}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}}}] */
+instructions_repeat_top_library_four_shuffle ::= repeat_top_library_choices "." "then" "the" "owner" "of" "each" "permanent" "chosen" "this" "way" "shuffles"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$target_opponent, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:Target{slot:@last_slot, index:0}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind_2, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:Target{slot:@last_slot, index:0}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind_3, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:Target{slot:@last_slot, index:0}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind_4, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+repeat_top_library_choices ::= target_opponent "chooses" uncontrolled_kind "you" "don't" "control" "and" "puts" "it" "on" "top" "of" "its" "owner's" "library" "," "then" "repeats" "this" "process" "for" uncontrolled_kind "," uncontrolled_kind "," "and" uncontrolled_kind
 
 /* Two target permanents controlled by the same opponent: sacrifice one, place counters on the unsacrificed other. */
 /* @sem @target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(2)), filter:AllOf([$plural, ControlledBy(OpponentsOf(AbilityController))]), constraints:[CommonProperty(Controllers)]}) */
@@ -20055,8 +20100,8 @@ clause_each_opponent_exile_perm_random_library_damage_each ::= "each" "opponent"
 clause_each_opponent_exile_perm_random_library_damage_scoped ::= "each" "opponent" "exiles" ("a" | "an") filter_plain "they" "control" "and" "a" "random" card_filter "card" "from" "their" "library" "," "then" self_ref_named "deals" "damage" "to" "them" "equal" "to" "the" "total" "mana" "value" "of" "the" "cards" "exiled" "this" "way"
 
 /* Preserve the distinct last-choice receipt reading of the repeated process. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$target_opponent, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:Target{slot:@last_slot, index:0}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind_2, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:Target{slot:@last_slot, index:0}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind_3, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:Target{slot:@last_slot, index:0}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$uncontrolled_kind_4, ControlledBy(OthersThan(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:Matching{binding:0, condition:Compare{left:CountObjects(Matching{objects:Recorded(@back(3)), filter:OwnedBy(One(Bound(0)))}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}}}] */
-instructions_repeat_top_library_last_choice_shuffle ::= target_opponent "chooses" uncontrolled_kind "you" "don't" "control" "and" "puts" "it" "on" "top" "of" "its" "owner's" "library" "," "then" "repeats" "this" "process" "for" uncontrolled_kind "," uncontrolled_kind "," "and" uncontrolled_kind "." "then" "the" "owner" "of" "each" "permanent" "chosen" "this" "way" "shuffles"
+/* @sem Instruction::[...$repeat_top_library_choices, Effect{result:@next, operation:Shuffle{players:Matching{binding:0, condition:Compare{left:CountObjects(Matching{objects:Recorded(@back(3)), filter:OwnedBy(One(Bound(0)))}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}}}] */
+instructions_repeat_top_library_last_choice_shuffle ::= repeat_top_library_choices "." "then" "the" "owner" "of" "each" "permanent" "chosen" "this" "way" "shuffles"
 
 /* The return and the measurement share the same target and hand destination. */
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:One($target_card_your_graveyard), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:Multiply([Constant(-1), ObjectProperty{object:$target_card_your_graveyard, property:$receipt_stat, information:CurrentOrLastKnown}]), toughness:Multiply([Constant(-1), ObjectProperty{object:$target_card_your_graveyard, property:$receipt_stat, information:CurrentOrLastKnown}])}], duration:$duration, evaluation:Snapshot}}] */
@@ -20806,8 +20851,8 @@ choose_recent_return_perpetual_program ::= "choose" target_nonlegendary_recent_g
 instructions_random_choice_sacrifice_repeat ::= target_opponent "chooses" "a" filter_phrase "they" "control" "at" "random" "and" "sacrifices" "it" "." "if" "a" adjective_nontype "permanent" "is" "sacrificed" "this" "way" "," "repeat" "this" "process"
 
 /* Choice receipts and the sacrifice share the same opponent population. */
-/* @sem Instruction::[ForEachPlayer{players:$choice_opponent_population, binding:0, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$adjective_nontype}, filter:ControlledBy(One(Bound(0)))}, count:AsManyAsCan(Constant(4)), constraints:[OneForEach([$noun, $noun_2, $noun_3, $noun_4])]}}]}}, Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:$choice_opponent_population, objects:Unselected(@prior)})}] */
-instructions_opponents_choose_four_sacrifice_rest ::= choice_opponent_population "chooses" "an" noun "," "a" noun "," "an" noun "," "and" "a" noun "from" "among" "the" adjective_nontype "permanents" "they" "control" "," "then" "sacrifices" "the" "rest"
+/* @sem Instruction::[ForEachPlayer{players:$choice_opponent_population, binding:0, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$adjective_nontype}, filter:ControlledBy(One(Bound(0)))}, count:AsManyAsCan(Constant(4)), constraints:[OneForEach($choice_four_categories)]}}]}}, Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:$choice_opponent_population, objects:Unselected(@prior)})}] */
+instructions_opponents_choose_four_sacrifice_rest ::= choice_opponent_population "chooses" choice_four_categories "from" "among" "the" adjective_nontype "permanents" "they" "control" "," "then" "sacrifices" "the" "rest"
 
 choice_opponent_population ::= players_each_opponent | players_each_other_opponent
 

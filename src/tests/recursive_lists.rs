@@ -155,3 +155,54 @@ fn recursive_lists_consume_their_conjunction_and_the_entire_input() {
         assert!(engine().parse("Context example", text).is_err(), "{text}");
     }
 }
+
+#[test]
+fn optional_graveyard_targets_keep_separate_slots_at_new_lengths() {
+    let text = "Return up to one target artifact card, up to one target enchantment card, up to one target instant card, up to one target sorcery card, up to one target planeswalker card, and up to one target land card from your graveyard to your hand.";
+    let mut reading = compositional(text);
+    let trail = exact(&reading, text);
+    let targets = reading[0]["args"]["announcement"]["targets"]
+        .as_array_mut()
+        .unwrap();
+    assert_eq!(targets.len(), 6);
+    assert!(
+        targets
+            .iter()
+            .enumerate()
+            .all(|(slot, target)| target["slot"].as_u64() == Some(slot as u64))
+    );
+    targets.pop();
+    let filters = operation(&mut reading, "Move")["objects"]["args"]["filter"]["args"]
+        .as_array_mut()
+        .unwrap();
+    assert_eq!(filters.len(), 6);
+    for (slot, filter) in filters.iter().enumerate() {
+        assert_eq!(filter["kind"], "SameObject");
+        assert_eq!(filter["args"]["args"]["slot"], json!(slot));
+    }
+    filters.pop();
+    let printed = printed_types(&reading, &["Sorcery"]);
+    assert_eq!(printed.matches("up to one target").count(), 5);
+    edited(&reading, &trail);
+}
+
+#[test]
+fn repeated_graveyard_returns_keep_the_local_selection_receipt() {
+    let text = "Return a creature card from your graveyard to your hand, then do the same for artifact, enchantment, planeswalker, and land.";
+    let reading = compositional(text);
+    let instructions = reading[0]["args"]["body"]["instructions"]
+        .as_array()
+        .unwrap();
+    assert_eq!(instructions.len(), 10);
+    for pair in instructions.as_chunks::<2>().0 {
+        let choose = &pair[0]["args"];
+        let movement = &pair[1]["args"]["operation"];
+        assert_eq!(choose["operation"]["kind"], "ChooseObjects");
+        assert_eq!(movement["kind"], "Move");
+        assert_eq!(
+            movement["args"]["objects"],
+            json!({"kind":"Selected","args":choose["result"]})
+        );
+    }
+    exact(&reading, text);
+}

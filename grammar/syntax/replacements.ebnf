@@ -939,7 +939,7 @@ controlled_explore_replacement ::= controlled_explore_event "," explore_twice_re
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_modification}) */
 entry_modified ::= object_ref "enters" entry_modification "."
 
-entry_modification ::= entry_single_counter_him | entry_convoked_counters | entry_two_counter_kinds | entry_counter_for_each | entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse | entry_foretold_counters | entry_many_counters_him | entry_plural_counters_her | entry_counters_per_paired_mana | entry_escape_counter_alternative | entry_counted_counter_pair | entry_counter_list_four | entry_counter_list_three | entry_counter_list_two | entry_prepared | entry_fixed_plus_population | entry_many_plus_population
+entry_modification ::= entry_single_counter_him | entry_convoked_counters | entry_two_counter_kinds | entry_counter_for_each | entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse | entry_foretold_counters | entry_many_counters_him | entry_plural_counters_her | entry_counters_per_paired_mana | entry_escape_counter_alternative | entry_counted_counter_pair | entry_counter_list | entry_prepared | entry_fixed_plus_population | entry_many_plus_population
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]} */
 entry_tapped_and_counters ::= "tapped" "and" "with" value counter_kind "counters" "on" "it"
@@ -3835,14 +3835,20 @@ entry_counted_counter_pair ::= "with" entry_counted_counter_phrase "and" entry_c
 /* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$counter_amount})} */
 entry_counter_item ::= counter_amount counter_kind "counter"
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_counter_item}, Effect{result:@next, operation:$entry_counter_item_2}]} */
-entry_counter_list_two ::= "with" entry_counter_item "and" entry_counter_item "on" "it"
+/* @sem Program::Program{instructions:$entry_counter_items} */
+entry_counter_list ::= "with" entry_counter_items "on" "it"
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_counter_item}, Effect{result:@next, operation:$entry_counter_item_2}, Effect{result:@next, operation:$entry_counter_item_3}]} */
-entry_counter_list_three ::= "with" entry_counter_item "," entry_counter_item "," "and" entry_counter_item "on" "it"
+entry_counter_items ::= entry_counter_items_pair | entry_counter_items_serial
+/* @sem Instruction::[$entry_counter_instruction, $entry_counter_instruction_2] */
+entry_counter_items_pair ::= entry_counter_instruction "and" entry_counter_instruction
+/* @sem Instruction::[$entry_counter_instruction, ...$entry_counter_items_tail] */
+entry_counter_items_serial ::= entry_counter_instruction "," entry_counter_items_tail
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_counter_item}, Effect{result:@next, operation:$entry_counter_item_2}, Effect{result:@next, operation:$entry_counter_item_3}, Effect{result:@next, operation:$entry_counter_item_4}]} */
-entry_counter_list_four ::= "with" entry_counter_item "," entry_counter_item "," entry_counter_item "," "and" entry_counter_item "on" "it"
+entry_counter_items_tail ::= entry_counter_items_last_pair | entry_counter_items_serial
+/* @sem Instruction::[$entry_counter_instruction, $entry_counter_instruction_2] */
+entry_counter_items_last_pair ::= entry_counter_instruction "," "and" entry_counter_instruction
+/* @sem Instruction::Effect{result:@next, operation:$entry_counter_item} */
+entry_counter_instruction ::= entry_counter_item
 
 /* Compose an entry replacement from its subject and its counter modification. */
 /* @sem Ability::Replacement{active:Battlefield, event:$each_filtered_entry_event, body:Program{instructions:[Effect{result:@next, operation:$each_filtered_entry_counter_change}]}} */
