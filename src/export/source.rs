@@ -1,38 +1,109 @@
 //! Conservative original-provider metadata conversion, independent of gold IR.
 use super::SourceFace;
-use crate::engine::PrintedPowerToughness;
-use crate::model::mtg_types::CardType;
+use crate::engine::{PrintedPowerToughness, PrintedStat};
+use crate::model::mtg_types::{CardType, SubType};
 use crate::model::{
     ir,
     ir_schema::{Fields, Schema, TypeDef},
 };
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
-fn vocabulary<T: DeserializeOwned>(family: &str, word: &str) -> Result<T, String> {
-    static SCHEMA: OnceLock<Result<Schema, String>> = OnceLock::new();
-    let schema = SCHEMA
-        .get_or_init(|| Schema::from_sources(&[oracle_ir::declarations::SOURCE_VOCABULARY]))
+type Words = HashMap<String, Option<String>>;
+type Vocabulary = HashMap<&'static str, Words>;
+
+fn word_key(word: &str) -> String {
+    word.chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+fn source_vocabulary() -> Result<&'static Vocabulary, String> {
+    static VOCABULARY: OnceLock<Result<Vocabulary, String>> = OnceLock::new();
+    VOCABULARY
+        .get_or_init(|| {
+            let schema = Schema::from_sources(&[oracle_ir::declarations::SOURCE_VOCABULARY])?;
+            let mut vocabulary = HashMap::new();
+            for family in ["CardType", "SuperType", "SubType"] {
+                let Some(TypeDef::Enum { variants, .. }) = schema.types.get(family) else {
+                    return Err(format!("missing vocabulary {family}"));
+                };
+                let mut words = Words::new();
+                for (name, fields) in variants {
+                    if matches!(fields, Fields::Unit) {
+                        words
+                            .entry(word_key(name))
+                            .and_modify(|previous| *previous = None)
+                            .or_insert_with(|| Some(name.clone()));
+                    }
+                }
+                vocabulary.insert(family, words);
+            }
+            Ok(vocabulary)
+        })
         .as_ref()
-        .map_err(Clone::clone)?;
-    let Some(TypeDef::Enum { variants, .. }) = schema.types.get(family) else {
-        return Err(format!("missing vocabulary {family}"));
-    };
-    let key = |s: &str| {
-        s.chars()
-            .filter(|c| c.is_alphanumeric())
-            .flat_map(char::to_lowercase)
-            .collect::<String>()
-    };
-    let matches: Vec<_> = variants
-        .iter()
-        .filter(|(name, fields)| matches!(fields, Fields::Unit) && key(name) == key(word))
-        .collect();
-    if matches.len() != 1 {
-        return Err(format!("unsupported {family}: {word}"));
+        .map_err(Clone::clone)
+}
+
+fn vocabulary<T: DeserializeOwned>(family: &str, word: &str) -> Result<T, String> {
+    let name = source_vocabulary()?[family]
+        .get(&word_key(word))
+        .and_then(Option::as_ref)
+        .ok_or_else(|| format!("unsupported {family}: {word}"))?;
+    serde_json::from_value(json!(name)).map_err(|e| e.to_string())
+}
+
+fn subtypes(text: &str) -> Result<Vec<SubType>, String> {
+    const MAX_WORDS: usize = 32;
+    if text.len() > 1024 {
+        return Err("printed subtype byte limit".into());
     }
-    serde_json::from_value(json!(matches[0].0)).map_err(|e| e.to_string())
+    let words: Vec<_> = text
+        .split_whitespace()
+        .take(MAX_WORDS + 1)
+        .map(word_key)
+        .collect();
+    if words.len() > MAX_WORDS || words.iter().any(String::is_empty) {
+        return Err("invalid printed subtype words".into());
+    }
+    let known = &source_vocabulary()?["SubType"];
+    // Count complete segmentations, saturating at two. A multiword subtype
+    // can share a type line with other subtypes and must consume whole words.
+    let mut counts = vec![0; words.len() + 1];
+    let mut successors = vec![None; words.len()];
+    counts[words.len()] = 1;
+    for start in (0..words.len()).rev() {
+        let mut key = String::new();
+        for (end, word) in words.iter().enumerate().skip(start) {
+            key.push_str(word);
+            if counts[end + 1] == 0 {
+                continue;
+            }
+            if let Some(Some(name)) = known.get(&key) {
+                counts[start] += counts[end + 1];
+                if counts[start] > 1 {
+                    counts[start] = 2;
+                    break;
+                }
+                successors[start] = Some((name, end + 1));
+            }
+        }
+    }
+    match counts[0] {
+        0 => return Err(format!("unsupported SubType sequence: {text}")),
+        1 => {}
+        _ => return Err(format!("ambiguous SubType sequence: {text}")),
+    }
+    let mut out = Vec::new();
+    let mut start = 0;
+    while let Some(Some((name, next))) = successors.get(start) {
+        out.push(serde_json::from_value(json!(name)).map_err(|e| e.to_string())?);
+        start = *next;
+    }
+    Ok(out)
 }
 
 fn color(word: &str) -> Result<ir::ManaColor, String> {
@@ -87,9 +158,57 @@ fn type_line(face: &Value) -> Result<(&str, &str), String> {
     let types = face["type_line"]
         .as_str()
         .ok_or("missing source type_line")?;
+    if types.len() > 4096 {
+        return Err("printed type line byte limit".into());
+    }
     Ok(types
         .split_once('—')
         .map_or((types, ""), |(a, b)| (a.trim(), b.trim())))
+}
+
+fn printed_stat(value: &Value, field: &str) -> Result<Option<PrintedStat>, String> {
+    if value.is_null() {
+        return Ok(None);
+    }
+    let value = value
+        .as_str()
+        .ok_or_else(|| format!("printed {field} must be a string"))?;
+    if let Ok(fixed) = value.parse() {
+        return Ok(Some(PrintedStat::Fixed(fixed)));
+    }
+    if value == "*" {
+        return Ok(Some(PrintedStat::Star {
+            offset: 0,
+            subtract: false,
+        }));
+    }
+    let shifted = value
+        .strip_suffix("+*")
+        .or_else(|| value.strip_prefix("*+"));
+    let (offset, subtract) = shifted
+        .map(|n| (n, false))
+        .or_else(|| value.strip_suffix("-*").map(|n| (n, true)))
+        .ok_or_else(|| format!("unsupported printed {field}: {value}"))?;
+    let offset = offset
+        .parse::<u32>()
+        .ok()
+        .and_then(|n| i32::try_from(n).ok())
+        .ok_or_else(|| format!("unsupported printed {field}: {value}"))?;
+    Ok(Some(PrintedStat::Star { offset, subtract }))
+}
+
+fn printed_stats(face: &Value) -> Result<PrintedPowerToughness, String> {
+    match (
+        printed_stat(&face["power"], "power")?,
+        printed_stat(&face["toughness"], "toughness")?,
+    ) {
+        (None, None) => Ok(PrintedPowerToughness::Absent),
+        (Some(PrintedStat::Fixed(power)), Some(PrintedStat::Fixed(toughness))) => {
+            Ok(PrintedPowerToughness::Known { power, toughness })
+        }
+        (Some(power), Some(toughness)) => Ok(PrintedPowerToughness::Variable { power, toughness }),
+        _ => Err("incomplete printed P/T".into()),
+    }
 }
 
 fn characteristics(face: &Value) -> Result<(ir::Characteristics, PrintedPowerToughness), String> {
@@ -105,17 +224,7 @@ fn characteristics(face: &Value) -> Result<(ir::Characteristics, PrintedPowerTou
     if out.card_types.is_empty() {
         return Err("missing source card type".into());
     }
-    if !tail.is_empty() {
-        // Plane subtypes can contain spaces. Prefer the entire known subtype;
-        // otherwise each space-separated word must be a closed vocabulary item.
-        if let Ok(value) = vocabulary("SubType", tail) {
-            out.subtypes.push(value);
-        } else {
-            for word in tail.split_whitespace() {
-                out.subtypes.push(vocabulary("SubType", word)?);
-            }
-        }
-    }
+    out.subtypes = subtypes(tail)?;
     out.mana_cost = face
         .get("mana_cost")
         .filter(|v| !v.is_null() && v.as_str() != Some(""))
@@ -130,15 +239,21 @@ fn characteristics(face: &Value) -> Result<(ir::Characteristics, PrintedPowerTou
                 .push(color(item.as_str().ok_or("color_indicator member")?)?);
         }
     }
-    let power = integer(face, "power")?;
-    let toughness = integer(face, "toughness")?;
-    let printed = match (power, toughness) {
-        (None, None) => PrintedPowerToughness::Absent,
-        (Some(power), Some(toughness)) => PrintedPowerToughness::Known { power, toughness },
-        _ => return Err("incomplete printed P/T".into()),
+    let printed = printed_stats(face)?;
+    out.power_toughness = printed.base();
+    out.loyalty = if face["loyalty"] == "X"
+        && out
+            .card_types
+            .iter()
+            .any(|kind| matches!(kind, CardType::Planeswalker))
+        && out.mana_cost.as_ref().is_some_and(|cost| {
+            cost.iter()
+                .any(|symbol| matches!(symbol, ir::ManaSymbol::X))
+        }) {
+        Some(ir::Expr::AnnouncedX)
+    } else {
+        integer(face, "loyalty")?.map(|n| ir::Expr::Constant(i64::from(n)))
     };
-    out.power_toughness = power.zip(toughness);
-    out.loyalty = integer(face, "loyalty")?.map(|n| ir::Expr::Constant(i64::from(n)));
     out.defense = integer(face, "defense")?;
     Ok((out, printed))
 }

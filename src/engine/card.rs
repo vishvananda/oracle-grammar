@@ -9,11 +9,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 mod land_mana;
+mod printed_stats;
 mod printing;
 mod source_printing;
 pub(crate) mod station;
 mod surface;
-pub use station::{CardInputContext, PrintedPowerToughness, StationAnimationBox};
+pub use printed_stats::{PrintedPowerToughness, PrintedStat};
+pub use station::{CardInputContext, StationAnimationBox};
 use surface::CardSurface;
 pub use surface::{AdventureReturnType, LayoutReminder};
 
@@ -245,6 +247,12 @@ impl Engine {
         };
         let surface: CardSurface = serde_json::from_value(value)
             .map_err(|why| Refusal::Binding(format!("typed card surface: {why}")))?;
+        if let Some(source) = source {
+            source
+                .printed_power_toughness
+                .check_definition(context, &surface.abilities)
+                .map_err(Refusal::Binding)?;
+        }
         if surface.notes.len()
             + usize::from(surface.land_mana.is_some())
             + usize::from(surface.layout_reminder.is_some())

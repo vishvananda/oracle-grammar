@@ -2,16 +2,103 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
+line_contextual_reminder ::= line_contextual_ability | line_contextual_group
 /* @sem Ability::[@contextual_reminder($ability, $ability_explanation)] */
-line_contextual_reminder ::= ability "(" ability_explanation ")"
+line_contextual_ability ::= ability "(" ability_explanation ")"
+/* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
+line_contextual_group ::= remindable_line "(" ability_explanation ")"
+remindable_line ::= line_prototype | line_named_flash_if | line_pair_blocks_blocked
 
 ability_explanation ::= stun_explanation | modified_explanation | historic_explanation
+    | shield_explanation | venture_explanation | learn_explanation | explore_explanation
+    | manifest_dread_explanation | populate_explanation | mill_explanation | goad_explanation
+    | exert_explanation | party_explanation | crime_explanation | clash_explanation
+    | snow_explanation | colorless_explanation | waterbend_explanation | indefinite_explanation
+    | splice_explanation | overload_explanation | bargain_explanation | prototype_explanation
+    | nonmana_ability_explanation | grant_keyword_explanation
 /* @sem String::'Stun' */
 stun_explanation ::= "if" "a" "permanent" "with" "a" "stun" "counter" "would" "become" "untapped" "," "remove" "one" "from" "it" "instead" "."
 /* @sem String::'Modified' */
 modified_explanation ::= "Equipment" "," "↑" "auras" "you" "control" "," "and" "counters" "are" "modifications" "."
 /* @sem String::'Historic' */
 historic_explanation ::= "artifacts" "," "legendaries" "," "and" "Sagas" "are" "historic" "."
+/* @sem String::'Shield' */
+shield_explanation ::= "if" "it" "would" "be" "dealt" "damage" "or" "destroyed" "," "remove" "a" "shield" "counter" "from" "it" "instead" "."
+/* @sem String::'Venture' */
+venture_explanation ::= "enter" "the" "first" "room" "or" "advance" "to" "the" "next" "room" "."
+/* @sem String::'Learn' */
+learn_explanation ::= "you" "may" "reveal" "a" "Lesson" "card" "you" "own" "from" "outside" "the" "game" "and" "put" "it" "into" "your" "hand" "," "or" "discard" "a" "card" "to" "draw" "a" "card" "."
+/* @sem String::'Explore' */
+explore_explanation ::= "reveal" "the" "top" "card" "of" "your" "library" "." "put" "that" "card" "into" "your" "hand" "if" "it's" "a" "land" "." "otherwise" "," "put" "a" "+" "1" "/" "+" "1" "counter" "on" "this" "creature" "," "then" "put" "the" "card" "back" "or" "put" "it" "into" "your" "graveyard" "."
+/* @sem String::'ManifestDread' */
+manifest_dread_explanation ::= "look" "at" "the" "top" "two" "cards" "of" "your" "library" "." "put" "one" "onto" "the" "battlefield" "face" "down" "as" "a" "2" "/" "2" "creature" "and" "the" "other" "into" "your" "graveyard" "." "turn" "it" "face" "up" "any" "time" "for" "its" "mana" "cost" "if" "it's" "a" "creature" "card" "."
+/* @sem String::'Populate' */
+populate_explanation ::= "create" "a" "token" "that's" "a" "copy" "of" "a" "creature" "token" "you" "control" "."
+/* @sem String::'Mill' */
+mill_explanation ::= "to" "mill" "a" "card" "," "put" "the" "top" "card" "of" "your" "library" "into" "your" "graveyard" "."
+/* @sem String::'Goad' */
+goad_explanation ::= "until" "your" "next" "turn" "," "that" "creature" "attacks" "each" "combat" "if" "able" "and" "attacks" "a" "player" "other" "than" "you" "if" "able" "."
+/* @sem String::'Exert' */
+exert_explanation ::= "an" "exerted" "creature" "won't" "untap" "during" "your" "next" "untap" "step" "."
+/* @sem String::'Party' */
+party_explanation ::= "your" "party" "consists" "of" "up" "to" "one" "each" "of" "Cleric" "," "Rogue" "," "Warrior" "," "and" "Wizard" "."
+/* @sem String::'Crime' */
+crime_explanation ::= "targeting" "opponents" "," "anything" "they" "control" "," "and/or" "cards" "in" "their" "graveyards" "is" "a" "crime" "."
+/* @sem String::'Clash' */
+clash_explanation ::= "each" "clashing" "player" "reveals" "the" "top" "card" "of" "their" "library" "," "then" "puts" "that" "card" "on" "their" "choice" "of" "the" "top" "or" "bottom" "." "a" "player" "wins" "if" "their" "card" "had" "a" "greater" "mana" "value" "."
+/* @sem String::'Snow' */
+snow_explanation ::= "{" "S" "}" "can" "be" "paid" "with" "one" "mana" "from" "a" "snow" "source" "."
+/* @sem String::'ColorlessMana' */
+colorless_explanation ::= "{" "C" "}" "represents" "colorless" "mana" "."
+/* @sem String::'Waterbend' */
+waterbend_explanation ::= "while" "paying" "a" "waterbend" "cost" "," "you" "can" "tap" "your" "artifacts" "and" "creatures" "to" "help" "." "each" "one" "pays" "for" "{" "1" "}" "."
+/* @sem String::'Indefinite' */
+indefinite_explanation ::= "this" "effect" "lasts" "indefinitely" "."
+/* @sem String::'SpliceArcane' */
+splice_explanation ::= "as" "you" "cast" "an" "Arcane" "spell" "," "you" "may" "reveal" "this" "card" "from" "your" "hand" "and" "pay" "its" "splice" "cost" "." "if" "you" "do" "," "add" "this" "card's" "effects" "to" "that" "spell" "."
+/* @sem String::'Overload' */
+overload_explanation ::= "you" "may" "cast" "this" "spell" "for" "its" "overload" "cost" "." "if" "you" "do" "," "change" '"' "↓" "target" '"' "in" "its" "text" "to" '"' "↓" "each" "." '"'
+/* @sem String::'Bargain' */
+bargain_explanation ::= "you" "may" "sacrifice" "an" "artifact" "," "enchantment" "," "or" "token" "as" "you" "cast" "this" "spell" "."
+/* @sem String::'Prototype' */
+prototype_explanation ::= "you" "may" "cast" "this" "spell" "with" "different" "mana" "cost" "," "color" "," "and" "size" "." "it" "keeps" "its" "abilities" "and" "types" "."
+/* @sem String::'TargetedAbility' */
+nonmana_ability_explanation ::= "mana" "abilities" "can't" "be" "targeted" "."
+
+/* The same reminder wording can follow an ability that grants the keyword. */
+grant_keyword_explanation ::= grant_indestructible_explanation | grant_menace_explanation
+    | grant_hexproof_explanation | grant_shroud_explanation | grant_trample_explanation
+    | grant_fear_explanation | grant_deathtouch_explanation | grant_lifelink_explanation
+    | grant_haste_explanation | grant_flying_explanation | grant_vigilance_explanation
+    | grant_first_strike_explanation | grant_double_strike_explanation | grant_reach_explanation
+/* @sem String::'Indestructible' */
+grant_indestructible_explanation ::= reminder_indestructible
+/* @sem String::'Menace' */
+grant_menace_explanation ::= reminder_menace
+/* @sem String::'Hexproof' */
+grant_hexproof_explanation ::= reminder_hexproof
+/* @sem String::'Shroud' */
+grant_shroud_explanation ::= reminder_shroud
+/* @sem String::'Trample' */
+grant_trample_explanation ::= reminder_trample
+/* @sem String::'Fear' */
+grant_fear_explanation ::= reminder_fear
+/* @sem String::'Deathtouch' */
+grant_deathtouch_explanation ::= reminder_deathtouch
+/* @sem String::'Lifelink' */
+grant_lifelink_explanation ::= reminder_lifelink
+/* @sem String::'Haste' */
+grant_haste_explanation ::= reminder_haste
+/* @sem String::'Flying' */
+grant_flying_explanation ::= reminder_flying
+/* @sem String::'Vigilance' */
+grant_vigilance_explanation ::= reminder_vigilance
+/* @sem String::'FirstStrike' */
+grant_first_strike_explanation ::= reminder_first_strike
+/* @sem String::'DoubleStrike' */
+grant_double_strike_explanation ::= reminder_double_strike
+/* @sem String::'Reach' */
+grant_reach_explanation ::= "it" reach_blockers "."
 
 /* @sem Ability::WithPresentation{reminder:true, ability:$action_reminder_ability} */
 reminded_action_ability ::= action_reminder_ability
@@ -115,9 +202,11 @@ scry_look_many ::= "look" "at" "the" "top" number_words "cards" "of" "your" "lib
 
 /* @sem Instruction::[Effect{result:@next, operation:Surveil{players:One(AbilityController), amount:@agree($number, $surveil_look_explanation)}}] */
 surveil_reminded ::= "surveil" number "." "(" surveil_look_explanation ")"
-surveil_look_explanation ::= surveil_look_one | surveil_look_many
+surveil_look_explanation ::= surveil_look_one | surveil_look_one_named | surveil_look_many
 /* @sem Expr::Constant(1) */
 surveil_look_one ::= "look" "at" "the" "top" "card" "of" "your" "library" "." "you" "may" "put" "it" "into" "your" "graveyard" "."
+/* @sem Expr::Constant(1) */
+surveil_look_one_named ::= "look" "at" "the" "top" "card" "of" "your" "library" "." "you" "may" "put" "that" "card" "into" "your" "graveyard" "."
 /* @sem $number_words */
 surveil_look_many ::= "look" "at" "the" "top" number_words "cards" "of" "your" "library" "," "then" "put" "any" "number" "of" "them" "into" "your" "graveyard" "and" "the" "rest" "on" "top" ("of" "your" "library")? "in" "any" "order" "."
 

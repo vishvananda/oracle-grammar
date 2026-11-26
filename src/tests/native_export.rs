@@ -102,6 +102,128 @@ fn provider_fields_are_converted_without_reference_rules() {
 }
 
 #[test]
+fn compound_subtypes_can_share_a_type_line() {
+    let mut known = raw("known", "Synthetic doctor", "Flying");
+    known["type_line"] = json!("Legendary Creature — Time Lord Doctor");
+    let mut unknown = known.clone();
+    unknown["type_line"] = json!("Legendary Creature — Time Lord UnknownSubtype");
+    let mut over_limit = known.clone();
+    over_limit["type_line"] = json!(format!("Creature — {}", "Doctor ".repeat(33)));
+    let faces = scryfall(&[known, unknown, over_limit]).unwrap();
+    assert_eq!(
+        json!(faces[0].context.as_ref().unwrap().0.subtypes),
+        json!(["TimeLord", "Doctor"])
+    );
+    assert!(faces[1].context.is_err());
+    assert!(faces[2].context.is_err());
+}
+
+#[test]
+fn variable_stats_require_a_matching_source_definition() {
+    let text = "This creature's power is equal to 1 plus the number of creatures you control.";
+    let mut defined = raw("defined", "Synthetic Star", text);
+    defined["type_line"] = json!("Creature — Elf");
+    defined["power"] = json!("1+*");
+    defined["toughness"] = json!("3");
+    let mut mismatched = defined.clone();
+    mismatched["power"] = json!("2+*");
+    let mut unrelated = defined.clone();
+    unrelated["oracle_text"] = json!("Flying");
+    let faces = scryfall(&[defined, mismatched, unrelated]).unwrap();
+    let engine = crate::test_support::engine();
+    let row = outcome(engine, &faces[0]);
+    assert_eq!(row["status"], "unique", "{row}");
+    assert_eq!(
+        row["readings"][0]["card"]["characteristics"]["power_toughness"],
+        json!([1, 3])
+    );
+    let context: crate::engine::CardInputContext =
+        serde_json::from_value(row["context"].clone()).unwrap();
+    assert_eq!(context.printed_power_toughness.values(), None);
+    let reading = CardReading {
+        abilities: row["readings"][0]["card"]["abilities"].clone(),
+        notes: vec![],
+    };
+    let trail = engine
+        .card_key_of_with_source("Synthetic Star", &reading, &context, text, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine
+            .print_card_trail_with_source("Synthetic Star", &reading, &context, &trail)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+    for face in &faces[1..] {
+        let rejected = outcome(engine, face);
+        assert_eq!(rejected["stage"], "binding", "{rejected}");
+        assert_eq!(rejected["readings"], json!([]));
+    }
+}
+
+#[test]
+fn contextual_reminders_check_keywords_actions_and_costs() {
+    let engine = crate::test_support::engine();
+    let examples = [
+        (
+            "Target creature gains menace until end of turn.",
+            "It can't be blocked except by two or more creatures.",
+        ),
+        (
+            "Counter target creature or planeswalker spell. Venture into the dungeon.",
+            "Enter the first room or advance to the next room.",
+        ),
+        (
+            "{S}, {T}: Tap target artifact or creature.",
+            "{S} can be paid with one mana from a snow source.",
+        ),
+    ];
+    for (index, (ability, note)) in examples.into_iter().enumerate() {
+        let text = format!("{ability} ({note})");
+        let input = raw("contextual", "Synthetic", &text);
+        let faces = scryfall(&[input]).unwrap();
+        let row = outcome(engine, &faces[0]);
+        assert_eq!(row["status"], "unique", "{row}");
+        let reading = CardReading {
+            abilities: row["readings"][0]["card"]["abilities"].clone(),
+            notes: vec![],
+        };
+        let context = &faces[0].context.as_ref().unwrap().0;
+        let trail = engine
+            .card_key_of(&faces[0].name, &reading, context, &text, true)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            engine
+                .print_card_trail(&faces[0].name, &reading, context, &trail)
+                .unwrap()
+                .as_deref(),
+            Some(text.as_str())
+        );
+        let wrong = format!("{ability} ({})", examples[(index + 1) % examples.len()].1);
+        assert!(engine.parse_card(&faces[0].name, &wrong, context).is_err());
+    }
+}
+
+#[test]
+fn granted_reach_explains_the_created_token() {
+    let name = "Gloomwidow's Feast";
+    let text = "Destroy target creature with flying. If that creature was blue or black, create a 1/2 green Spider creature token with reach. (It can block creatures with flying.)";
+    let engine = crate::test_support::engine();
+    let context = crate::engine::empty_card_characteristics();
+    let parsed = engine.parse_card(name, text, &context).unwrap();
+    let printed = engine
+        .print_card_keyed(name, &parsed.readings[0], &context, &[])
+        .unwrap()
+        .unwrap();
+    assert!(
+        printed.ends_with("(It can block creatures with flying.)"),
+        "{printed}"
+    );
+}
+
+#[test]
 fn ambiguity_is_reported_through_the_complete_export_path() {
     let mut module = crate::engine::module_source("card_notes").unwrap();
     module = module.replacen("card_text ::=", "card_text ::= export_alternative |", 1);

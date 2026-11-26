@@ -597,8 +597,9 @@ fn contextual_reminder_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result
     let [ability, explanation] = args else {
         return Err("@contextual_reminder needs an ability and an explanation".into());
     };
-    if *ty != Ty::Named("Ability".into()) {
-        return Err("@contextual_reminder produces Ability".into());
+    let ability_type = Ty::Named("Ability".into());
+    if *ty != ability_type && *ty != Ty::Vec(Box::new(ability_type)) {
+        return Err("@contextual_reminder produces one ability or an ability list".into());
     }
     Ok(Pattern::Symbol(
         "contextual_reminder".into(),

@@ -1,5 +1,5 @@
 //! Printed Station boxes are source inputs, separate from unconditional characteristics.
-use super::{CardNote, CardReading, Characteristics, Engine};
+use super::{CardNote, CardReading, Characteristics, Engine, PrintedPowerToughness};
 use crate::parse::{Parser, RuleSet};
 use crate::tokens::{self, Names};
 use serde::{Deserialize, Serialize};
@@ -11,24 +11,6 @@ pub struct StationAnimationBox {
     pub minimum: u32,
     pub power: i32,
     pub toughness: i32,
-}
-
-/// Availability of original printed fields is distinct from an absent box.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(tag = "kind", deny_unknown_fields)]
-pub enum PrintedPowerToughness {
-    Unavailable,
-    Absent,
-    Known { power: i32, toughness: i32 },
-    Unsupported,
-}
-impl PrintedPowerToughness {
-    pub fn values(&self) -> Option<(i32, i32)> {
-        match *self {
-            Self::Known { power, toughness } => Some((power, toughness)),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
