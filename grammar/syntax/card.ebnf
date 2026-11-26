@@ -107,10 +107,14 @@ spell_spell_or_permanent_color ::= "target" "spell" "or" "permanent" "becomes" t
 
 /* CR 702.120: escalate charges its cost for each mode chosen beyond the first. */
 spell_escalate ::= spell_escalate_more | spell_escalate_both
-/* @sem Ability::Spell{announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:@length($modes)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required, surcharge:$keyword_payment}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}} */
-spell_escalate_more ::= "escalate" keyword_payment NEWLINE "choose" "one" "or" "more" "—" NEWLINE modes
-/* @sem Ability::Spell{announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:Expr::Constant(2)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required, surcharge:$keyword_payment}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}} */
-spell_escalate_both ::= "escalate" keyword_payment NEWLINE "choose" "one" "or" "both" "—" NEWLINE modes
+/* @sem Ability::Spell{announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:@length($modes)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required, surcharge:$escalate_payment}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}} */
+spell_escalate_more ::= "escalate" escalate_payment NEWLINE "choose" "one" "or" "more" "—" NEWLINE modes
+/* @sem Ability::Spell{announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:Expr::Constant(2)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required, surcharge:$escalate_payment}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}} */
+spell_escalate_both ::= "escalate" escalate_payment NEWLINE "choose" "one" "or" "both" "—" NEWLINE modes
+
+escalate_payment ::= keyword_payment | escalate_explained_payment
+/* @sem $keyword_payment */
+escalate_explained_payment ::= keyword_payment "(" "pay" "this" "cost" "for" "each" "mode" "chosen" "beyond" "the" "first" "." ")"
 
 /* @sem Ability::Activated{origin:Ordinary, cost:$activation_cost, limits:ActivationLimits{}, announcement:@announcement, body:$program_sentence} */
 activated_ability ::= activation_cost ":" program_sentence

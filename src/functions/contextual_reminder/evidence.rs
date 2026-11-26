@@ -8,6 +8,48 @@ pub(super) fn unscoped(value: &Value) -> &Value {
     }
 }
 
+fn own_ability(value: &Value) -> &Value {
+    let value = unscoped(value);
+    if value["kind"] == "Scoped" {
+        unscoped(&value["args"]["ability"])
+    } else {
+        value
+    }
+}
+
+pub(super) fn visit_nodes<'a>(
+    value: &'a Value,
+    mut visit: impl FnMut(&'a Value, usize) -> bool,
+) -> bool {
+    fn walk<'a>(
+        value: &'a Value,
+        depth: usize,
+        remaining: &mut usize,
+        visit: &mut impl FnMut(&'a Value, usize) -> bool,
+    ) -> bool {
+        if *remaining == 0 {
+            return false;
+        }
+        *remaining -= 1;
+        if visit(value, *remaining) {
+            return true;
+        }
+        if depth == 80 {
+            return false;
+        }
+        match value {
+            Value::Object(fields) => fields
+                .values()
+                .any(|child| walk(child, depth + 1, remaining, visit)),
+            Value::Array(items) => items
+                .iter()
+                .any(|child| walk(child, depth + 1, remaining, visit)),
+            _ => false,
+        }
+    }
+    walk(value, 0, &mut 8192, &mut visit)
+}
+
 pub(super) fn cycling_claim(value: &Value) -> Option<Value> {
     let scope = &value["args"];
     if value["kind"] != "Scoped" || scope["zones"] != json!(["Hand"]) {
@@ -28,10 +70,7 @@ pub(super) fn cycling_claim(value: &Value) -> Option<Value> {
 }
 
 pub(super) fn cost_symbols(ability: &Value) -> impl Iterator<Item = &Value> {
-    let mut ability = unscoped(ability);
-    if ability["kind"] == "Scoped" {
-        ability = unscoped(&ability["args"]["ability"]);
-    }
+    let ability = own_ability(ability);
     let args = &ability["args"];
     let cost = match ability["kind"].as_str() {
         Some("Activated" | "Mechanic" | "CostBranch") => &args["cost"],
@@ -45,6 +84,50 @@ pub(super) fn cost_symbols(ability: &Value) -> impl Iterator<Item = &Value> {
         .flatten()
         .take(32)
         .flat_map(|part| part["Mana"].as_array().into_iter().flatten().take(32))
+}
+
+pub(super) fn equip_payment_claim(ability: &Value) -> Option<Value> {
+    let ability = own_ability(ability);
+    let args = &ability["args"];
+    if ability["kind"] != "Activated"
+        || args["origin"] != "Equip"
+        || args["limits"]["sorcery"] != true
+    {
+        return None;
+    }
+    let cost = args.get("cost")?;
+    Some(json!({"kind":"Cost","args":cost}))
+}
+
+pub(super) fn ward_grant_claims(ability: &Value) -> Vec<Value> {
+    let ability = own_ability(ability);
+    let affected = &ability["args"]["affected"]["Objects"];
+    let subject = &affected["args"];
+    let attached = ability["kind"] == "Static"
+        && affected["kind"] == "One"
+        && subject["kind"] == "AttachedTo"
+        && subject["args"]["kind"] == "Source";
+    let mut claims = Vec::new();
+    visit_nodes(ability, |node, _| {
+        let grant = if node["kind"] == "GrantKeyword" {
+            &node["args"]
+        } else {
+            &node["GrantKeyword"]
+        };
+        if grant["kind"] == "Ward" {
+            for subject in ["Recipient", "Attached"]
+                .into_iter()
+                .take(if attached { 2 } else { 1 })
+            {
+                let claim = json!({"kind":"List","args":[{"kind":"Text","args":subject},{"kind":"Cost","args":grant["args"]}]});
+                if !claims.contains(&claim) {
+                    claims.push(claim);
+                }
+            }
+        }
+        false
+    });
+    claims
 }
 
 pub(super) fn awaken_claim(ability: &Value) -> Option<Value> {
@@ -99,15 +182,37 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         Some("Manifest") if args["cloak"] == false => Some("Manifest"),
         Some("PhaseOut") => Some("PhaseOut"),
         Some("Rule") if args["GoadedBy"]["kind"] == "AbilityController" => Some("Goad"),
+        Some("Casting") if flashback_permission(value).is_some() => Some("Flashback"),
+        Some("ChooseValue") if args["kind"] == "Parity" => Some("Parity"),
+        Some("Compare" | "Counters") if args["comparison"] == "SameParity" => Some("Parity"),
         _ if value["Named"] == "PoisonCounter" => Some("PoisonCounter"),
         _ => None,
     }
 }
 
+fn flashback_permission(value: &Value) -> Option<&Value> {
+    let permission = &value["args"]["Permission"];
+    (value["kind"] == "Casting"
+        && permission["origin"] == "Flashback"
+        && permission["from"]["Players"]["zone"] == "Graveyard"
+        && permission["leave_stack"] == "Exile")
+        .then_some(permission)
+}
+
+pub(super) fn flashback_at_mana_cost(value: &Value) -> bool {
+    flashback_permission(value).is_some_and(|permission| {
+        permission["player"]["kind"] == "OwnerOf"
+            && permission["player"]["args"]["kind"] == "Source"
+            && permission["cost"]["parts"] == json!([{"ManaCostOf":{"kind":"Source"}}])
+    })
+}
+
 pub(super) fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
     let cost = &value["Keyword"];
-    if cost["action"] == "CollectEvidence" {
-        return Some(("CollectEvidence", cost.get("amount")?));
+    match cost["action"].as_str() {
+        Some("CollectEvidence") => return Some(("CollectEvidence", cost.get("amount")?)),
+        Some("Blight") => return Some(("Blight", cost.get("amount")?)),
+        _ => (),
     }
     let expends = value.get("NthEachTurn")?;
     let event = &expends["event"]["Player"];
@@ -124,7 +229,7 @@ pub(super) fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
 }
 
 pub(super) fn root_mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {
-    let ability = unscoped(ability);
+    let ability = own_ability(ability);
     let args = &ability["args"];
     let encounter = &args["event"]["Player"];
     if encounter["event"] == "EncountersPhenomenon"
@@ -134,14 +239,38 @@ pub(super) fn root_mentions(ability: &Value, mut visit: impl FnMut(&'static str)
     {
         return true;
     }
-    let cast = &args["event"]["Spell"];
-    effects(&args["body"]).any(|op| {
+    let changes = &args["changes"];
+    let filter = &args["affected"]["Objects"]["args"]["filter"];
+    if ability["kind"] == "Static"
+        && filter["kind"] == "SameObject"
+        && filter["args"]["kind"] == "Source"
+        && changes.as_array().is_some_and(|changes| {
+            changes
+                .iter()
+                .take(32)
+                .any(|change| change["Rule"]["Prohibit"] == "Counter")
+        })
+        && visit("CounterProhibited")
+    {
+        return true;
+    }
+    let cast = cast_event(&args["event"]);
+    in_resolution(&args["body"], 0, &mut 512, &mut |op| {
+        if op["kind"] == "Keyword"
+            && op["args"]["action"]["Prepare"]["object"]["kind"] == "Source"
+            && visit("PreparedSource")
+        {
+            return true;
+        }
         if op["kind"] != "CopyOnStack" {
             return false;
         }
         let copy = &op["args"];
         let object = &copy["object"];
-        let filter = if cast["event"] == "Cast" && object["kind"] == "EventSubject" {
+        let filter = if object["kind"] == "EventSubject" {
+            let Some(cast) = cast else {
+                return false;
+            };
             &cast["spells"]
         } else if let Some(target) = spell_target(object, &args["announcement"]) {
             &target["filter"]
@@ -154,6 +283,56 @@ pub(super) fn root_mentions(ability: &Value, mut visit: impl FnMut(&'static str)
                 && permanent_spell_filter(filter, 0, &mut 256)
                 && visit("PermanentSpellCopy")
     })
+}
+
+fn cast_event(mut event: &Value) -> Option<&Value> {
+    for _ in 0..12 {
+        if event["Spell"]["event"] == "Cast" {
+            return Some(&event["Spell"]);
+        }
+        event = if let Some(nth) = event.get("NthEachTurn") {
+            nth.get("event")?
+        } else {
+            event.get("FirstEachTurn")?
+        };
+    }
+    None
+}
+
+fn in_resolution(
+    program: &Value,
+    depth: usize,
+    remaining: &mut usize,
+    visit: &mut impl FnMut(&Value) -> bool,
+) -> bool {
+    if depth == 12 || *remaining == 0 {
+        return false;
+    }
+    let Some(steps) = program["instructions"].as_array() else {
+        return false;
+    };
+    for step in steps {
+        if *remaining == 0 {
+            break;
+        }
+        *remaining -= 1;
+        let args = &step["args"];
+        let found = match step["kind"].as_str() {
+            Some("Effect") => visit(&args["operation"]),
+            Some("If") => [&args["then"], &args["otherwise"]]
+                .into_iter()
+                .any(|body| in_resolution(body, depth + 1, remaining, visit)),
+            Some("Optional" | "ForEachPlayer" | "ForEachObject" | "RepeatableWithLimit") => {
+                in_resolution(&args["body"], depth + 1, remaining, visit)
+            }
+            Some("Group" | "Repeatable") => in_resolution(args, depth + 1, remaining, visit),
+            _ => false,
+        };
+        if found {
+            return true;
+        }
+    }
+    false
 }
 
 fn effects(program: &Value) -> impl Iterator<Item = &Value> {

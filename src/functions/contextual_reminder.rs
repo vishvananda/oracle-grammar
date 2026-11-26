@@ -13,6 +13,8 @@ pub(crate) fn is_symbol(name: &str) -> bool {
             | "chapter_reminder"
             | "cost_symbol_reminder"
             | "awaken_reminder"
+            | "ward_grant_reminder"
+            | "equip_payment_reminder"
     )
 }
 
@@ -184,6 +186,8 @@ fn marker(value: &Value) -> Option<&'static str> {
             Some("PhaseOut") => Some("PhaseOut"),
             Some("Goad") if args["action"]["Goad"]["until"].is_null() => Some("Goad"),
             Some("Exert") => Some("Exert"),
+            Some("Airbend") if value["kind"] == "KeywordEach" => Some("AirbendMany"),
+            Some("Airbend") => Some("AirbendOne"),
             _ => None,
         },
         Some("Populate") => Some("Populate"),
@@ -279,6 +283,7 @@ fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
                 "Earthbend" => "Earthbend",
                 "Bolster" => "Bolster",
                 "CollectEvidence" => "CollectEvidence",
+                "Blight" => "Blight",
                 "Amass" => {
                     let amass = &action["Amass"];
                     let topic = match amass["creature_type"].as_str()? {
@@ -324,6 +329,23 @@ fn mill_recipient(value: &Value) -> Option<(&'static str, &Value)> {
     Some((topic, args.get("amount")?))
 }
 
+fn optional_mill(value: &Value) -> Option<(&'static str, &Value)> {
+    let args = &value["args"];
+    if value["kind"] != "Optional" || args["decider"]["kind"] != "AbilityController" {
+        return None;
+    }
+    let [step] = args["body"]["instructions"].as_array()?.as_slice() else {
+        return None;
+    };
+    if step["kind"] != "Effect" {
+        return None;
+    }
+    let ("ControllerMill", amount) = mill_recipient(&step["args"]["operation"])? else {
+        return None;
+    };
+    Some(("OptionalControllerMill", amount))
+}
+
 fn ordinary_activation(ability: &Value) -> bool {
     let activation = if ability["kind"] == "Scoped" {
         &ability["args"]["ability"]
@@ -341,76 +363,52 @@ fn visit_mentions<'a>(
     measured: bool,
     mut visit: impl FnMut(&'static str, Option<&'a Value>) -> bool,
 ) -> bool {
-    fn walk<'a>(
-        value: &'a Value,
-        measured: bool,
-        depth: usize,
-        remaining: &mut usize,
-        visit: &mut impl FnMut(&'static str, Option<&'a Value>) -> bool,
-    ) -> bool {
-        if *remaining == 0 {
-            return false;
-        }
-        *remaining -= 1;
-        if let Some(object) = value.as_object() {
-            let found = if measured {
-                measurement(value).is_some_and(|(topic, amount)| visit(topic, Some(amount)))
-                    || mill_recipient(value)
-                        .is_some_and(|(topic, amount)| visit(topic, Some(amount)))
-            } else {
-                marker(value).is_some_and(|topic| visit(topic, None))
-            };
-            if found {
-                return true;
-            }
-            if !measured && let Some(mana) = object.get("Mana").and_then(Value::as_array) {
-                for symbol in mana.iter().take(*remaining) {
-                    let explanation = if symbol == "Snow" {
-                        Some("Snow")
-                    } else if symbol["Color"] == "Colorless" {
-                        Some("ColorlessMana")
-                    } else {
-                        None
-                    };
-                    if explanation.is_some_and(|topic| visit(topic, None)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        if depth == 80 {
-            return false;
-        }
-        match value {
-            Value::Object(fields) => {
-                walk_children(fields.values(), measured, depth, remaining, visit)
-            }
-            Value::Array(items) => walk_children(items.iter(), measured, depth, remaining, visit),
-            _ => false,
-        }
-    }
-
-    fn walk_children<'a>(
-        children: impl Iterator<Item = &'a Value>,
-        measured: bool,
-        depth: usize,
-        remaining: &mut usize,
-        visit: &mut impl FnMut(&'static str, Option<&'a Value>) -> bool,
-    ) -> bool {
-        for child in children {
-            if *remaining == 0 {
-                break;
-            }
-            if walk(child, measured, depth + 1, remaining, visit) {
-                return true;
-            }
-        }
-        false
-    }
-
     // Direct keyword reminders already have a native keyword-level placement.
     let ability = evidence::unscoped(ability);
-    ability["kind"] != "Keyword" && walk(ability, measured, 0, &mut 8192, &mut visit)
+    let ability = if ability["kind"] == "Saga" {
+        let Some(chapter) = ability["args"]["chapters"]
+            .as_array()
+            .and_then(|items| items.last())
+        else {
+            return false;
+        };
+        evidence::unscoped(chapter)
+    } else {
+        ability
+    };
+    ability["kind"] != "Keyword"
+        && evidence::visit_nodes(ability, |value, remaining| {
+            let Some(object) = value.as_object() else {
+                return false;
+            };
+            if measured {
+                return measurement(value)
+                    .is_some_and(|(topic, amount)| visit(topic, Some(amount)))
+                    || mill_recipient(value)
+                        .is_some_and(|(topic, amount)| visit(topic, Some(amount)))
+                    || optional_mill(value)
+                        .is_some_and(|(topic, amount)| visit(topic, Some(amount)));
+            }
+            marker(value).is_some_and(|topic| {
+                visit(topic, None)
+                    || matches!(topic, "AirbendOne" | "AirbendMany") && visit("AirbendRule", None)
+            }) || evidence::flashback_at_mana_cost(value) && visit("FlashbackAtManaCost", None)
+                || object
+                    .get("Mana")
+                    .and_then(Value::as_array)
+                    .is_some_and(|mana| {
+                        mana.iter().take(remaining).any(|symbol| {
+                            let explanation = if symbol == "Snow" {
+                                Some("Snow")
+                            } else if symbol["Color"] == "Colorless" {
+                                Some("ColorlessMana")
+                            } else {
+                                None
+                            };
+                            explanation.is_some_and(|topic| visit(topic, None))
+                        })
+                    })
+        })
         || !measured && ordinary_activation(ability) && visit("InstantActivation", None)
         || !measured && evidence::root_mentions(ability, |topic| visit(topic, None))
 }
@@ -544,6 +542,8 @@ fn typed_claims(name: &str, ability: &Value) -> Option<Vec<Value>> {
         "cycling_reminder" => evidence::cycling_claim(ability).into_iter().collect(),
         "cost_symbol_reminder" => evidence::cost_symbols(ability).cloned().collect(),
         "awaken_reminder" => evidence::awaken_claim(ability).into_iter().collect(),
+        "ward_grant_reminder" => evidence::ward_grant_claims(ability),
+        "equip_payment_reminder" => evidence::equip_payment_claim(ability).into_iter().collect(),
         _ => return None,
     })
 }

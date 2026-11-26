@@ -119,6 +119,79 @@ fn awaken_explanation_checks_both_payment_and_counter_amount() {
 }
 
 #[test]
+fn ward_explanation_repeats_the_granted_payment() {
+    let context = empty_card_characteristics();
+    let text = "Enchanted creature has ward {2}. (Whenever it becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("pays {2}", "pays {3}");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn optional_mill_explanation_keeps_its_amount_and_optionality() {
+    let context = empty_card_characteristics();
+    let text = "When this creature enters, you may mill two cards. (You may put the top two cards of your library into your graveyard.)";
+    exact_roundtrip(text, &context);
+    for wrong in [
+        text.replace("may mill two", "may mill three"),
+        text.replace("you may mill", "you mill"),
+    ] {
+        assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    }
+}
+
+#[test]
+fn a_reminder_preserves_the_combined_entry_or_death_trigger() {
+    let context = empty_card_characteristics();
+    let text = "When this creature enters or dies, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)";
+    let parsed = super::engine().parse_card(NAME, text, &context).unwrap();
+    let [reading] = parsed.readings.as_slice() else {
+        panic!("expected one combined trigger");
+    };
+    assert_eq!(reading.abilities.as_array().unwrap().len(), 1);
+    exact_roundtrip(text, &context);
+}
+
+#[test]
+fn devour_explanation_checks_the_filter_and_multiplier() {
+    let context = empty_card_characteristics();
+    let text = "Devour artifact 2 (As this creature enters, you may sacrifice any number of artifacts. It enters with twice that many +1/+1 counters on it.)";
+    exact_roundtrip(text, &context);
+    for wrong in [
+        text.replace("of artifacts.", "of creatures."),
+        text.replace("twice", "three times"),
+    ] {
+        assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    }
+}
+
+#[test]
+fn reinforce_explanation_checks_the_payment_and_amount() {
+    let context = empty_card_characteristics();
+    let text = "Reinforce 2—{2}{W} ({2}{W}, Discard this card: Put two +1/+1 counters on target creature.)";
+    exact_roundtrip(text, &context);
+    for wrong in [
+        text.replace("({2}{W}", "({2}{U}"),
+        text.replace("Put two", "Put three"),
+    ] {
+        assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    }
+}
+
+#[test]
+fn a_fixed_airbend_explanation_keeps_the_action_and_payment() {
+    let context = empty_card_characteristics();
+    let text = "Airbend target nonland permanent. (Exile it. While it's exiled, its owner may cast it for {2} rather than its mana cost.)";
+    exact_roundtrip(text, &context);
+    for wrong in [
+        text.replace("for {2}", "for {3}"),
+        text.replace("Airbend", "Exile"),
+    ] {
+        assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    }
+}
+
+#[test]
 fn copy_explanation_distinguishes_permanent_spells_from_abilities() {
     let context = empty_card_characteristics();
     let text = "{4}, {T}: Copy target permanent spell you control. (The copy becomes a token.)";

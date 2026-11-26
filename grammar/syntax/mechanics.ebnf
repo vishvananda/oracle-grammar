@@ -40,6 +40,7 @@ mechanic_reminded_text ::= ingest_reminded_text | convoke_reminded_text | delve_
     | valued_mechanic_reminded_text | reconfigure_reminded_text
     | kicker_mechanic_reminded_text | typed_cost_mechanic_reminded_text | numeric_mechanic_reminded_text | firebending_number_reminded_text
     | hidden_agenda_reminded_text | double_agenda_reminded_text | undaunted_reminded_text | conspire_short_reminded_text
+    | reinforce_reminded_text | devour_reminded_text
 
 /* @sem $mechanic_ingest */
 ingest_reminded_text ::= mechanic_ingest "(" "whenever" reminder_subject "deals" "combat" "damage" "to" "a" "player" "," "that" "player" "exiles" "the" "top" "card" "of" "their" "library" "." ")"
@@ -61,6 +62,7 @@ doctor_companion_reminded_text ::= deck_rule_doctors_companion "(" "you" "can" "
 
 triggered_mechanic_reminded_text ::= exalted_reminded_text | cascade_reminded_text | rebound_reminded_text
     | persist_reminded_text | undying_reminded_text | exploit_reminded_text | soulbond_reminded_text
+    | haunt_creature_reminded_text | haunt_spell_reminded_text
 /* @sem $bare_exalted */
 exalted_reminded_text ::= bare_exalted "(" "whenever" "a" "creature" "you" "control" "attacks" "alone" "," "that" "creature" "gets" "+" "1" "/" "+" "1" "until" "end" "of" "turn" "." ")"
 /* @sem $bare_cascade */
@@ -75,6 +77,12 @@ undying_reminded_text ::= bare_undying "(" "when" "this" "creature" "dies" "," "
 exploit_reminded_text ::= bare_exploit "(" "when" "this" "creature" "enters" "," "you" "may" "sacrifice" "a" "creature" "." ")"
 /* @sem $bare_soulbond */
 soulbond_reminded_text ::= bare_soulbond "(" "you" "may" "pair" "this" "creature" "with" "another" "unpaired" "creature" "when" "either" "enters" "." "they" "remain" "paired" "for" "as" "long" "as" "you" "control" "both" "of" "them" "." ")"
+/* @sem $bare_haunt */
+haunt_creature_reminded_text ::= bare_haunt "(" "when" "this" "creature" "dies" "," haunt_reminder_exile ")"
+/* @sem $bare_haunt */
+haunt_spell_reminded_text ::= bare_haunt "(" "when" "this" "spell" "card" "is" "put" "into" "a" "graveyard" "after" "resolving" "," haunt_reminder_exile ")"
+/* @sem () */
+haunt_reminder_exile ::= "exile" "it" "haunting" "target" "creature" "."
 
 standalone_mechanic_reminded_text ::= ascend_reminded_text | daybound_reminded_text | nightbound_reminded_text
     | start_your_engines_reminded_text | fuse_reminded_text | aftermath_reminded_text
@@ -355,8 +363,11 @@ spree_modes_more ::= spree_mode NEWLINE spree_modes
 spree_mode ::= spree_mode_exile_delayed_return | spree_mode_lose_abilities | spree_mode_choose_grant | spree_mode_plain | spree_mode_quoted | spree_mode_closed_sentence
 
 /* Tiered: one mode, by name, adding its cost. The names mean nothing to the rules. */
+line_tiered ::= line_tiered_plain | line_tiered_reminded
 /* @sem Ability::[Ability::Tiered{modes:$tier_modes}] */
-line_tiered ::= "tiered" NEWLINE tier_modes
+line_tiered_plain ::= "tiered" NEWLINE tier_modes
+/* @sem Ability::[WithPresentation{reminder:true, ability:Tiered{modes:$tier_modes}}] */
+line_tiered_reminded ::= "tiered" "(" "choose" "one" "additional" "cost" "." ")" NEWLINE tier_modes
 
 tier_modes ::= tier_modes_one | tier_modes_more
 
@@ -892,6 +903,30 @@ mechanic_devour_creatures ::= "devour" devour_amount
 /* @sem Ability::Mechanic{mechanic:Devour, amount:$devour_amount, filter:$filter_phrase} */
 mechanic_devour_named ::= "devour" filter_phrase devour_amount
 
+/* The reminder repeats both the sacrifice filter and counters per payment. */
+devour_reminded_text ::= devour_creatures_reminded | devour_named_reminded | devour_count_reminded
+/* @sem Ability::Mechanic{mechanic:Devour, amount:Expr::@agree($devour_amount, $devour_counter_multiplier), filter:CardType(Creature)} */
+devour_creatures_reminded ::= "devour" devour_amount "(" devour_reminder_sacrifice "creatures" "." devour_counter_multiplier ")"
+/* @sem Ability::Mechanic{mechanic:Devour, amount:Expr::@agree($devour_amount, $devour_counter_multiplier), filter:ObjectFilter::@agree($filter_phrase, $filter_plural)} */
+devour_named_reminded ::= "devour" filter_phrase devour_amount "(" devour_reminder_sacrifice filter_plural "." devour_counter_multiplier ")"
+/* @sem Ability::Mechanic{mechanic:Devour, amount:$devour_defined_creature_count, filter:CardType(Creature)} */
+devour_count_reminded ::= "devour" devour_defined_creature_count "(" devour_reminder_sacrifice "creatures" "." "it" "enters" "with" "X" devour_counter_tail "for" "each" "of" "those" "creatures" "." ")"
+/* @sem Expr::Earlier{what:Devoured, measure:Count, filter:CardType(Creature)} */
+devour_defined_creature_count ::= "X" "," "where" "X" "is" "the" "number" "of" "creatures" "devoured" "this" "way"
+/* @sem () */
+devour_reminder_sacrifice ::= "as" "this" "creature" "enters" "," "you" "may" "sacrifice" "any" "number" "of"
+devour_counter_multiplier ::= devour_counter_once | devour_counter_once_named | devour_counter_twice | devour_counter_times
+/* @sem Expr::Constant(1) */
+devour_counter_once ::= "it" "enters" "with" "that" "many" devour_counter_tail "."
+/* @sem Expr::Constant(1) */
+devour_counter_once_named ::= "this" "creature" "enters" "with" "that" "many" devour_counter_tail "."
+/* @sem Expr::Constant(2) */
+devour_counter_twice ::= "it" "enters" "with" "twice" "that" "many" devour_counter_tail "."
+/* @sem $number_words */
+devour_counter_times ::= "it" "enters" "with" number_words "times" "that" "many" devour_counter_tail "."
+/* @sem () */
+devour_counter_tail ::= "+" "1" "/" "+" "1" "counters" "on" "it"
+
 /* The mechanic supplies the producer for this count; its filter remains independent. */
 devour_amount ::= devour_plain_amount | devour_defined_amount
 /* @prefer always */
@@ -1095,6 +1130,14 @@ line_gift_additional_cost ::= gift_header NEWLINE casting_additional_cost NEWLIN
 /* Keyword mechanics taken over from seeded rules, in their original Oracle words. */
 /* @sem Ability::Mechanic{mechanic:Reinforce, cost:$cost, amount:$number} */
 mechanic_reinforce ::= "reinforce" number "―" cost
+
+/* @sem Ability::Mechanic{mechanic:Reinforce, cost:Cost::@agree($cost, $reinforce_explained_cost), amount:Expr::@agree($number, $reinforce_explained_amount)} */
+reinforce_reminded_text ::= "reinforce" number "―" cost "(" reinforce_explained_cost ":" "put" reinforce_explained_amount "on" "target" "creature" "." ")"
+/* @sem $cost */
+reinforce_explained_cost ::= cost "," "↑" "discard" "this" "card"
+reinforce_explained_amount ::= printed_plus_one_counters | reinforce_x_explained_amount
+/* @sem $number_x */
+reinforce_x_explained_amount ::= number_x "+" "1" "/" "+" "1" "counters"
 
 /* @sem Ability::Mechanic{mechanic:Impending, cost:$cost, amount:$value} */
 mechanic_impending ::= "impending" value "―" cost

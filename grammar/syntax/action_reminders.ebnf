@@ -2,12 +2,22 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
-line_contextual_reminder ::= line_contextual_ability | line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder
-/* @sem Ability::[@contextual_reminder($ability, $ability_explanation)] */
-line_contextual_ability ::= ability "(" ability_explanation ")"
+line_contextual_reminder ::= line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
 line_contextual_group ::= remindable_line "(" ability_explanation ")"
-remindable_line ::= line_prototype | line_named_flash_if | line_pair_blocks_blocked
+remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_blocks_blocked
+    | line_repeat_card_last | line_pair_enters_put | line_spell_paragraphs | line_saga | static_form_grants_goad
+
+/* Both sentences describe the same spell-copy trigger. */
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $historic_explanation), $token_copy_spell_rule_context_explanation) */
+line_historic_copy_reminder ::= remindable_line "(" historic_explanation token_copy_spell_rule_context_explanation ")"
+
+/* @sem Vec<Ability>::@ward_grant_reminder($remindable_line, $ward_grant_explanation) */
+line_ward_grant_reminder ::= remindable_line "(" ward_grant_explanation ")"
+
+/* @sem Ability::[@equip_payment_reminder($equip_reduced_line, $equip_explained_cost)] */
+line_equip_payment_reminder ::= equip_reduced_line "(" equip_explained_cost ")"
+equip_reduced_line ::= equip_live_reduction | keyword_equip_target_reduction | equip_conditional_activation_reduction
 
 /* The activation and the explanation designate the same source creature. */
 /* @sem Ability::[WithPresentation{reminder:true, ability:Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateRegenerationShields{objects:One(Source)}}]}}}] */
@@ -19,9 +29,9 @@ line_cost_symbol_reminder ::= ability_cost_note_head cost_note
 ability_cost_note_head ::= ability | keyword_equip | keyword_equip_once_word | keyword_flashback
 
 /* The explanation repeats a numeric operand from the native action. */
-/* @sem Ability::[@measured_reminder($ability, $measured_explanation)] */
+/* @sem Vec<Ability>::@measured_reminder($remindable_line, $measured_explanation) */
 /* @prefer always */
-line_measured_reminder ::= ability "(" measured_explanation ")"
+line_measured_reminder ::= remindable_line "(" measured_explanation ")"
 measured_explanation ::= monstrosity_explanation | mill_number_explanation | incubation_explanation | discover_explanation | toxic_number_explanation
     | scry_context_amount | surveil_context_amount | surveil_defining_amount | mill_controller_explanation
     | adapt_context_amount | renown_one_explanation | renown_number_explanation | bloodthirst_one_explanation | bloodthirst_number_explanation
@@ -30,12 +40,18 @@ measured_explanation ::= monstrosity_explanation | mill_number_explanation | inc
     | mill_controller_one_explanation | collect_evidence_measured_explanation
     | scry_defining_one_explanation | scry_defining_many_explanation
     | firebending_granted_explanation | monstrosity_x_explanation | collect_evidence_short_explanation
+    | surveil_defining_one_explanation | optional_controller_mill_explanation | optional_controller_mill_one_explanation
+    | blight_measured_explanation | incubation_defining_explanation
 /* @sem Operand::List([Text(Monstrosity), Number($number_words)]) */
 monstrosity_explanation ::= "if" "this" "creature" "isn't" "monstrous" "," "put" number_words "+" "1" "/" "+" "1" "counters" "on" "it" "and" "it" "becomes" "monstrous" "."
 /* @sem Operand::List([Text(Mill), Number(@agree($number_words, $number_words_2))]) */
 mill_number_explanation ::= "to" "mill" number_words "cards" "," "put" "the" "top" number_words "cards" "of" "your" "library" "into" "your" "graveyard" "."
-/* @sem Operand::List([Text(Incubate), Number($number_words)]) */
-incubation_explanation ::= "create" "an" "Incubator" "token" "with" number_words "+" "1" "/" "+" "1" "counters" "on" "it" "and" '"' "{" "2" "}" ":" "transform" "this" "token" "." '"' "it" "transforms" "into" "a" "0" "/" "0" "Phyrexian" "artifact" "creature" "."
+/* @sem Operand::List([Text(Incubate), Number($incubation_explanation_amount)]) */
+incubation_explanation ::= incubation_explanation_amount
+/* @sem Operand::List([Text(Incubate), Number(@agree($number_digits, $incubation_explanation_amount))]) */
+incubation_defining_explanation ::= "to" "incubate" number_digits "," incubation_explanation_amount
+/* @sem $printed_plus_one_counters */
+incubation_explanation_amount ::= "create" "an" "Incubator" "token" "with" printed_plus_one_counters "on" "it" "and" '"' "{" "2" "}" ":" "transform" "this" "token" "." '"' "it" "transforms" "into" "a" "0" "/" "0" "Phyrexian" "artifact" "creature" "."
 /* @sem Operand::List([Text(Discover), Number($number_digits)]) */
 discover_explanation ::= "exile" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "exile" "a" "nonland" "card" "with" "mana" "value" number_digits "or" "less" "." "cast" "it" "without" "paying" "its" "mana" "cost" "or" "put" "it" "into" "your" "hand" "." "put" "the" "rest" "on" "the" "bottom" "in" "a" "random" "order" "."
 /* @sem Operand::List([Text(Toxic), Number($number_words)]) */
@@ -46,8 +62,22 @@ scry_context_amount ::= scry_look_explanation
 surveil_context_amount ::= surveil_look_explanation
 /* @sem Operand::List([Text(Surveil), Number(@agree($number_digits, $surveil_look_many))]) */
 surveil_defining_amount ::= "to" "surveil" number_digits "," surveil_look_many
+/* @sem Operand::List([Text(Surveil), Number(@agree($number_digits, $surveil_look_one_explanation))]) */
+surveil_defining_one_explanation ::= "to" "surveil" number_digits "," surveil_look_one_explanation
+surveil_look_one_explanation ::= surveil_look_one | surveil_look_one_named
 /* @sem Operand::List([Text(ControllerMill), Number($number_words)]) */
 mill_controller_explanation ::= "put" "the" "top" number_words "cards" "of" "your" "library" "into" "your" "graveyard" "."
+/* @sem Operand::List([Text(OptionalControllerMill), Number($number_words)]) */
+optional_controller_mill_explanation ::= "you" "may" "put" "the" "top" number_words "cards" "of" "your" "library" "into" "your" "graveyard" "."
+/* @sem Operand::List([Text(OptionalControllerMill), Number(Constant(1))]) */
+optional_controller_mill_one_explanation ::= "you" "may" "put" "the" "top" "card" "of" "your" "library" "into" "your" "graveyard" "."
+/* @sem Operand::List([Text(Blight), Number(@agree($number_digits, $blight_explanation_counters))]) */
+blight_measured_explanation ::= "to" "blight" number_digits "," "put" blight_explanation_counters "on" "a" "creature" "you" "control" "."
+blight_explanation_counters ::= blight_explanation_one | blight_explanation_many
+/* @sem Expr::Constant(1) */
+blight_explanation_one ::= "a" "-" "1" "/" "-" "1" "counter"
+/* @sem $number_words */
+blight_explanation_many ::= number_words "-" "1" "/" "-" "1" "counters"
 /* @sem Operand::List([Text(Adapt), Number($number_words)]) */
 adapt_context_amount ::= "if" "this" "creature" "has" "no" "+" "1" "/" "+" "1" "counters" "on" "it" "," "put" number_words "+" "1" "/" "+" "1" "counters" "on" "it" "."
 /* @sem () */
@@ -114,8 +144,61 @@ ability_explanation ::= stun_explanation | modified_explanation | historic_expla
     | exert_explanation | party_explanation | crime_explanation | clash_explanation
     | snow_explanation | colorless_explanation | waterbend_explanation | indefinite_explanation
     | splice_explanation | overload_explanation | bargain_explanation | prototype_explanation
-    | nonmana_ability_explanation | grant_keyword_explanation
+    | nonmana_ability_explanation | grant_keyword_explanation | additional_rule_explanations
     | context_explanations | token_context_explanations
+
+additional_rule_explanations ::= ward_cant_counter_explanation | zero_even_explanation | prepared_cast_explanation
+    | flashback_granted_cast_explanation | flashback_owner_cast_explanation | charge_sunburst_explanation
+    | deathtouch_it_explanation | deathtouch_creature_explanation | deathtouch_dealt_it_explanation
+    | lifelink_keyword_explanation | lifelink_this_explanation | trample_creature_explanation | trample_they_explanation
+    | vigilance_plural_explanation | haste_plural_explanation | reach_plural_explanation
+    | first_strike_plural_explanation | double_strike_plural_explanation
+    | airbend_it_explanation | airbend_them_explanation | airbend_creature_explanation
+
+/* @sem String::'CounterProhibited' */
+ward_cant_counter_explanation ::= "this" "includes" "by" "the" "ward" "ability" "."
+/* @sem String::'Parity' */
+zero_even_explanation ::= "zero" "is" "even" "."
+/* @sem String::'PreparedSource' */
+prepared_cast_explanation ::= "while" "it's" "prepared" "," "you" "may" "cast" "a" "copy" "of" "its" "spell" "." "doing" "so" "unprepares" "it" "."
+/* @sem String::'Flashback' */
+flashback_granted_cast_explanation ::= "you" "may" "cast" "that" "card" "from" "your" "graveyard" "for" "its" "flashback" "cost" "." "then" "exile" "it" "."
+/* @sem String::'FlashbackAtManaCost' */
+flashback_owner_cast_explanation ::= "its" "owner" "may" "cast" "the" "card" "from" "their" "graveyard" "for" "its" "mana" "cost" "." "then" "they" "exile" "it" "."
+/* @sem String::'Sunburst' */
+charge_sunburst_explanation ::= "this" "artifact" "enters" "with" "a" "charge" "counter" "on" "it" "for" "each" "color" "of" "mana" "spent" "to" "cast" "it" "."
+/* @sem String::'Deathtouch' */
+deathtouch_it_explanation ::= "any" "amount" "of" "damage" "it" "deals" "to" "a" "creature" "is" "enough" "to" "destroy" "that" "creature" "."
+/* @sem String::'Deathtouch' */
+deathtouch_creature_explanation ::= "any" "amount" "of" "damage" "a" "creature" "with" "deathtouch" "deals" "to" "a" "creature" "is" "enough" "to" "destroy" "it" "."
+/* @sem String::'Deathtouch' */
+deathtouch_dealt_it_explanation ::= "any" "amount" "of" "damage" "a" "creature" "with" "deathtouch" "deals" "to" "a" "creature" "is" "enough" "to" "destroy" "that" "creature" "."
+/* @sem String::'Lifelink' */
+lifelink_keyword_explanation ::= "damage" "dealt" "by" "a" "creature" "with" "lifelink" "also" "causes" "its" "controller" "to" "gain" "that" "much" "life" "."
+/* @sem String::'Lifelink' */
+lifelink_this_explanation ::= "damage" "dealt" "by" "this" "creature" "also" "causes" "you" "to" "gain" "that" "much" "life" "."
+/* @sem String::'Trample' */
+trample_creature_explanation ::= "a" "creature" "with" "trample" "can" "deal" "excess" "combat" "damage" "to" "the" "player" "or" "planeswalker" "it's" "attacking" "."
+/* @sem String::'Trample' */
+trample_they_explanation ::= "each" "of" "those" "creatures" "can" "deal" "excess" "combat" "damage" "to" "the" "player" "or" "planeswalker" "it's" "attacking" "."
+/* @sem String::'Vigilance' */
+vigilance_plural_explanation ::= "attacking" "doesn't" "cause" "them" "to" "tap" "."
+/* @sem String::'Haste' */
+haste_plural_explanation ::= "they" "can" "attack" "and" "{" "T" "}" "as" "soon" "as" "they" "come" "under" "your" "control" "."
+/* @sem String::'Reach' */
+reach_plural_explanation ::= "they" "can" "block" "creatures" "with" "flying" "."
+/* @sem String::'FirstStrike' */
+first_strike_plural_explanation ::= "they" "deal" "combat" "damage" "before" "creatures" "without" "first" "strike" "."
+/* @sem String::'DoubleStrike' */
+double_strike_plural_explanation ::= "they" "deal" "both" "first-strike" "and" "regular" "combat" "damage" "."
+/* @sem String::'AirbendOne' */
+airbend_it_explanation ::= "exile" "it" "." "while" "it's" "exiled" "," airbend_explanation_cost
+/* @sem String::'AirbendMany' */
+airbend_them_explanation ::= "exile" "them" "." "while" "each" "one" "is" "exiled" "," airbend_explanation_cost
+/* @sem String::'AirbendRule' */
+airbend_creature_explanation ::= "to" "airbend" "a" "creature" "," "exile" "it" "." "while" "it's" "exiled" "," airbend_explanation_cost
+/* @sem () */
+airbend_explanation_cost ::= "its" "owner" "may" "cast" "it" "for" "{" "2" "}" "rather" "than" "its" "mana" "cost" "."
 /* @sem String::'Stun' */
 stun_explanation ::= "if" "a" "permanent" "with" "a" "stun" "counter" "would" "become" "untapped" "," "remove" "one" "from" "it" "instead" "."
 /* @sem String::'Modified' */
@@ -147,9 +230,11 @@ crime_explanation ::= "targeting" "opponents" "," "anything" "they" "control" ",
 /* @sem String::'Clash' */
 clash_explanation ::= "each" "clashing" "player" "reveals" "the" "top" "card" "of" "their" "library" "," "then" "puts" "that" "card" "on" "their" "choice" "of" "the" "top" "or" "bottom" "." "a" "player" "wins" "if" "their" "card" "had" "a" "greater" "mana" "value" "."
 /* @sem String::'Snow' */
-snow_explanation ::= snow_explanation_words
+snow_explanation ::= snow_explanation_words | snow_mana_explanation_words
 /* @sem () */
 snow_explanation_words ::= "{" "S" "}" "can" "be" "paid" "with" "one" "mana" "from" "a" "snow" "source" "."
+/* @sem () */
+snow_mana_explanation_words ::= "{" "S" "}" "is" "mana" "from" "a" "snow" "source" "."
 /* @sem String::'ColorlessMana' */
 colorless_explanation ::= colorless_explanation_words
 /* @sem () */
