@@ -265,6 +265,15 @@ different are marked *(different)*. No group is open at this reference.
 Export updates in [`updates.json`](updates.json), by id. Each names its faces,
 the IR path, the value it replaces and why.
 
+- `U0189` corrects Break Expectations. The draft and reveal depend on the
+  selected card arriving in exile. The reveal still uses the draft's receipt.
+  See [issue #37](https://github.com/vishvananda/oracle-grammar/issues/37).
+- `U0190` corrects the inclusive number choices on Shapeshifter, By Invitation
+  Only, Expel the Interlopers, Liquid Fire, Talion, the Kindly Lord, and Yusri,
+  Fortune's Flame. Both of Shapeshifter's choices offer 0 through 7, with the
+  optional upkeep choice and characteristic-defining formula intact.
+  See [issue #38](https://github.com/vishvananda/oracle-grammar/issues/38).
+
 - `U0001` (normalization): a count of spells cast is tested `>= 1`, as every other
   event history count is. Dream Thief ("draw a card if you've cast another blue
   spell this turn"), Hotheaded Giant, I Bask in Your Silent Awe, Laboratory

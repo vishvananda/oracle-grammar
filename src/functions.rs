@@ -15,6 +15,7 @@ pub(crate) mod copy_subject;
 mod costs;
 pub(crate) mod counts;
 pub(crate) mod definitions;
+pub(crate) mod integer_interval;
 pub(crate) mod number_condition;
 pub(crate) mod overload;
 pub(crate) mod payment;

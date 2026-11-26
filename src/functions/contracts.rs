@@ -14,6 +14,9 @@ pub(crate) fn checked_call(
     if let Some(pattern) = coin_call(name, args, ty, schema)? {
         return Ok(Some(pattern));
     }
+    if name == "integer_interval" {
+        return super::integer_interval::checked_call(args, ty, schema).map(Some);
+    }
     if name == "unordered" {
         return unordered_call(args, ty, schema);
     }

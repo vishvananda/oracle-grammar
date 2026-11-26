@@ -115,3 +115,32 @@ fn chosen_number_definition_retains_its_symbolic_formula_and_prints_edited_const
     let text = "This creature's power is equal to the last chosen number and its toughness is equal to 7 minus that number.";
     assert_eq!(compositional(text), json!([frame("Shapeshifter")[2]]));
 }
+
+#[test]
+fn chosen_number_intervals_print_their_current_domain() {
+    let name = "Synthetic interval";
+    for (lower, upper) in [(0, 7), (10, 100)] {
+        let text = format!("Choose a number between {lower} and {upper}.");
+        let result = engine().parse(name, &text).unwrap();
+        assert_eq!(result.readings.len(), 1);
+        let reading = &result.readings[0];
+        let key = engine().trail_of(name, reading, &text).unwrap().unwrap();
+        assert_eq!(
+            engine().print_trail(name, reading, &key).unwrap(),
+            Some(text)
+        );
+    }
+    let mut reading = frame("Shapeshifter");
+    let entry_choice = &mut reading[0]["args"]["body"]["instructions"][0]["args"]["operation"];
+    let options = entry_choice["args"]["terms"]["options"]
+        .as_array_mut()
+        .unwrap();
+    assert_eq!(options.len(), 8);
+    options.pop();
+    let text = printed(&reading);
+    assert!(text.contains("choose a number between 0 and 6"), "{text}");
+    assert!(
+        text.contains("you may choose a number between 0 and 7"),
+        "{text}"
+    );
+}

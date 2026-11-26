@@ -595,6 +595,9 @@ impl Pattern {
                     ("contextual_reminder", [ability, explanation]) => {
                         return contextual_reminder::attach(ability, explanation);
                     }
+                    ("integer_interval", [lower, upper]) => {
+                        return crate::functions::integer_interval::build(lower, upper);
+                    }
                     ("and_sequence", [head, tail]) => {
                         return crate::functions::optional_scope::sequence(head, tail);
                     }
@@ -931,6 +934,9 @@ impl Pattern {
             "class_levels" => return crate::functions::class_levels::unify(args, value, bindings),
             "saga_final_chapter" => return saga_chapters::unify(args, value, bindings),
             "contextual_reminder" => return contextual_reminder::unify(args, value, bindings),
+            "integer_interval" => {
+                return crate::functions::integer_interval::unify(args, value, bindings);
+            }
             "and_sequence"
             | "then_sequence"
             | "optional_then"

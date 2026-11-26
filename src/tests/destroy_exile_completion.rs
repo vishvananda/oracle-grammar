@@ -17,6 +17,49 @@ fn body(value: &mut Value) -> &mut Vec<Value> {
         .as_array_mut()
         .unwrap()
 }
+
+#[test]
+fn break_expectations_requires_exile_arrival_and_reveals_the_draft() {
+    let name = "Break Expectations";
+    let text = "Target player reveals all cards with mana value 2 or greater in their hand. You choose a card from among those cards. Exile that card. If a card was exiled this way, that player drafts a card from Break Expectations's spellbook and reveals it.";
+    let readings = engine().parse(name, text).unwrap().readings;
+    assert_eq!(readings.len(), 1);
+    let reading = &readings[0];
+    let mut effects = Vec::new();
+    operations(reading, "Effect", &mut effects);
+    let moved = effects
+        .iter()
+        .find(|effect| effect["operation"]["kind"] == "Move")
+        .unwrap();
+    let mut branches = Vec::new();
+    operations(reading, "If", &mut branches);
+    let [branch] = branches.as_slice() else {
+        panic!("one guarded draft, got {branches:?}");
+    };
+    assert_eq!(moved["operation"]["kind"], "Move");
+    assert_eq!(
+        branch["condition"],
+        json!({"kind":"ObjectMatches","args":{
+            "object":{"kind":"Result","args":{"result":moved["result"],"phase":"After","index":0}},
+            "filter":{"kind":"InZone","args":{"Shared":"Exile"}}
+        }})
+    );
+    let draft = &branch["then"]["instructions"][0]["args"];
+    let reveal = &branch["then"]["instructions"][1]["args"];
+    assert_eq!(draft["operation"]["kind"], "DraftFromSpellbook");
+    assert_eq!(
+        reveal["operation"]["args"]["objects"],
+        json!({"kind":"Recorded","args":draft["result"]})
+    );
+    let trail = engine().trail_of(name, reading, text).unwrap().unwrap();
+    assert_eq!(
+        engine()
+            .print_trail(name, reading, &trail)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+}
 fn operations(value: &Value, name: &str, out: &mut Vec<Value>) {
     if value["kind"] == name {
         out.push(value["args"].clone());
