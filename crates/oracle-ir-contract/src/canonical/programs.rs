@@ -56,6 +56,9 @@ impl Visit for Normalize {
         }
         if matches!(ty, Ty::Named(name) if name == "Program") {
             self.changed |= super::observed_top::program(value, self.tracing)?;
+            if !self.keep_order {
+                self.changed |= super::single_choices::program(value, self.tracing);
+            }
         }
         if !self.keep_order && matches!(ty, Ty::Named(name) if name == "ManaProduction") {
             self.changed |= super::fixed_mana::bundle(value, self.tracing);
@@ -99,6 +102,14 @@ impl Visit for Normalize {
                 if needed.snapshots {
                     self.changed |=
                         super::snapshots::inline_array(items, &uses, walker, self.tracing)?;
+                    if !self.keep_order {
+                        self.changed |= super::immediate_values::inline_array(
+                            items,
+                            &uses,
+                            walker,
+                            self.tracing,
+                        )?;
+                    }
                 }
                 if needed.mana {
                     self.changed |= super::fixed_mana::flatten(items, path, &uses, self.tracing);

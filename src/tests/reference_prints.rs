@@ -191,14 +191,7 @@ fn a_target_named_twice_is_a_pronoun_afterwards() {
         ),
     ] {
         let readings = engine().parse(name, text).unwrap().readings;
-        assert_eq!(
-            readings.len(),
-            if name == "Diplomacy of the Wastes" {
-                2
-            } else {
-                1
-            }
-        );
+        assert_eq!(readings.len(), 1);
         for reading in readings {
             let types = [types.to_string()];
             assert_eq!(keyed(name, &reading, &types, text).as_deref(), Some(text));

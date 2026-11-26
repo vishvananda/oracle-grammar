@@ -269,8 +269,13 @@ fn binary() -> Result<String, String> {
 
 fn options_key(options: &Options) -> String {
     format!(
-        "render={} raw={} source_context={} round_trip={} without={:?}",
-        options.render, options.raw, options.source_context, options.round_trip, options.without
+        "render={} raw={} source_context={} round_trip={} all_readings={} without={:?}",
+        options.render,
+        options.raw,
+        options.source_context,
+        options.round_trip,
+        options.all_readings,
+        options.without
     )
 }
 

@@ -15,6 +15,10 @@ mod entry;
 mod events;
 mod filters;
 mod fixed_mana;
+mod immediate_values;
+#[cfg(test)]
+mod immediate_values_tests;
+mod immediate_views;
 #[cfg(test)]
 mod issue_sets_tests;
 mod joins;
@@ -31,7 +35,11 @@ mod paid_source_tests;
 mod programs;
 #[cfg(test)]
 mod result_scopes;
+mod scalar_reads;
 mod sets;
+mod single_choices;
+#[cfg(test)]
+mod single_choices_tests;
 mod snapshots;
 mod source_events;
 #[cfg(test)]
@@ -43,6 +51,7 @@ mod untap;
 mod visibility;
 mod walk;
 pub use fixed_mana::literal as literal_mana;
+pub use immediate_views::print_views as immediate_parameter_print_views;
 use movement::groups as movement_groups;
 pub use trace::MappedCard;
 pub use visibility::branch_sites as branch_receipt_sites;

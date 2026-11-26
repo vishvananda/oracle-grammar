@@ -87,6 +87,13 @@ syntax module under a descriptive name so that the next audit retires the
 original. The audit only sees parses of matching faces: a removal can still drop
 a print template, so also run the library tests and compare a render run.
 
+For a native reading-preservation audit, `tools/dev.py score ... --all-readings`
+also saves the complete IR for equal single-reading faces. It uses the same
+prepared-input mode and semantic gates as ordinary scoring. Keep that output
+with its immutable allowed population before changing canonicalization; pass it
+to `tools/dev.py validate-readings ... --preserve-from OLD-SCORE.jsonl` afterward.
+The detailed option is unavailable with aggregate output or row reuse.
+
 ## Layout
 
 - `grammar/`: Oracle terminals, phrase composition and inverse semantics.

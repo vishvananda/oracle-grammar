@@ -31,7 +31,7 @@ fn gift_allowed_faces_preserve_reviewed_native_meanings() {
 }
 
 #[test]
-fn then_conditions_keep_closed_receipts_and_both_supported_where_readings() {
+fn then_conditions_keep_closed_receipts_and_every_distinct_where_reading() {
     let fixture: Value =
         serde_json::from_str(include_str!("../../tests/fixtures/then-conditionals.json")).unwrap();
     for case in fixture["cases"].as_array().unwrap() {
@@ -39,15 +39,17 @@ fn then_conditions_keep_closed_receipts_and_both_supported_where_readings() {
         let parsed = engine()
             .parse(name, case["text"].as_str().unwrap())
             .unwrap();
-        let expected = case["normal_expected_readings"].as_array().unwrap();
+        let mut expected: Vec<_> = case["normal_expected_readings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(crate::bind::normal_form)
+            .collect();
+        expected.sort_by_cached_key(Value::to_string);
+        expected.dedup();
         assert_eq!(parsed.readings.len(), expected.len(), "{name}");
         for expected in expected {
-            assert!(
-                parsed
-                    .readings
-                    .contains(&crate::bind::normal_form(expected)),
-                "{name}"
-            );
+            assert!(parsed.readings.contains(&expected), "{name}");
         }
         for forbidden in case["forbidden_readings"].as_array().into_iter().flatten() {
             assert!(

@@ -34,10 +34,10 @@ fn a_copy_population_excludes_the_actual_copied_target_and_prints_edited_types()
 }
 
 #[test]
-fn immediate_hand_choices_keep_both_single_card_reads_after_a_prefix() {
+fn immediate_hand_choices_share_the_selected_card_after_a_prefix() {
     let text = "Draw a card. Target opponent reveals their hand. You choose a nonlegendary, nonland card from it. That player discards that card.";
     let parsed = engine().parse("Context example", text).unwrap();
-    assert_eq!(parsed.readings.len(), 2);
+    assert_eq!(parsed.readings.len(), 1);
     let mut discarded = Vec::new();
     for mut reading in parsed.readings {
         let mut choices = Vec::new();
@@ -62,10 +62,7 @@ fn immediate_hand_choices_keep_both_single_card_reads_after_a_prefix() {
         let printed = printed_types(&reading, &["Sorcery"]);
         assert!(printed.contains("artifact"), "{printed}");
     }
-    assert!(discarded.contains(&json!({"kind":"Selected","args":1})));
-    assert!(discarded.contains(&json!({"kind":"One","args":{
-        "kind":"Result","args":{"result":1,"phase":"After","index":0}
-    }})));
+    assert_eq!(discarded, vec![json!({"kind":"Selected","args":1})]);
 }
 
 #[test]

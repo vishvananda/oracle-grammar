@@ -30,6 +30,8 @@ struct Options {
     round_trip: bool,
     /// Totals only: a sealed slice must not print or store its cards.
     aggregate: bool,
+    /// Retain complete supported IR even for an equal singleton, for unsealed audits.
+    all_readings: bool,
     /// Also write the totals as JSON, for the gate check.
     totals: Option<String>,
     /// Rule-name prefixes to switch off, e.g. `m_,t_` for compositional coverage.
@@ -47,6 +49,7 @@ fn options() -> Result<Options, String> {
     let source_context = args.iter().any(|a| a == "--source-context");
     let round_trip = args.iter().any(|a| a == "--round-trip");
     let aggregate = args.iter().any(|a| a == "--aggregate");
+    let all_readings = args.iter().any(|a| a == "--all-readings");
     let totals = args
         .iter()
         .find_map(|a| a.strip_prefix("--totals=").map(str::to_string));
@@ -60,12 +63,15 @@ fn options() -> Result<Options, String> {
     let reuse = reuse::flags(&args)?;
     let plain: Vec<&String> = args.iter().filter(|a| !a.starts_with("--")).collect();
     let [unified, oracle, slice, out] = plain.as_slice() else {
-        return Err("usage: score <unified.jsonl> <oracle.json> <slice.json> <out.jsonl> [--raw] [--source-context] [--render] [--round-trip] [--aggregate] [--totals=FILE] [--without=PREFIX,...]".into());
+        return Err("usage: score <unified.jsonl> <oracle.json> <slice.json> <out.jsonl> [--raw] [--source-context] [--render] [--round-trip] [--aggregate] [--all-readings] [--totals=FILE] [--without=PREFIX,...]".into());
     };
     if !without.is_empty() && (raw || render || round_trip) {
         return Err(
             "--without scores parsing only; it excludes --raw, --render and --round-trip".into(),
         );
+    }
+    if all_readings && (aggregate || reuse.spec.is_some()) {
+        return Err("--all-readings requires an unsealed audit without row reuse".into());
     }
     Ok(Options {
         unified: (*unified).clone(),
@@ -77,6 +83,7 @@ fn options() -> Result<Options, String> {
         source_context,
         round_trip,
         aggregate,
+        all_readings,
         totals,
         without,
         off: RuleSet::default(),
@@ -412,7 +419,7 @@ fn judge(
             score.ir_equal += u64::from(equal);
             row["status"] = json!(if equal { "equal" } else { "different" });
             row["readings"] = json!(parsed.readings.len());
-            if options.raw || parsed.readings.len() > 1 {
+            if options.raw || options.all_readings || parsed.readings.len() > 1 {
                 row["all"] = json!(parsed.readings);
             }
             if !equal {

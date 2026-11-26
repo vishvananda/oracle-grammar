@@ -145,6 +145,12 @@ Keep captures used later, nonlocal or choice-dependent expressions, live effects
 and enclosing abilities with descendant Ability scopes. Invalid operands must
 remain invalid, and cloned identifier leaves retain their source provenance.
 
+The same pure-read proof applies to a sole-use capture immediately before an
+audited atomic parameter read, including a single token's creation stats. A
+direct maximum-one choice also equates its first After result reference with
+the recorded selected set. Scope, count, timing and printing restrictions are
+specified in [the immediate scalar and singleton contracts](docs/scalar-and-singleton-normal-forms.md).
+
 An exact, unrestricted activation cost input naming only its Source can compare
 as Source when its directly addressed sacrifice or exile component proves that
 original identity. Performed/After histories, choices, nested payments and other

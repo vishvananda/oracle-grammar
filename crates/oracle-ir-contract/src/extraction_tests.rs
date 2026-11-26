@@ -3,20 +3,29 @@ use crate::{canonical, corpus, human, ir::UnifiedCard, migrate, validate};
 use serde_json::Value;
 
 fn current_expected(name: &str, mut value: Value, source: &Value) -> Value {
-    let delta: Value =
-        serde_json::from_str(include_str!("fixtures/extraction-192-delta.json")).unwrap();
+    for (epoch, text) in [
+        (192, include_str!("fixtures/extraction-192-delta.json")),
+        (193, include_str!("fixtures/extraction-193-delta.json")),
+    ] {
+        apply_delta(name, &mut value, source, epoch, text);
+    }
+    value
+}
+
+fn apply_delta(name: &str, value: &mut Value, source: &Value, epoch: u32, text: &str) {
+    let delta: Value = serde_json::from_str(text).unwrap();
     assert_eq!(
         delta["source_fixture_sha256"],
         source["source_fixture_sha256"]
     );
-    // This reviewed comparison delta remains a schema-192 fixture even
-    // when the current model advances. Migration already upgrades the cards.
-    assert_eq!(delta["schema_version"], 192);
+    // Each reviewed comparison delta keeps its own epoch. Migration already
+    // upgrades the cards; historical fixture bytes never change.
+    assert_eq!(delta["schema_version"], epoch);
     for change in delta["changes"].as_array().unwrap() {
         if change["name"] != name {
             continue;
         }
-        let mut place = &mut value;
+        let mut place = &mut *value;
         for step in change["path"].as_array().unwrap() {
             place = if let Some(key) = step.as_str() {
                 place.get_mut(key).unwrap()
@@ -26,10 +35,12 @@ fn current_expected(name: &str, mut value: Value, source: &Value) -> Value {
                     .unwrap()
             };
         }
-        assert_eq!(*place, change["from"], "{name}: reviewed schema-192 delta");
+        assert_eq!(
+            *place, change["from"],
+            "{name}: reviewed schema-{epoch} delta"
+        );
         *place = change["to"].clone();
     }
-    value
 }
 
 #[test]
