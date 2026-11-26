@@ -34,37 +34,62 @@ fn rewrite(program: &mut Value, tracing: bool, inverse: bool) -> bool {
     let mut changed = false;
     for index in 1..items.len() {
         let (before, after) = items.split_at_mut(index);
-        let Some(Instruction::Effect { result, operation }) =
-            lossless::<Instruction>(&before[index - 1], tracing)
+        let first = &before[index - 1];
+        let next = &mut after[0];
+        let Some(result) = candidate(first, next, inverse) else {
+            continue;
+        };
+        let Some(Instruction::Effect { operation, .. }) = lossless::<Instruction>(first, tracing)
         else {
             continue;
         };
         if !matches!(operation, Operation::ChooseObjects { .. })
             || !crate::semantics::singular_operation(&operation, |_| false)
-            || lossless::<Instruction>(&after[0], tracing).is_none()
+            || lossless::<Instruction>(next, tracing).is_none()
         {
             continue;
         }
-        if after[0]["kind"] != "Effect" {
-            continue;
-        }
-        let next = &mut after[0]["args"]["operation"];
-        if !matches!(
-            next["kind"].as_str(),
-            Some("Move" | "Reveal" | "Destroy" | "DiscardObjects" | "SetTapped")
-        ) {
-            continue;
-        }
-        let objects = &mut next["args"]["objects"];
-        if inverse && *objects == json!({"kind":"Selected","args":result.0}) {
+        let objects = &mut next["args"]["operation"]["args"]["objects"];
+        if inverse {
             *objects = json!({"kind":"One","args":{"kind":"Result","args":{
-                "result":result.0,"phase":"After","index":0}}});
-            changed = true;
-        } else if !inverse && selected(objects, u64::from(result.0)) {
+                "result":result,"phase":"After","index":0}}});
+        } else {
             let result = objects["args"]["args"]["result"].take();
             *objects = json!({"kind":"Selected","args":result});
-            changed = true;
         }
+        changed = true;
     }
     changed
+}
+
+fn candidate(first: &Value, next: &Value, inverse: bool) -> Option<u64> {
+    if first["kind"] != "Effect"
+        || first["args"]["operation"]["kind"] != "ChooseObjects"
+        || next["kind"] != "Effect"
+    {
+        return None;
+    }
+    let operation = &next["args"]["operation"];
+    if !matches!(
+        operation["kind"].as_str(),
+        Some("Move" | "Reveal" | "Destroy" | "DiscardObjects" | "SetTapped")
+    ) {
+        return None;
+    }
+    let id = super::trace::number(&first["args"]["result"])?;
+    let objects = &operation["args"]["objects"];
+    let matches = if inverse {
+        objects["kind"] == "Selected"
+            && objects.as_object().is_some_and(|o| o.len() == 2)
+            && objects["args"].as_u64() == Some(id)
+    } else {
+        selected(objects, id)
+    };
+    matches.then_some(id)
+}
+
+pub(super) fn may_print(items: &[Value]) -> bool {
+    items
+        .windows(2)
+        .any(|pair| candidate(&pair[0], &pair[1], true).is_some())
 }

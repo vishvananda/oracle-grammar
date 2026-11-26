@@ -972,4 +972,5 @@ mod reported_receipts_193;
 mod scalar_capture_normal_form;
 mod source_input_normal_form;
 
+mod literal_reads;
 mod recursive_lists;

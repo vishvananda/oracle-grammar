@@ -11,6 +11,7 @@ use smallvec::{SmallVec, smallvec};
 use std::borrow::Cow;
 use std::rc::Rc;
 
+mod literals;
 mod memo;
 pub use memo::ParseMemo;
 
@@ -610,6 +611,13 @@ impl<'a> Parser<'a> {
         self.sub_deepest = depth;
         self.sub_furthest = 0;
         let definition = &grammar.rules[rule as usize];
+        if !self.audit
+            && !self.diagnostics
+            && let Some(value) = grammar.literal_reads.value(rule, definition)
+        {
+            let readings = self.literal_rule(definition, candidates, at, whole, value)?;
+            return Ok(self.finish_rule((rule, at, depth, whole), saved, Rc::new(readings)));
+        }
         // Direct zero-copy fast path for a single-candidate pass-through rule.
         if definition.sem.is_none()
             && !self.audit

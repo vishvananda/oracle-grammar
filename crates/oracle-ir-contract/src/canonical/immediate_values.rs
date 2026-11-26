@@ -5,20 +5,20 @@ use super::{
 };
 use serde_json::{Value, json};
 
-pub(super) fn slots(operation: &Value) -> Option<Vec<&'static str>> {
+pub(super) fn slots(operation: &Value) -> Option<&'static [&'static str]> {
     let args = &operation["args"];
     match operation["kind"].as_str()? {
-        "DealDamage" => Some(vec!["/args/amount"]),
+        "DealDamage" => Some(&["/args/amount"]),
         "Draw" | "GainLife" | "LoseLife" | "Mill" if args["players"]["kind"] == "One" => {
-            Some(vec!["/args/amount"])
+            Some(&["/args/amount"])
         }
         "PutCounters"
             if args["placements"].as_array()?.len() == 1
                 && args["placements"][0]["recipients"]["kind"] == "Objects" =>
         {
-            Some(vec!["/args/placements/0/amount"])
+            Some(&["/args/placements/0/amount"])
         }
-        "CreateTokens" if single_token(args) => Some(vec![
+        "CreateTokens" if single_token(args) => Some(&[
             "/args/tokens/0/recipe/Defined/power_toughness/0",
             "/args/tokens/0/recipe/Defined/power_toughness/1",
         ]),
@@ -52,7 +52,7 @@ fn candidate(
     next: &Value,
     uses: &Uses,
     tracing: bool,
-) -> Option<(Value, Vec<&'static str>, u64)> {
+) -> Option<(Value, &'static [&'static str], u64)> {
     if first["kind"] != "Effect"
         || first["args"]["operation"]["kind"] != "BindValue"
         || next["kind"] != "Effect"
@@ -65,7 +65,7 @@ fn candidate(
     let operation = &next["args"]["operation"];
     let slots = slots(operation)?;
     let mut reads = 0;
-    for slot in &slots {
+    for slot in slots {
         let value = operation.pointer(slot)?;
         if scalar_reads::signed_use(value, id).is_some() {
             reads += 1;
@@ -116,7 +116,7 @@ pub(super) fn inline_array(
                             && value["args"].as_i64().is_some_and(|n| n < 0)
                     })
             }) {
-                for (slot, value) in slots.into_iter().zip(values) {
+                for (slot, value) in slots.iter().zip(values) {
                     *operation.pointer_mut(slot).expect("checked parameter slot") = value;
                 }
                 items.remove(index);

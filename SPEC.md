@@ -67,6 +67,14 @@ Bytes, recursion depth, parser work, rendering work and candidates are bounded.
 Invalid inputs and exhausted budgets return errors with useful context. They do
 not panic, wrap arithmetic or silently drop required semantic content.
 
+The loader compiles a bounded read plan for terminal-only productions with
+constant semantics. The parser uses the original terminal matcher, evaluates
+alternatives in grammar order and charges each attempted terminal against the
+usual work limit. The plan caches values derived from the elaborated `@sem`
+pattern. Contextual symbols, captures and rule calls use ordinary evaluation.
+Audit and diagnostic requests use ordinary evaluation to retain provenance and
+failure expectations.
+
 ## IR, context and identity
 
 The semantic contract is a typed, versioned model. Closed vocabularies use enums

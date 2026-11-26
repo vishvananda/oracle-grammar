@@ -34,7 +34,7 @@ fn native(rule: &Rule) -> Option<Value> {
     }
     let pattern = rule.sem.as_ref()?;
     let mut left = NODES;
-    if !closed(pattern, 0, &mut left) {
+    if !closed(pattern, 0, DEPTH, &mut left) {
         return None;
     }
     let value = pattern.fill(&Bindings::new(), 0).ok()?;
@@ -48,8 +48,8 @@ fn native(rule: &Rule) -> Option<Value> {
     (canonical != original).then(|| canonical[0].clone())
 }
 
-fn closed(pattern: &Pattern, depth: usize, left: &mut usize) -> bool {
-    if depth > DEPTH || *left == 0 {
+pub(super) fn closed(pattern: &Pattern, depth: usize, max_depth: usize, left: &mut usize) -> bool {
+    if depth > max_depth || *left == 0 {
         return false;
     }
     *left -= 1;
@@ -57,9 +57,9 @@ fn closed(pattern: &Pattern, depth: usize, left: &mut usize) -> bool {
         Pattern::Value(_) => true,
         Pattern::Object(fields) => fields
             .iter()
-            .all(|(_, value)| closed(value, depth + 1, left)),
+            .all(|(_, value)| closed(value, depth + 1, max_depth, left)),
         Pattern::List(items) => items.iter().all(|item| match item {
-            Item::One(value) => closed(value, depth + 1, left),
+            Item::One(value) => closed(value, depth + 1, max_depth, left),
             Item::Splice(..) => false,
         }),
         Pattern::Hole(..) | Pattern::Symbol(..) => false,

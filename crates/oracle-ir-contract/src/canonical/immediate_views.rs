@@ -8,8 +8,12 @@ use serde_json::{Value, json};
 use std::collections::HashSet;
 
 #[derive(Default)]
-struct Ids(HashSet<u64>);
-impl Visit for Ids {
+struct Inputs {
+    ids: HashSet<u64>,
+    scalar: bool,
+    choices: bool,
+}
+impl Visit for Inputs {
     fn leave(
         &mut self,
         value: &mut Value,
@@ -21,7 +25,13 @@ impl Visit for Ids {
         if matches!(ty, Ty::Named(name) if name == "ResultId")
             && let Some(id) = value.as_u64()
         {
-            self.0.insert(id);
+            self.ids.insert(id);
+        }
+        if matches!(ty, Ty::Named(name) if name == "Program")
+            && let Some(items) = value["instructions"].as_array()
+        {
+            self.scalar |= items.iter().any(|item| capture_parameter(item).is_some());
+            self.choices |= single_choices::may_print(items);
         }
         Ok(())
     }
@@ -41,28 +51,17 @@ impl View {
         item: &mut Value,
         walker: &mut Walker<'_>,
     ) -> Result<Option<Value>, String> {
-        if self.captures == 64
-            || item["kind"] != "Effect"
-            || lossless::<Instruction>(item, false).is_none()
-        {
+        if self.captures == 64 {
             return Ok(None);
         }
+        let Some((slots, value)) = capture_parameter(item) else {
+            return Ok(None);
+        };
+        if lossless::<Instruction>(item, false).is_none() {
+            return Ok(None);
+        }
+        let mut value = value.clone();
         let operation = &mut item["args"]["operation"];
-        let Some(slots) = immediate_values::slots(operation) else {
-            return Ok(None);
-        };
-        let Some(first) = slots.first().and_then(|slot| operation.pointer(slot)) else {
-            return Ok(None);
-        };
-        // Equal stats share one capture; different stats retain their own operands.
-        if scalar_reads::constant(first)
-            || slots
-                .iter()
-                .any(|slot| operation.pointer(slot) != Some(first))
-        {
-            return Ok(None);
-        }
-        let mut value = first.clone();
         if !scalar_reads::pure(&mut value, walker)? {
             return Ok(None);
         }
@@ -86,6 +85,25 @@ impl View {
         ))
     }
 }
+/// A quick eligibility check shared by the scan and capture. Typed shape,
+/// purity and final canonical equality are checked before offering the view.
+fn capture_parameter(item: &Value) -> Option<(&'static [&'static str], &Value)> {
+    if item["kind"] != "Effect" {
+        return None;
+    }
+    let operation = &item["args"]["operation"];
+    let slots = immediate_values::slots(operation)?;
+    let first = operation.pointer(slots.first()?)?;
+    if scalar_reads::constant(first)
+        || slots
+            .iter()
+            .any(|slot| operation.pointer(slot) != Some(first))
+    {
+        return None;
+    }
+    Some((slots, first))
+}
+
 impl Visit for View {
     fn leave(
         &mut self,
@@ -125,14 +143,21 @@ impl Visit for View {
 pub fn print_views(value: &Value) -> Result<Vec<Value>, String> {
     let ty = Ty::Vec(Box::new(Ty::Named("Ability".into())));
     let schema = super::schema()?;
-    let mut ids = Ids::default();
-    Walker::new(schema).walk(&mut value.clone(), &ty, false, "", 0, &mut ids)?;
+    let mut inputs = Inputs::default();
+    Walker::new(schema).walk(&mut value.clone(), &ty, false, "", 0, &mut inputs)?;
     let mut views = Vec::new();
     let mut canonical = None;
     for (scalar, choices) in [(false, true), (true, false), (true, true)] {
+        if (scalar && !inputs.scalar) || (choices && !inputs.choices) {
+            continue;
+        }
         let mut view = value.clone();
         let mut proof = View {
-            ids: ids.0.clone(),
+            ids: if scalar {
+                inputs.ids.clone()
+            } else {
+                HashSet::new()
+            },
             next: 0,
             captures: 0,
             scalar,
