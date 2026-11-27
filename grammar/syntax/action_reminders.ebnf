@@ -318,7 +318,7 @@ additional_rule_explanations ::= normal_timing_and_costs_explanation | outlaw_an
     | sticker_vowels_explanation | end_turn_explanation | end_turn_spell_explanation
     | card_types_explanation | card_types_examples | card_types_kindred_before_instant | card_types_before_kindred | permanent_types_explanation
     | casting_help_explanations | targeted_player_group_phaseout_explanation | repeated_flanking_explanation | aura_copy_token_explanation
-    | megamorph_cost_explanation | copied_triggered_ability_explanation
+    | megamorph_cost_explanation | copied_triggered_ability_explanation | toxic_total_explanation
     | chosen_landwalk_explanation | adventure_history_explanation
     | replaced_creature_types_explanation | also_replaced_creature_types_explanation | lasting_mana_symbols_explanation | its_mana_symbols_explanation
     | granted_upkeep_explanation | demonstrate_explanation | demonstrate_targets_explanation
@@ -338,6 +338,8 @@ permanent_types_explanation ::= "artifact" "," "battle" "," "creature" "," "ench
 repeated_flanking_explanation ::= "each" "instance" "of" "flanking" "triggers" "separately" "."
 /* @sem String::'AuraSpellCopyRule' */
 aura_copy_token_explanation ::= "a" "copy" "of" "an" "Aura" "spell" "becomes" "a" "token" "."
+/* @sem String::'Toxic' */
+toxic_total_explanation ::= "a" "player" "dealt" "combat" "damage" "by" "a" "creature" "with" "toxic" "also" "gets" "poison" "counters" "equal" "to" "that" "creature's" "total" "toxic" "value" "."
 /* @sem String::'MorphCost' */
 megamorph_cost_explanation ::= "a" "megamorph" "cost" "is" "a" "morph" "cost" "."
 /* @sem String::'CopyTriggeredAbility' */
@@ -652,7 +654,8 @@ labelled_action_reminder ::= ability_label "—" action_reminder_ability
 action_reminder_ability ::= reminder_spell | reminder_activated | reminder_activated_limited | reminder_activated_trailing
     | reminder_triggered | reminder_triggered_if | reminder_triggered_once | reminder_triggered_natural_twenty
     | self_enter_explore_twice_reminded | defined_echo_reminded
-    | cascade_entry_reminded | all_damage_withers_reminded
+    | cascade_entry_reminded | all_damage_withers_reminded | static_afflict_reminded
+    | equipped_afflict_reminded | equipped_landwalk_reminded
     | reminder_turn | reminder_turn_if | reminder_spell_modal | reminder_activated_modal
     | reminder_triggered_modal | reminder_turn_modal | reminder_loyalty | reminder_spell_ascend
 
@@ -714,7 +717,7 @@ reminder_open_then_reminder ::= reminder_open (sequencer | "," "then") reminder_
 /* @sem $reminder_open */
 reminder_open_closed ::= reminder_open "."
 
-reminder_closed ::= explore_twice_reminded | explores_many_reminded | each_explores_reminded | surveil_defined_with_followup_reminder | shield_counter_reminded | tap_stun_counter_reminded | surveil_defined_reminded | open_attraction_reminded | open_two_attractions_reminded | limited_mana_cost_spending_reminded | reminder_open_closed | proliferate_reminded | proliferate_twice_reminded | proliferate_pair_reminded
+reminder_closed ::= explore_twice_reminded | explores_many_reminded | each_explores_reminded | surveil_defined_with_followup_reminder | shield_counter_reminded | tap_stun_counter_reminded | surveil_defined_reminded | open_attraction_reminded | open_two_attractions_reminded | limited_mana_cost_spending_reminded | reminder_open_closed | proliferate_reminded | proliferate_twice_reminded | proliferate_pair_reminded | amass_slivers_reminded
     | scry_reminded | surveil_reminded | investigate_reminded | named_token_reminded | fight_reminded
     | reminder_if | reminder_optional | reminder_paid | support_reminded
     | incubate_x_reminded | exile_incubate_x_reminded | vibranium_reminded
@@ -1402,6 +1405,11 @@ conspire_that_spell_explanation ::= "as" "you" "cast" "that" "spell" "," "you" "
 /* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Amass{amount:@agree($number_digits, $amass_orcs_note_amount), creature_type:Orc}}}] */
 amass_orcs_reminded ::= "amass" "Orcs" number_digits "." "(" amass_orcs_note_amount ")"
 
+/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Amass{amount:@agree($number_digits, $amass_slivers_note_amount), creature_type:Sliver}}}] */
+amass_slivers_reminded ::= "amass" "Slivers" number_digits "." "(" amass_slivers_note_amount ")"
+/* @sem $measured_plus_one_counters */
+amass_slivers_note_amount ::= "put" measured_plus_one_counters "on" "an" "Army" "you" "control" "." "it's" "also" "a" "Sliver" "." "if" "you" "don't" "control" "an" "Army" "," "create" "a" "0" "/" "0" "black" "Sliver" "Army" "creature" "token" "first" "."
+
 granted_and_contextual_explanations ::= phaseout_group_attached_controller | phaseout_group_defined_controller | phaseout_group_before_your_untap | phaseout_if_phased
     | shroud_artifact_definition | infect_any_creature_rules | he_loses_creature_types | when_it_undies
     | when_this_creature_undies | gravestorm_may_retarget | battle_cry_each_instance | player_hexproof_includes_aura_spells
@@ -1570,6 +1578,18 @@ self_entry_explore ::= "it" "explores"
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects(One(Source)), changes:[GrantAbility($granted_echo_defined)]}) */
 defined_echo_reminded ::= self_creature "has" granted_echo_defined "." "(" echo_cost_explanation ")"
+
+/* A granted afflict ability repeats the amount in the condition and life loss. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($static_affected), changes:[GrantAbility(Mechanic{mechanic:Afflict, amount:Expr::@agree($number_digits, $granted_afflict_rule_amount)})]}) */
+static_afflict_reminded ::= static_affected "have" "afflict" number_digits "." "(" granted_afflict_rule_amount ")"
+/* @sem Expr::@agree($number_digits, $number_digits_2) */
+granted_afflict_rule_amount ::= "whenever" "a" "creature" "with" "afflict" number_digits "becomes" "blocked" "," "defending" "player" "loses" number_digits "life" "."
+
+/* The described combat trigger and blocking rule belong to the equipped holder. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(One($equipped_ref)), changes:[...$change_pump, GrantAbility(Mechanic{mechanic:Afflict, amount:Expr::@agree($number_digits, $number_digits_2)})]}) */
+equipped_afflict_reminded ::= equipped_ref change_pump "and" "has" "afflict" number_digits "." "(" "whenever" "it" "becomes" "blocked" "," "defending" "player" "loses" number_digits "life" "." ")"
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(One($equipped_ref)), changes:[...$change_pump, GrantKeyword(@agree($walk_card_type, $walk_reminder_clause))]}) */
+equipped_landwalk_reminded ::= equipped_ref change_pump "and" "has" walk_card_type "." "(" walk_reminder_clause "." ")"
 
 /* @sem $static_cascade_entry_permission */
 cascade_entry_reminded ::= static_cascade_entry_permission "(" "do" "this" "after" "the" "last" "card" "is" "exiled" "but" "before" "deciding" "whether" "to" "cast" "a" "nonland" "card" "." ")"

@@ -223,7 +223,11 @@ reminded_walk ::= keyword_walk "(" walk_reminder_clause "." ")"
 /* @sem Keyword::Landwalk($reminder_walk_land) */
 walk_reminder_clause ::= reminder_subject "can't" "be" "blocked" "as" "long" "as" "defending" "player" "controls" ("a" | "an") reminder_walk_land
 reminder_walk_land ::= st_plains | st_island | st_swamp | st_mountain | st_forest
-    | st_desert | reminder_walk_legendary | reminder_walk_nonbasic | reminder_walk_snow_forest | reminder_walk_snow_swamp
+    | st_desert | reminder_walk_legendary | reminder_walk_nonbasic | reminder_walk_snow_forest | reminder_walk_snow_swamp | reminder_walk_snow_land | reminder_walk_card_type
+/* @sem $walk_card_type_filter */
+reminder_walk_card_type ::= walk_card_type_filter "land"
+/* @sem ObjectFilter::Supertype(Snow) */
+reminder_walk_snow_land ::= "snow" "land"
 /* @sem ObjectFilter::Supertype(Legendary) */
 reminder_walk_legendary ::= "legendary" "land"
 /* @sem ObjectFilter::Not(ObjectFilter::Supertype(Basic)) */
@@ -232,6 +236,12 @@ reminder_walk_nonbasic ::= "nonbasic" "land"
 reminder_walk_snow_forest ::= "snow" "Forest"
 /* @sem ObjectFilter::@and(ObjectFilter::Supertype(Snow), ObjectFilter::Subtype(Swamp)) */
 reminder_walk_snow_swamp ::= "snow" "Swamp"
+
+/* The two landwalk abilities retain their separate qualifying land types. */
+/* @sem Ability::[Keyword(WithReminder{keyword:@agree($keyword_walk, $walk_reminder_clause), reminder:true}), Keyword(WithReminder{keyword:@agree($keyword_walk_2, Landwalk($second_walk_reminder_land)), reminder:true})] */
+line_two_walks_reminded ::= keyword_walk "," keyword_walk "(" walk_reminder_clause "or" second_walk_reminder_land "." ")"
+/* @sem $reminder_walk_land */
+second_walk_reminder_land ::= ("a" | "an") reminder_walk_land
 
 /* Contextual explanations retain their preceding ability and match a native
    mechanic, action or token definition. */
