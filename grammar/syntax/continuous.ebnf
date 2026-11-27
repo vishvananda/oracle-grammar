@@ -11123,21 +11123,15 @@ equipment_distribution ::= "each" adjective_nontype "," "non-Equipment" noun
 
 /* The definition binds both the equip payment and the quoted bonus to the
    Equipment's mana value. Keep the two uses in the same phrase. */
-/* @sem Change::[AddArtifactType(Equipment), GrantAbility(@scope($equipment_defined_x_equip)), GrantAbility($equipment_defined_x_pump)] */
-equipment_defined_x_changes ::= "is" "an" "Equipment" "with" equipment_defined_x_equip "and" '"' equipment_defined_x_pump "," '"' "where" "X" "is" "that" "artifact's" "mana" "value"
+/* @sem Change::[AddArtifactType(Equipment), GrantAbility(@scope($equipment_defined_x_equip)), GrantAbility($equipment_defined_x_pump_source)] */
+equipment_defined_x_changes ::= "is" "an" "Equipment" "with" equipment_defined_x_equip "and" '"' equipment_defined_x_pump_source "," '"' "where" "X" "is" "that" "artifact's" "mana" "value"
 
 /* @sem Ability::Activated{origin:Equip, cost:Cost{parts:[ManaWithX{mana:[X], x:ObjectProperty{object:Source, property:ManaValue, information:CurrentOrLastKnown}}]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$equip_target_phrase}), index:0}}}]}} */
 equipment_defined_x_equip ::= equip_target_phrase "{" "X" "}"
 
-equipment_defined_x_pump ::= equipment_defined_x_pump_source | equipment_defined_x_pump_affected
-
 /* @prefer always */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[Pump{power:ObjectProperty{object:Source, property:ManaValue, information:CurrentOrLastKnown}, toughness:$signed_literal}]} */
 equipment_defined_x_pump_source ::= "equipped" "creature" "gets" "+" "X" "/" signed_literal
-
-/* Preserve the independently supported affected-object reading. */
-/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[Pump{power:ObjectProperty{object:Affected, property:ManaValue, information:CurrentOrLastKnown}, toughness:$signed_literal}]} */
-equipment_defined_x_pump_affected ::= "equipped" "creature" "gets" "+" "X" "/" signed_literal
 
 /* The receiving card is the source of its granted embalm cost. */
 /* @sem Ability::Mechanic{mechanic:Embalm, cost:Cost{parts:[ManaCostOf(Source)]}} */
@@ -11171,13 +11165,6 @@ attached_combat_limited_grant ::= attached_ref rule_cant_attack_or_block "and" "
 /* @sem Change::GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:$grantor_sacrifice_draw_program})) */
 attached_limited_grant ::= '"' cost ":" grantor_sacrifice_draw_program "." activation_limits "." '"'
 
-/* Preserve the independently supported combined permission reading. */
-/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$recent_graveyard_combined_permission]})]} */
-recent_graveyard_combined_turn_permission ::= "during" "each" "of" "your" "turns" "," recent_graveyard_combined_permission "."
-
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_graveyard_permission_cards, origins:CardPlayOrigins([Graveyard]), action:Either, filter:$turn_history_any_spell}, terms:_{limit:EachTurn(1), cost:Normal}}) */
-recent_graveyard_combined_permission ::= "you" "may" "play" "a" "land" "and" "cast" turn_history_any_spell "from" "among" recent_graveyard_permission_cards
-
 /* The card's identity is independent of the zone in which the rule applies. */
 /* @sem ObjectSet::AnyZone(SameObject(Source)) */
 any_zone_source_card ::= self_card
@@ -11194,10 +11181,6 @@ lethal_damage ::= "lethal" "damage"
 
 /* @sem () */
 single_damage_source ::= "a" "single" "source"
-
-/* The copied model is an announced permanent target. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_ref_named)), changes:[CopyOf{object:$target_permanent, exceptions:[]}], duration:$duration, evaluation:Snapshot} */
-copy_named_source_target_leading_duration ::= duration "," self_ref_named "becomes" "a" "copy" "of" target_permanent
 
 /* A repeated +1/+1 applies independently to each listed keyword class.
    The two explicit examples establish the amount used by “and so on”. */
@@ -11278,20 +11261,13 @@ shared_loss_and_colorless_form ::= singular_loss "and" "is" colorless_typed_base
 /* @sem Change::[Colors{mode:Set, colors:[]}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetBasePowerToughness{power:$value, toughness:$value_2}] */
 colorless_typed_base_form ::= "a" "colorless" becomes_types "with" "base" "power" "and" "toughness" value "/" value
 
-affected_library_exile ::= affected_library_exile_one | affected_library_exile_many | controller_library_exile_one | controller_library_exile_many
+affected_library_exile ::= affected_library_exile_one | affected_library_exile_many
 
 /* @sem Operation::Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:$ordered_end}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]} */
 affected_library_exile_one ::= "exile" "the" ordered_end "card" "of" "their" "library"
 
 /* @sem Operation::Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:$count_plural, from:$ordered_end}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]} */
 affected_library_exile_many ::= "exile" "the" ordered_end count_plural "cards" "of" "their" "library"
-
-/* Preserve the independent controller-library reading of the follow-up. */
-/* @sem Operation::Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:$ordered_end}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]} */
-controller_library_exile_one ::= "exile" "the" ordered_end "card" "of" "their" "library"
-
-/* @sem Operation::Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:$count_plural, from:$ordered_end}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]} */
-controller_library_exile_many ::= "exile" "the" ordered_end count_plural "cards" "of" "their" "library"
 
 /* A leading duration can scope a keyword loss and subsequent grants. */
 /* @prefer always */

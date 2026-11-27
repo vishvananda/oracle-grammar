@@ -46,7 +46,7 @@ fn at<'a>(mut value: &'a Value, path: &[Step]) -> Option<&'a Value> {
 }
 
 /// The innermost instruction sequence holding `path`, and the instruction's index.
-fn enclosing(path: &[Step]) -> Option<(&[Step], usize)> {
+pub(super) fn enclosing(path: &[Step]) -> Option<(&[Step], usize)> {
     (1..path.len())
         .rev()
         .find_map(|depth| match (&path[depth - 1], &path[depth]) {

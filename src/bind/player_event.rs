@@ -1,6 +1,6 @@
 //! A player event's selector is distinct from its available object referent.
 use crate::model::ir::{EventSpec, PlayerEvent, PlayerSet};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 /// Other event families keep their existing binding rules. Published Player
 /// bindings depend only on the typed event discriminant, so unresolved selector
@@ -21,6 +21,26 @@ fn proven_object(player: &Value) -> Option<bool> {
         objects: None,
     };
     Some(crate::model::semantics::event_bindings(&matcher).object)
+}
+
+/// "An opponent owns ... under your control" introduces the opponent as the
+/// owner. The entering player is still the object's controller.
+pub(super) fn opponent_owns_entrant(event: &Value) -> bool {
+    let event = &event["Player"];
+    let filter = &event["objects"];
+    if event["event"] != "EntersUnderControl" || filter["kind"] != "AllOf" {
+        return false;
+    }
+    let Some(parts) = filter["args"].as_array().filter(|parts| parts.len() <= 64) else {
+        return false;
+    };
+    let you = json!({"kind":"One","args":{"kind":"AbilityController"}});
+    let owner = json!({"kind":"OwnedBy","args":{"kind":"OpponentsOf",
+        "args":{"kind":"AbilityController"}}});
+    parts.contains(&owner)
+        && (event["players"] == you
+            || (event["players"]["kind"] == "All"
+                && parts.contains(&json!({"kind":"ControlledBy","args":you}))))
 }
 
 #[cfg(test)]

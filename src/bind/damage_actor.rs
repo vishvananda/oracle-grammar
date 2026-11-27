@@ -22,6 +22,9 @@ impl Scope {
         {
             return Ok(actor);
         }
+        if name == "it" && recently_counted_source(root, &item.path) {
+            return Ok(serde_json::json!({"kind":"Source"}));
+        }
         let before = prior_targets.before(&item.path, self);
         let it = before.object_pronoun(
             matches!(item.path.get(1), Some(Step::Key(key)) if key == "intervening_if"),
@@ -104,6 +107,98 @@ pub(super) fn reference(
         return Err("damage actor reference depth exceeds128".into());
     }
     Ok(Some(actor))
+}
+
+// In a cast trigger, a dependent damage clause can count counters on the
+// explicitly named damage source just given counters by the preceding action.
+// The spell that triggered the ability is a different object.
+fn recently_counted_source(root: &Value, path: &[Step]) -> bool {
+    use super::card_receipt::enclosing;
+    let Some((sequence, index)) = enclosing(path) else {
+        return false;
+    };
+    if path.len() > 128
+        || index != 0
+        || root["kind"] != "Triggered"
+        || root["args"]["event"]["Spell"]["event"] != "Cast"
+    {
+        return false;
+    }
+    let Some((body, after)) = enclosing(sequence) else {
+        return false;
+    };
+    if !keys(body, &["args", "body", "instructions"]) {
+        return false;
+    }
+    let items = &root["args"]["body"]["instructions"];
+    let Some(previous) = after.checked_sub(1).and_then(|i| items.get(i)) else {
+        return false;
+    };
+    let condition = annotated(&items[after], "leading_if");
+    let then = &condition["args"]["then"]["instructions"];
+    if condition["kind"] != "If"
+        || !at(root, sequence).is_some_and(|sequence| std::ptr::eq(sequence, then))
+        || previous["kind"] != "Effect"
+    {
+        return false;
+    }
+    let damage = &then[0]["args"]["operation"];
+    let source = annotated(&damage["args"]["source"], "move_after_actor");
+    let amount = annotated(&damage["args"]["amount"], "damage_actor_value");
+    let recipients = &amount["args"]["recipients"];
+    let reference = annotated(&recipients["args"]["args"], "member_count_it");
+    if damage["kind"] != "DealDamage"
+        || source["kind"] != "Source" && symbol_name(source) != Some("self")
+        || amount["kind"] != "CountCounters"
+        || recipients["kind"] != "Objects"
+        || recipients["args"]["kind"] != "One"
+        || !at(root, path).is_some_and(|node| std::ptr::eq(node, reference))
+    {
+        return false;
+    }
+    let producer = &previous["args"]["operation"];
+    let check = &condition["args"]["condition"];
+    let placements = match producer["kind"].as_str() {
+        Some("PutCounters") => &producer["args"]["placements"],
+        Some("PayCost")
+            if check["kind"] == "PaymentChosen" && check["args"] == previous["args"]["result"] =>
+        {
+            let Some([payment]) = producer["args"]["cost"]["parts"]
+                .as_array()
+                .map(Vec::as_slice)
+            else {
+                return false;
+            };
+            &payment["PutCounters"]
+        }
+        _ => return false,
+    };
+    let Some([placement]) = placements.as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let counted_kind = &amount["args"]["kind"];
+    let recipient = &placement["recipients"];
+    let placed_on = &recipient["args"]["args"];
+    recipient["kind"] == "Objects"
+        && recipient["args"]["kind"] == "One"
+        && (placed_on["kind"] == "Source" || symbol_name(placed_on) == Some("self"))
+        && (counted_kind.is_null() || counted_kind == &placement["kind"])
+}
+
+fn annotated<'a>(value: &'a Value, marker: &str) -> &'a Value {
+    if symbol_name(value) == Some(marker) {
+        &value["args"][0]
+    } else {
+        value
+    }
+}
+
+fn keys(path: &[Step], expected: &[&str]) -> bool {
+    path.len() == expected.len()
+        && path
+            .iter()
+            .zip(expected)
+            .all(|(step, key)| matches!(step, Step::Key(actual) if actual == key))
 }
 
 fn at<'a>(mut value: &'a Value, path: &[Step]) -> Option<&'a Value> {

@@ -258,6 +258,9 @@ fn event_referents(event: &Value, scope: &mut Scope, surfaced: bool) {
         Some(_) => scope
             .players
             .push(json!({"kind": "ControllerOf", "args": subject})),
+        None if super::player_event::opponent_owns_entrant(event) => scope
+            .players
+            .push(json!({"kind": "OwnerOf", "args": subject})),
         // "Attack with a creature an opponent owns": that player owns the attacker.
         None if event
             .get("Attack")
