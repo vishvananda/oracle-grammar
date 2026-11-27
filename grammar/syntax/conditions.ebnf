@@ -25,12 +25,16 @@ condition_object_lacks_keyword ::= object_ref "doesn't" "have" keyword_name
 /* @sem Condition::ObjectMatches{object:$object_ref, filter:$filter_phrase} */
 condition_object_is_kind ::= object_ref ("is" | "was") ("a" | "an") filter_phrase
 
-/* "If the top card of your library is a land card": what that card is away from the
-   battlefield. Its explicit query keeps an unrelated antecedent from crowding
-   out the verified spelling with a shorter but unbound pronoun. */
+condition_top_card_kind ::= condition_top_library_card_kind | condition_top_graveyard_card_kind
+
 /* @prefer always */
-/* @sem Condition::ObjectMatches{object:$ordered_top_card, filter:$card_filter} */
-condition_top_card_kind ::= ordered_top_card "is" ("a" | "an") card_filter "card"
+/* @sem Condition::ObjectMatches{object:$ordered_top_library_card, filter:$card_filter} */
+condition_top_library_card_kind ::= ordered_top_library_card "is" ("a" | "an") card_filter "card"
+
+/* The later pronoun can move this same graveyard top. */
+/* @prefer always */
+/* @sem Condition::ObjectMatches{object:@remember_object($ordered_top_graveyard_card), filter:$card_filter} */
+condition_top_graveyard_card_kind ::= ordered_top_graveyard_card "is" ("a" | "an") card_filter "card"
 
 /* The predicate describes the linked card, separately from the holder's noun. */
 /* @sem Condition::ObjectMatches{object:Earlier{what:LastExiled}, filter:CardType(Creature)} */

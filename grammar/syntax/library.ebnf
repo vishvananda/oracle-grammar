@@ -250,8 +250,13 @@ library_tops ::= "the" "top" "card" "of" players_possessive "library"
 
 /* The top card itself, read where it is: "if the top card of your library is a land
    card". */
-/* @sem ObjectRef::Query{objects:Zone{scope:Players{zone:$ordered_zone, players:One($player_possessive)}, kind:Card, filter:Any}, index:0} */
-ordered_top_card ::= "the" "top" "card" "of" player_possessive ordered_zone
+ordered_top_card ::= ordered_top_library_card | ordered_top_graveyard_card
+
+/* @sem ObjectRef::Query{objects:Zone{scope:Players{zone:Library, players:One($player_possessive)}, kind:Card, filter:Any}, index:0} */
+ordered_top_library_card ::= "the" "top" "card" "of" player_possessive "library"
+
+/* @sem ObjectRef::Query{objects:Zone{scope:Players{zone:Graveyard, players:One($player_possessive)}, kind:Card, filter:Any}, index:0} */
+ordered_top_graveyard_card ::= "the" "top" "card" "of" player_possessive "graveyard"
 
 ordered_end ::= ordered_top | ordered_bottom
 /* @sem SequenceEnd::Top */
@@ -4852,7 +4857,12 @@ library_single_graveyard_test_entry ::= library_single_card_to_graveyard "." "if
 /* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, ...$replacement_top_branch]}, otherwise:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, ...$replacement_top_branch_2]}}] */
 replacement_observed_top_split ::= reveal_top "instead" "." "if" "it's" top_reveal_quality "," replacement_top_branch "." "otherwise" "," replacement_top_branch
 
-replacement_top_branch ::= top_reveal_branch | payment_leading_operation
+replacement_top_branch ::= top_reveal_branch | independent_top_continuation
+
+/* A continuation can name an independent object. A bare move of the revealed
+   card uses its own top-card production and keeps its antecedent. */
+/* @sem Vec<Instruction>::@independent_top_continuation($payment_leading_operation) */
+independent_top_continuation ::= payment_leading_operation
 
 /* Independent choices and follow-ups preserve the original search receipt. */
 /* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_filtered, $search_choice_filtered_2, ...$search_filtered_three]} */
@@ -6515,7 +6525,7 @@ revealed_shared_type_filter ::= "a" card_filter "card" "that" "shares" "a" "crea
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, count:Exactly(Constant(1)), terms:_{cost:Free}}}]}}]}, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:$revealed_top_cast_decline}, otherwise:Program{}}] */
 revealed_top_cast_declined ::= "you" "may" "cast" "it" "without" "paying" "its" "mana" "cost" "." "if" "you" "don't" "cast" "it" "," revealed_top_cast_decline
 
-revealed_top_cast_decline ::= top_reveal_put | payment_leading_operation
+revealed_top_cast_decline ::= top_reveal_put | independent_top_continuation
 
 /* A name comparison consumes the immediately preceding single-card observation. */
 /* @sem ObjectFilter::SharesNameWithAny(Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$a_card})) */

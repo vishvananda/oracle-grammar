@@ -27,7 +27,12 @@ pub fn hand_discard(instruction: &Value) -> bool {
 
 fn uses_of(uses: &Uses, value: &Value, count: usize) -> bool {
     trace::number(value).is_some_and(|id| {
-        uses.total.get(&id) == Some(&count) && uses.definitions.get(&id) == Some(&1)
+        let Some(&definitions) = uses.definitions.get(&id) else {
+            return false;
+        };
+        // Other abilities may reuse the number for an unread declaration.
+        // Keep all reads in the count so an actual capture still blocks this proof.
+        definitions > 0 && uses.total.get(&id) == Some(&(definitions + count - 1))
     })
 }
 
@@ -59,6 +64,12 @@ fn move_part(move_args: &Value, objects: &Value, choose: Value) -> Option<Value>
     }}))
 }
 
+fn own_hand(objects: &Value) -> bool {
+    objects["kind"] == "Zone"
+        && objects["args"]["kind"] == "Card"
+        && objects["args"]["scope"] == json!({"Players":{"zone":"Hand","players":controller()}})
+}
+
 fn chosen_move(choice: &Value, movement: &Value, uses: &Uses) -> Option<Value> {
     let choose = &choice["args"]["operation"];
     let choose_args = &choose["args"];
@@ -71,8 +82,12 @@ fn chosen_move(choice: &Value, movement: &Value, uses: &Uses) -> Option<Value> {
         || choose_args["count"] != json!({"AsManyAsCan":{"kind":"Constant","args":1}})
         || objects["kind"] != "Zone"
         || objects["args"]["kind"] != "Card"
-        || objects["args"]["scope"]
-            != json!({"Players":{"zone":"Graveyard","players":controller()}})
+        || !(objects["args"]["scope"]
+            == json!({"Players":{"zone":"Graveyard","players":controller()}})
+            || own_hand(objects)
+                && movement["args"]["operation"]["args"]["destination"]
+                    .get("Exile")
+                    .is_some())
         || movement["kind"] != "Effect"
         || movement["args"]["operation"]["kind"] != "Move"
         || selector["kind"] != "Selected"
@@ -100,8 +115,12 @@ fn action_part(inner: &Value) -> Option<Value> {
     }
     let operation = &inner["args"]["operation"];
     let args = &operation["args"];
-    if operation["kind"] == "Move" && singular_selection(&args["objects"]) {
-        return move_part(args, &args["objects"], Value::Null);
+    let objects = &args["objects"];
+    let exile_hand = args["destination"].get("Exile").is_some()
+        && own_hand(objects)
+        && objects["args"]["filter"] == json!({"kind":"Any"});
+    if operation["kind"] == "Move" && (singular_selection(objects) || exile_hand) {
+        return move_part(args, objects, Value::Null);
     }
     if operation["kind"] != "Keyword" || args["actor"] != controller() {
         return None;

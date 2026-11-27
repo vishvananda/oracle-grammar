@@ -103,9 +103,8 @@ fn eligible(root: &Value, path: &[Step]) -> Result<Option<Proof>, String> {
     }))
 }
 
-/// A first optional move still follows the observation immediately. Neither a
-/// different branch nor an intervening instruction can borrow that antecedent.
-fn single_card_before_move<'a>(root: &'a Value, path: &[Step]) -> Option<&'a Value> {
+/// A first optional move keeps the enclosing instruction's position.
+fn move_site<'a>(root: &Value, path: &'a [Step]) -> Option<(&'a [Step], usize)> {
     let mut sequences =
         (1..path.len())
             .rev()
@@ -129,23 +128,76 @@ fn single_card_before_move<'a>(root: &'a Value, path: &[Step]) -> Option<&'a Val
     {
         return None;
     }
-    let (sequence, index) = if index == 0 {
-        let (outer, index) = sequences.next()?;
-        let optional = at(root, outer)?.get(index)?;
-        let inner = sequence.strip_prefix(outer)?.get(1..)?;
-        if optional["kind"] != "Optional" || !keys(inner, &["args", "body", "instructions"]) {
-            return None;
-        }
-        (outer, index)
-    } else {
-        (sequence, index)
-    };
+    if index == 0
+        && let Some((outer, at_index)) = sequences.next()
+        && at(root, outer)?.get(at_index)?["kind"] == "Optional"
+        && keys(
+            sequence.strip_prefix(outer)?.get(1..)?,
+            &["args", "body", "instructions"],
+        )
+    {
+        return Some((outer, at_index));
+    }
+    Some((sequence, index))
+}
+
+/// A first optional move still follows the observation immediately. Neither a
+/// different branch nor an intervening instruction can borrow that antecedent.
+fn single_card_before_move<'a>(root: &'a Value, path: &[Step]) -> Option<&'a Value> {
+    let (sequence, index) = move_site(root, path)?;
     let previous = at(root, sequence)?.get(index.checked_sub(1)?)?;
     let operation = &previous["args"]["operation"];
     (previous["kind"] == "Effect"
         && (operation["kind"] == "LookAt" && one_library_card(&operation["args"]["objects"])
             || one_searched_card(operation)))
     .then_some(previous)
+}
+
+/// The first move in a successful optional one-card look follows that look.
+fn paid_library_look(root: &Value, path: &[Step]) -> Option<()> {
+    let (sequence, index) = move_site(root, path)?;
+    let [
+        conditional_path @ ..,
+        Step::Key(args),
+        Step::Key(branch),
+        Step::Key(_),
+    ] = sequence
+    else {
+        return None;
+    };
+    if index != 0 || args != "args" || branch != "then" {
+        return None;
+    }
+    let conditional = at(root, conditional_path)?;
+    let test = &conditional["args"]["condition"];
+    let [outer @ .., Step::Index(before)] = conditional_path else {
+        return None;
+    };
+    let previous = at(root, outer)?.get(before.checked_sub(1)?)?;
+    let paid = &previous["args"]["operation"];
+    if conditional["kind"] != "If"
+        || test["kind"] != "PaymentChosen"
+        || test["args"].as_u64()? != previous["args"]["result"].as_u64()?
+        || previous["kind"] != "Effect"
+        || paid["kind"] != "PayCost"
+        || paid["args"]["optional"] != true
+    {
+        return None;
+    }
+    let [part] = paid["args"]["cost"]["parts"].as_array()?.as_slice() else {
+        return None;
+    };
+    let action = part.get("PlayerAction")?;
+    let [look] = action["body"]["instructions"].as_array()?.as_slice() else {
+        return None;
+    };
+    let operation = &look["args"]["operation"];
+    (look["kind"] == "Effect"
+        && operation["kind"] == "LookAt"
+        && action["player"] == paid["args"]["player"]
+        && operation["args"]["player"] == action["player"]
+        && one_library_card(&operation["args"]["objects"]))
+    .then_some(())
 }
 
 /// One ordinary library search selects at most one card, even when finding
@@ -206,6 +258,9 @@ pub(super) fn resolve(
             );
         }
     }
+    if own && reference == json!({"kind":"Source"}) && paid_library_look(root, path).is_some() {
+        return Err("that card in a successful look branch is the card just looked at".into());
+    }
     if let Some(proof) = proof {
         let same = proof.result.is_some_and(|result| {
             reference
@@ -233,6 +288,30 @@ fn one_library_card(objects: &Value) -> bool {
             && query["index"] == 0
             && query["objects"]["kind"] == "Zone"
             && query["objects"]["args"]["scope"]["Players"]["zone"] == "Library"
+}
+
+/// The branch tests the single card just revealed. Its first unqualified
+/// move refers to that tested card in either arm.
+pub(super) fn tests_previous_reveal(previous: &Value, branch: &Value) -> bool {
+    let reveal = &previous["args"]["operation"];
+    let test = &branch["args"]["condition"];
+    let left = &test["args"]["left"];
+    let matching = &left["args"];
+    let observed = &matching["args"]["objects"];
+    previous["kind"] == "Effect"
+        && reveal["kind"] == "Reveal"
+        && super::card_receipt::top_card(&reveal["args"]["objects"])
+        && branch["kind"] == "If"
+        && test["kind"] == "Compare"
+        && test["args"]["test"]
+            == json!({"kind":"Compare","args":{
+                "comparison":"GreaterOrEqual","value":{"kind":"Constant","args":1}
+            }})
+        && left["kind"] == "CountObjects"
+        && matching["kind"] == "Matching"
+        && observed["kind"] == "Observed"
+        && observed["args"].is_u64()
+        && observed["args"] == previous["args"]["result"]
 }
 
 /// The effect `instruction` performs last: itself, or the last effect of a conditional

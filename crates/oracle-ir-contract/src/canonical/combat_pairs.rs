@@ -4,7 +4,7 @@ use super::{
     walk::{Visit, Walker},
 };
 use crate::ir_schema::{Schema, Ty};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 const MAX_COMPARISON_WORK: usize = 8192;
 
@@ -87,6 +87,50 @@ impl Visit for PairRole<'_> {
         );
         self.new_frames -= usize::from(new_event_frame(value, ty));
         Ok(())
+    }
+}
+
+/// The end-of-combat return captures the other participant in this block pair.
+pub(super) fn delayed_bounce(ability: &mut Value) {
+    let Some((role, _)) = participant(ability) else {
+        return;
+    };
+    let Some([delay]) = ability["args"]["body"]["instructions"]
+        .as_array_mut()
+        .map(Vec::as_mut_slice)
+    else {
+        return;
+    };
+    if delay["kind"] != "Effect" {
+        return;
+    }
+    let trigger = &mut delay["args"]["operation"];
+    if trigger["kind"] != "CreateDelayedTrigger"
+        || trigger["args"]["event"]
+            != json!({"Turn":{"point":"CombatEnds","players":{"kind":"All"}}})
+        || trigger["args"]["start"] != "Immediately"
+        || !trigger["args"]["expires"].is_null()
+        || !trigger["args"]["intervening_if"].is_null()
+    {
+        return;
+    }
+    let Some([returning]) = trigger["args"]["body"]["instructions"]
+        .as_array_mut()
+        .map(Vec::as_mut_slice)
+    else {
+        return;
+    };
+    if returning["kind"] != "Effect" {
+        return;
+    }
+    let movement = &mut returning["args"]["operation"];
+    if movement["kind"] == "Move"
+        && movement["args"]["qualifiers"] == json!([])
+        && movement["args"]["destination"].get("OwnersHand").is_some()
+        && movement["args"]["objects"]
+            == json!({"kind":"One","args":{"kind":"BlockPair","args":"Other"}})
+    {
+        movement["args"]["objects"]["args"]["args"] = json!(role);
     }
 }
 

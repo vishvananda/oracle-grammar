@@ -96,6 +96,9 @@ impl Visit for Normalize {
             return Ok(());
         }
         self.changed |= super::target_pairs::normalize(value, self.tracing, walker)?;
+        if !self.keep_order {
+            super::combat_pairs::delayed_bounce(value);
+        }
         let Some(needed) = self.owners.pop() else {
             return Ok(());
         };
@@ -112,9 +115,9 @@ impl Visit for Normalize {
         }
         let mut uses = Uses::default();
         walker.walk(value, ty, false, "", 0, &mut uses)?;
-        if hands {
-            // A created token's independent ability can reuse an unread result
-            // label. It cannot erase the surrounding hand-observation proof.
+        if hands || needed.native_payment {
+            // Evaluate owner instructions here. Payment normalization still counts
+            // every read, including any reference from a captured nested ability.
             let mut owner = Uses::within_ability();
             if uses.abilities != 1 {
                 walker.walk(value, ty, false, "", 0, &mut owner)?;
@@ -122,7 +125,14 @@ impl Visit for Normalize {
             let local = if uses.abilities == 1 { &uses } else { &owner };
             for path in &local.programs {
                 if let Some(items) = value.pointer_mut(path).and_then(Value::as_array_mut) {
-                    self.changed |= super::observed_hands::normalize(items, local, self.tracing);
+                    if hands {
+                        self.changed |=
+                            super::observed_hands::normalize(items, local, self.tracing);
+                    }
+                    if needed.native_payment {
+                        self.changed |=
+                            super::resolution_payments::program(items, &uses, self.tracing);
+                    }
                 }
             }
         }
@@ -159,9 +169,6 @@ impl Visit for Normalize {
                 }
                 if needed.pump_untap {
                     self.changed |= super::pump_untap::program(items, &uses, self.tracing);
-                }
-                if needed.native_payment {
-                    self.changed |= super::resolution_payments::program(items, &uses, self.tracing);
                 }
             }
         }

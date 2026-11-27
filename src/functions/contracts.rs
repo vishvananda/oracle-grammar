@@ -643,6 +643,7 @@ fn optional_scope_call(
         name,
         "single_reflexive_base"
             | "offered_action"
+            | "independent_top_continuation"
             | "captured_targets"
             | "announced_targets"
             | "optional_program"
@@ -873,6 +874,7 @@ fn specialized_call(
         | "captured_targets"
         | "announced_targets"
         | "optional_program"
+        | "independent_top_continuation"
         | "optional_action_program" => optional_scope_call(name, args, ty, schema).map(Some),
         "computed_condition" | "number_condition" => {
             let [condition] = args else {

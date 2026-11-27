@@ -11,6 +11,7 @@ pub(crate) struct Site {
     returned: usize,
     producer: Option<usize>,
     optional: bool,
+    plural: bool,
 }
 fn controller() -> Value {
     json!({"kind":"AbilityController"})
@@ -138,6 +139,35 @@ fn leaving_return(ability: usize, value: &Value) -> Option<Site> {
         returned: 0,
         producer: None,
         optional,
+        plural: false,
+    })
+}
+
+fn spell_return(ability: usize, value: &Value) -> Option<Site> {
+    if value["kind"] != "Spell" {
+        return None;
+    }
+    let body = items(value)?;
+    let (exile, returned) = match body {
+        [exile, returned] => (exile, returned),
+        [exile, investigate, returned]
+            if operation(investigate).is_some_and(|op| {
+                op["kind"] == "Keyword" && op["args"]["action"].get("Investigate").is_some()
+            }) =>
+        {
+            (exile, returned)
+        }
+        _ => return None,
+    };
+    if !direct_exile(exile) || operation(returned)?["kind"] != "CreateDelayedTrigger" {
+        return None;
+    }
+    Some(Site {
+        ability,
+        returned: body.len() - 1,
+        producer: Some(0),
+        optional: false,
+        plural: true,
     })
 }
 
@@ -151,7 +181,8 @@ fn candidates(card: &Value) -> Result<Vec<Site>, String> {
     let mut out = Vec::new();
     for (ability, value) in abilities.iter().enumerate() {
         let value = super::presentation::core(value);
-        if let Some(site) = leaving_return(ability, value) {
+        if let Some(site) = leaving_return(ability, value).or_else(|| spell_return(ability, value))
+        {
             crate::functions::branch_bounds(value)?;
             out.push(site);
             continue;
@@ -180,16 +211,33 @@ fn candidates(card: &Value) -> Result<Vec<Site>, String> {
                 returned: body.len() - 1,
                 producer: (body.len() > 1).then_some(body.len().saturating_sub(2)),
                 optional: false,
+                plural: false,
             });
         }
     }
     Ok(out)
 }
+fn has_literal(card: &Value, site: &Site) -> bool {
+    let Some(op) = returned(card, site) else {
+        return false;
+    };
+    let objects = &op["args"]["objects"];
+    if !site.plural {
+        return raw_literal(objects);
+    }
+    let objects = if super::symbol_name(objects) == Some("zone_members") {
+        &objects["args"][0]
+    } else {
+        objects
+    };
+    super::symbol_name(objects) == Some(MARKER) && objects["args"] == json!([linked_zone()])
+}
+
 /// Capture noun provenance and erase no-focus recipe annotations before binding.
 pub(crate) fn prepare(card: &mut Value) -> Result<Vec<Site>, String> {
     let sites = candidates(card)?
         .into_iter()
-        .filter(|site| returned(card, site).is_some_and(|op| raw_literal(&op["args"]["objects"])))
+        .filter(|site| has_literal(card, site))
         .collect();
     strip(card, 0, &mut 131_072)?;
     Ok(sites)
@@ -198,9 +246,7 @@ pub(crate) fn prepare(card: &mut Value) -> Result<Vec<Site>, String> {
 /// Read-only fast check: returns `Ok(true)` when `prepare` would return zero sites
 /// and make zero edits, avoiding a full-card clone before per-ability cache lookup.
 pub(crate) fn is_plain(card: &Value) -> Result<bool, String> {
-    let has_site = candidates(card)?
-        .iter()
-        .any(|site| returned(card, site).is_some_and(|op| raw_literal(&op["args"]["objects"])));
+    let has_site = candidates(card)?.iter().any(|site| has_literal(card, site));
     if has_site {
         return Ok(false);
     }
@@ -537,8 +583,30 @@ fn unambiguous_departure_producer(card: &Value) -> bool {
     })
 }
 
+fn spell_exile_group(card: &Value, ability: &Value, site: &Site) -> Option<Value> {
+    let movement = returned(card, site)?;
+    if movement["args"]["destination"]["Battlefield"]["controller"] != "Owner"
+        || movement["args"]["qualifiers"] != json!([])
+        || !ability["args"]["announcement"]["modes"].is_null()
+    {
+        return None;
+    }
+    let body = items(ability)?;
+    let delay = operation(body.get(site.returned)?)?;
+    if !unique_results(body, delay) {
+        return None;
+    }
+    let result = body.first()?["args"]["result"].as_u64()?;
+    Some(guarded(
+        json!({"kind":"Transition","args":{"result":result,"phase":"After"}}),
+    ))
+}
+
 fn group(card: &Value, site: &Site, departure_producer: bool) -> Option<Value> {
     let value = super::presentation::core(card.get(site.ability)?);
+    if site.plural {
+        return spell_exile_group(card, value, site);
+    }
     if value["kind"] == "Triggered" {
         return (departure_producer
             && source_leaves(&value["args"]["event"], false)
@@ -594,7 +662,12 @@ pub(crate) fn lower(card: &mut Value, sites: &[Site]) -> Result<(), String> {
             continue;
         };
         let objects = &returned(card, site).ok_or("linked action return path")?["args"]["objects"];
-        if *objects != scalar() && *objects != guarded(scalar()) {
+        let literal = if site.plural {
+            *objects == linked_zone()
+        } else {
+            *objects == scalar() || *objects == guarded(scalar())
+        };
+        if !literal {
             continue;
         }
         *objects_mut(card, site).ok_or("linked action mutation path")? = group;
@@ -616,12 +689,13 @@ pub(crate) fn projection(card: &Value) -> Result<Option<Value>, String> {
         };
         if returned(card, &site).is_some_and(|op| op["args"]["objects"] == group) {
             let copy = projected.get_or_insert_with(|| card.clone());
-            *objects_mut(copy, &site).ok_or("linked action projection path")? =
-                if site.producer.is_some() || card[site.ability]["kind"] == "Triggered" {
-                    guarded(scalar())
-                } else {
-                    scalar()
-                };
+            *objects_mut(copy, &site).ok_or("linked action projection path")? = if site.plural {
+                linked_zone()
+            } else if site.producer.is_some() || card[site.ability]["kind"] == "Triggered" {
+                guarded(scalar())
+            } else {
+                scalar()
+            };
         }
     }
     Ok(projected)

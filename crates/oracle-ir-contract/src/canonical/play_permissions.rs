@@ -11,10 +11,7 @@ fn permission(change: &Value) -> Option<&Value> {
 
 pub(super) fn join(effect: &mut Value, tracing: bool) {
     let args = &effect["args"];
-    if args["affected"].get("Players").is_none()
-        || args["duration"] != "EndOfTurn"
-        || args["evaluation"] != "LiveObjects"
-    {
+    if args["affected"].get("Players").is_none() || args["evaluation"] != "LiveObjects" {
         return;
     }
     let Some([first, second]) = args["changes"].as_array().map(Vec::as_slice) else {

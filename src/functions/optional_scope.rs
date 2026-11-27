@@ -288,6 +288,34 @@ pub(crate) fn offered_action(actions: &Value) -> Result<Value, String> {
     Ok(actions.clone())
 }
 
+/// A bare move of the revealed top card uses the clause that supplies that card.
+pub(crate) fn independent_top_continuation(actions: &Value) -> Result<Value, String> {
+    let [effect] = instructions(actions)? else {
+        return Ok(actions.clone());
+    };
+    let operation = &effect["args"]["operation"];
+    let args = &operation["args"];
+    let objects = &args["objects"];
+    let one = &objects["args"][0];
+    let reference = &one["args"];
+    let pronoun = &reference["args"][0];
+    let destination = &args["destination"];
+    if effect["kind"] == "Effect"
+        && operation["kind"] == "Move"
+        && args["qualifiers"] == json!([])
+        && (destination.get("OwnersGraveyard").is_some()
+            || destination["Library"]["position"] == "Bottom")
+        && objects["$sym"] == "exile_followup"
+        && one["kind"] == "One"
+        && reference["$sym"] == "member_count_it"
+        && pronoun["$sym"] == "it"
+        && pronoun["args"] == json!([])
+    {
+        return Err("the moved card is the revealed top card".into());
+    }
+    Ok(actions.clone())
+}
+
 /// This compound producer has its own declared completion receipt. It cannot
 /// use the generic single-action backwards reference as a competing reading.
 pub(crate) fn single_base(actions: &Value) -> Result<Value, String> {
@@ -295,6 +323,15 @@ pub(crate) fn single_base(actions: &Value) -> Result<Value, String> {
         return Err("compound discard-hand/draw uses its declared completion receipt".into());
     }
     Ok(actions.clone())
+}
+
+pub(crate) fn action_guard(name: &str, actions: &Value) -> Result<Value, String> {
+    match name {
+        "single_reflexive_base" => single_base(actions),
+        "offered_action" => offered_action(actions),
+        "independent_top_continuation" => independent_top_continuation(actions),
+        _ => Err(format!("unknown action guard {name}")),
+    }
 }
 
 /// A second explicit choice is outside the preceding `you may have` offer.
@@ -422,8 +459,8 @@ pub(crate) fn unify<'p, 'v>(
         "then_sequence" => unify_then(args, value, bindings, false, ctx),
         "optional_then" => unify_then(args, value, bindings, true, ctx),
         "single_reflexive_base" => unify_base(args, value, bindings, ctx),
-        "offered_action" => match args {
-            [inner] if offered_action(value).is_ok() => inner.unify_with(value, bindings, ctx),
+        "offered_action" | "independent_top_continuation" => match args {
+            [inner] if action_guard(name, value).is_ok() => inner.unify_with(value, bindings, ctx),
             _ => Vec::new(),
         },
         "optional_action_program" => match args {

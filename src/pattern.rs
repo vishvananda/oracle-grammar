@@ -617,12 +617,10 @@ impl Pattern {
                             name == "optional_then",
                         );
                     }
-                    ("single_reflexive_base", [actions]) => {
-                        return crate::functions::optional_scope::single_base(actions);
-                    }
-                    ("offered_action", [actions]) => {
-                        return crate::functions::optional_scope::offered_action(actions);
-                    }
+                    (
+                        "single_reflexive_base" | "offered_action" | "independent_top_continuation",
+                        [actions],
+                    ) => return crate::functions::optional_scope::action_guard(name, actions),
                     ("optional_action_program", [program]) => {
                         return crate::functions::optional_scope::action_program(program);
                     }
@@ -969,6 +967,7 @@ impl Pattern {
             | "single_reflexive_base"
             | "offered_action"
             | "optional_program"
+            | "independent_top_continuation"
             | "optional_action_program" => {
                 return crate::functions::optional_scope::unify(name, args, value, bindings, ctx);
             }

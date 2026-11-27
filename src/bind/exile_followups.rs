@@ -309,20 +309,23 @@ fn single_random_exiled_card(operation: &Value) -> bool {
         && args["player"]["kind"] == "AbilityController"
 }
 
-/// A bare card pronoun follows an unambiguous immediately preceding exile or
-/// exile choice. The remembered result can contain only the actual arrivals
-/// or the one card chosen. An explicit holder or unrelated move stays separate.
-fn lost_receipt(operation: &Value, context: &Context) -> bool {
+fn implicit_source_move(operation: &Value) -> bool {
     let mut objects = &operation["args"]["objects"];
     if super::symbol_name(objects) == Some("zone_members") {
         objects = &objects["args"][0];
     }
-    if operation["kind"] != "Move"
-        || operation["args"]["qualifiers"] != json!([])
-        || super::symbol_name(objects) != Some(MARKER)
-        || objects["same_antecedent"] != true
-        || objects["args"][0] != json!({"kind":"One","args":{"kind":"Source"}})
-    {
+    operation["kind"] == "Move"
+        && operation["args"]["qualifiers"] == json!([])
+        && super::symbol_name(objects) == Some(MARKER)
+        && objects["same_antecedent"] == true
+        && objects["args"][0] == json!({"kind":"One","args":{"kind":"Source"}})
+}
+
+/// A bare card pronoun follows an unambiguous immediately preceding exile or
+/// exile choice. The remembered result can contain only the actual arrivals
+/// or the one card chosen. An explicit holder or unrelated move stays separate.
+fn lost_receipt(operation: &Value, context: &Context) -> bool {
+    if context.recent.is_none() || !implicit_source_move(operation) {
         return false;
     }
     let destination = &operation["args"]["destination"];
@@ -331,6 +334,14 @@ fn lost_receipt(operation: &Value, context: &Context) -> bool {
         Some(RecentExile::RandomChoice) => destination.get("OwnersHand").is_some(),
         _ => false,
     }
+}
+
+fn lost_revealed_card(previous: &Value, branch: &Value) -> bool {
+    super::revealed_card::tests_previous_reveal(previous, branch)
+        && ["then", "otherwise"].iter().any(|arm| {
+            let first = &branch["args"][*arm]["instructions"][0];
+            first["kind"] == "Effect" && implicit_source_move(&first["args"]["operation"])
+        })
 }
 
 fn visit(
@@ -388,9 +399,14 @@ fn visit(
     if let Some(instructions) = value.get_mut("instructions").and_then(Value::as_array_mut) {
         let mut local = context.clone();
         local.recent = None;
+        let mut previous = None;
         for instruction in instructions {
+            if previous.is_some_and(|previous| lost_revealed_card(previous, instruction)) {
+                return Err("the conditional move needs the revealed card it tests".into());
+            }
             visit(instruction, &local, depth + 1, work)?;
             local.record(instruction)?;
+            previous = Some(&*instruction);
         }
         return Ok(());
     }

@@ -67,6 +67,7 @@ fn site(index: usize) -> Site {
             returned: 0,
             producer: None,
             optional: false,
+            plural: false,
         }
     } else {
         Site {
@@ -74,6 +75,7 @@ fn site(index: usize) -> Site {
             returned: 1,
             producer: Some(0),
             optional: false,
+            plural: false,
         }
     }
 }
