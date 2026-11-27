@@ -3,6 +3,13 @@ use serde_json::Value;
 
 pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {
     let args = &ability["args"];
+    if ability["kind"] == "Triggered"
+        && args["event"]["Player"]["event"] == "LosesLife"
+        && is_controller(&args["event"]["Player"]["players"])
+        && visit("YourDamageCausesLifeLoss")
+    {
+        return true;
+    }
     if ability["kind"] == "Spell"
         && let Some(epic) = epic_announcement(args)
         && visit(epic)
@@ -52,6 +59,10 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                 Some("Keyword") => {
                     phases_out_for_controller(&op["args"], frame) && visit("PhaseOutUntilYourTurn")
                 }
+                Some("KeywordEach") => {
+                    controlled_group_phases_out(&op["args"], frame)
+                        && visit("ControlledGroupPhasesOut")
+                }
                 Some("CreateTokens") => {
                     let tokens = &op["args"]["tokens"];
                     creature_tokens_without_haste(tokens) && visit("SummoningSickness")
@@ -65,6 +76,8 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                 Some("CreateContinuousEffect") => {
                     grants_graveyard_jump_start(op, frame) && visit("JumpStartFromYourGraveyard")
                         || lifelink_notes(&op["args"], frame, &mut visit)
+                        || keeps_abilities_when_animated(&op["args"])
+                            && visit("AnimationKeepsAbilities")
                 }
                 Some("ReflexiveTrigger") => {
                     effects(&op["args"]["body"])
@@ -76,6 +89,22 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
             }
         },
     )
+}
+
+fn keeps_abilities_when_animated(args: &Value) -> bool {
+    args["affected"]["Objects"]["kind"] == "One"
+        && args["changes"].as_array().is_some_and(|changes| {
+            changes.len() <= 16
+                && changes
+                    .iter()
+                    .any(|change| change["kind"] == "AddCardType" && change["args"] == "Creature")
+                && changes.iter().all(|change| {
+                    matches!(
+                        change["kind"].as_str(),
+                        Some("AddCardType" | "SetBasePowerToughness" | "AddSubtype")
+                    )
+                })
+        })
 }
 
 fn lifelink_notes(
@@ -278,6 +307,30 @@ fn phases_out_for_controller(args: &Value, frame: &Value) -> bool {
             .is_some_and(|target| filter_proves(&target["filter"], &controlled, 0, &mut 256)),
         _ => false,
     }
+}
+
+fn controlled_group_phases_out(args: &Value, frame: &Value) -> bool {
+    let phase = &args["action"]["PhaseOut"];
+    if !phase.is_object() || !phase["until"].is_null() || !is_controller(&args["actor"]) {
+        return false;
+    }
+    let objects = &args["objects"];
+    let filter = match objects["kind"].as_str() {
+        Some("Targets") => {
+            let Some(target) = target_spec(objects, &frame["announcement"]) else {
+                return false;
+            };
+            &target["filter"]
+        }
+        Some("Zone") => &objects["args"]["filter"],
+        _ => return false,
+    };
+    filter_proves(
+        filter,
+        &|term| term["kind"] == "ControlledBy" && is_controller(&term["args"]),
+        0,
+        &mut 256,
+    )
 }
 
 fn makes_creature(changes: &Value, copy: bool) -> bool {

@@ -481,6 +481,11 @@ spell_your_commander ::= "your" "commander"
 /* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:@and($spell_filter, ObjectFilter::Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}})} */
 event_cast_from_hand ::= "you" "cast" spell_filter "from" "your" "hand"
 
+/* The changed spell is the same cast spell that triggered the ability. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:$event_cast_from_hand, intervening_if:$condition, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:ChangeSpell{subject:One(EventSubject), changes:$spell_changes}}]}} */
+triggered_hand_cast_spell_change ::= "whenever" event_cast_from_hand "," "if" condition "," "that" "spell" spell_changes "."
+
 /* "From anywhere other than your hand" says "your" only after "you cast"; another
    caster's hand is "their hand". */
 /* @sem EventSpec::Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:Not(Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}})} */

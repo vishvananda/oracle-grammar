@@ -69,6 +69,10 @@ fn mechanic(value: &Value) -> Option<&'static str> {
         "Retrace" => Some("Retrace"),
         "Unleash" => Some("Unleash"),
         "Storm" => Some("Storm"),
+        "Gravestorm" => Some("Gravestorm"),
+        "Cascade" => Some("Cascade"),
+        "Rebound" => Some("Rebound"),
+        "Undying" => Some("Undying"),
         "UmbraArmor" => Some("UmbraArmor"),
         "BattleCry" => Some("BattleCry"),
         "Extort" => Some("Extort"),
@@ -259,6 +263,12 @@ fn marker(value: &Value) -> Option<&'static str> {
             Some("SpliceArcane")
         }
         Some("Prototype") => Some("Prototype"),
+        Some("Mechanic")
+            if args["mechanic"] == "BloodthirstX"
+                || args["mechanic"] == "Bloodthirst" && args["amount"] == *PRINTED_X =>
+        {
+            Some("BloodthirstX")
+        }
         Some("Mechanic") => mechanic(&args["mechanic"]).or_else(|| evidence::mention(value)),
         Some("Fight") => Some("Fight"),
         Some("Companion") => Some("Companion"),
@@ -267,6 +277,12 @@ fn marker(value: &Value) -> Option<&'static str> {
                 && args["hosts"]["Permanents"]["args"] == "Creature" =>
         {
             Some("EnchantCreature")
+        }
+        Some("Enchant")
+            if args["hosts"]["Permanents"]["kind"] == "CardType"
+                && args["hosts"]["Permanents"]["args"] == "Land" =>
+        {
+            Some("EnchantLand")
         }
         Some("CreateRegenerationShields")
             if args["objects"]["kind"] == "One" && args["objects"]["args"]["kind"] == "Source" =>
@@ -371,7 +387,13 @@ fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
 fn admits_written_x(topic: &str, amount: &Value) -> bool {
     matches!(
         topic,
-        "Earthbend" | "AmassOrcs" | "AmassZombies" | "Bolster" | "Connive" | "Monstrosity"
+        "Earthbend"
+            | "AmassOrcs"
+            | "AmassZombies"
+            | "Bolster"
+            | "Connive"
+            | "Monstrosity"
+            | "Surveil"
     ) && !amount.is_null()
         && amount["kind"] != "Constant"
 }
@@ -471,7 +493,9 @@ fn visit_mentions<'a>(
                     || topic == "EndTheTurn"
                         && ability["kind"] == "Spell"
                         && visit("EndTurnFromSpell", None)
-            }) || evidence::flashback_at_mana_cost(value) && visit("FlashbackAtManaCost", None)
+                    || topic == "Storm" && value == ability && visit("StormPermanentCopies", None)
+            }) || evidence::flashback_at_mana_cost(value)
+                && (visit("FlashbackAtManaCost", None) || visit("FullManaCost", None))
                 || casting::permission_notes(value, |topic| visit(topic, None))
                 || mechanic_notes::mention(value).is_some_and(|topic| {
                     visit(topic, None)
@@ -606,6 +630,8 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "OwnCreatureLifelink"
                     | "OwnGroupLifelink"
                     | "OwnSliverLifelink"
+                    | "StormPermanentCopies"
+                    | "ControlledGroupPhasesOut"
             )
         )
     )
@@ -648,6 +674,9 @@ pub(crate) fn check_bound_claims(
             continue;
         }
         let (topic, expected) = claim(explanation).ok_or("invalid bound reminder claim")?;
+        if topic == "StormPermanentCopies" && !permanent_source {
+            return Err("this storm reminder requires a permanent spell".into());
+        }
         if topic == "PermanentSpellCopy"
             && permanent_source
             && evidence::copies_source_spell(ability)
@@ -687,6 +716,7 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
                 | "CreatureSpellCopy"
                 | "OwnCreatureLifelink"
                 | "OwnGroupLifelink"
+                | "ControlledGroupPhasesOut"
         )
     );
     let mut deferred =

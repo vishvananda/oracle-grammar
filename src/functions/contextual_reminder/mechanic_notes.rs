@@ -57,6 +57,21 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         }
         "ChooseValue" if args["kind"] == "CardType" => Some("CardTypes"),
         "Triggered" => counters_on_damage_recipient(args),
+        "Keyword"
+            if args["action"]["ManifestDread"].is_object()
+                && args["actor"]["kind"] == "One"
+                && args["actor"]["args"]["kind"] == "ControllerOf"
+                && args["actor"]["args"]["args"]["kind"] == "Target" =>
+        {
+            Some("ManifestDreadTargetController")
+        }
+        "Keyword" if args["action"]["BecomeBlocked"].is_object() => Some("BecomeBlocked"),
+        "PayCost"
+            if matches!(args["cost"]["parts"].as_array().map(Vec::as_slice),
+                Some([part]) if part["ManaCostOf"].is_object()) =>
+        {
+            Some("FullManaCost")
+        }
         "PutCounters" => keyword_counter_reminder(args),
         "TowardPlayer"
             if matches!(

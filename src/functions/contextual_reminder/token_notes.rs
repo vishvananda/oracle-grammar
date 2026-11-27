@@ -32,7 +32,11 @@ fn last_creation(ability: &Value) -> Option<&Value> {
             steps = &last["args"]["instructions"];
             continue;
         }
-        let operation = step_operation(last)?;
+        let step = match instructions.as_slice() {
+            [.., creation, follow_up] if goads_created_tokens(creation, follow_up) => creation,
+            _ => last,
+        };
+        let operation = step_operation(step)?;
         let operation = if operation["$sym"] == "created_result" {
             &operation["args"][0]
         } else {
@@ -47,6 +51,19 @@ fn last_creation(ability: &Value) -> Option<&Value> {
         return Some(spec);
     }
     None
+}
+
+fn goads_created_tokens(creation: &Value, follow_up: &Value) -> bool {
+    let Some(operation) = step_operation(follow_up) else {
+        return false;
+    };
+    let args = &operation["args"];
+    let objects = &args["objects"];
+    operation["kind"] == "KeywordEach"
+        && args["action"]["Goad"]["until"] == "Indefinite"
+        && objects["kind"] == "Created"
+        && objects["args"].is_u64()
+        && objects["args"] == creation["args"]["result"]
 }
 
 fn descriptions(ability: &Value, plural: bool) -> Vec<Value> {

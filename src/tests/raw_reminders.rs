@@ -810,3 +810,28 @@ fn copy_explanation_distinguishes_permanent_spells_from_abilities() {
     let wrong = text.replace("permanent spell", "activated ability");
     assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
 }
+
+#[test]
+fn two_reminder_claims_must_agree_with_the_same_resolution() {
+    let context = empty_card_characteristics();
+    let text = "Whenever Synthetic attacks, attach up to one target Equipment to it. Then amass Orcs X, where X is the number of Equipment attached to Synthetic. (Control of the Equipment doesn't change. To amass Orcs X, put X +1/+1 counters on an Army you control. It's also an Orc. If you don't control an Army, create a 0/0 black Orc Army creature token first.)";
+    exact_roundtrip(text, &context);
+    let wrong_amount = text.replace("To amass Orcs X, put X", "To amass Orcs 2, put 2");
+    let wrong_mechanic = text.replace(
+        "Control of the Equipment doesn't change.",
+        "Damage causes loss of life.",
+    );
+    for wrong in [wrong_amount, wrong_mechanic] {
+        assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    }
+}
+
+#[test]
+fn storm_token_copies_require_a_permanent_source() {
+    let mut context = empty_card_characteristics();
+    let text = "Storm (When you cast this spell, copy it for each spell cast before it this turn. Copies become tokens.)";
+    context.card_types = vec![CardType::Creature];
+    exact_roundtrip(text, &context);
+    context.card_types = vec![CardType::Sorcery];
+    assert!(super::engine().parse_card(NAME, text, &context).is_err());
+}
