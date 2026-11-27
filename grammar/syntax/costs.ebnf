@@ -1897,7 +1897,8 @@ self_return_with_target_tapped ::= "return" "this" "card" "and" "target" noun "c
 
 /* The adjacent singular return establishes the arrival receipt used by the grant. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$self_return_battlefield_attached}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[GrantAbility($token_quoted_sentence)]}}]} */
-self_return_attached_perpetual ::= self_return_battlefield_attached "." "this" "Aura" "perpetually" "gains" token_quoted_sentence
+self_return_attached_perpetual ::= self_return_battlefield_attached "." returned_aura_grant_words "perpetually" "gains" token_quoted_sentence
+returned_aura_grant_words ::= self_aura | scoped_source_printed_name
 
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:$self_return_attached_perpetual})} */
 activated_self_return_perpetual ::= cost ":" self_return_attached_perpetual activation_limits "."
@@ -2886,11 +2887,11 @@ entry_exile_pair_payment ::= "exile" "two" filter_phrase "cards" "from" "graveya
 
 /* An activation from hand composes ordinary clauses with a named-card exile callback. */
 /* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost{parts:[Mana($mana_symbols), Discard{count:Constant(1), filter:SameObject(Source), random:false}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[...$clause, ...$clause_2, ...$named_graveyard_exile_reflexive]}})} */
-activated_hand_discard_exile_reflexive ::= mana_symbols "," ("↑")? "discard" "this" "card" ":" clause "." clause "." "then" named_graveyard_exile_reflexive "."
+activated_hand_discard_exile_reflexive ::= mana_symbols "," ("↑")? "discard" scoped_source_card ":" clause "." clause "." "then" named_graveyard_exile_reflexive "."
 
 /* The availability test, selection, move and callback share the same named population. */
 /* @sem Instruction::[If{condition:Compare{left:CountObjects(Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([Not(SameObject(Source)), Name($referenced_card_name)])}), test:Compare{comparison:GreaterOrEqual, value:$count_plural}}, then:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([Not(SameObject(Source)), Name($referenced_card_name)])}, count:AsManyAsCan($count_plural)}}, Effect{result:@mark, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}}}, Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true}}}}]}})}]}}]}, otherwise:Program{}}] */
-named_graveyard_exile_reflexive ::= "you" "may" "exile" count_plural "other" "cards" "named" referenced_card_name "from" "your" "graveyard" "." "when" "you" "do" "," "return" "this" "card" "from" "your" "graveyard" "to" "the" "battlefield" "tapped"
+named_graveyard_exile_reflexive ::= "you" "may" "exile" count_plural "other" "cards" "named" referenced_card_name "from" "your" "graveyard" "." "when" "you" "do" "," "return" scoped_source_card "from" "your" "graveyard" "to" "the" "battlefield" "tapped"
 
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$roll_die_action}, ...$instructions_players_exile_until_die_cast]}} */
 activated_roll_exile_until_die_cast ::= cost ":" roll_die_action "." instructions_players_exile_until_die_cast

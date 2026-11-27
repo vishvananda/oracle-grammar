@@ -921,7 +921,7 @@ graveyard_suffix_fixed_last ::= graveyard_suffix_fixed_program "."
 /* @sem Program::Program{instructions:[...$graveyard_suffix_fixed_instructions, ...$instructions]} */
 graveyard_suffix_fixed_tail ::= graveyard_suffix_fixed_instructions "." instructions "."
 /* @sem @where($graveyard_suffix_x_program, $value) */
-graveyard_suffix_where ::= graveyard_suffix_x_program "," "where" "X" "is" value "."
+graveyard_suffix_where ::= graveyard_suffix_x_program ","? "where" "X" "is" value "."
 
 /* @sem Program::Program{instructions:$graveyard_suffix_fixed_instructions} */
 graveyard_suffix_fixed_program ::= graveyard_suffix_fixed_instructions
@@ -4133,16 +4133,16 @@ attached_choice_land ::= "a" noun_land
 
 /* The location and event frame a counter-driven return program. */
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$graveyard_local_event, intervening_if:ObjectMatches{object:Source, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_symbol_counter_program})} */
-graveyard_symbol_counter_trigger ::= graveyard_local_event "," "if" "this" "card" "is" "in" "your" "graveyard" "," graveyard_symbol_counter_program "."
+graveyard_symbol_counter_trigger ::= graveyard_local_event "," "if" scoped_source_card "is" "in" "your" "graveyard" "," graveyard_symbol_counter_program "."
 
 /* @sem Program::Program{instructions:[$graveyard_symbol_counter_put, $graveyard_counter_return_perpetual]} */
 graveyard_symbol_counter_program ::= graveyard_symbol_counter_put "." graveyard_counter_return_perpetual
 
 /* @sem Instruction::Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Source)), kind:$counter_kind, amount:CountManaSymbols{objects:One(EventSubject), colors:[$graveyard_count_symbol]}}]}} */
-graveyard_symbol_counter_put ::= "put" "a" counter_kind "counter" "on" "this" "card" "for" "each" graveyard_count_symbol "in" "that" "spell's" "mana" "cost"
+graveyard_symbol_counter_put ::= "put" "a" counter_kind "counter" "on" scoped_source_card "for" "each" graveyard_count_symbol "in" "that" "spell's" "mana" "cost"
 
 /* @sem Instruction::If{condition:Compare{left:CountCounters(_{recipients:Objects(Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:SameObject(Source)})), kind:$counter_kind, information:CurrentOrLastKnown}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, then:_{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[Pump{power:$signed, toughness:$signed_2}]}}]}, otherwise:_{}} */
-graveyard_counter_return_perpetual ::= "if" "this" "card" "has" number "or" "more" counter_kind "counters" "on" "it" "," "return" "it" "to" "the" "battlefield" "and" "it" "perpetually" "gets" signed "/" signed
+graveyard_counter_return_perpetual ::= "if" scoped_source_card "has" number "or" "more" counter_kind "counters" "on" "it" "," "return" "it" "to" "the" "battlefield" "and" "it" "perpetually" "gets" signed "/" signed
 
 graveyard_count_symbol ::= graveyard_symbol_white | graveyard_symbol_blue | graveyard_symbol_black | graveyard_symbol_red | graveyard_symbol_green
 
@@ -5050,7 +5050,12 @@ graveyard_return_battlefield_payment ::= "you" "may" graveyard_defined_mana_paym
 graveyard_return_mentioned_card ::= "return" "it" "from" "your" "graveyard" "to" "the" "battlefield"
 
 /* @sem Cost::Cost{parts:[ManaWithX{mana:[X, ...$mana_symbols], x:Expr::ObjectProperty{object:Source, property:$graveyard_card_stat, information:CurrentOrLastKnown}}]} */
-graveyard_defined_mana_payment ::= "pay" "{" "X" "}" mana_symbols "," "where" "X" "is" "this" "card's" graveyard_card_stat
+graveyard_defined_mana_payment ::= "pay" "{" "X" "}" mana_symbols "," "where" "X" "is" graveyard_payment_possessive_words graveyard_card_stat
+graveyard_payment_possessive_words ::= graveyard_payment_card_words | graveyard_payment_name_words
+/* @sem () */
+graveyard_payment_card_words ::= "this" "card's"
+/* @sem () */
+graveyard_payment_name_words ::= self_named "'s"
 
 graveyard_card_stat ::= stat_power | stat_toughness
 
@@ -6464,7 +6469,12 @@ history_referenced_or_another_entry_controlled ::= history_referenced_or_another
 
 /* The comparison is to the granted ability holder, not the outer source. */
 /* @sem EventSpec::ZoneChange{objects:AllOf([$noun, ControlledBy(One(AbilityController)), Property{property:$stat, test:NumberTest::Compare{comparison:Greater, value:ObjectProperty{object:Source, property:$stat, information:CurrentOrLastKnown}}}]), from:Battlefield, to:Graveyard} */
-granted_controlled_greater_stat_death ::= "when" "a" noun "you" "control" "with" "greater" stat "than" "this" "card" "dies"
+granted_controlled_greater_stat_death ::= granted_greater_death_trigger_words "a" noun "you" "control" "with" "greater" stat "than" "this" "card" "dies"
+granted_greater_death_trigger_words ::= granted_greater_death_when | granted_greater_death_whenever
+/* @sem () */
+granted_greater_death_when ::= "when"
+/* @sem () */
+granted_greater_death_whenever ::= "whenever"
 
 /* A controlled entrant expressed as a zone change, preserving the entrant as subject. */
 /* @sem EventSpec::ZoneChange{objects:$controlled_entrant, to:Battlefield} */

@@ -9835,7 +9835,7 @@ instructions_draw_reveal_remove_value ::= "draw" "a" "card" "and" "reveal" "it" 
 /* The death-event card and the exact conjured arrival remain paired through
    both the perpetual change and the subsequent graveyard move. */
 /* @sem Instruction::[Effect{result:@next, operation:$conjure_named_death_graveyard}, Effect{result:@next, operation:EffectOn{subject:Objects(AnyZone(AnyOf([SameObject(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0}), SameObject(Result{result:@prior, phase:After, index:0})]))), effects:[Term{family:PerpetualEffect, form:DoubleCreaturesPowerAndToughness}]}}, Effect{result:@next, operation:Move{objects:Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([SameObject(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0}), SameObject(Result{result:@back(3), phase:After, index:0})])}), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
-instructions_conjure_death_pair ::= conjure_named_death_graveyard "." "perpetually" "double" "the" "power" "and" "toughness" "of" "this" "card" "and" "that" "card" "," "then" "shuffle" "them" "into" "their" "owner's" "library"
+instructions_conjure_death_pair ::= conjure_named_death_graveyard "." "perpetually" "double" "the" "power" "and" "toughness" "of" scoped_source_card "and" "that" "card" "," "then" "shuffle" "them" "into" "their" "owner's" "library"
 
 /* @sem Operation::Conjure{actor:One(AbilityController), card:Named($referenced_card_name), count:Constant(1), destination:Graveyard(CardArrival{counters:[], states:[]})} */
 conjure_named_death_graveyard ::= "conjure" "a" "card" "named" referenced_card_name "into" "your" "graveyard"
@@ -13405,8 +13405,8 @@ token_replacement_opponents ::= "an" "opponent's"
 token_control_replacement_response ::= "is" "created" "under" "your" "control" "instead"
 
 /* Both attachments are the battlefield arrivals of this conjure action. */
-/* @sem Instruction::[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Each([$referenced_card_name, $referenced_card_name_2]), count:Constant(1), destination:Battlefield(BattlefieldArrival{tapped:false, counters:[], states:[]})}}, Effect{result:@next, operation:Attach{attachments:Transition{result:@prior, phase:After}, host:Source}}] */
-instructions_conjure_named_pair_attach_source ::= "conjure" "a" "card" "named" referenced_card_name "and" "a" "card" "named" referenced_card_name "onto" "the" "battlefield" "and" "attach" "them" "to" "this" "creature"
+/* @sem Instruction::[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Each([$referenced_card_name, $referenced_card_name_2]), count:Constant(1), destination:Battlefield(BattlefieldArrival{tapped:false, counters:[], states:[]})}}, Effect{result:@next, operation:Attach{attachments:Transition{result:@prior, phase:After}, host:$self_explicit_ref}}] */
+instructions_conjure_named_pair_attach_source ::= "conjure" "a" "card" "named" referenced_card_name "and" "a" "card" "named" referenced_card_name "onto" "the" "battlefield" "and" "attach" "them" "to" self_explicit_ref
 
 /* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:_{instructions:$instructions_conjure_named_pair_attach_source}} */
 triggered_conjure_named_pair_attach ::= event_clause "," instructions_conjure_named_pair_attach_source "."
@@ -20530,7 +20530,7 @@ attacking_objects_choose_named_pile ::= "for" "each" "attacking" "creature" "you
 conjure_named_library_depth ::= "conjure" card_count "named" referenced_card_name "into" "your" "library" library_depth "from" "the" "top"
 
 /* @sem Ability::Scoped{zones:[Battlefield, Graveyard, Hand, Library, Stack, Exile, Command, Ante], ability:@scope(Ability::Triggered{event:Discard(_{players:One(AbilityController), cards:Any, source_only:true, kind:Any, grouping:Card}), limits:_{}, body:_{instructions:[Effect{result:@next, operation:$conjure_named_library_depth}]}, announcement:@announcement})} */
-triggered_source_discard_conjure_depth ::= "when" "you" "discard" "this" "card" "," conjure_named_library_depth "."
+triggered_source_discard_conjure_depth ::= "when" "you" "discard" scoped_source_card "," conjure_named_library_depth "."
 
 /* A target creature pump can be followed by a trigger on that same target. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$creature_target_signed_pump}, Effect{result:@next, operation:$target_creature_departure_trigger}]} */
@@ -24709,12 +24709,12 @@ scoped_cast_if_copy ::= "when" event_you_cast_reference "," "if" condition "," c
 target_player_discard_seek_mode ::= target_player "discards" "all" "the" "cards" "in" "their" "hand" "," "then" "seeks" "that" "many" adjective_nontype "cards"
 
 /* The target is also the token recipient. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(One($target_player)), amount:$number_digits, preventable:true}}, Effect{result:@next, operation:CreateTokens{players:One(Target{slot:@last_slot, index:0}), tokens:$token_groups, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
-source_damage_player_tokens_mode ::= "this" "creature" "deals" number_digits "damage" "to" target_player "and" "they" "create" token_groups
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Players(One($target_player)), amount:$number_digits, preventable:true}}, Effect{result:@next, operation:CreateTokens{players:One(Target{slot:@last_slot, index:0}), tokens:$token_groups, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
+source_damage_player_tokens_mode ::= self_explicit_ref "deals" number_digits "damage" "to" target_player "and" "they" "create" token_groups
 
 /* Both effects use the same controlled population. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One($target_player))])}), amount:$number_digits, preventable:true}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(Target{slot:@last_slot, index:0}))])}, changes:[Pump{power:$signed, toughness:$signed_2}]}}]} */
-source_damage_controlled_perpetual_mode ::= "this" "creature" "deals" number_digits "damage" "to" "each" "creature" target_player "controls" "." "those" "creatures" "perpetually" "get" signed "/" signed
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One($target_player))])}), amount:$number_digits, preventable:true}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(Target{slot:@last_slot, index:0}))])}, changes:[Pump{power:$signed, toughness:$signed_2}]}}]} */
+source_damage_controlled_perpetual_mode ::= self_explicit_ref "deals" number_digits "damage" "to" "each" "creature" target_player "controls" "." "those" "creatures" "perpetually" "get" signed "/" signed
 
 /* Separate combat decisions retain their own operations and durations. */
 /* @prefer always */
