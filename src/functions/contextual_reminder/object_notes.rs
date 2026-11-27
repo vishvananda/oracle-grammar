@@ -17,7 +17,16 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                 && visit("WitherGroup")
             || own_graveyard_cards(&args["affected"]["Objects"])
                 && grants_jump_start(&args["changes"])
-                && visit("JumpStartFromYourGraveyard"))
+                && visit("JumpStartFromYourGraveyard")
+            || lifelink_notes(args, args, &mut visit))
+    {
+        return true;
+    }
+    if ability["kind"] == "Conditional"
+        && args["otherwise"].as_array().is_some_and(Vec::is_empty)
+        && let Some([inner]) = args["then"].as_array().map(Vec::as_slice)
+        && inner["kind"] == "Static"
+        && lifelink_notes(&inner["args"], &inner["args"], &mut visit)
     {
         return true;
     }
@@ -55,6 +64,7 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                 Some("Move") => unattachable_auras(&op["args"]) && visit("UnattachableAuras"),
                 Some("CreateContinuousEffect") => {
                     grants_graveyard_jump_start(op, frame) && visit("JumpStartFromYourGraveyard")
+                        || lifelink_notes(&op["args"], frame, &mut visit)
                 }
                 Some("ReflexiveTrigger") => {
                     effects(&op["args"]["body"])
@@ -66,6 +76,37 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
             }
         },
     )
+}
+
+fn lifelink_notes(
+    args: &Value,
+    frame: &Value,
+    visit: &mut impl FnMut(&'static str) -> bool,
+) -> bool {
+    if !grants_keyword(&args["changes"], "Lifelink") {
+        return false;
+    }
+    let affected = &args["affected"]["Objects"];
+    let object = &affected["args"];
+    let controlled =
+        |filter: &Value| filter["kind"] == "ControlledBy" && is_controller(&filter["args"]);
+    match affected["kind"].as_str() {
+        Some("One") if object["kind"] == "Source" => visit("OwnSourceLifelink"),
+        Some("One") => target_spec(object, &frame["announcement"]).is_some_and(|target| {
+            filter_proves(&target["filter"], &controlled, 0, &mut 256)
+                && visit("OwnCreatureLifelink")
+        }),
+        Some("Zone") if filter_proves(&object["filter"], &controlled, 0, &mut 256) => {
+            visit("OwnGroupLifelink")
+                || filter_proves(
+                    &object["filter"],
+                    &|filter| filter["kind"] == "Subtype" && filter["args"] == "Sliver",
+                    0,
+                    &mut 256,
+                ) && visit("OwnSliverLifelink")
+        }
+        _ => false,
+    }
 }
 
 fn unattachable_auras(movement: &Value) -> bool {

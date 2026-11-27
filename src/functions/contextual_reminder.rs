@@ -10,6 +10,7 @@ mod object_notes;
 mod plot;
 mod receipts;
 mod suspend;
+mod token_notes;
 
 static PRINTED_X: LazyLock<Value> = LazyLock::new(|| json!({"kind":"AnnouncedX"}));
 
@@ -25,6 +26,8 @@ pub(crate) fn is_symbol(name: &str) -> bool {
             | "ward_grant_reminder"
             | "equip_payment_reminder"
             | "spent_pair_reminder"
+            | "single_token_description"
+            | "plural_token_description"
     )
 }
 
@@ -185,6 +188,7 @@ fn marker(value: &Value) -> Option<&'static str> {
         Some("Flying") => Some("Flying"),
         Some("Haste") => Some("Haste"),
         Some("Lifelink") => Some("Lifelink"),
+        Some("Prowess") => Some("Prowess"),
         Some("Vigilance") => Some("Vigilance"),
         Some("Reach") => Some("Reach"),
         Some("Vocabulary")
@@ -217,6 +221,13 @@ fn marker(value: &Value) -> Option<&'static str> {
             Some("Discover") => Some("Discover"),
             Some("Detain") => Some("Detain"),
             Some("EndTheTurn") => Some("EndTheTurn"),
+            Some("ReverseTurnOrder") => Some("ReverseTurnOrder"),
+            Some("TurnFaceDown") if value["kind"] == "KeywordEach" => Some("FaceDownGroup"),
+            Some("AdditionalPhase")
+                if args["action"]["AdditionalPhase"]["phases"] == "Beginning" =>
+            {
+                Some("BeginningPhase")
+            }
             _ => None,
         },
         Some("Populate") => Some("Populate"),
@@ -225,6 +236,12 @@ fn marker(value: &Value) -> Option<&'static str> {
         Some("CountManaSymbols") => devotion(args),
         Some("Clash") => Some("Clash"),
         Some("CreateContinuousEffect") if args["duration"] == "Indefinite" => Some("Indefinite"),
+        Some("Exchange") if args["kind"] == "Control" && args["until"].is_null() => {
+            Some("Indefinite")
+        }
+        Some("CreateReplacement") if mechanic_notes::indefinite_mana_change(args) => {
+            Some("Indefinite")
+        }
         Some("CostBranch") if args["keyword"] == "Overload" => Some("Overload"),
         Some("Mechanic") if args["mechanic"] == "Bargain" => Some("Bargain"),
         Some("Mechanic")
@@ -283,7 +300,7 @@ fn marker(value: &Value) -> Option<&'static str> {
         Some("Casting") if args["If"]["rule"].get("Flash").is_some() => Some("FlashPermission"),
         Some("Casting") if args.get("Flash").is_some() => Some("FlashPermission"),
         _ if value["event"] == "CommitsCrime" => Some("Crime"),
-        _ if value["event"] == "LosesLife" => Some("LifeLoss"),
+        _ if matches!(value["event"].as_str(), Some("LoseLife" | "LosesLife")) => Some("LifeLoss"),
         _ if value["Named"] == "StunCounter" => Some("Stun"),
         _ if value["Named"] == "ShieldCounter" => Some("Shield"),
         _ if value["Named"] == "FinalityCounter" => Some("Finality"),
@@ -298,11 +315,7 @@ fn marker(value: &Value) -> Option<&'static str> {
         _ if value["Mill"].is_object() => Some("Mill"),
         _ if !value["Waterbend"].is_null() || !value["WaterbendX"].is_null() => Some("Waterbend"),
         _ if !value["Exert"].is_null() || value.get("MayExert").is_some() => Some("Exert"),
-        _ if value["kind"]["Object"]["kind"] == "Ability"
-            && value["kind"]["Object"]["zones"] == json!(["Stack"]) =>
-        {
-            Some("TargetedAbility")
-        }
+        _ if mechanic_notes::targets_stack_ability(value) => Some("TargetedAbility"),
         _ => rules_token(value).or_else(|| evidence::mention(value)),
     }
 }
@@ -460,7 +473,18 @@ fn visit_mentions<'a>(
                         && visit("EndTurnFromSpell", None)
             }) || evidence::flashback_at_mana_cost(value) && visit("FlashbackAtManaCost", None)
                 || casting::permission_notes(value, |topic| visit(topic, None))
-                || mechanic_notes::mention(value).is_some_and(|topic| visit(topic, None))
+                || mechanic_notes::mention(value).is_some_and(|topic| {
+                    visit(topic, None)
+                        || match topic {
+                            "DamageCounterSurvival" => {
+                                visit("DamageCounterRecipientSurvives", None)
+                            }
+                            "DamageCountersSurvival" => {
+                                visit("DamageCountersRecipientSurvives", None)
+                            }
+                            _ => false,
+                        }
+                })
                 || action_duration_note(value).is_some_and(|topic| visit(topic, None))
                 || phase_out_reminders(value, |topic| visit(topic, None))
                 || object
@@ -575,6 +599,13 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "SeekWholeLibrary"
                     | "PlottedByController"
                     | "JumpStartFromYourGraveyard"
+                    | "DamageCounterRecipientSurvives"
+                    | "DamageCountersRecipientSurvives"
+                    | "Indefinite"
+                    | "OwnSourceLifelink"
+                    | "OwnCreatureLifelink"
+                    | "OwnGroupLifelink"
+                    | "OwnSliverLifelink"
             )
         )
     )
@@ -607,6 +638,12 @@ pub(crate) fn check_bound_claims(
         if let Some(symbol) = explanation.get("$cost_symbol") {
             if !evidence::cost_symbols(ability).contains(symbol) {
                 return Err("reminder has no matching bound payment symbol".into());
+            }
+            continue;
+        }
+        if let Some(description) = explanation.get("$token_description") {
+            if !token_notes::agrees(ability, description, explanation["plural"] == true) {
+                return Err("reminder disagrees with the created token".into());
             }
             continue;
         }
@@ -648,11 +685,19 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
                 | "SeekWholeLibrary"
                 | "PlottedByController"
                 | "CreatureSpellCopy"
+                | "OwnCreatureLifelink"
+                | "OwnGroupLifelink"
         )
     );
     let mut deferred =
         (inner["kind"] != "Spell" || needs_bound_spell) && bound_claim(name, explanation);
-    let matches = if deferred {
+    let matches = if matches!(
+        name,
+        "single_token_description" | "plural_token_description"
+    ) {
+        deferred = true;
+        true
+    } else if deferred {
         true
     } else if let Some(candidates) = typed_claims(name, inner) {
         let matches = candidates.iter().any(|candidate| candidate == explanation);
@@ -690,10 +735,12 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
         if list.len() >= 8 {
             return Err("bound reminder limit".into());
         }
-        list.push(if name == "cost_symbol_reminder" {
-            json!({"$cost_symbol":explanation})
-        } else {
-            explanation.clone()
+        list.push(match name {
+            "cost_symbol_reminder" => json!({"$cost_symbol":explanation}),
+            "single_token_description" | "plural_token_description" => {
+                json!({"$token_description":explanation, "plural":name == "plural_token_description"})
+            }
+            _ => explanation.clone(),
         });
     }
     Ok(replace_last(value, result))
@@ -784,6 +831,9 @@ fn typed_claims(name: &str, ability: &Value) -> Option<Vec<Value>> {
         "ward_grant_reminder" => evidence::ward_grant_claims(ability),
         "equip_payment_reminder" => evidence::equip_payment_claim(ability).into_iter().collect(),
         "spent_pair_reminder" => casting::spent_pair_claims(ability),
+        "single_token_description" | "plural_token_description" => {
+            token_notes::print_descriptions(ability, name == "plural_token_description")
+        }
         _ => return None,
     })
 }

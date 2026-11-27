@@ -609,6 +609,7 @@ fn contextual_reminder_call(
     let claim = match name {
         "contextual_reminder" | "chapter_reminder" => "String",
         "cost_symbol_reminder" => "ManaSymbol",
+        "single_token_description" | "plural_token_description" => "TokenRecipe",
         _ => "Operand",
     };
     Ok(Pattern::Symbol(

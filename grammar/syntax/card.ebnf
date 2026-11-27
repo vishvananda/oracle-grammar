@@ -305,11 +305,11 @@ choose_number_repeatable ::= "choose" number_words "." "you" "may" "choose" "the
 /* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:Expr::Conditional{condition:Controls{player:AbilityController, filter:State(Commander), minimum:1}, then:Constant(2), otherwise:Constant(1)}}, options:$commander_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
 choose_one_commander_both ::= "choose" "one" "." "if" "you" "control" "a" "commander" "as" "you" "cast" "this" "spell" "," "you" "may" "choose" "both" "instead" "." NEWLINE commander_modes
 
-/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:Expr::Constant(1)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Unchosen(ThisGame), targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
-choose_one_unchosen ::= "choose" "one" "that" "hasn't" "been" "chosen" "—" NEWLINE modes
-/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:Expr::Constant(1)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Unchosen(ThisTurn), targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:Expr::Constant(1)}, options:$unchosen_modes, rules:ModeRules{repetition:OnceEach, availability:Unchosen(ThisGame), targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
+choose_one_unchosen ::= "choose" "one" "that" "hasn't" "been" "chosen" "—" NEWLINE unchosen_modes
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:Expr::Constant(1)}, options:$unchosen_modes, rules:ModeRules{repetition:OnceEach, availability:Unchosen(ThisTurn), targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
 /* @prefer always */
-choose_one_unchosen_turn ::= "choose" "one" "that" "hasn't" "been" "chosen" "this" "turn" "—" NEWLINE modes
+choose_one_unchosen_turn ::= "choose" "one" "that" "hasn't" "been" "chosen" "this" "turn" "—" NEWLINE unchosen_modes
 
 /* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:@length($modes)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
 choose_one_or_more ::= "choose" "one" "or" "more" "—" NEWLINE modes
@@ -328,6 +328,20 @@ modes_more ::= mode NEWLINE modes
 /* A reminder on the last mode belongs to the surrounding ability. */
 /* @sem Mode::[$mode_reminded_indestructible, ...$modes] */
 modes_reminded_indestructible_then_more ::= mode_reminded_indestructible NEWLINE modes
+
+/* Unchosen menus with an inline token description keep the option's scope. */
+unchosen_modes ::= modes | modes_with_token_reminder
+modes_with_token_reminder ::= modes_reminded_token_then_more | modes_before_reminded_token
+/* @sem Mode::[$mode, ...$modes_with_token_reminder] */
+modes_before_reminded_token ::= mode NEWLINE modes_with_token_reminder
+
+/* @sem Mode::[$mode_reminded_token, ...$modes] */
+modes_reminded_token_then_more ::= mode_reminded_token NEWLINE modes
+mode_reminded_token ::= mode_reminded_token_plain | mode_reminded_token_labelled
+/* @sem @scope(Mode::Mode{announcement:@announcement, body:Program{instructions:$named_token_reminded}, weight:1}) */
+mode_reminded_token_plain ::= "•" named_token_reminded
+/* @sem @scope(Mode::Mode{announcement:@announcement, body:Program{instructions:$named_token_reminded}, weight:1}) */
+mode_reminded_token_labelled ::= "•" modal_flavor_words "—" named_token_reminded
 
 mode ::= mode_flavor_pilgrimage | mode_flavor_counter_followup | mode_look_announced_x_hand | mode_named_spell_prohibition | mode_target_combat_activation_prohibition | counter_transfer_mode | counter_removal_draw_mode | suspended_counter_remove_mode | suspended_counter_put_mode | mode_plain | mode_flavor_labelled | mode_counter_target_power_damage | word_replacement_mode | mode_feed_history | mode_friends_history | mode_remove_object_counters_prevent | mode_remove_opponent_counters_prevent | mode_negative_population_pump | mode_exile_opponent_graveyard_loss | mode_copy_opponent_spell_twice | mode_copy_opponent_tokens_cleanup | mode_scout_flavor | mode_bring_down_flavor | mode_source_becomes_stats_keyword | mode_source_becomes_stats | mode_copy_typed_token | mode_target_opponents_extreme_sacrifice_life | mode_reminded_spell_copy
 /* @sem @scope(Mode::Mode{announcement:@announcement, body:$program_sentence, weight:1}) */
@@ -2570,8 +2584,8 @@ triggered_counter_removal_tokens ::= "at" turn_event "," "if" self_explicit_ref 
 /* @sem ActivationLimits::ActivationLimits{condition:Window(BeforeAttackersDeclared)} */
 limit_before_attackers ::= "activate" "only" "before" "attackers" "are" "declared"
 
-/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:Expr::Constant(1)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Unchosen(ThisTurn), targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
-choose_one_unchosen_turn_period ::= "choose" "one" "that" "hasn't" "been" "chosen" "this" "turn" "." NEWLINE modes
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:Expr::Constant(1)}, options:$unchosen_modes, rules:ModeRules{repetition:OnceEach, availability:Unchosen(ThisTurn), targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
+choose_one_unchosen_turn_period ::= "choose" "one" "that" "hasn't" "been" "chosen" "this" "turn" "." NEWLINE unchosen_modes
 
 /* A final scry option composes with any preceding pair of modes. */
 /* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Expr::Constant(1), maximum:Expr::Constant(1)}, options:[$mode, $mode_2, $modal_scry], rules:ModeRules{repetition:OnceEach, availability:Unchosen(ThisTurn), targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */

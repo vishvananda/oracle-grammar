@@ -2,11 +2,63 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
-line_contextual_reminder ::= line_contextual_group | line_paid_permanent_copy_note | line_combat_notes | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder | line_phaseout_group_reminder | line_behold_choice_explained | line_behold_flash_explained | line_behold_exile_explained
+line_contextual_reminder ::= line_contextual_group | line_paid_permanent_copy_note | line_combat_notes | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder | line_phaseout_group_reminder | line_behold_choice_explained | line_behold_flash_explained | line_behold_exile_explained | line_milling_mana_note | line_token_description_reminder
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
 line_contextual_group ::= remindable_line "(" ability_explanation ")"
 remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_blocks_blocked
     | line_repeat_card_last | line_pair_enters_put | line_spell_paragraphs | line_saga | static_form_grants_goad | line_host_base_restrictions
+
+/* The description checks the created recipe in the producing ability. */
+line_token_description_reminder ::= line_single_token_description | line_plural_token_description
+/* @sem Vec<Ability>::@single_token_description($token_described_line, $single_token_description) */
+line_single_token_description ::= token_described_line "(" single_token_description ")"
+/* @sem Vec<Ability>::@plural_token_description($token_described_line, $plural_token_description) */
+line_plural_token_description ::= token_described_line "(" plural_token_description ")"
+token_described_line ::= line_one | line_saga
+single_token_description ::= token_artifact_single_description | the_token_artifact_description | baneslayer_angel_description | giant_badger_description | tarmogoyf_description | mutavault_description | spellgorger_weird_description | gingerbrute_description | feroz_ban_description | black_lotus_description | lord_of_the_pit_description
+plural_token_description ::= token_artifact_plural_description | token_enchantment_plural_description | token_creature_plural_description | scryb_sprites_description
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], abilities:[$token_quoted]} */
+token_artifact_single_description ::= "it's" "an" "artifact" "with" token_quoted
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], abilities:[$token_quoted]} */
+the_token_artifact_description ::= "the" "token" "is" "an" "artifact" "with" token_quoted
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], abilities:[$token_quoted]} */
+token_artifact_plural_description ::= "they're" "artifacts" "with" token_quoted
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Enchantment], abilities:[$token_quoted]} */
+token_enchantment_plural_description ::= "they're" "enchantments" "with" token_quoted
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Creature], colors:$token_colors, subtypes:$token_subtypes, power_toughness:[$number_digits, $number_digits_2]} */
+token_creature_plural_description ::= "they're" number_digits "/" number_digits token_colors token_subtypes "creatures" "."
+
+/* Named recipes refer to a fixed definition outside the creating ability. */
+/* @sem TokenRecipe::Named('Scryb Sprites') */
+scryb_sprites_description ::= "they're" "{" "G" "}" "1" "/" "1" "Faerie" "creatures" "with" "flying" "."
+
+/* @sem TokenRecipe::Named('Baneslayer Angel') */
+baneslayer_angel_description ::= "it's" "a" "{" "3" "}" "{" "W" "}" "{" "W" "}" "5" "/" "5" "Angel" "creature" "with" "flying" "," "first" "strike" "," "lifelink" "," "and" "protection" "from" "Demons" "and" "from" "Dragons" "."
+
+/* @sem TokenRecipe::Named('Giant Badger') */
+giant_badger_description ::= "it's" "a" "{" "1" "}" "{" "G" "}" "{" "G" "}" "2" "/" "2" "Badger" "creature" "with" '"' "whenever" "this" "token" "blocks" "," "it" "gets" "+" "2" "/" "+" "2" "until" "end" "of" "turn" "." '"'
+
+/* @sem TokenRecipe::Named('Tarmogoyf') */
+tarmogoyf_description ::= "it's" "a" "{" "1" "}" "{" "G" "}" "Lhurgoyf" "creature" "with" '"' "Tarmogoyf's" "power" "is" "equal" "to" "the" "number" "of" "card" "types" "among" "cards" "in" "all" "graveyards" "and" "its" "toughness" "is" "equal" "to" "that" "number" "plus" "1" "." '"'
+
+/* @sem TokenRecipe::Named('Mutavault') */
+mutavault_description ::= "it's" "a" "land" "with" '"' "{" "T" "}" ":" "add" "{" "C" "}" '"' "and" '"' "{" "1" "}" ":" "this" "token" "becomes" "a" "2" "/" "2" "creature" "with" "all" "creature" "types" "until" "end" "of" "turn" "." "it's" "still" "a" "land" "." '"'
+
+/* @sem TokenRecipe::Named('Spellgorger Weird') */
+spellgorger_weird_description ::= "it's" "a" "{" "2" "}" "{" "R" "}" "2" "/" "2" "Weird" "creature" "with" '"' "whenever" "you" "cast" "a" "noncreature" "spell" "," "put" "a" "+" "1" "/" "+" "1" "counter" "on" "Spellgorger" "Weird" "." '"'
+
+/* @sem TokenRecipe::Named('Gingerbrute') */
+gingerbrute_description ::= "it's" "a" "{" "1" "}" "1" "/" "1" "Food" "Golem" "artifact" "creature" "with" "haste" "," '"' "{" "1" "}" ":" "this" "token" "can't" "be" "blocked" "this" "turn" "except" "by" "creatures" "with" "haste" "," '"' "and" '"' "{" "2" "}" "," "{" "T" "}" "," "↑" "sacrifice" "this" "token" ":" "you" "gain" "3" "life" "." '"'
+
+/* @sem TokenRecipe::Named('Feroz''s Ban') */
+feroz_ban_description ::= "it's" "a" "{" "6" "}" "artifact" "with" '"' "creature" "spells" "cost" "{" "2" "}" "more" "to" "cast" "." '"'
+
+/* @sem TokenRecipe::Named('Black Lotus') */
+black_lotus_description ::= "it's" "a" "{" "0" "}" "artifact" "with" '"' "{" "T" "}" "," "↑" "sacrifice" "this" "token" ":" "add" "three" "mana" "of" "any" "one" "color" "." '"'
+
+/* @sem TokenRecipe::Named('Lord of the Pit') */
+lord_of_the_pit_description ::= "it's" "a" "{" "4" "}" "{" "B" "}" "{" "B" "}" "{" "B" "}" "7" "/" "7" "Demon" "creature" "with" "flying" "," "trample" "," "and" '"' "at" "the" "beginning" "of" "your" "upkeep" "," "sacrifice" "another" "creature" "." "if" "you" "can't" "," "this" "token" "deals" "7" "damage" "to" "you" "." '"'
 
 /* A single native ability owns the complete phased-out group. */
 /* @sem Vec<Ability>::@contextual_reminder($line_one, $phaseout_each_controller_explanation) */
@@ -213,6 +265,13 @@ ability_explanation ::= stun_explanation | stun_recipient_explanation | populate
     | granted_suspend_owner_explanation | granted_suspend_controller_explanation
     | damage_counter_survival_explanation | damage_counters_survival_explanation | melee_separate_instances_explanation
     | reselect_attack_explanation | plotted_controller_explanation | player_control_explanation
+    | granted_miracle_card_explanation | granted_flashback_card_explanation | forecast_this_ability_explanation
+    | mountainwalk_they_explanation | plainswalk_they_explanation | swampwalk_they_explanation | skulk_they_explanation
+    | damage_counters_him_explanation | damage_counter_her_explanation | damage_counters_her_explanation
+    | exalted_separate_instances_explanation | extort_separate_instances_explanation | prowess_separate_instances_explanation
+    | beginning_phase_steps_explanation | changeling_created_group_explanation
+    | reverse_turn_order_example | face_down_creatures_explanation
+    | lifelink_card_controller_explanation | lifelink_group_controller_explanation | lifelink_sliver_controller_explanation
 
 additional_rule_explanations ::= ward_cant_counter_explanation | zero_even_explanation | prepared_cast_explanation
     | flashback_granted_cast_explanation | flashback_owner_cast_explanation | charge_sunburst_explanation
@@ -847,7 +906,7 @@ flying_blocks_rule ::= "can't" "be" "blocked" "except" "by" "creatures" "with" "
 destroy_text_reminder ::= "damage" "and" "effects" "that" "say" '"' "↓" "destroy" '"' "don't" "destroy"
 
 /* Both sentences prove a claim in the same native ability. */
-line_combat_notes ::= line_deathtouch_lifelink_note | line_trample_first_strike_note
+line_combat_notes ::= line_deathtouch_lifelink_note | line_trample_first_strike_note | line_vigilance_lifelink_note | line_first_strike_lifelink_note
     | line_deathtouch_mana_note | line_indestructible_snow_note | line_menace_mana_note
     | line_intimidate_devotion_note | line_flying_haste_note | line_hexproof_haste_note | line_menace_treasure_note | line_hexproof_group_indestructible_note
 
@@ -965,3 +1024,72 @@ populate_definition_explanation ::= "to" "populate" "," populate_note_words
 regeneration_the_creature_explanation ::= "the" "next" "time" "the" "creature" "would" "be" "destroyed" regeneration_effect_explanation
 /* @sem String::'Stun' */
 stun_recipient_explanation ::= "if" "it" "would" "become" "untapped" "," "remove" "a" "stun" "counter" "from" "it" "instead" "."
+
+/* @sem String::'Miracle' */
+granted_miracle_card_explanation ::= "you" "may" "cast" "a" "card" "for" "its" "miracle" "cost" "when" "you" "draw" "it" "if" "it's" "the" "first" "card" "you" "drew" "this" "turn" "."
+
+/* @sem String::'Mountainwalk' */
+mountainwalk_they_explanation ::= "they" "can't" "be" "blocked" "as" "long" "as" "defending" "player" "controls" "a" "Mountain" "."
+
+/* @sem String::'Plainswalk' */
+plainswalk_they_explanation ::= "they" "can't" "be" "blocked" "as" "long" "as" "defending" "player" "controls" "a" "Plains" "."
+
+/* @sem String::'Swampwalk' */
+swampwalk_they_explanation ::= "they" "can't" "be" "blocked" "as" "long" "as" "defending" "player" "controls" "a" "Swamp" "."
+
+/* @sem String::'Skulk' */
+skulk_they_explanation ::= "they" "can't" "be" "blocked" "by" "creatures" "with" "greater" "power" "."
+
+/* @sem String::'DamageCountersRecipientSurvives' */
+damage_counters_him_explanation ::= "he" "must" "survive" "the" "damage" "to" "get" "the" "counters" "."
+
+/* @sem String::'DamageCounterRecipientSurvives' */
+damage_counter_her_explanation ::= "she" "must" "survive" "the" "damage" "to" "get" "the" "counter" "."
+
+/* @sem String::'DamageCountersRecipientSurvives' */
+damage_counters_her_explanation ::= "she" "must" "survive" "the" "damage" "to" "get" "the" "counters" "."
+
+/* @sem String::'Exalted' */
+exalted_separate_instances_explanation ::= "if" "a" "creature" "has" "multiple" "instances" "of" "exalted" "," "each" "triggers" "separately" "."
+
+/* @sem String::'Extort' */
+extort_separate_instances_explanation ::= "if" "a" "creature" "has" "multiple" "instances" "of" "extort" "," "each" "triggers" "separately" "."
+
+/* @sem String::'Prowess' */
+prowess_separate_instances_explanation ::= "if" "a" "creature" "has" "multiple" "instances" "of" "prowess" "," "each" "triggers" "separately" "."
+
+/* @sem String::'Forecast' */
+forecast_this_ability_explanation ::= "activate" "this" "ability" "only" "during" "your" "upkeep" "and" "only" "once" "each" "turn" "."
+
+/* @sem String::'Flashback' */
+granted_flashback_card_explanation ::= "you" "may" "cast" "a" "card" "from" "your" "graveyard" "for" "its" "flashback" "cost" "." "then" "exile" "it" "."
+
+/* @sem Ability::[@contextual_reminder(@contextual_reminder($ability, $instant_activation_context_explanation), $mill_explanation)] */
+line_milling_mana_note ::= ability "(" instant_activation_context_explanation mill_explanation ")"
+
+/* @sem String::'BeginningPhase' */
+beginning_phase_steps_explanation ::= "the" "beginning" "phase" "includes" "the" "untap" "," "upkeep" "," "and" "draw" "steps" "."
+
+/* @sem String::'Changeling' */
+changeling_created_group_explanation ::= "they're" "every" "creature" "type" "."
+
+/* @sem String::'OwnSourceLifelink' */
+lifelink_source_controller_explanation ::= "damage" "dealt" "by" "it" "also" "causes" "you" "to" "gain" "that" "much" "life" "."
+/* @sem String::'OwnCreatureLifelink' */
+lifelink_card_controller_explanation ::= "damage" "dealt" "by" "the" "creature" "also" "causes" "you" "to" "gain" "that" "much" "life" "."
+/* @sem String::'OwnGroupLifelink' */
+lifelink_group_controller_explanation ::= "damage" "dealt" "by" "those" "creatures" "also" "causes" "you" "to" "gain" "that" "much" "life" "."
+/* @sem String::'OwnSliverLifelink' */
+lifelink_sliver_controller_explanation ::= "damage" "dealt" "by" "a" "Sliver" "creature" "you" "control" "also" "causes" "you" "to" "gain" "that" "much" "life" "."
+
+/* @sem String::'Vigilance' */
+vigilance_attack_explanation ::= "attacking" "doesn't" "cause" "it" "to" "tap" "."
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $vigilance_attack_explanation), $lifelink_source_controller_explanation) */
+line_vigilance_lifelink_note ::= remindable_line "(" vigilance_attack_explanation lifelink_source_controller_explanation ")"
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $first_strike_it_context_explanation), $lifelink_source_controller_explanation) */
+line_first_strike_lifelink_note ::= remindable_line "(" first_strike_it_context_explanation lifelink_source_controller_explanation ")"
+
+/* @sem String::'ReverseTurnOrder' */
+reverse_turn_order_example ::= "for" "example" "," "if" "play" "had" "proceeded" "clockwise" "around" "the" "table" "," "it" "now" "goes" "counterclockwise" "."
+/* @sem String::'FaceDownGroup' */
+face_down_creatures_explanation ::= "they're" "2" "/" "2" "creatures" "."

@@ -2,6 +2,47 @@ use super::evidence::{effects, unscoped};
 use super::object_notes::{filter_proves, is_controller};
 use serde_json::Value;
 
+pub(super) fn targets_stack_ability(value: &Value) -> bool {
+    let domain = &value["kind"]["Object"];
+    if !matches!(domain["zones"].as_array().map(Vec::as_slice), Some([zone]) if zone == "Stack") {
+        return false;
+    }
+    let filter = &value["filter"];
+    domain["kind"] == "Ability"
+        || domain["kind"] == "Any"
+            && filter["kind"] == "AnyOf"
+            && filter["args"].as_array().is_some_and(|parts| {
+                parts.len() <= 8
+                    && parts.iter().any(|part| {
+                        part["kind"] == "OnStack"
+                            && matches!(part["args"].as_str(), Some("Activated" | "Triggered"))
+                    })
+            })
+}
+
+pub(super) fn indefinite_mana_change(args: &Value) -> bool {
+    let sources = &args["event"]["ProduceColor"]["sources"];
+    let object = &sources["args"];
+    let duration = &args["duration"]["WhileOnBattlefield"];
+    args["limit"] == "UntilExpired"
+        && sources["kind"] == "SameObject"
+        && object.is_object()
+        && (duration == object
+            || target_slot(object).is_some_and(|slot| target_slot(duration) == Some(slot)))
+}
+
+fn target_slot(object: &Value) -> Option<u64> {
+    if object["kind"] != "Target" || object["args"]["index"] != 0 {
+        return None;
+    }
+    let slot = &object["args"]["slot"];
+    slot.as_u64().or_else(|| {
+        (slot["$sym"] == "target")
+            .then(|| slot["args"][0]["slot"].as_u64())
+            .flatten()
+    })
+}
+
 pub(super) fn mention(value: &Value) -> Option<&'static str> {
     let args = &value["args"];
     match value["kind"].as_str()? {
@@ -73,7 +114,10 @@ fn keyword_counter_reminder(operation: &Value) -> Option<&'static str> {
 }
 
 fn counters_on_damage_recipient(trigger: &Value) -> Option<&'static str> {
-    let damage = &trigger["event"]["Damage"];
+    let event = &trigger["event"];
+    let damage = event
+        .get("Damage")
+        .or_else(|| event["FirstEachTurn"].get("Damage"))?;
     let recipients = &damage["recipients"]["Objects"];
     if damage["grouping"] != "Recipient"
         || damage["subject"] != "Recipient"

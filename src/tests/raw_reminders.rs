@@ -296,6 +296,25 @@ fn joined_energy_reminders_agree_with_the_symbol_count() {
 }
 
 #[test]
+fn token_description_checks_the_created_type_and_quoted_ability() {
+    let context = empty_card_characteristics();
+    let text = "When this creature enters, create two Shard tokens. (They're enchantments with \"{2}, Sacrifice this token: Scry 1, then draw a card.\")";
+    exact_roundtrip(text, &context);
+    let engine = super::engine();
+    for wrong in [
+        text.replace("Scry 1", "Scry 2"),
+        text.replace("enchantments", "artifacts"),
+        text.replace("They're", "It's")
+            .replace("enchantments", "an enchantment"),
+    ] {
+        assert!(
+            engine.parse_card(NAME, &wrong, &context).is_err(),
+            "{wrong}"
+        );
+    }
+}
+
+#[test]
 fn energy_choice_prints_the_same_exiled_card_without_a_key() {
     let mut context = empty_card_characteristics();
     context.card_types.push(CardType::Creature);
