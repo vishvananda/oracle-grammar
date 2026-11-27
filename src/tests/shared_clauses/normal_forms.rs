@@ -233,6 +233,43 @@ fn combat_removal_shares_the_choice_only_in_the_same_clause() {
 }
 
 #[test]
+fn a_saved_delayed_draw_paragraph_prints_in_its_spells_resolution() {
+    let text = "Draw a card.\nDraw a card at the beginning of the next turn's upkeep.";
+    let reading = compositional(text);
+    assert_eq!(reading.as_array().unwrap().len(), 1);
+    let mut prefix = reading[0].clone();
+    let draw = prefix["args"]["body"]["instructions"]
+        .as_array_mut()
+        .unwrap()
+        .pop()
+        .unwrap();
+    let mut legacy = json!([prefix, {"kind":"Spell", "args":{
+        "announcement":{"targets":[],"modes":null},"body":{"instructions":[draw]}
+    }}]);
+    assert_eq!(canonical_abilities(&legacy).unwrap(), reading);
+    let engine = engine();
+    let printed = engine
+        .print_keyed("Context example", &legacy, &[], &[])
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine.parse("Context example", &printed).unwrap().readings,
+        [reading]
+    );
+
+    legacy[1]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["event"]["Turn"]["players"] =
+        json!({"kind":"One","args":{"kind":"AbilityController"}});
+    assert_eq!(
+        canonical_abilities(&legacy)
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
+#[test]
 fn suspecting_a_created_token_uses_the_batch_without_aliasing_its_first_member() {
     let reading = compositional("Create a 2/1 black Skeleton creature token. Suspect it.");
     let produced = reading[0]["args"]["body"]["instructions"][0]["args"]["result"].clone();

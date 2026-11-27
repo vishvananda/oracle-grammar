@@ -88,6 +88,13 @@ fn compatible(a: &mut Value, b: &mut Value, schema: &Schema, tracing: bool) -> b
     if same_but_event(a, b, tracing) {
         return true;
     }
+    if let Some((left, right)) = super::combat_pairs::comparable(a, b, schema, tracing)
+        && same_but_event(&left, &right, tracing)
+    {
+        *a = left;
+        *b = right;
+        return true;
+    }
     if a["kind"] != "Triggered"
         || b["kind"] != "Triggered"
         || !(super::source_events::names_source(&a["args"]["event"])

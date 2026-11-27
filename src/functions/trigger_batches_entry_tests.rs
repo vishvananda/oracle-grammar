@@ -33,17 +33,23 @@ fn prints(name: &str, source: &str, value: &Value) {
             .contains(value)
     );
 }
+fn canonical_set(values: &Value) -> Vec<Value> {
+    let mut readings = Vec::new();
+    for value in values.as_array().unwrap() {
+        let normalized = canonical_abilities(value).unwrap();
+        if !readings.contains(&normalized) {
+            readings.push(normalized);
+        }
+    }
+    readings
+}
+
 #[test]
-fn complete_archivist_and_smith_keep_all_old_and_add_only_declared_native_views() {
+fn complete_archivist_and_smith_keep_the_saved_meanings() {
     for case in fixture()["cases"].as_array().unwrap() {
         let name = case["name"].as_str().unwrap();
         let text = case["text"].as_str().unwrap();
-        let permitted: Vec<_> = case["permitted"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| canonical_abilities(v).unwrap())
-            .collect();
+        let permitted = canonical_set(&case["permitted"]);
         let native = canonical_abilities(&case["native_source"]["abilities"]).unwrap();
         let actual = engine().parse(name, text).unwrap();
         assert_eq!(actual.readings.len(), permitted.len(), "{name}");
@@ -66,12 +72,7 @@ fn own_entry_caps_edits_prefixes_and_holder_roles_compose_without_mined_rules() 
     for (index, case) in family["cases"].as_array().unwrap().iter().enumerate() {
         let name = case["name"].as_str().unwrap();
         let text = case["text"].as_str().unwrap();
-        let permitted: Vec<_> = f["owned_permitted"][index]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| canonical_abilities(v).unwrap())
-            .collect();
+        let permitted = canonical_set(&f["owned_permitted"][index]);
         for actual in [
             engine().parse(name, text),
             engine().parse_without(name, text, &off),

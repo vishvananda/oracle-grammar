@@ -1,4 +1,5 @@
 //! Preserve one declared optional action across an explicit conjunction.
+use crate::model::canonical::hand_payments::hand_discard;
 use crate::pattern::{Bindings, Pattern, UnifyCtx, bind};
 use serde_json::{Value, json};
 use std::borrow::Cow;
@@ -16,21 +17,6 @@ fn instructions(value: &Value) -> Result<&[Value], String> {
         return Err("instruction-list semantic work bound".into());
     }
     Ok(items)
-}
-
-fn hand_discard(instruction: &Value) -> bool {
-    if instruction["kind"] != "Effect" {
-        return false;
-    }
-    let operation = &instruction["args"]["operation"];
-    operation["kind"] == "Discard"
-        && operation["args"]["players"] == controller()
-        && operation["args"]["random"] == false
-        && operation["args"]["amount"]
-            == json!({"kind":"CountObjects","args":{"kind":"Zone","args":{
-                "scope":{"Players":{"zone":"Hand","players":controller()}},
-                "kind":"Card","filter":{"kind":"Any"}
-            }}})
 }
 
 fn controller_draw(instruction: &Value) -> bool {

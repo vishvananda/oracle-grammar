@@ -147,6 +147,20 @@ impl Engine {
                 }
             }
 
+            for view in canonical::trigger_batches::print_views(item)? {
+                for form in bind::unbind_ability(&view)
+                    .into_iter()
+                    .chain(std::iter::once(view))
+                {
+                    if forms.len() >= 64 {
+                        break;
+                    }
+                    if !forms.contains(&form) {
+                        forms.push(form);
+                    }
+                }
+            }
+
             if let Some(view) = linked_card_view.as_ref().and_then(|v| v.get(index)) {
                 for form in bind::unbind_ability(view) {
                     if forms.len() < 64 && !forms.contains(&form) {

@@ -747,16 +747,13 @@ instructions_draw_discard_amount ::= target_player verbs_draw_discard_amount
 /* @sem Instruction::[Effect{result:@mark, operation:BindValue{value:$card_count}}, Effect{result:@next, operation:Draw{players:@subject, amount:BoundValue(@marked)}}, Effect{result:@next, operation:Discard{players:@subject, amount:BoundValue(@marked), random:false}}] */
 verbs_draw_discard_amount ::= "draws" card_count "," "then" "discards" "that" "many" "cards"
 
-/* A final constant delayed draw is a closed paragraph. Keeping its independent
-   native Spell frame cannot change an earlier target or receipt binding. The
-   prefix retains its ordinary spell merging; no later paragraph can refer back
-   into this independently bound tail. */
-/* closed_cantrip_abilities is shared as closed_cantrip_more. */
-
+/* A final constant delayed draw owns a closed paragraph. Its instructions
+   share the enclosing spell's resolution frame when the prefix is ordinary.
+   A modal prefix retains its own announcement and selected program. */
 closed_cantrip_tail ::= closed_cantrip_finish | closed_cantrip_more
 /* @sem Ability::[...$line, ...$closed_cantrip_tail] */
 closed_cantrip_more ::= line NEWLINE closed_cantrip_tail
-/* @sem Ability::[@scope(Ability::Spell{announcement:Announcement{}, body:Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:All}, start:NextTurn, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$fixed_slow_draw_count}}]}}}]}})] */
+/* @sem Ability::[Ability::Spell{announcement:Announcement{}, body:Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:All}, start:NextTurn, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$fixed_slow_draw_count}}]}}}]}}] */
 closed_cantrip_finish ::= "draw" fixed_slow_draw_count "at" "the" "beginning" "of" "the" "next" "turn's" "upkeep" "."
 fixed_slow_draw_count ::= card_count_one | fixed_slow_draw_many
 /* @sem $fixed_slow_draw_number */

@@ -11,10 +11,12 @@ use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
+mod combat_pairs;
 mod entry;
 mod events;
 mod filters;
 mod fixed_mana;
+pub mod hand_payments;
 mod immediate_values;
 #[cfg(test)]
 mod immediate_values_tests;
@@ -44,8 +46,10 @@ mod snapshots;
 mod source_events;
 #[cfg(test)]
 mod source_events_tests;
+mod spell_paragraphs;
 mod target_pairs;
 mod trace;
+pub mod trigger_batches;
 mod trigger_branches;
 mod untap;
 mod visibility;
@@ -491,6 +495,7 @@ impl Walker {
                 && value["kind"] == "Triggered"
                 && let Some((_, fields)) = self.schema.variant("Ability", "Triggered")
             {
+                trigger_batches::capped_occurrence(value);
                 entry::header(&mut value["args"], fields, self.schema);
             }
             self.scopes.push(Ids {
@@ -632,6 +637,9 @@ impl Walker {
                     if !self.keep_order && value["Player"]["event"] == "EntersUnderControl" {
                         drop_permanent_types(&mut value["Player"]["objects"]);
                     }
+                }
+                ("EventSpec", "Batch") if !self.keep_order => {
+                    trigger_batches::attack_minimum(value)
                 }
                 ("EventSpec", "AnyOf") if !self.keep_order => {
                     if let Some(Value::Array(events)) = value.get_mut("AnyOf") {
@@ -1205,9 +1213,11 @@ fn normalize_with_trace(value: &mut Value, keep_order: bool, tracing: bool) -> R
         movement_groups(value)?;
     }
     walk_normal_form(value, keep_order, tracing)?;
-    if programs::normalize(value, schema()?, tracing, keep_order)? && !keep_order {
-        // Program reductions can remove definitions or their local scopes.
-        // Their independent proofs need one final canonical numbering pass.
+    let joined = !keep_order && spell_paragraphs::join_closed_draws(value, schema()?, tracing);
+    let reduced = programs::normalize(value, schema()?, tracing, keep_order)?;
+    if !keep_order && (joined || reduced) {
+        // Program reductions and joins can change local definition scopes.
+        // One final pass assigns identities in the new scopes.
         walk_normal_form(value, keep_order, tracing)?;
     }
     Ok(())
