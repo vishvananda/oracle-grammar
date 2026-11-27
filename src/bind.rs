@@ -314,6 +314,9 @@ pub(crate) fn bind_held_ability_with_source(
     member_focus::prepare(ability)?;
     move_after::prepare(ability)?;
     condition_placement(ability)?;
+    if explicit_attachment::global_host(ability, attachment) {
+        return Err("the singular enchanted permanent belongs to this Aura".into());
+    }
     if explicit_attachment::uncaptured_damage_source(ability, attachment) {
         return Err("the counter belongs to the captured enchanted damage source".into());
     }
@@ -329,7 +332,8 @@ pub(crate) fn bind_held_ability_with_source(
     let mut scope = scope_for(ability, card_name, 0);
     scope.root_card_scope = true;
     scope.attached_holder = attachment == Attachment::Aura && ability["kind"] == "Static";
-    scope.attached_trigger = attachment != Attachment::None && ability["kind"] == "Triggered";
+    scope.attached_trigger = matches!(attachment, Attachment::Aura | Attachment::Equipment)
+        && ability["kind"] == "Triggered";
     if controller_role::default_player(ability, &scope) {
         scope.default_object_player = Some(scope.players.len());
     }
@@ -348,8 +352,11 @@ pub(crate) fn bind_held_ability_with_source(
     direct_receipts::conjure_selected_hand_card(ability);
     direct_receipts::protection_from_conditional_choice(ability);
     direct_receipts::exchange_selected_sets(ability);
-    if explicit_attachment::global_host(ability, attachment) {
-        return Err("the singular enchanted permanent belongs to this Aura".into());
+    direct_receipts::reciprocal_damage_branch(ability);
+    direct_receipts::counted_graveyard_return(ability);
+    direct_receipts::named_mill_amount(ability);
+    if direct_receipts::loses_distributed_recipient(ability) {
+        return Err("each opponent has a separate announced target and life amount".into());
     }
     paid_self_exile::lower(ability, paid_self_exile)?;
     if has_cost_as_action(ability) {
@@ -413,6 +420,7 @@ pub(crate) fn bind_held_ability_with_source(
     target_populations::lower(ability);
     ordered_zones::lower(ability);
     single_receipts::lower(ability);
+    direct_receipts::returned_payment_pump(ability);
     spell_focus::check_spell_grants(ability)?;
     crate::functions::contextual_reminder::check_bound_claims(
         ability,

@@ -10657,8 +10657,8 @@ clause_hand_shortfall_draw ::= "if" "you" "have" "fewer" "than" hand_card_thresh
 /* @sem $clause_hand_shortfall_draw */
 clause_then_hand_shortfall_draw ::= "then" clause_hand_shortfall_draw
 
-/* The life amount uses this exile's pre-move objects, partitioned by their former controllers. */
-/* @sem Instruction::[Effect{result:@next, operation:Move{objects:$each_opponent_up_to_one, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:Program{instructions:[Effect{result:@next, operation:GainLife{players:One(Bound(0)), amount:Aggregate{objects:Matching{objects:Transition{result:@prior, phase:Before}, filter:ControlledBy(One(Bound(0)))}, property:$stat, aggregation:Sum}}}]}}] */
+/* Life uses the announced target for each opponent, even if that target could not be exiled. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:$each_opponent_up_to_one, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:Program{instructions:[Effect{result:@next, operation:GainLife{players:One(Bound(0)), amount:Aggregate{objects:TargetsFor{slot:@last_slot, participant:Bound(0)}, property:$stat, aggregation:Sum}}}]}}] */
 clause_exile_each_opponent_life ::= "for" "each" "opponent" "," "exile" each_opponent_up_to_one "and" "that" "player" "gains" "life" "equal" "to" "its" stat
 
 /* The per-opponent announcement composes with ordinary operation continuations. */
@@ -12653,7 +12653,7 @@ discard_receipt_missing_life ::= players_singular "who" "didn't" "discard" "a" f
 instructions_discard_missing_life ::= discard_one_by_players "." "then" discard_receipt_missing_life
 
 /* The returned population and the count share one movement receipt. */
-/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:UpTo($value), filter:AllOf([$noun, InZone(Players{zone:Graveyard, players:One(AbilityController)})])})), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$noun}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:UpTo($value), filter:AllOf([$noun, InZone(Players{zone:Graveyard, players:One(AbilityController)})])})), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(TransitionWhere{result:@marked, phase:Before, from:Graveyard, to:Battlefield}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
 instructions_return_targets_create_receipt ::= "return" "up" "to" value "target" noun "cards" "from" "your" "graveyard" "to" "the" "battlefield" "tapped" "." "create" "that" "many" token_recipe
 
 /* The continuation consumes the immediately preceding destroy receipt. */
@@ -20238,8 +20238,8 @@ entry_event_amount_damage ::= damage_source_ref "deals" "that" "much" "damage" "
 /* @sem Ability::Triggered{event:$event_many_enter, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$entry_event_amount_damage}]}} */
 triggered_entry_event_amount_damage ::= "whenever" event_many_enter "," entry_event_amount_damage "."
 
-/* The subtype test consumes the arrival of the adjacent return to its owner's hand. */
-/* @sem Instruction::[Effect{result:@next, operation:Move{objects:ObjectSet::$return_single_target, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@last_result, phase:After}, filter:$subtype}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:$program, otherwise:Program{}}] */
+/* A past subtype of the target uses its battlefield characteristics, including last known information. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:ObjectSet::$return_single_target, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, If{condition:ObjectMatches{object:Target{slot:@last_slot, index:0}, filter:$subtype}, then:$program, otherwise:Program{}}] */
 instructions_return_single_past_subtype ::= "return" return_single_target "to" "its" "owner's" "hand" "." "if" "it" "was" "a" subtype "," program
 
 /* The entry subject supplies both the damage source and the kicked object. */
@@ -22749,8 +22749,8 @@ spell_destroy_replaced_by_destroy_tokens ::= instructions_destroy_replaced_by_de
 conditional_choose_color_also_protection ::= "if" condition "," choose_a_color "." affected "also" "gain" "protection" "from" "the" "chosen" "color" duration
 
 /* Compose a preceding operation with the conditional paragraph. */
-/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$operation}, ...$conditional_choose_color_also_protection]}} */
-spell_operation_conditional_color_protection ::= operation "." NEWLINE conditional_choose_color_also_protection "."
+/* @sem Ability::@optional_ability_label(Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$operation}, ...$conditional_choose_color_also_protection]}}, $spell_paragraph_break) */
+spell_operation_conditional_color_protection ::= operation "." spell_paragraph_break conditional_choose_color_also_protection "."
 
 /* A hand selection combines its card filter and mana-value bound before the
    chosen card receives the same perpetual change. */
@@ -24454,7 +24454,7 @@ cast_created_copy_one ::= "the" "copy"
 cast_created_copy_many ::= "the" "copies"
 
 /* The optional evidence action and its reflexive callback share their operands. */
-/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:WithReflexive{action:$collect_evidence_action, when:YouDo, body:Program($evidence_damage_controlled_callback)}}]}}] */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:$collect_evidence_action}, Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:$evidence_damage_controlled_callback})}]}}] */
 instructions_may_evidence_damage_reflexive ::= "you" "may" collect_evidence_action "." "when" "you" "do" "," evidence_damage_controlled_callback
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun_and, ControlledBy(One($that_player_word))])}), amount:$value, preventable:true}}]} */

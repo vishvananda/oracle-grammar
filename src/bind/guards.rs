@@ -47,10 +47,10 @@ pub(super) fn condition_placement(value: &mut Value) -> Result<(), String> {
         if opens_with_if(value, literal) {
             return Err("an `if` right after a trigger is its intervening condition".into());
         }
+        if super::postposed_focus::missing_member_scope(value) {
+            return Err("each affected member checks its own name condition".into());
+        }
         if symbol_name(value) == Some("resolution") {
-            if super::postposed_focus::missing_member_scope(value) {
-                return Err("each affected member checks its own name condition".into());
-            }
             super::postposed_focus::mark(value);
         }
         if matches!(symbol_name(value), Some("resolution" | "leading_if")) {

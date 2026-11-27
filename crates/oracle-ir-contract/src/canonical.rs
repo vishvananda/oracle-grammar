@@ -675,9 +675,18 @@ impl Walker {
                         keywords::turn_linked_face_up(value);
                     }
                 }
+                ("Ability", "Triggers") if !self.keep_order => {
+                    trigger_branches::single(value, self.tracing);
+                }
                 ("Ability", "Static") if !self.keep_order => {
                     casting_grants::normalize(value, self.tracing);
                     target_stats::exclude_fixed_holder(value, self.tracing);
+                }
+                ("EventSpec", "Object") if !self.keep_order => {
+                    events::controlled_face_up(value, self.tracing);
+                }
+                ("Operation", "CreateTrigger") if !self.keep_order => {
+                    events::fixed_attacker_grant(value, self.tracing);
                 }
                 ("Operation", "CreateBoon") if !self.keep_order => {
                     events::boon_entry_switch(value, self.tracing);

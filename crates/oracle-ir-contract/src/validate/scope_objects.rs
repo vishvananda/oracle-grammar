@@ -157,6 +157,17 @@ impl<'a> Scope<'a> {
             ObjectSet::Targets(slot) => self
                 .target(slot, None, TargetKind::Object(ObjectDomain::permanent()))
                 .or_else(|_| self.target(slot, None, TargetKind::DamageRecipient)),
+            ObjectSet::TargetsFor { slot, participant } => {
+                self.target(slot, None, TargetKind::Object(ObjectDomain::permanent()))?;
+                if !self
+                    .slots
+                    .get(&slot.0)
+                    .is_some_and(|spec| matches!(spec.count, Count::PerPlayer { .. }))
+                {
+                    return Err("a participant's targets require a per-player target slot".into());
+                }
+                self.player(participant)
+            }
             ObjectSet::InZone { objects, .. } => self.objects(objects),
             ObjectSet::Selected(result) | ObjectSet::Unselected(result) => {
                 match self.results.get(&result.0) {

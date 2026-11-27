@@ -5,6 +5,9 @@ use serde_json::{Value, json};
 /// grant to this player's matching proposed spells, the stack-object grant
 /// and the casting-player grant give the same spell its own mechanic.
 pub(super) fn normalize(value: &mut Value, tracing: bool) {
+    if typed_replicate_population(value, tracing) {
+        return;
+    }
     let args = &value["args"];
     let controller = json!({"kind":"One","args":{"kind":"AbilityController"}});
     let Some([change]) = args["changes"].as_array().map(Vec::as_slice) else {
@@ -59,7 +62,7 @@ pub(super) fn normalize(value: &mut Value, tracing: bool) {
     let cast = json!({"kind":"Cast","args":{"by":controller,"from":null}});
     let spells = match rule["spells"]["kind"].as_str() {
         Some("Any") => cast,
-        Some("Subtype" | "AnyOf") if simple_cast_population(&rule["spells"], term) => {
+        Some("Subtype") => {
             let mut predicates = [cast, rule["spells"].clone()];
             predicates.sort_by_cached_key(|filter| super::trace::key(filter, tracing));
             json!({"kind":"AllOf","args":predicates})
@@ -76,14 +79,53 @@ pub(super) fn normalize(value: &mut Value, tracing: bool) {
     }});
 }
 
-// The Instant/Sorcery union is a single population of proposed spells with
-// their own replicate costs. More general spell forests keep their domain.
-fn simple_cast_population(filter: &Value, term: &Value) -> bool {
-    filter["kind"] == "Subtype"
-        || term["form"] == "Replicate"
-            && filter["args"].as_array().is_some_and(|types| {
-                types.len() == 2
-                    && types.contains(&json!({"kind":"CardType","args":"Instant"}))
-                    && types.contains(&json!({"kind":"CardType","args":"Sorcery"}))
-            })
+// The spell population and the casting-player rule apply in the same proposal
+// frame. Keep the authored player rule for this defined replicate cost.
+fn typed_replicate_population(value: &mut Value, tracing: bool) -> bool {
+    let args = &value["args"];
+    let subjects = &args["affected"]["Objects"];
+    let zone = &subjects["args"];
+    let filter = &zone["filter"];
+    let Some([first, second]) = filter["args"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let controller = json!({"kind":"One","args":{"kind":"AbilityController"}});
+    let cast = json!({"kind":"Cast","args":{"by":controller,"from":null}});
+    let types = if *first == cast {
+        second
+    } else if *second == cast {
+        first
+    } else {
+        return false;
+    };
+    let Some([left, right]) = types["args"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let instant = json!({"kind":"CardType","args":"Instant"});
+    let sorcery = json!({"kind":"CardType","args":"Sorcery"});
+    let cost = json!({"parts":[{"ManaCostOf":{"kind":"Source"}}]});
+    if args["kind"] != "Ordinary"
+        || subjects["kind"] != "Zone"
+        || zone["scope"]["Shared"] != "Stack"
+        || zone["kind"] != "Spell"
+        || filter["kind"] != "AllOf"
+        || types["kind"] != "AnyOf"
+        || !([left, right].contains(&&instant) && [left, right].contains(&&sorcery))
+        || args["changes"]
+            != json!([{"kind":"GrantAbility","args":{"kind":"Mechanic","args":{
+                "mechanic":"Replicate","cost":cost,"amount":null,"filter":null
+            }}}])
+        || super::walk::lossless::<crate::ir::Ability>(value, tracing).is_none()
+    {
+        return false;
+    }
+    *value = json!({"kind":"Static","args":{"kind":"Ordinary",
+        "affected":{"Players":controller},"changes":[{"kind":"PlayerRule","args":{
+            "SpellsHaveAbilities":{"spells":types,"from":null,"nth_each_turn":null,
+                "abilities":{"kind":"List","args":[{"kind":"Term","args":{
+                    "family":"SpellEffect","form":"Replicate","operands":[{"kind":"Cost","args":cost}]
+                }}]}}
+        }}]
+    }});
+    true
 }

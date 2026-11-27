@@ -84,3 +84,90 @@ pub(super) fn boon_entry_switch(value: &mut Value, tracing: bool) {
         "objects":objects,"from":null,"to":"Battlefield"
     }});
 }
+
+// At most one player holds the monarch designation. Matching that player's
+// current state is the same defender set as reading the current holder.
+fn monarch_defender(value: &mut Value, tracing: bool) {
+    use serde_json::json;
+    let defenders = &value["Attack"]["defenders"]["Players"];
+    let args = &defenders["args"];
+    let test = &args["condition"];
+    let actor = &test["args"]["player"];
+    if defenders["kind"] == "Matching"
+        && test["kind"] == "PlayerState"
+        && test["args"]["state"] == "Monarch"
+        && actor["kind"] == "Bound"
+        && super::trace::same(&actor["args"], &args["binding"], tracing)
+        && super::walk::lossless::<crate::ir::EventSpec>(value, tracing).is_some()
+    {
+        value["Attack"]["defenders"]["Players"] =
+            json!({"kind":"One","args":{"kind":"Holder","args":"Monarch"}});
+    }
+}
+
+// A created event whose attack match fixes one target supplies that exact
+// attacker as its subject. A snapshot grant can retain the captured target.
+pub(super) fn fixed_attacker_grant(value: &mut Value, tracing: bool) {
+    use serde_json::json;
+    let args = &value["args"];
+    let attack = &args["event"]["Attack"];
+    let attacker = &attack["attackers"];
+    let target = &attacker["args"];
+    let Some([effect]) = args["body"]["instructions"].as_array().map(Vec::as_slice) else {
+        return;
+    };
+    let grant = &effect["args"]["operation"];
+    if attacker["kind"] != "SameObject"
+        || target["kind"] != "Target"
+        || effect["kind"] != "Effect"
+        || grant["kind"] != "CreateContinuousEffect"
+        || value["kind"] != "CreateTrigger"
+        || grant["args"]["evaluation"] != "Snapshot"
+        || !(grant["args"]["affected"]
+            == json!({"Objects":{"kind":"One","args":{"kind":"EventSubject"}}})
+            || grant["args"]["affected"] == json!({"Objects":{"kind":"One","args":target}}))
+        || grant["args"]["changes"].as_array().is_none_or(|changes| {
+            changes.is_empty()
+                || changes.len() > 8
+                || changes.iter().any(|c| c["kind"] != "GrantKeyword")
+        })
+        || super::walk::lossless::<crate::ir::Operation>(value, tracing).is_none()
+    {
+        return;
+    }
+    let target = target.clone();
+    monarch_defender(&mut value["args"]["event"], tracing);
+    value["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["affected"]["Objects"]
+        ["args"] = target;
+}
+
+/// A face-down permanent's flip event and controller are independent of
+/// its front-face type. Preserve all permanent types for that event (708.7).
+pub(super) fn controlled_face_up(value: &mut Value, tracing: bool) {
+    use serde_json::json;
+    let args = &value["Object"];
+    let objects = &args["objects"];
+    let face_down = json!({"kind":"State","args":"FaceDown"});
+    let controlled =
+        json!({"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}});
+    if args["event"] != "TurnsFaceUp"
+        || objects["kind"] != "AllOf"
+        || !objects["args"].as_array().is_some_and(|parts| {
+            parts.len() == 2 && parts.contains(&face_down) && parts.contains(&controlled)
+        })
+        || super::walk::lossless::<crate::ir::EventSpec>(value, tracing).is_none()
+    {
+        return;
+    }
+    let types = [
+        "Artifact",
+        "Battle",
+        "Creature",
+        "Enchantment",
+        "Land",
+        "Planeswalker",
+    ]
+    .map(|kind| json!({"kind":"CardType","args":kind}));
+    value["Object"]["objects"]["args"] =
+        json!([face_down,{"kind":"AnyOf","args":types},controlled]);
+}

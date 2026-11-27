@@ -3,6 +3,11 @@ use super::{Attachment, symbol_name};
 use serde_json::{Value, json};
 
 fn named_enchanted_set(set: &Value, subtype: &str) -> bool {
+    let set = if symbol_name(set) == Some("distributive_pump_subject") {
+        &set["args"][0]
+    } else {
+        set
+    };
     let zone = &set["args"];
     let filter = &zone["filter"];
     set["kind"] == "Zone"
@@ -19,7 +24,7 @@ fn named_enchanted_set(set: &Value, subtype: &str) -> bool {
 /// Unqualified "enchanted Equipment" and "enchanted <basic land type>"
 /// in these single-host instructions denote this Aura's actual attachment.
 pub(super) fn global_host(ability: &Value, attachment: Attachment) -> bool {
-    if attachment != Attachment::Aura {
+    if !matches!(attachment, Attachment::Aura | Attachment::OtherAura) {
         return false;
     }
     let args = &ability["args"];

@@ -44,7 +44,14 @@ fn consequent_reference(then: &Value) -> Option<&Value> {
 // A distributive creature subject tests the name condition for each of its
 // members. The same clause cannot become an overall test of the source.
 pub(super) fn missing_member_scope(marker: &Value) -> bool {
-    let branch = &marker["args"][0];
+    let branch = if symbol_name(marker) == Some("resolution") {
+        &marker["args"][0]
+    } else {
+        marker
+    };
+    if branch["kind"] != "If" {
+        return false;
+    }
     let args = &branch["args"];
     let condition = &args["condition"];
     let filter = &condition["args"]["filter"];
@@ -55,13 +62,13 @@ pub(super) fn missing_member_scope(marker: &Value) -> bool {
     let output = &operation["args"];
     let subjects = &output["affected"]["Objects"];
     let object = &condition["args"]["object"];
-    branch["kind"] == "If"
-        && args["otherwise"]["instructions"]
-            .as_array()
-            .is_some_and(Vec::is_empty)
+    args["otherwise"]["instructions"]
+        .as_array()
+        .is_some_and(Vec::is_empty)
         && condition["kind"] == "ObjectMatches"
-        && symbol_name(object) == Some("member_count_it")
-        && symbol_name(&object["args"][0]) == Some("it")
+        && (symbol_name(object) == Some("it")
+            || symbol_name(object) == Some("member_count_it")
+                && symbol_name(&object["args"][0]) == Some("it"))
         && filter["kind"] == "AnyOf"
         && matches!(filter["args"].as_array().map(Vec::as_slice), Some([another, any])
             if another["kind"] == "SharesNameWithAnother" && any["kind"] == "SharesNameWithAny")

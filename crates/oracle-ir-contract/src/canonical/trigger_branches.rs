@@ -247,3 +247,24 @@ pub(super) fn merge(items: &mut Vec<Value>, schema: &Schema, tracing: bool) {
     }
     *items = merged;
 }
+
+/// Two disjoint departure branches with a shared return body joined above.
+pub(super) fn single(value: &mut Value, tracing: bool) {
+    let Some([only]) = value["args"].as_array().map(Vec::as_slice) else {
+        return;
+    };
+    let Some([first, second]) = only["args"]["event"]["AnyOf"].as_array().map(Vec::as_slice) else {
+        return;
+    };
+    let events = [first, second].map(|event| {
+        json!({
+            "kind":"Triggered", "args":{"event":event}
+        })
+    });
+    if departure_zones(&events[0], &events[1]).is_some()
+        && only["kind"] == "Triggered"
+        && super::walk::lossless::<crate::ir::Ability>(value, tracing).is_some()
+    {
+        *value = value["args"][0].take();
+    }
+}

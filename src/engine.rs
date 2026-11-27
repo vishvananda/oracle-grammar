@@ -466,6 +466,7 @@ fn binding_context_tag(attachment: bind::Attachment, permanent_source: bool) -> 
         bind::Attachment::None => 0,
         bind::Attachment::Aura => 1,
         bind::Attachment::Equipment => 2,
+        bind::Attachment::OtherAura => 3,
     };
     (attachment << 1) | u8::from(permanent_source)
 }

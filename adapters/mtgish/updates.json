@@ -119723,38 +119723,6 @@
             "args",
             "body",
             "instructions",
-            0,
-            "args",
-            "result"
-          ],
-          "from": 4294967295,
-          "to": 0
-        },
-        {
-          "face": "Holographic Double",
-          "path": [
-            0,
-            "args",
-            "ability",
-            "args",
-            "body",
-            "instructions",
-            1,
-            "args",
-            "result"
-          ],
-          "from": 4294967294,
-          "to": 4294967295
-        },
-        {
-          "face": "Holographic Double",
-          "path": [
-            0,
-            "args",
-            "ability",
-            "args",
-            "body",
-            "instructions",
             1,
             "args",
             "operation",
@@ -119778,6 +119746,412 @@
               "index": 0
             }
           }
+        }
+      ]
+    },
+    {
+      "id": "U0224",
+      "kind": "correction",
+      "summary": "Read each opponent’s announced target even when the exile cannot occur.",
+      "evidence": "The Gatecrash FAQ confirms that if at least one target stays legal, opponents with an illegal target still gain life. Use the power of the creature assigned to that opponent as it last existed on the battlefield. The announced partition survives changes in legality and controller. https://magic.wizards.com/en/news/feature/frequently-asked-questions-2013-01-21",
+      "changes": [
+        {
+          "face": "Luminate Primordial",
+          "path": [
+            1,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "amount",
+            "args",
+            "objects"
+          ],
+          "from": {
+            "kind": "Matching",
+            "args": {
+              "objects": {
+                "kind": "Transition",
+                "args": {
+                  "result": 0,
+                  "phase": "Before"
+                }
+              },
+              "filter": {
+                "kind": "ControlledBy",
+                "args": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "Bound",
+                    "args": 0
+                  }
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "TargetsFor",
+            "args": {
+              "slot": 0,
+              "participant": {
+                "kind": "Bound",
+                "args": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0225",
+      "kind": "correction",
+      "summary": "Count actual graveyard-to-battlefield returns for the token batch.",
+      "evidence": "The Outlaws of Thunder Junction release notes count only land cards that the spell actually returns from the graveyard to the battlefield. The receipt filters the recorded move by both zones. A replacement can change the destination or the arriving permanent’s types. https://magic.wizards.com/en/news/feature/outlaws-of-thunder-junction-release-notes",
+      "changes": [
+        {
+          "face": "Vengeful Regrowth",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "operation",
+            "args",
+            "tokens",
+            0,
+            "amount"
+          ],
+          "from": {
+            "kind": "CountObjects",
+            "args": {
+              "kind": "Matching",
+              "args": {
+                "objects": {
+                  "kind": "Transition",
+                  "args": {
+                    "result": 0,
+                    "phase": "After"
+                  }
+                },
+                "filter": {
+                  "kind": "CardType",
+                  "args": "Land"
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "CountObjects",
+            "args": {
+              "kind": "TransitionWhere",
+              "args": {
+                "result": 0,
+                "phase": "Before",
+                "from": "Graveyard",
+                "to": "Battlefield"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0226",
+      "kind": "correction",
+      "summary": "Check the announced creature’s battlefield subtype.",
+      "evidence": "The printed wording asks if the target was a Soldier. Rule 608.2h uses the creature’s last-known battlefield information after a move to its owner’s hand. The type printed on the now-hidden card does not decide the counter. https://mtg-jp.com/products/card-gallery/0000242/583659/ https://media.wizards.com/2026/downloads/MagicCompRules%2020261106.txt",
+      "changes": [
+        {
+          "face": "Zephyr Sentinel",
+          "path": [
+            2,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "condition"
+          ],
+          "from": {
+            "kind": "Compare",
+            "args": {
+              "left": {
+                "kind": "CountObjects",
+                "args": {
+                  "kind": "Matching",
+                  "args": {
+                    "objects": {
+                      "kind": "Transition",
+                      "args": {
+                        "result": 0,
+                        "phase": "After"
+                      }
+                    },
+                    "filter": {
+                      "kind": "Subtype",
+                      "args": "Soldier"
+                    }
+                  }
+                }
+              },
+              "test": {
+                "kind": "Compare",
+                "args": {
+                  "comparison": "Greater",
+                  "value": {
+                    "kind": "Constant",
+                    "args": 0
+                  }
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "ObjectMatches",
+            "args": {
+              "object": {
+                "kind": "Target",
+                "args": {
+                  "slot": 0,
+                  "index": 0
+                }
+              },
+              "filter": {
+                "kind": "Subtype",
+                "args": "Soldier"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0227",
+      "kind": "normalization",
+      "summary": "Refer explicitly to the performed collect-evidence action.",
+      "evidence": "The optional collect-evidence instruction announces X. The targetless reflexive trigger follows that exact performed action under rule 603.12 and deals the chosen X to creatures and planeswalkers controlled by the damaged player. The amount, source and player are unchanged. https://media.wizards.com/2026/downloads/MagicCompRules%2020261106.txt",
+      "changes": [
+        {
+          "face": "Incinerator of the Guilty",
+          "path": [
+            2,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "body",
+            "instructions"
+          ],
+          "from": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "WithReflexive",
+                  "args": {
+                    "action": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": {
+                          "CollectEvidence": {
+                            "amount": {
+                              "kind": "AnnouncedX"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "when": "YouDo",
+                    "body": {
+                      "kind": "Program",
+                      "args": {
+                        "instructions": [
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 1,
+                              "operation": {
+                                "kind": "DealDamage",
+                                "args": {
+                                  "source": {
+                                    "kind": "Source"
+                                  },
+                                  "recipients": {
+                                    "kind": "Objects",
+                                    "args": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Shared": "Battlefield"
+                                        },
+                                        "kind": "Permanent",
+                                        "filter": {
+                                          "kind": "AllOf",
+                                          "args": [
+                                            {
+                                              "kind": "AnyOf",
+                                              "args": [
+                                                {
+                                                  "kind": "CardType",
+                                                  "args": "Creature"
+                                                },
+                                                {
+                                                  "kind": "CardType",
+                                                  "args": "Planeswalker"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "kind": "ControlledBy",
+                                              "args": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "EventSubject"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "amount": {
+                                    "kind": "AnnouncedX"
+                                  },
+                                  "preventable": true
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "Keyword",
+                  "args": {
+                    "actor": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "action": {
+                      "CollectEvidence": {
+                        "amount": {
+                          "kind": "AnnouncedX"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967294,
+                "operation": {
+                  "kind": "ReflexiveTrigger",
+                  "args": {
+                    "performed": 0,
+                    "condition": null,
+                    "announcement": {
+                      "targets": [],
+                      "modes": null
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "DealDamage",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "recipients": {
+                                  "kind": "Objects",
+                                  "args": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Shared": "Battlefield"
+                                      },
+                                      "kind": "Permanent",
+                                      "filter": {
+                                        "kind": "AllOf",
+                                        "args": [
+                                          {
+                                            "kind": "AnyOf",
+                                            "args": [
+                                              {
+                                                "kind": "CardType",
+                                                "args": "Creature"
+                                              },
+                                              {
+                                                "kind": "CardType",
+                                                "args": "Planeswalker"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "kind": "ControlledBy",
+                                            "args": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "EventSubject"
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "AnnouncedX"
+                                },
+                                "preventable": true
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
         }
       ]
     }

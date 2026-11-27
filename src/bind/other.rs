@@ -471,6 +471,8 @@ pub enum Attachment {
     None,
     /// Enchants creatures, without a bestow creature form.
     Aura,
+    /// Enchants a noncreature permanent or a player.
+    OtherAura,
     /// Equips creatures, without a reconfigure creature form.
     Equipment,
 }
@@ -490,6 +492,9 @@ pub(crate) fn attachment(abilities: &Value) -> Attachment {
     }) && !mechanic("Bestow")
     {
         return Attachment::Aura;
+    }
+    if items.clone().any(|item| item["kind"] == "Enchant") && !mechanic("Bestow") {
+        return Attachment::OtherAura;
     }
     if items
         .clone()

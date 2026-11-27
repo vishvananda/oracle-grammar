@@ -105,14 +105,14 @@ fn schema_193_appends_receipt_and_spending_variants_without_moving_wire_ordinals
 }
 
 #[test]
-fn schema_195_preserves_published_ordinals_and_changes_only_play_payloads() {
+fn schema_195_preserves_published_ordinals_and_reviews_existing_payload_changes() {
     use super::{Fields, Ty, TypeDef};
 
     let previous: serde_json::Value =
         serde_json::from_str(super::frozen_json(194).unwrap()).unwrap();
     let mut previous: Schema = serde_json::from_value(previous["schema"].clone()).unwrap();
     let current = Schema::of_ir().unwrap();
-    for name in ["Operation", "PlayerRule"] {
+    for name in ["Operation", "PlayerRule", "ObjectSet"] {
         let Some(TypeDef::Enum {
             variants: before, ..
         }) = previous.types.get_mut(name)

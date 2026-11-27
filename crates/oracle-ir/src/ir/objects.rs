@@ -372,6 +372,15 @@ pub enum ObjectSet {
     /// The actual participants of the referenced fight. If a creature
     /// could not fight, the set is empty rather than the attempted pair.
     FightParticipants(ResultId),
+    /// The objects announced for one participant in a per-player target slot.
+    /// Keep that association from announcement (or retargeting), independently
+    /// of control, current legality or the outcome of an attempted action.
+    /// Reads retain the original targets' expected zones and last-known views.
+    /// An unassigned participant has an empty set.
+    TargetsFor {
+        slot: TargetSlot,
+        participant: PlayerRef,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
