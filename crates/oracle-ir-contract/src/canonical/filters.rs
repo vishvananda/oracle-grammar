@@ -86,3 +86,46 @@ pub(super) fn merge_same_property_any_of(value: &mut Value, tracing: bool) {
         },
     });
 }
+
+/// A candidate's power and toughness are taken from the same view.
+pub(super) fn equal_or_ordered_stats(value: &mut Value, tracing: bool) {
+    use crate::ir::{Comparison, Information, ObjectFilter, ObjectRef, ObjectState, Property};
+    use crate::ir::{Expr, NumberTest};
+    if !matches!(
+        value["args"]["property"].as_str(),
+        Some("Power" | "Toughness")
+    ) || value["args"]["test"]["args"]["value"]["args"]["object"]["kind"] != "Candidate"
+    {
+        return;
+    }
+    let Some(ObjectFilter::Property {
+        property,
+        test: NumberTest::Compare {
+            comparison,
+            value: right,
+        },
+    }) = super::walk::lossless(value, tracing)
+    else {
+        return;
+    };
+    let Expr::ObjectProperty {
+        object: ObjectRef::Candidate,
+        property: peer,
+        information: Information::CurrentOrLastKnown,
+    } = right
+    else {
+        return;
+    };
+    let state = match (property, comparison, peer) {
+        (Property::Power, Comparison::Equal, Property::Toughness)
+        | (Property::Toughness, Comparison::Equal, Property::Power) => {
+            ObjectState::PowerEqualsToughness
+        }
+        (Property::Power, Comparison::Less, Property::Toughness)
+        | (Property::Toughness, Comparison::Greater, Property::Power) => {
+            ObjectState::PowerBelowToughness
+        }
+        _ => return,
+    };
+    *value = json!(ObjectFilter::State(state));
+}

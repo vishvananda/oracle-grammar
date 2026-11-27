@@ -656,10 +656,18 @@ impl Walker {
                 ("Keyword", "HexproofFrom") if !self.keep_order => {
                     keywords::hexproof_object_qualities(value, self.tracing);
                 }
-                ("Operation", "Keyword" | "KeywordEach") => keywords::suspect(
-                    value,
-                    self.scopes.last().map(|scope| &scope.optional_targets),
-                ),
+                ("Operation", "Keyword" | "KeywordEach") => {
+                    keywords::suspect(
+                        value,
+                        self.scopes.last().map(|scope| &scope.optional_targets),
+                    );
+                    if !self.keep_order {
+                        keywords::turn_linked_face_up(value);
+                    }
+                }
+                ("ObjectFilter", "Property") if !self.keep_order => {
+                    filters::equal_or_ordered_stats(value, self.tracing);
+                }
                 ("Change", "GainAbilitiesOf") if !self.keep_order => {
                     keywords::top_ability_kinds(value);
                 }

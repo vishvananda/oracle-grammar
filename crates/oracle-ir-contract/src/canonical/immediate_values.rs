@@ -106,18 +106,45 @@ fn candidate(
     Some((value, slots, id))
 }
 
-/// The matched group is fixed by the event. Direct use of its cardinality
-/// across the requested draw and discard is equivalent to capturing it once.
-fn event_group_count(items: &mut [Value], uses: &Uses, tracing: bool) -> bool {
-    let [capture, draw, discard, ..] = items else {
+/// A named resolution payment has already moved its input. The before view
+/// fixes the paid object's characteristics for both reads.
+fn paid_before_power(value: &Value) -> bool {
+    let object = &value["args"]["object"];
+    let objects = &object["args"]["objects"];
+    let history = &objects["args"];
+    value["kind"] == "ObjectProperty"
+        && value["args"]["property"] == "Power"
+        && value["args"]["information"] == "CurrentOrLastKnown"
+        && object["kind"] == "Query"
+        && object["args"]["index"] == 0
+        && objects["kind"] == "CostObjects"
+        && super::trace::number(&history["payment"]["Resolution"]).is_some()
+        && history["component"] == json!([0])
+        && history["view"] == "Inputs"
+        && history["phase"] == "Before"
+}
+
+/// A fixed event or payment receipt can provide both amount reads directly.
+fn fixed_amount_pair(items: &mut [Value], uses: &Uses, tracing: bool) -> bool {
+    let [capture, first, second, ..] = items else {
         return false;
     };
     let definition = &capture["args"]["operation"];
-    if capture["kind"] != "Effect"
-        || definition["kind"] != "BindValue"
-        || definition["args"]["value"]
-            != json!({"kind":"CountObjects","args":{"kind":"EventGroup"}})
-    {
+    let value = &definition["args"]["value"];
+    if capture["kind"] != "Effect" || definition["kind"] != "BindValue" {
+        return false;
+    }
+    let left = &first["args"]["operation"];
+    let right = &second["args"]["operation"];
+    let pair = (left["kind"].as_str(), right["kind"].as_str());
+    let event_count = value == &json!({"kind":"CountObjects","args":{"kind":"EventGroup"}})
+        && pair == (Some("Draw"), Some("Discard"))
+        && right["args"]["random"] == false;
+    let paid_power = matches!(
+        pair,
+        (Some("GainLife"), Some("Draw")) | (Some("Draw"), Some("Mill"))
+    ) && paid_before_power(value);
+    if !event_count && !paid_power {
         return false;
     }
     let Some(id) = super::trace::number(&capture["args"]["result"]) else {
@@ -127,24 +154,22 @@ fn event_group_count(items: &mut [Value], uses: &Uses, tracing: bool) -> bool {
         return false;
     }
     let actor = json!({"kind":"One","args":{"kind":"AbilityController"}});
-    let owns_amount = |item: &Value, kind: &str| {
-        let op = &item["args"]["operation"];
+    let owns_amount = |item: &Value| {
+        let args = &item["args"]["operation"]["args"];
         item["kind"] == "Effect"
-            && op["kind"] == kind
-            && op["args"]["players"] == actor
-            && scalar_reads::signed_use(&op["args"]["amount"], id) == Some(1)
+            && args["players"] == actor
+            && scalar_reads::signed_use(&args["amount"], id) == Some(1)
             && lossless::<crate::ir::Instruction>(item, tracing).is_some()
     };
-    if !owns_amount(draw, "Draw")
-        || !owns_amount(discard, "Discard")
-        || discard["args"]["operation"]["args"]["random"] != false
+    if !owns_amount(first)
+        || !owns_amount(second)
         || lossless::<crate::ir::Instruction>(capture, tracing).is_none()
     {
         return false;
     }
-    let value = definition["args"]["value"].clone();
-    draw["args"]["operation"]["args"]["amount"] = value.clone();
-    discard["args"]["operation"]["args"]["amount"] = value;
+    let value = value.clone();
+    first["args"]["operation"]["args"]["amount"] = value.clone();
+    second["args"]["operation"]["args"]["amount"] = value;
     true
 }
 
@@ -235,7 +260,7 @@ pub(super) fn inline_array(
     let mut changed = false;
     let mut index = 0;
     while index + 1 < items.len() {
-        if !keep_order && event_group_count(&mut items[index..], uses, tracing) {
+        if !keep_order && fixed_amount_pair(&mut items[index..], uses, tracing) {
             items.remove(index);
             changed = true;
             continue;

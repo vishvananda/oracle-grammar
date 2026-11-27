@@ -181,3 +181,35 @@ pub(super) fn top_ability_kinds(value: &mut Value) {
         *kinds = only.take();
     }
 }
+
+/// Turn the one card named by a linked exile query face up once.
+pub(super) fn turn_linked_face_up(value: &mut Value) {
+    let args = &value["args"];
+    let Some(object) = args["action"]
+        .get("TurnFaceUp")
+        .and_then(|action| action.get("object"))
+    else {
+        return;
+    };
+    if value
+        != &json!({"kind":"Keyword","args":{
+            "actor":{"kind":"One","args":{"kind":"AbilityController"}},
+            "action":{"TurnFaceUp":{"object":object}}
+        }})
+        || object
+            != &json!({
+                "kind":"Query",
+                "args":{"index":0,"objects":{
+                    "kind":"Zone",
+                    "args":{"scope":{"Shared":"Exile"},"kind":"Card","filter":{
+                        "kind":"ExiledWith","args":{"kind":"Source"}
+                    }}
+                }}
+            })
+    {
+        return;
+    }
+    *value = json!({"kind":"KeywordEach","args":{
+        "actor":args["actor"],"action":"TurnFaceUp","objects":{"kind":"One","args":object}
+    }});
+}
