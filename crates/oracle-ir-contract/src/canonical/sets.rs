@@ -1,5 +1,6 @@
 //! Remove proven redundant predicates and combine nested matching intersections.
 use serde_json::{Value, json};
+use std::collections::HashSet;
 
 const MAX_CONJUNCTS: usize = 64;
 
@@ -62,4 +63,77 @@ fn conjunction(inner: &Value, outer: &Value, tracing: bool) -> Option<Value> {
     } else {
         json!({"kind":"AllOf","args":filters})
     })
+}
+
+/// Exact and optional single permanent targets name the same battlefield
+/// object when expressed as a singleton or as a SameObject zone filter.
+pub(super) fn single_battlefield_target(spec: &Value) -> bool {
+    spec["kind"] == json!({"Object":{"kind":"Permanent","zones":["Battlefield"]}})
+        && ["Exactly", "UpTo"]
+            .iter()
+            .any(|name| spec["count"][*name] == json!({"kind":"Constant","args":1}))
+}
+
+fn member_filter(objects: &Value, slots: Option<&HashSet<u64>>) -> Option<Value> {
+    if let Some(filter) = super::battlefield_filter(objects) {
+        return Some(filter.clone());
+    }
+    let slots = slots?;
+    let slot = match objects["kind"].as_str()? {
+        "One" if objects["args"]["kind"] == "Target" && objects["args"]["args"]["index"] == 0 => {
+            &objects["args"]["args"]["slot"]
+        }
+        "Targets" => &objects["args"],
+        _ => return None,
+    };
+    let id = super::trace::number(slot)?;
+    slots.contains(&id).then(|| {
+        json!({"kind":"SameObject","args":{
+            "kind":"Target","args":{"slot":slot,"index":0}
+        }})
+    })
+}
+
+pub(super) fn battlefield_union<'a>(
+    objects: impl ExactSizeIterator<Item = Option<&'a Value>>,
+    slots: Option<&HashSet<u64>>,
+    keep_order: bool,
+    tracing: bool,
+) -> Option<Value> {
+    if objects.len() == 0 || objects.len() > MAX_CONJUNCTS {
+        return None;
+    }
+    let mut filters = objects
+        .map(|objects| member_filter(objects?, slots))
+        .collect::<Option<Vec<_>>>()?;
+    super::flatten(&mut filters, "AnyOf");
+    if !keep_order {
+        filters.sort_by_cached_key(|filter| super::trace::key(filter, tracing));
+    }
+    Some(
+        json!({"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent",
+        "filter":{"kind":"AnyOf","args":filters}}}),
+    )
+}
+
+/// Only a simple simultaneous move to face-up exile can use this unordered
+/// population proof. Ordered zones, qualifiers and other destinations keep
+/// the action's original selection shape.
+pub(super) fn plain_exile(args: &Value) -> bool {
+    args["qualifiers"] == json!([])
+        && args["destination"]
+            == json!({"Exile":{"visibility":"FaceUp","arrival":{"counters":[],"states":[]}}})
+}
+
+pub(super) fn exile_union(operation: &mut Value, slots: &HashSet<u64>, tracing: bool) {
+    let args = &mut operation["args"];
+    if args["objects"]["kind"] != "Union" || !plain_exile(args) {
+        return;
+    }
+    let Some(items) = args["objects"]["args"].as_array() else {
+        return;
+    };
+    if let Some(zone) = battlefield_union(items.iter().map(Some), Some(slots), false, tracing) {
+        args["objects"] = zone;
+    }
 }

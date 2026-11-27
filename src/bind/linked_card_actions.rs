@@ -10,6 +10,7 @@ pub(crate) struct Site {
     ability: usize,
     returned: usize,
     producer: Option<usize>,
+    optional: bool,
 }
 fn controller() -> Value {
     json!({"kind":"AbilityController"})
@@ -41,8 +42,15 @@ fn operation(instruction: &Value) -> Option<&Value> {
     }
 }
 fn returned<'a>(card: &'a Value, site: &Site) -> Option<&'a Value> {
-    let ability = card.get(site.ability)?;
-    let op = operation(items(ability)?.get(site.returned)?)?;
+    let ability = super::presentation::core(card.get(site.ability)?);
+    let mut instruction = items(ability)?.get(site.returned)?;
+    if site.optional {
+        let [only] = items(instruction)? else {
+            return None;
+        };
+        instruction = only;
+    }
+    let op = operation(instruction)?;
     if site.producer.is_none() {
         return (op["kind"] == "Move").then_some(op);
     }
@@ -86,6 +94,53 @@ fn raw_literal(mut objects: &Value) -> bool {
     }
     *literal == scalar()["args"]
 }
+fn source_leaves(event: &Value, lexical: bool) -> bool {
+    let objects = if event["Object"]["event"] == "LeavesBattlefield" {
+        &event["Object"]["objects"]
+    } else if event["ZoneChange"]["from"] == "Battlefield"
+        && event["ZoneChange"]["to"] == "Graveyard"
+    {
+        &event["ZoneChange"]["objects"]
+    } else {
+        return false;
+    };
+    objects["kind"] == "SameObject"
+        && (objects["args"] == json!({"kind":"Source"})
+            || lexical
+                && matches!(
+                    super::symbol_name(&objects["args"]),
+                    Some("self" | "named_source")
+                ))
+}
+
+fn leaving_return(ability: usize, value: &Value) -> Option<Site> {
+    if value["kind"] != "Triggered" || !source_leaves(&value["args"]["event"], true) {
+        return None;
+    }
+    let [instruction] = items(value)? else {
+        return None;
+    };
+    let optional =
+        instruction["kind"] == "Optional" && instruction["args"]["decider"] == controller();
+    let move_card = if optional {
+        let [only] = items(instruction)? else {
+            return None;
+        };
+        operation(only)?
+    } else {
+        operation(instruction)?
+    };
+    (move_card["kind"] == "Move"
+        && move_card["args"]["destination"].get("OwnersHand").is_some()
+        && move_card["args"]["qualifiers"] == json!([]))
+    .then_some(Site {
+        ability,
+        returned: 0,
+        producer: None,
+        optional,
+    })
+}
+
 fn candidates(card: &Value) -> Result<Vec<Site>, String> {
     let Some(abilities) = card.as_array() else {
         return Ok(Vec::new());
@@ -95,6 +150,12 @@ fn candidates(card: &Value) -> Result<Vec<Site>, String> {
     }
     let mut out = Vec::new();
     for (ability, value) in abilities.iter().enumerate() {
+        let value = super::presentation::core(value);
+        if let Some(site) = leaving_return(ability, value) {
+            crate::functions::branch_bounds(value)?;
+            out.push(site);
+            continue;
+        }
         if value["kind"] != "Activated" {
             continue;
         }
@@ -118,6 +179,7 @@ fn candidates(card: &Value) -> Result<Vec<Site>, String> {
                 ability,
                 returned: body.len() - 1,
                 producer: (body.len() > 1).then_some(body.len().saturating_sub(2)),
+                optional: false,
             });
         }
     }
@@ -333,6 +395,7 @@ fn linked_entry(card: &Value, returned: usize) -> bool {
         if index == returned {
             continue;
         }
+        let value = super::presentation::core(value);
         if hand_entry(value) && !found {
             found = true;
         } else if value["kind"] != "Activated"
@@ -420,8 +483,69 @@ fn actual_group(value: &Value, site: &Site) -> Option<Value> {
         json!({"kind":"Transition","args":{"result":body[index]["args"]["result"],"phase":"After"}}),
     ))
 }
-fn group(card: &Value, site: &Site) -> Option<Value> {
-    let value = card.get(site.ability)?;
+fn direct_exile(instruction: &Value) -> bool {
+    operation(instruction).is_some_and(|op| {
+        op["kind"] == "Move" && super::movement::zone(&op["args"]["destination"]) == Some("Exile")
+    })
+}
+
+fn entry_produces_link(value: &Value) -> bool {
+    if value["kind"] != "Triggered"
+        || value["args"]["event"]
+            != json!({"ZoneChange":{
+                "objects":{"kind":"SameObject","args":{"kind":"Source"}},"from":null,"to":"Battlefield"
+            }})
+    {
+        return false;
+    }
+    let Some(body) = items(value) else {
+        return false;
+    };
+    body.iter()
+        .filter(|instruction| {
+            direct_exile(instruction)
+                || (instruction["kind"] == "Optional"
+                    && instruction["args"]["decider"] == controller()
+                    && items(instruction)
+                        .is_some_and(|body| body.iter().filter(|i| direct_exile(i)).count() == 1))
+        })
+        .count()
+        == 1
+}
+
+fn explicit_producer(value: &Value) -> bool {
+    match value["kind"].as_str() {
+        Some("Triggered") => entry_produces_link(value),
+        Some("Mechanic") => value["args"]["mechanic"] == "Hideaway",
+        Some("Casting") => value["args"]["AdditionalCost"]["cost"]["parts"]
+            .as_array()
+            .is_some_and(
+                |parts| matches!(parts.as_slice(), [part] if part.get("BeholdAndExile").is_some()),
+            ),
+        _ => false,
+    }
+}
+
+fn unambiguous_departure_producer(card: &Value) -> bool {
+    card.as_array().is_some_and(|abilities| {
+        abilities
+            .iter()
+            .filter(|ability| explicit_producer(super::presentation::core(ability)))
+            .take(2)
+            .count()
+            == 1
+    })
+}
+
+fn group(card: &Value, site: &Site, departure_producer: bool) -> Option<Value> {
+    let value = super::presentation::core(card.get(site.ability)?);
+    if value["kind"] == "Triggered" {
+        return (departure_producer
+            && source_leaves(&value["args"]["event"], false)
+            && empty_announcement(value)
+            && value["args"]["intervening_if"].is_null())
+        .then(linked_zone);
+    }
     if value["kind"] != "Activated"
         || value["args"]["origin"] != "Ordinary"
         || !cost(value, site.producer.is_none())
@@ -446,8 +570,13 @@ fn typed(card: &Value) -> Result<bool, String> {
     Ok(serde_json::from_value::<Vec<Ability>>(card.clone()).is_ok())
 }
 fn objects_mut<'a>(card: &'a mut Value, site: &Site) -> Option<&'a mut Value> {
-    let items = card.get_mut(site.ability)?["args"]["body"]["instructions"].as_array_mut()?;
-    let op = &mut items.get_mut(site.returned)?["args"]["operation"];
+    let ability = super::presentation::core_mut(card.get_mut(site.ability)?);
+    let items = ability["args"]["body"]["instructions"].as_array_mut()?;
+    let mut instruction = items.get_mut(site.returned)?;
+    if site.optional {
+        instruction = instruction["args"]["body"]["instructions"].get_mut(0)?;
+    }
+    let op = &mut instruction["args"]["operation"];
     if site.producer.is_none() {
         Some(&mut op["args"]["objects"])
     } else {
@@ -459,8 +588,9 @@ pub(crate) fn lower(card: &mut Value, sites: &[Site]) -> Result<(), String> {
     if sites.is_empty() || !typed(card)? {
         return Ok(());
     }
+    let departure_producer = unambiguous_departure_producer(card);
     for site in sites {
-        let Some(group) = group(card, site) else {
+        let Some(group) = group(card, site, departure_producer) else {
             continue;
         };
         let objects = &returned(card, site).ok_or("linked action return path")?["args"]["objects"];
@@ -479,14 +609,15 @@ pub(crate) fn projection(card: &Value) -> Result<Option<Value>, String> {
         return Ok(None);
     }
     let mut projected = None;
+    let departure_producer = unambiguous_departure_producer(card);
     for site in candidates {
-        let Some(group) = group(card, &site) else {
+        let Some(group) = group(card, &site, departure_producer) else {
             continue;
         };
         if returned(card, &site).is_some_and(|op| op["args"]["objects"] == group) {
             let copy = projected.get_or_insert_with(|| card.clone());
             *objects_mut(copy, &site).ok_or("linked action projection path")? =
-                if site.producer.is_some() {
+                if site.producer.is_some() || card[site.ability]["kind"] == "Triggered" {
                     guarded(scalar())
                 } else {
                     scalar()

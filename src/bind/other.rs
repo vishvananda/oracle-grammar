@@ -317,19 +317,20 @@ pub(crate) fn attachment(abilities: &Value) -> Attachment {
     let Some(items) = abilities.as_array() else {
         return Attachment::None;
     };
+    let items = items.iter().map(super::presentation::core);
     let mechanic = |name: &str| {
         items
-            .iter()
+            .clone()
             .any(|item| item["kind"] == "Mechanic" && item["args"]["mechanic"] == name)
     };
-    if items.iter().any(|item| {
+    if items.clone().any(|item| {
         item["kind"] == "Enchant" && implies(&item["args"]["hosts"]["Permanents"], &creature())
     }) && !mechanic("Bestow")
     {
         return Attachment::Aura;
     }
     if items
-        .iter()
+        .clone()
         .any(|item| item["kind"] == "Activated" && item["args"]["origin"] == "Equip")
         && !mechanic("Reconfigure")
     {

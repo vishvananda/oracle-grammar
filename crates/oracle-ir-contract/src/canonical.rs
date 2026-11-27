@@ -38,6 +38,7 @@ pub mod resolution_payments;
 #[cfg(test)]
 mod result_scopes;
 mod scalar_reads;
+mod set_views;
 mod sets;
 mod single_choices;
 #[cfg(test)]
@@ -57,6 +58,7 @@ mod walk;
 pub use fixed_mana::literal as literal_mana;
 pub use immediate_views::print_views as immediate_parameter_print_views;
 use movement::groups as movement_groups;
+pub use set_views::print_views as object_population_print_views;
 pub use trace::MappedCard;
 pub use visibility::branch_sites as branch_receipt_sites;
 pub use visibility::export_sites as exported_receipt_sites;
@@ -112,6 +114,7 @@ type JoinGroup = HashMap<u64, Vec<(u64, u64)>>;
 struct TargetScope {
     map: Option<HashMap<u64, u64>>,
     optional: HashSet<u64>,
+    single_battlefield: HashSet<u64>,
 }
 #[derive(Clone)]
 struct ResultScope {
@@ -125,6 +128,7 @@ struct Ids {
     /// Old id to new id, per id type, in this ability's scope.
     maps: HashMap<&'static str, HashMap<u64, u64>>,
     optional_targets: HashSet<u64>,
+    single_battlefield_targets: HashSet<u64>,
     /// Which ability this is, in visiting order.
     visit: usize,
     /// Unread definitions still need distinct ids for executable, valid IR.
@@ -251,6 +255,7 @@ struct Walker {
     scopes: Vec<Ids>,
     /// The role each open ability's damage event calls its subject.
     damage_subjects: Vec<Option<Value>>,
+    object_batch_counts: Vec<bool>,
     /// Whether each open ability's event is about the source itself.
     subjects: Vec<Subject>,
     event_header: bool,
@@ -307,6 +312,7 @@ impl Walker {
         self.scopes.last().map(|scope| TargetScope {
             map: scope.maps.get("slot").cloned(),
             optional: scope.optional_targets.clone(),
+            single_battlefield: scope.single_battlefield_targets.clone(),
         })
     }
 
@@ -318,6 +324,7 @@ impl Walker {
                 scope.maps.remove("slot");
             }
             scope.optional_targets = saved.optional;
+            scope.single_battlefield_targets = saved.single_battlefield;
         }
     }
 
@@ -491,6 +498,9 @@ impl Walker {
             self.gathering_results = false;
         }
         if scoped {
+            if !self.keep_order {
+                keywords::conditional_flash(value);
+            }
             if !self.keep_order
                 && value["kind"] == "Triggered"
                 && let Some((_, fields)) = self.schema.variant("Ability", "Triggered")
@@ -508,6 +518,10 @@ impl Walker {
             }
             self.damage_subjects
                 .push(damage_subject(&value["args"]["event"]));
+            self.object_batch_counts
+                .push(trigger_batches::amount_is_group_size(
+                    &value["args"]["event"],
+                ));
             self.subjects.push(subject_of(value));
         }
         let schema = self.schema;
@@ -524,6 +538,11 @@ impl Walker {
                         } else {
                             scope.optional_targets.remove(&slot);
                         }
+                        if sets::single_battlefield_target(value) {
+                            scope.single_battlefield_targets.insert(slot);
+                        } else {
+                            scope.single_battlefield_targets.remove(&slot);
+                        }
                     }
                 }
             }
@@ -533,6 +552,7 @@ impl Walker {
         if scoped {
             self.scopes.pop();
             self.damage_subjects.pop();
+            self.object_batch_counts.pop();
             self.subjects.pop();
         }
         if let Some(saved) = local_results {
@@ -545,6 +565,16 @@ impl Walker {
     }
 
     fn variant(&mut self, value: &mut Value, name: &str, adjacent: bool) {
+        if name == "Expr"
+            && value["kind"] == "EventAmount"
+            && value.as_object().is_some_and(|fields| fields.len() == 1)
+            && !self.keep_order
+            && !self.event_header
+            && self.reference_reductions
+            && self.object_batch_counts.last() == Some(&true)
+        {
+            *value = json!({"kind":"CountObjects","args":{"kind":"EventGroup"}});
+        }
         let schema = self.schema;
         if name == "EventSpec" && !self.keep_order {
             entry::player(value, schema, self.tracing);
@@ -614,6 +644,11 @@ impl Walker {
                     value,
                     self.scopes.last().map(|scope| &scope.optional_targets),
                 ),
+                ("Operation", "Move") if !self.keep_order => {
+                    if let Some(scope) = self.scopes.last() {
+                        sets::exile_union(value, &scope.single_battlefield_targets, self.tracing);
+                    }
+                }
                 ("Operation", "CreateContinuousEffect") => untap::controlled_population(value),
                 ("ManaUse", "Either") => {
                     mana_uses::casting_alternatives(value, self.keep_order, self.tracing);
@@ -683,25 +718,17 @@ impl Walker {
         let Some(items) = value["args"].as_array() else {
             return;
         };
-        let mut filters = Vec::with_capacity(items.len());
-        for item in items {
-            if item["kind"] != "Objects" {
-                return;
-            }
-            let Some(filter) = battlefield_filter(&item["args"]) else {
-                return;
-            };
-            filters.push(filter.clone());
+        let slots = self
+            .scopes
+            .last()
+            .filter(|_| !self.keep_order)
+            .map(|scope| &scope.single_battlefield_targets);
+        let objects = items
+            .iter()
+            .map(|item| (item["kind"] == "Objects").then_some(&item["args"]));
+        if let Some(zone) = sets::battlefield_union(objects, slots, self.keep_order, self.tracing) {
+            *value = json!({"kind":"Objects","args":zone});
         }
-        flatten(&mut filters, "AnyOf");
-        if !self.keep_order {
-            filters.sort_by_cached_key(|v| trace::key(v, self.tracing));
-        }
-        *value = serde_json::json!({"kind": "Objects", "args": {
-            "kind": "Zone",
-            "args": {"scope":{"Shared":"Battlefield"}, "kind":"Permanent",
-                "filter":{"kind": "AnyOf", "args": filters}},
-        }});
     }
 
     fn fields(&mut self, value: &mut Value, fields: &Fields, owner: &str) {
@@ -793,6 +820,13 @@ impl Walker {
         }
         let created = events::created(owner, value);
         let old_reductions = self.reference_reductions;
+        let old_count = if owner == "Operation::CreateTrigger" {
+            self.object_batch_counts
+                .push(trigger_batches::amount_is_group_size(&value["event"]));
+            true
+        } else {
+            false
+        };
         if matches!(
             owner,
             "Operation::CreateDelayedTrigger"
@@ -938,6 +972,9 @@ impl Walker {
             && let Some(scope) = self.scopes.last_mut()
         {
             scope.join_groups.push(branch_joins);
+        }
+        if old_count {
+            self.object_batch_counts.pop();
         }
         self.reference_reductions = old_reductions;
         if let Some(previous) = created_slots {
@@ -1238,6 +1275,7 @@ fn walk_reference_form(
         binding_namespace: "binding",
         scopes: Vec::new(),
         damage_subjects: Vec::new(),
+        object_batch_counts: Vec::new(),
         subjects: Vec::new(),
         event_header: false,
         reference_reductions: true,

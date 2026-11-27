@@ -57,3 +57,26 @@ pub(super) fn suspect(value: &mut Value, optional: Option<&HashSet<u64>>) {
         "actor":actor,"action":"Suspect","objects":objects(object, optional)
     }});
 }
+
+/// A lone conditional static granting Flash to its own source spells exactly
+/// that source's conditional Flash. Other affected objects and changes retain
+/// the ordinary conditional static, including explicitly named creators.
+pub(super) fn conditional_flash(value: &mut Value) {
+    if value["kind"] != "Conditional"
+        || !value.as_object().is_some_and(|fields| fields.len() == 2)
+        || !value["args"]
+            .as_object()
+            .is_some_and(|args| args.len() == 3)
+        || value["args"]["otherwise"] != json!([])
+        || value["args"]["condition"].is_null()
+        || value["args"]["then"]
+            != json!([{ "kind":"Static", "args":{
+                "kind":"Ordinary", "affected":{"Objects":{"kind":"One","args":{"kind":"Source"}}},
+                "changes":[{"kind":"GrantKeyword","args":{"kind":"Flash"}}]
+            }}])
+    {
+        return;
+    }
+    let condition = value["args"]["condition"].take();
+    *value = json!({"kind":"FlashIf","args":condition});
+}

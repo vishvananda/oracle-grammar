@@ -104,6 +104,18 @@ pub(super) fn capped_occurrence(value: &mut Value) {
     }
 }
 
+/// These groups have one member per matching object, so their reported
+/// magnitude is the population size. Damage and per-subject amounts can name
+/// another quantity and are left alone.
+pub(super) fn amount_is_group_size(event: &Value) -> bool {
+    let batch = &event["Batch"];
+    let event = &batch["event"];
+    batch["per"] == "Whole"
+        && (event.get("Attack").is_some()
+            || event["Player"]["event"] == "EntersUnderControl"
+            || event["ZoneChange"]["to"] == "Battlefield")
+}
+
 /// Each member of an attack batch is a declared, matching attacker. A batch
 /// exists when at least one attacker matches (CR 508.3a, 508.3c and 508.3d).
 pub(super) fn attack_minimum(value: &mut Value) {
@@ -122,6 +134,7 @@ pub(super) fn attack_minimum(value: &mut Value) {
 enum WrittenEvent {
     AttackMinimum,
     CappedGroup,
+    GroupAmount,
 }
 
 fn implicit_attack(value: &Value) -> bool {
@@ -129,6 +142,29 @@ fn implicit_attack(value: &Value) -> bool {
     batch["per"] == "Whole"
         && batch["event"].get("Attack").is_some()
         && batch.get("count").is_some_and(Value::is_null)
+}
+
+fn group_size(value: &Value) -> bool {
+    value["kind"] == "CountObjects"
+        && value["args"]["kind"] == "EventGroup"
+        && value["args"]
+            .as_object()
+            .is_some_and(|fields| fields.len() == 1)
+        && value.as_object().is_some_and(|fields| fields.len() == 2)
+}
+
+fn group_scope(value: &Value, ty: &crate::ir_schema::Ty) -> Option<bool> {
+    match ty {
+        crate::ir_schema::Ty::Named(name) if name == "Ability" => {
+            Some(amount_is_group_size(&value["args"]["event"]))
+        }
+        crate::ir_schema::Ty::Named(name) if name == "Operation" => match value["kind"].as_str()? {
+            "CreateTrigger" => Some(amount_is_group_size(&value["args"]["event"])),
+            "CreateDelayedTrigger" | "CreateReplacement" | "ReflexiveTrigger" => Some(false),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 fn has_written_form(value: &Value, limit: &mut usize, depth: usize) -> bool {
@@ -140,6 +176,7 @@ fn has_written_form(value: &Value, limit: &mut usize, depth: usize) -> bool {
         Value::Object(fields) => {
             implicit_attack(value)
                 || limited_single_event(value)
+                || group_size(value)
                 || fields
                     .values()
                     .any(|child| has_written_form(child, limit, depth + 1))
@@ -152,8 +189,17 @@ fn has_written_form(value: &Value, limit: &mut usize, depth: usize) -> bool {
 }
 
 #[derive(Default)]
-struct WrittenEvents(Vec<(String, WrittenEvent)>);
+struct WrittenEvents {
+    sites: Vec<(String, WrittenEvent)>,
+    group_scopes: Vec<bool>,
+}
 impl super::walk::Visit for WrittenEvents {
+    fn enter(&mut self, value: &Value, ty: &crate::ir_schema::Ty) {
+        if let Some(group) = group_scope(value, ty) {
+            self.group_scopes.push(group);
+        }
+    }
+
     fn leave(
         &mut self,
         value: &mut Value,
@@ -162,20 +208,31 @@ impl super::walk::Visit for WrittenEvents {
         path: &str,
         _: &mut super::walk::Walker<'_>,
     ) -> Result<(), String> {
-        if self.0.len() == 5 {
+        if group_scope(value, ty).is_some() {
+            self.group_scopes.pop();
+        }
+        if self.sites.len() == 5 {
             return Ok(());
         }
         if matches!(ty, crate::ir_schema::Ty::Named(name) if name == "EventSpec")
             && implicit_attack(value)
         {
-            self.0.push((path.into(), WrittenEvent::AttackMinimum));
+            self.sites.push((path.into(), WrittenEvent::AttackMinimum));
         }
         if matches!(ty, crate::ir_schema::Ty::Named(name) if name == "Ability")
             && limited_single_event(value)
             && matches!(event_independent(value), Ok(true))
         {
-            self.0
+            self.sites
                 .push((format!("{path}/args/event"), WrittenEvent::CappedGroup));
+        }
+        if self.sites.len() < 5
+            && matches!(ty,crate::ir_schema::Ty::Named(name) if name == "Expr")
+            && self.group_scopes.last() == Some(&true)
+            && group_size(value)
+            && !path.contains("/event/")
+        {
+            self.sites.push((path.into(), WrittenEvent::GroupAmount));
         }
         Ok(())
     }
@@ -195,15 +252,15 @@ pub fn print_views(ability: &Value) -> Result<Vec<Value>, String> {
         0,
         &mut sites,
     )?;
-    if sites.0.is_empty() {
+    if sites.sites.is_empty() {
         return Ok(Vec::new());
     }
-    let all = (1 << sites.0.len()) - 1;
+    let all = (1 << sites.sites.len()) - 1;
     std::iter::once(all).chain(1..all).map(|mask| {
         let mut variant = view.clone();
         // The typed walker visits children first, so wrapping a parent keeps
         // every previously restored child attached to the same event.
-        for (at, (path, form)) in sites.0.iter().enumerate() {
+        for (at, (path, form)) in sites.sites.iter().enumerate() {
             if mask & (1 << at) == 0 {
                 continue;
             }
@@ -211,6 +268,9 @@ pub fn print_views(ability: &Value) -> Result<Vec<Value>, String> {
             match form {
                 WrittenEvent::AttackMinimum => {
                     event["Batch"]["count"] = json!(["GreaterOrEqual", {"kind":"Constant","args":1}]);
+                }
+                WrittenEvent::GroupAmount => {
+                    *event = json!({"kind":"EventAmount"});
                 }
                 WrittenEvent::CappedGroup => {
                     *event = json!({"Batch":{"event":event.take(),"per":"Whole","count":null,"including":null}});

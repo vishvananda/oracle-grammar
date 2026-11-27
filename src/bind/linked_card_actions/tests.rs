@@ -21,6 +21,38 @@ fn local_optional_exile_uses_its_receipt_instead_of_a_linked_query() {
     );
 }
 
+#[test]
+fn a_definite_linked_return_uses_the_group_from_its_own_entry() {
+    let engine = crate::test_support::engine();
+    for wording in [
+        "return the exiled card to its owner's hand",
+        "put the exiled card into its owner's hand",
+        "you may put the exiled card into its owner's hand",
+    ] {
+        let text = format!(
+            "When this creature enters, exile target creature.\nWhen this creature leaves the battlefield, {wording}."
+        );
+        let name = "Linked Fixture";
+        let parsed = engine.parse(name, &text).unwrap();
+        let [reading] = parsed.readings.as_slice() else {
+            panic!("one linked return reading: {text}");
+        };
+        let site = leaving_return(1, &reading[1]).unwrap();
+        assert_eq!(
+            returned(reading, &site).unwrap()["args"]["objects"],
+            linked_zone()
+        );
+        let trail = engine.trail_of(name, reading, &text).unwrap().unwrap();
+        assert_eq!(
+            engine
+                .print_trail(name, reading, &trail)
+                .unwrap()
+                .as_deref(),
+            Some(text.as_str())
+        );
+    }
+}
+
 fn native(index: usize) -> Value {
     let fixture: Value = serde_json::from_str(include_str!(
         "../../../tests/fixtures/linked-card-action-native.json"
@@ -34,12 +66,14 @@ fn site(index: usize) -> Site {
             ability: 2,
             returned: 0,
             producer: None,
+            optional: false,
         }
     } else {
         Site {
             ability: 0,
             returned: 1,
             producer: Some(0),
+            optional: false,
         }
     }
 }
