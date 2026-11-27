@@ -10076,8 +10076,14 @@ extra_turn_restricted_instructions ::= extra_turn_producer "." extra_turn_scheme
 triggered_extra_turn_restriction ::= event_clause "," extra_turn_restricted_instructions "."
 
 /* The perpetual change follows the actual returned object. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:$delayed_graveyard_self_untapped}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$static_changes}}]} */
-graveyard_return_perpetual_program ::= delayed_graveyard_self_untapped "." "it" "perpetually" static_changes
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$graveyard_return_perpetual_move}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$static_changes}}]} */
+graveyard_return_perpetual_program ::= graveyard_return_perpetual_move "." "it" "perpetually" static_changes
+
+graveyard_return_perpetual_move ::= delayed_graveyard_self_untapped | graveyard_self_untapped_owner
+
+/* The source is already in this player's own graveyard. */
+/* @sem $delayed_graveyard_self_untapped */
+graveyard_self_untapped_owner ::= delayed_graveyard_self_untapped "under" "its" "owner's" "control"
 
 /* Exile a creature with an attached subtype, then retain its counters. The
    note refers to the announced creature, not the attached population. */
@@ -15788,8 +15794,11 @@ exile_payment_duplicate_followup ::= "conjure" "a" "duplicate" "of" "it" "into" 
 duplicate_color_type_stats ::= "becomes" "a" mana_color_word becomes_type_one "with" "base" "power" "and" "toughness" value "/" value "in" "addition" "to" "its" "other" "colors" "and" "types"
 
 /* A shared perpetual change applies separately to both current populations. */
-/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:$paired_perpetual_battlefield, changes:$event_creatures_gain}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:$paired_perpetual_hand, changes:$event_creatures_gain}}] */
-instructions_paired_perpetual_populations ::= paired_perpetual_battlefield "and" paired_perpetual_hand "perpetually" event_creatures_gain
+/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:$paired_perpetual_battlefield, changes:$paired_perpetual_grants}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:$paired_perpetual_hand, changes:$paired_perpetual_grants}}] */
+instructions_paired_perpetual_populations ::= paired_perpetual_battlefield "and" paired_perpetual_hand "perpetually" paired_perpetual_grants
+paired_perpetual_grants ::= event_creatures_gain | paired_perpetual_gains
+/* @sem $grants */
+paired_perpetual_gains ::= "gains" grants
 
 /* The announced graveyard card is selected using the amount of this damage
    event and the damaged player's graveyard. The adjacent copy consumes this
