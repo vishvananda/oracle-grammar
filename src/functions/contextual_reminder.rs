@@ -21,6 +21,8 @@ pub(crate) fn is_symbol(name: &str) -> bool {
         "contextual_reminder"
             | "measured_reminder"
             | "cycling_reminder"
+            | "cycling_pair_reminder"
+            | "cycling_grant_reminder"
             | "chapter_reminder"
             | "cost_symbol_reminder"
             | "awaken_reminder"
@@ -78,8 +80,8 @@ fn mechanic(value: &Value) -> Option<&'static str> {
         "UmbraArmor" => Some("UmbraArmor"),
         "BattleCry" => Some("BattleCry"),
         "Extort" => Some("Extort"),
-        "Surge" => Some("Surge"),
-        "Freerunning" => Some("Freerunning"),
+        "Surge" | "SurgeX" => Some("Surge"),
+        "Freerunning" | "FreerunningX" => Some("Freerunning"),
         "Prowl" => Some("Prowl"),
         "Enlist" => Some("Enlist"),
         "LivingMetal" => Some("LivingMetal"),
@@ -193,6 +195,7 @@ fn marker(value: &Value) -> Option<&'static str> {
         Some("Deathtouch") => Some("Deathtouch"),
         Some("Flying") => Some("Flying"),
         Some("Haste") => Some("Haste"),
+        Some("Scry") => Some("Scry"),
         Some("Lifelink") => Some("Lifelink"),
         Some("Prowess") => Some("Prowess"),
         Some("Vigilance") => Some("Vigilance"),
@@ -344,6 +347,21 @@ fn marker(value: &Value) -> Option<&'static str> {
         _ if mechanic_notes::copies_stack_ability(value) => Some("CopyStackAbility"),
         _ => rules_token(value).or_else(|| evidence::mention(value)),
     }
+}
+
+fn entry_keyword_counter(value: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {
+    let counters = &value["args"]["change"]["Entry"]["CountersOfChoice"]["kinds"];
+    value["kind"] == "ModifyEvent"
+        && counters.as_array().is_some_and(|kinds| {
+            kinds
+                .iter()
+                .take(16)
+                .any(|counter| match counter["Named"].as_str() {
+                    Some("HexproofCounter") => visit("EntryHexproofCounter"),
+                    Some("MenaceCounter") => visit("EntryMenaceCounter"),
+                    _ => false,
+                })
+        })
 }
 
 fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
@@ -507,6 +525,7 @@ fn visit_mentions<'a>(
             }) || evidence::flashback_at_mana_cost(value)
                 && (visit("FlashbackAtManaCost", None) || visit("FullManaCost", None))
                 || casting::permission_notes(value, |topic| visit(topic, None))
+                || entry_keyword_counter(value, |topic| visit(topic, None))
                 || mechanic_notes::mention(value).is_some_and(|topic| {
                     visit(topic, None)
                         || match topic {
@@ -541,6 +560,13 @@ fn visit_mentions<'a>(
         || !measured && mechanic_notes::root_mentions(ability, |topic| visit(topic, None))
         || !measured && cascade_notes::mentions(ability, |topic| visit(topic, None))
         || !measured && object_notes::mentions(ability, |topic| visit(topic, None))
+        || !measured && token_notes::prowess_notes(ability, |topic| visit(topic, None))
+        || !measured
+            && object_notes::regenerates_source(ability)
+            && visit("OwnRegenerationShield", None)
+        || !measured
+            && casting::spells_have_zero_x_when_played(ability)
+            && visit("FreeCastXZero", None)
         || !measured && suspend::mentions(ability, |topic| visit(topic, None))
         || !measured && plot::plots_for_controller(ability) && visit("PlottedByController", None)
         || !measured && evidence::root_mentions(ability, |topic| visit(topic, None))
@@ -651,6 +677,11 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "CascadeEnchantmentFromHand"
                     | "CascadeTwiceOnGrant"
                     | "EscapeFromYourGraveyardThisTurn"
+                    | "OwnRegenerationShield"
+                    | "SliverRegeneration"
+                    | "SourceProwess"
+                    | "TokenProwess"
+                    | "GroupTokenProwess"
             )
         )
     )
@@ -738,6 +769,8 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
                 | "ControlledGroupPhasesOut"
                 | "ManifestDreadTargetController"
                 | "EscapeFromYourGraveyardThisTurn"
+                | "TokenProwess"
+                | "GroupTokenProwess"
         )
     );
     let mut deferred =
@@ -750,7 +783,7 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
         true
     } else if deferred {
         true
-    } else if let Some(candidates) = typed_claims(name, inner) {
+    } else if let Some(candidates) = typed_claims(name, value, inner) {
         let matches = candidates.iter().any(|candidate| candidate == explanation);
         deferred = !matches && name == "cost_symbol_reminder";
         matches || deferred
@@ -810,7 +843,7 @@ pub(crate) fn unify<'p, 'v>(
         return Vec::new();
     };
     if name == "chapter_reminder" {
-        return claims(name, wrapped)
+        return claims(name, value, wrapped)
             .iter()
             .flat_map(|claim| explanation.unify_made(claim, &bindings))
             .flat_map(|binding| ability.unify(value, binding))
@@ -829,7 +862,7 @@ pub(crate) fn unify<'p, 'v>(
     };
     let source = replace_last(value, source.clone());
     let mut solutions = Vec::new();
-    for claim in claims(name, inner) {
+    for claim in claims(name, value, inner) {
         for matched in explanation.unify_made(&claim, &bindings) {
             solutions.extend(ability.unify_made(&source, &matched));
             solutions.extend(ability.unify(value, matched));
@@ -838,8 +871,8 @@ pub(crate) fn unify<'p, 'v>(
     solutions
 }
 
-fn claims(name: &str, ability: &Value) -> Vec<Value> {
-    if let Some(claims) = typed_claims(name, ability) {
+fn claims(name: &str, line: &Value, ability: &Value) -> Vec<Value> {
+    if let Some(claims) = typed_claims(name, line, ability) {
         return claims;
     }
     let mut found = Vec::new();
@@ -874,9 +907,11 @@ fn claims(name: &str, ability: &Value) -> Vec<Value> {
         .collect()
 }
 
-fn typed_claims(name: &str, ability: &Value) -> Option<Vec<Value>> {
+fn typed_claims(name: &str, line: &Value, ability: &Value) -> Option<Vec<Value>> {
     Some(match name {
         "cycling_reminder" => evidence::cycling_claim(ability).into_iter().collect(),
+        "cycling_pair_reminder" => evidence::cycling_pair_claim(line, ability),
+        "cycling_grant_reminder" => evidence::cycling_grant_claim(ability).into_iter().collect(),
         "cost_symbol_reminder" => evidence::cost_symbols(ability),
         "awaken_reminder" => evidence::awaken_claim(ability).into_iter().collect(),
         "ward_grant_reminder" => evidence::ward_grant_claims(ability),

@@ -902,3 +902,41 @@ fn an_unearth_reminder_repeats_the_cost_of_the_granted_ability() {
     let wrong = text.replacen("({2}{B}", "({1}{B}", 1);
     assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
 }
+
+#[test]
+fn shared_typecycling_reminder_checks_both_activations() {
+    let context = empty_card_characteristics();
+    let text = "Forestcycling {2}, plainscycling {2} ({2}, Discard this card: Search your library for a Forest or Plains card, reveal it, put it into your hand, then shuffle.)";
+    exact_roundtrip(text, &context);
+    for wrong in [
+        text.replace("plainscycling {2}", "plainscycling {3}"),
+        text.replace("Forest or Plains", "Forest or Swamp"),
+    ] {
+        assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    }
+    let edited = text.replace("{2}", "{3}").replace("Plains", "Mountain");
+    exact_roundtrip(
+        &edited.replace("plainscycling", "mountaincycling"),
+        &context,
+    );
+}
+
+#[test]
+fn token_prowess_reminder_refers_to_the_token_created_by_the_line() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Sorcery);
+    let text = "Create a 1/1 red Monk creature token with prowess. (Whenever you cast a noncreature spell, the token gets +1/+1 until end of turn.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("with prowess", "with trample");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn a_hidden_card_reminder_requires_face_down_exile() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Creature);
+    let text = "Whenever this creature attacks, exile the top card of your library face down. (You can't look at it.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace(" face down", "");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}

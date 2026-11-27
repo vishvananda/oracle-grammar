@@ -3,7 +3,7 @@
 use super::evidence::{step_operation, unscoped};
 use serde_json::{Value, json};
 
-fn last_creation(ability: &Value) -> Option<&Value> {
+fn last_creation(ability: &Value, follow_attachment: bool) -> Option<(&Value, &Value)> {
     let ability = unscoped(ability);
     let args = &ability["args"];
     let args = match ability["kind"].as_str()? {
@@ -33,7 +33,12 @@ fn last_creation(ability: &Value) -> Option<&Value> {
             continue;
         }
         let step = match instructions.as_slice() {
-            [.., creation, follow_up] if goads_created_tokens(creation, follow_up) => creation,
+            [.., creation, follow_up]
+                if goads_created_tokens(creation, follow_up)
+                    || follow_attachment && attaches_to_created_token(creation, follow_up) =>
+            {
+                creation
+            }
             _ => last,
         };
         let operation = step_operation(step)?;
@@ -48,9 +53,36 @@ fn last_creation(ability: &Value) -> Option<&Value> {
         let [spec] = operation["args"]["tokens"].as_array()?.as_slice() else {
             return None;
         };
-        return Some(spec);
+        return Some((&operation["args"], spec));
     }
     None
+}
+
+fn attaches_to_created_token(creation: &Value, follow_up: &Value) -> bool {
+    let result = &creation["args"]["result"];
+    let args = &follow_up["args"];
+    if !result.is_u64()
+        || follow_up["kind"] != "Optional"
+        || args["decider"]["kind"] != "AbilityController"
+    {
+        return false;
+    }
+    let Some([select, attach]) = args["body"]["instructions"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let (Some(choice), Some(attachment)) = (step_operation(select), step_operation(attach)) else {
+        return false;
+    };
+    let objects = &choice["args"]["objects"];
+    let host = &attachment["args"]["host"];
+    choice["kind"] == "ChooseObjects"
+        && objects["kind"] == "Created"
+        && &objects["args"] == result
+        && attachment["kind"] == "Attach"
+        && host["kind"] == "Result"
+        && host["args"]["result"] == select["args"]["result"]
+        && host["args"]["phase"] == "After"
+        && host["args"]["index"] == 0
 }
 
 fn goads_created_tokens(creation: &Value, follow_up: &Value) -> bool {
@@ -67,7 +99,7 @@ fn goads_created_tokens(creation: &Value, follow_up: &Value) -> bool {
 }
 
 fn descriptions(ability: &Value, plural: bool) -> Vec<Value> {
-    let Some(spec) = last_creation(ability) else {
+    let Some((_, spec)) = last_creation(ability, false) else {
         return Vec::new();
     };
     let amount = &spec["amount"];
@@ -105,6 +137,32 @@ fn descriptions(ability: &Value, plural: bool) -> Vec<Value> {
         choices.push(json!({"Defined":shape}));
     }
     choices
+}
+
+pub(super) fn prowess_notes(ability: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {
+    let Some((creation, spec)) = last_creation(ability, true) else {
+        return false;
+    };
+    let entry_controller = &creation["entry"]["controller"];
+    if !(entry_controller["Player"]["kind"] == "AbilityController"
+        || entry_controller.is_null() && super::object_notes::is_controller(&creation["players"]))
+    {
+        return false;
+    }
+    let definition = &spec["recipe"]["Defined"];
+    let [keyword] = definition["abilities"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or_default()
+    else {
+        return false;
+    };
+    if keyword["kind"] != "Keyword" || keyword["args"]["kind"] != "Prowess" {
+        return false;
+    }
+    let amount = &spec["amount"];
+    visit("TokenProwess")
+        || !(amount["kind"] == "Constant" && amount["args"] == 1) && visit("GroupTokenProwess")
 }
 
 pub(super) fn print_descriptions(ability: &Value, plural: bool) -> Vec<Value> {

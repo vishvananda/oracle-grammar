@@ -206,14 +206,23 @@ listed_typecycling ::= typecycling_filter mana_symbols
 /* @sem Ability::@cycling_reminder($listed_typecycling, $typecycling_claim) */
 listed_typecycling_reminded ::= listed_typecycling "(" typecycling_claim ")"
 
-/* @sem Operand::List([Cost($cycling_reminder_cost), Filter($typecycling_explained_filter)]) */
-typecycling_claim ::= cycling_reminder_cost ":" "search" "your" "library" "for" typecycling_explained_filter "card" "," "reveal" "it" "," "put" "it" "into" "your" "hand" "," "then" "shuffle" "."
+/* @sem Operand::List([Cost($cycling_reminder_cost), Filter($typecycling_reminder_filter)]) */
+typecycling_claim ::= cycling_reminder_cost ":" "search" "your" "library" "for" typecycling_reminder_filter "card" "," "reveal" "it" "," "put" "it" "into" "your" "hand" "," "then" "shuffle" "."
+typecycling_reminder_filter ::= typecycling_explained_filter | typecycling_pair_filter
 typecycling_explained_filter ::= typecycling_named_filter | typecycling_island_filter | typecycling_artifact_land_filter
 /* @sem $typecycling_consonant_kind */
 typecycling_named_filter ::= "a" typecycling_consonant_kind
 typecycling_consonant_kind ::= st_plains | st_swamp | st_mountain | st_forest | st_sliver | st_wizard
 /* @sem ObjectFilter::Subtype(Island) */
 typecycling_island_filter ::= "an" "Island"
+
+/* Both headings supply independent activations of the same printed payment. */
+/* @sem Vec<Ability>::@cycling_pair_reminder([$listed_typecycling, $listed_typecycling_2], $typecycling_claim) */
+line_typecycling_pair_reminder ::= listed_typecycling "," listed_typecycling "(" typecycling_claim ")"
+
+/* @sem ObjectFilter::AnyOf([$typecycling_explained_filter, $typecycling_second_kind]) */
+typecycling_pair_filter ::= typecycling_explained_filter "or" typecycling_second_kind
+typecycling_second_kind ::= typecycling_consonant_kind | st_island
 /* @sem ObjectFilter::AllOf([CardType(Artifact), CardType(Land)]) */
 typecycling_artifact_land_filter ::= "an" "artifact" "land"
 
@@ -309,7 +318,7 @@ walk_card_type_filter ::= noun_artifact | noun_creature | noun_enchantment
 listed_reminded_toxic_one ::= mechanic_toxic_name "1" "(" toxic_one_explanation_words ")"
 
 /* @sem Ability::WithPresentation{ability:Mechanic{mechanic:$mechanic_toxic_name, amount:Expr::@agree($number_digits, $written_toxic_count)}, reminder:true} */
-listed_reminded_toxic_count ::= mechanic_toxic_name number_digits "(" written_toxic_count ")"
+listed_reminded_toxic_count ::= mechanic_toxic_name number_digits "(" written_toxic_count poison_threshold_context_explanation? ")"
 /* @sem $number_words */
 written_toxic_count ::= "players" "dealt" "combat" "damage" "by" "this" "creature" "also" "get" number_words "poison" "counters" "."
 

@@ -51,6 +51,13 @@ pub(super) fn visit_nodes<'a>(
 }
 
 pub(super) fn cycling_claim(value: &Value) -> Option<Value> {
+    let (cost, search) = cycling_operands(value)?;
+    (!search.is_null()).then(|| {
+        json!({"kind":"List","args":[{"kind":"Cost","args":cost},{"kind":"Filter","args":search}]})
+    })
+}
+
+fn cycling_operands(value: &Value) -> Option<(&Value, &Value)> {
     let scope = &value["args"];
     if value["kind"] != "Scoped" || scope["zones"] != json!(["Hand"]) {
         return None;
@@ -60,13 +67,56 @@ pub(super) fn cycling_claim(value: &Value) -> Option<Value> {
         return None;
     }
     let search = activation["args"]["origin"]["Cycling"].get("search")?;
-    if search.is_null() {
+    let cost = activation["args"].get("cost")?;
+    Some((cost, search))
+}
+
+pub(super) fn cycling_pair_claim(line: &Value, last: &Value) -> Vec<Value> {
+    let Some([first, _]) = line.as_array().map(Vec::as_slice) else {
+        return Vec::new();
+    };
+    let (Some((first_cost, first_filter)), Some((last_cost, last_filter))) =
+        (cycling_operands(first), cycling_operands(last))
+    else {
+        return Vec::new();
+    };
+    if first_cost != last_cost
+        || first_filter.is_null()
+        || last_filter.is_null()
+        || first_filter == last_filter
+    {
+        return Vec::new();
+    }
+    [[first_filter, last_filter], [last_filter, first_filter]]
+        .into_iter()
+        .map(|filters| {
+            json!({"kind":"List","args":[
+                {"kind":"Cost","args":first_cost},
+                {"kind":"Filter","args":{"kind":"AnyOf","args":filters}}
+            ]})
+        })
+        .collect()
+}
+
+pub(super) fn cycling_grant_claim(ability: &Value) -> Option<Value> {
+    let ability = own_ability(ability);
+    let args = &ability["args"];
+    let objects = &args["affected"]["Objects"];
+    if ability["kind"] != "Static"
+        || objects["kind"] != "Zone"
+        || objects["args"]["kind"] != "Card"
+        || !super::receipts::own_zone(&objects["args"]["scope"]["Players"], "Hand")
+    {
         return None;
     }
-    let cost = activation["args"].get("cost")?;
-    Some(
-        json!({"kind":"List","args":[{"kind":"Cost","args":cost},{"kind":"Filter","args":search}]}),
-    )
+    let [change] = args["changes"].as_array()?.as_slice() else {
+        return None;
+    };
+    if change["kind"] != "GrantAbility" {
+        return None;
+    }
+    let (cost, search) = cycling_operands(&change["args"])?;
+    search.is_null().then(|| json!({"kind":"Cost","args":cost}))
 }
 
 pub(super) fn cost_symbols(ability: &Value) -> Vec<Value> {

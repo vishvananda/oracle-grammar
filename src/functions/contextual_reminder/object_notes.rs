@@ -1,4 +1,4 @@
-use super::evidence::{effects, in_resolution, step_operation, target_spec};
+use super::evidence::{effects, in_resolution, step_operation, target_spec, unscoped};
 use serde_json::Value;
 
 pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {
@@ -25,6 +25,9 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
             || own_graveyard_cards(&args["affected"]["Objects"])
                 && grants_mechanic(&args["changes"], "JumpStart")
                 && visit("JumpStartFromYourGraveyard")
+            || grants_sliver_regeneration(&args["changes"]) && visit("SliverRegeneration")
+            || grants_source_prowess(args) && visit("SourceProwess")
+            || makes_artifact_creature(&args["changes"]) && visit("CreatureEquipment")
             || replacement_notes(&args["changes"], &mut visit)
             || lifelink_notes(args, args, &mut visit))
     {
@@ -34,7 +37,16 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
         && args["otherwise"].as_array().is_some_and(Vec::is_empty)
         && let Some([inner]) = args["then"].as_array().map(Vec::as_slice)
         && inner["kind"] == "Static"
-        && lifelink_notes(&inner["args"], &inner["args"], &mut visit)
+        && (lifelink_notes(&inner["args"], &inner["args"], &mut visit)
+            || grants_source_prowess(&inner["args"]) && visit("SourceProwess"))
+    {
+        return true;
+    }
+    if let Some([step]) = args["body"]["instructions"].as_array().map(Vec::as_slice)
+        && let Some(op) = step_operation(step)
+        && op["kind"] == "Move"
+        && exiles_one_card_face_down(&op["args"])
+        && visit("FaceDownHiddenCard")
     {
         return true;
     }
@@ -88,7 +100,9 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                         || keeps_abilities_when_animated(&op["args"])
                             && visit("AnimationKeepsAbilities")
                         || op["args"]["affected"]["Objects"].is_object()
-                            && replacement_notes(&op["args"]["changes"], &mut visit)
+                            && (replacement_notes(&op["args"]["changes"], &mut visit)
+                                || makes_artifact_creature(&op["args"]["changes"])
+                                    && visit("CreatureEquipment"))
                 }
                 Some("ReflexiveTrigger") => {
                     effects(&op["args"]["body"]).take(16).any(|op_inside| {
@@ -99,6 +113,75 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
             }
         },
     )
+}
+
+fn makes_artifact_creature(changes: &Value) -> bool {
+    let adds = |kind| {
+        changes.as_array().is_some_and(|changes| {
+            changes.len() <= 32
+                && changes
+                    .iter()
+                    .any(|change| change["kind"] == "AddCardType" && change["args"] == kind)
+        })
+    };
+    adds("Artifact") && adds("Creature")
+}
+
+fn exiles_one_card_face_down(movement: &Value) -> bool {
+    let objects = &movement["objects"];
+    let amount = &objects["args"]["count"];
+    movement["destination"]["Exile"]["visibility"] == "FaceDown"
+        && objects["kind"] == "Take"
+        && amount["kind"] == "Constant"
+        && amount["args"] == 1
+        && objects["args"]["from"] == "Top"
+        && super::receipts::own_zone(
+            &objects["args"]["objects"]["args"]["scope"]["Players"],
+            "Library",
+        )
+}
+
+fn grants_source_prowess(args: &Value) -> bool {
+    let affected = &args["affected"]["Objects"];
+    affected["kind"] == "One"
+        && affected["args"]["kind"] == "Source"
+        && grants_keyword(&args["changes"], "Prowess")
+}
+
+fn grants_sliver_regeneration(changes: &Value) -> bool {
+    let Some([change]) = changes.as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    if change["kind"] != "GrantAbility" {
+        return false;
+    }
+    let grant = unscoped(&change["args"]);
+    let args = &grant["args"];
+    grant["kind"] == "Activated"
+        && effects(&args["body"]).take(16).any(|op| {
+            let objects = &op["args"]["objects"];
+            op["kind"] == "CreateRegenerationShields"
+                && objects["kind"] == "One"
+                && target_spec(&objects["args"], &args["announcement"]).is_some_and(|target| {
+                    filter_proves(
+                        &target["filter"],
+                        &|term| term["kind"] == "Subtype" && term["args"] == "Sliver",
+                        0,
+                        &mut 256,
+                    )
+                })
+        })
+}
+
+pub(super) fn regenerates_source(ability: &Value) -> bool {
+    let ability = unscoped(ability);
+    ability["kind"] == "Activated"
+        && effects(&ability["args"]["body"]).take(16).any(|op| {
+            let objects = &op["args"]["objects"];
+            op["kind"] == "CreateRegenerationShields"
+                && objects["kind"] == "One"
+                && objects["args"]["kind"] == "Source"
+        })
 }
 
 fn replacement_notes(changes: &Value, visit: &mut impl FnMut(&'static str) -> bool) -> bool {

@@ -2,10 +2,10 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
-line_contextual_reminder ::= line_contextual_group | line_paid_permanent_copy_note | line_combat_notes | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_unearth_grant_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder | line_phaseout_group_reminder | line_behold_choice_explained | line_behold_flash_explained | line_behold_exile_explained | line_milling_mana_note | line_token_description_reminder | line_two_contextual_claims | line_measured_then_contextual_claims | line_contextual_then_measured_claims | line_two_measured_claims
+line_contextual_reminder ::= line_contextual_group | line_paid_permanent_copy_note | line_combat_notes | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_unearth_grant_reminder | line_cycling_grant_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder | line_phaseout_group_reminder | line_behold_choice_explained | line_behold_flash_explained | line_behold_exile_explained | line_milling_mana_note | line_token_description_reminder | line_two_contextual_claims | line_measured_then_contextual_claims | line_contextual_then_measured_claims | line_two_measured_claims
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
 line_contextual_group ::= remindable_line "(" ability_explanation ")"
-remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_blocks_blocked
+remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_blocks_blocked | line_counter_exile_free_permission
     | line_repeat_card_last | line_pair_enters_put | line_spell_paragraphs | line_saga | static_form_grants_goad | line_host_base_restrictions
 
 /* The description checks the created recipe in the producing ability. */
@@ -110,6 +110,7 @@ measured_explanation ::= monstrosity_explanation | monstrosity_one_explanation |
     | mill_each_player_one_explanation
     | mill_controller_one_explanation | collect_evidence_measured_explanation
     | scry_defining_one_explanation | scry_defining_many_explanation
+    | scry_defining_one_separate_sentence | surveil_defining_x_explanation
     | firebending_granted_explanation | monstrosity_x_explanation | collect_evidence_short_explanation
     | surveil_defining_one_explanation | optional_controller_mill_explanation | optional_controller_mill_one_explanation
     | blight_measured_explanation | blight_effect_explanation | incubation_defining_explanation | adapt_one_explanation
@@ -237,6 +238,8 @@ collect_evidence_measured_explanation ::= "to" "collect" "evidence" number_digit
 
 /* @sem Operand::List([Text(Scry), Number(Constant(1))]) */
 scry_defining_one_explanation ::= "to" "scry" "1" "," "look" "at" "the" "top" "card" "of" "your" "library" "," "then" "you" "may" "put" "that" "card" "on" "the" "bottom" "."
+/* @sem Operand::List([Text(Scry), Number($scry_look_one)]) */
+scry_defining_one_separate_sentence ::= "to" "scry" "1" "," scry_look_one
 
 /* @sem Operand::List([Text(Scry), Number(@agree($number_digits, $scry_look_many))]) */
 scry_defining_many_explanation ::= "to" "scry" number_digits "," scry_look_many
@@ -259,7 +262,15 @@ ability_explanation ::= token_summoning_sickness_explanation | haste_they_attack
     | improvise_those_spells_payment_explanation | double_strike_this_creature_explanation | indestructible_this_creature_explanation | riot_they_enter_explanation
     | harmonize_power_explanation | harmonize_granted_power_explanation | venture_definition_explanation | storm_permanent_copies_explanation | storm_targeted_permanent_copies_explanation
     | granted_and_contextual_explanations | cascade_qualified_explanations | escape_graveyard_this_turn_explanation | conspire_that_spell_explanation
-    | replacement_characteristic_explanations
+    | replacement_characteristic_explanations | free_play_x_zero_explanation
+    | creature_equipment_rules | face_down_hidden_card_explanation
+    | entry_hexproof_counter_explanation | entry_menace_counter_explanation
+    | scry_generic_x_explanation | scry_generic_player_x_explanation
+    | phaseout_single_before_controller_untaps | phaseout_group_before_you_untap | phased_out_permanents_definition | phased_out_permanents_rule_only
+    | prowess_it_explanation | prowess_token_explanation | prowess_group_explanation | prowess_any_creature_definition | prowess_this_creature_explanation
+    | indestructible_permanent_definition | indestructible_it_damage_rule | indestructible_that_permanent_damage_rule
+    | indestructible_them_damage_rule | indestructible_them_artifact_creature_rule | indestructible_creature_with_ability_rule
+    | regeneration_if_it_regenerates | regeneration_tap_and_heal | regeneration_source_he_him | regeneration_granted_sliver | regeneration_source_creature
     | gravestorm_explanation | cascade_grant_explanation | rebound_grant_explanation | undying_grant_explanation
     | enchant_land_explanation | bloodthirst_x_explanation | your_damage_life_loss_explanation
     | animation_keeps_abilities_explanation | controlled_group_phases_out_explanation
@@ -1251,6 +1262,8 @@ full_mana_cost_explanation ::= "mana" "cost" "includes" "color" "."
 
 /* @sem Operand::List([Text(Surveil), Number($number_x)]) */
 surveil_look_x_explanation ::= "look" "at" "the" "top" number_x "cards" "of" "your" "library" "," "then" "put" "any" "number" "of" "them" "into" "your" "graveyard" "and" "the" "rest" "on" "top" "of" "your" "library" "in" "any" "order" "."
+/* @sem $surveil_look_x_explanation */
+surveil_defining_x_explanation ::= "to" "surveil" "X" "," surveil_look_x_explanation
 
 /* @sem Operand::List([Text(Blight), Number($blight_explanation_counters)]) */
 blight_effect_explanation ::= "put" blight_explanation_counters "on" "a" "creature" "you" "control" "."
@@ -1415,6 +1428,12 @@ unearth_pay_its_mana_cost ::= "pay" "the" "card's" "mana" "cost" ":" "return" "i
 /* @sem () */
 unearth_delayed_exile_words ::= "exile" "it" "at" "the" "beginning" "of" "the" "next" "end" "step" "or" "if" "it" "would" "leave" "the" "battlefield" "." "unearth" "only" "as" "a" "sorcery" "."
 
+/* The receiving card is the source of its own hand-zone activation. */
+/* @sem Vec<Ability>::@cycling_grant_reminder($remindable_line, $cycling_grant_explanation) */
+line_cycling_grant_reminder ::= remindable_line "(" cycling_grant_explanation ")"
+/* @sem Operand::Cost(Cost{parts:[...$cost_parts, Discard{count:Constant(1), filter:SameObject(Source)}]}) */
+cycling_grant_explanation ::= cost_parts "," "↑" "discard" "that" "card" ":" "draw" "a" "card" "."
+
 replacement_characteristic_explanations ::= replace_card_types_explanation
     | remove_colors_replace_creature_types_explanation | replace_names_and_creature_types_explanation
     | replace_card_and_creature_types_explanation | replace_colors_and_creature_types_explanation
@@ -1433,3 +1452,75 @@ replace_colors_and_creature_types_explanation ::= "it" "loses" "its" "other" "co
 replace_colors_and_types_explanation ::= "it" "loses" "all" "other" "colors" "," "card" "types" "," "and" "creature" "types" "."
 /* @sem String::'ReplaceColorsTypesAndNames' */
 replace_colors_types_and_names_explanation ::= "it" "loses" "all" "other" "colors" "," "card" "types" "," "creature" "types" "," "and" "names" "."
+
+/* @sem String::'Indestructible' */
+indestructible_permanent_definition ::= effect_destroy_text "a" "permanent" "with" "indestructible" "," "and" "if" "it's" "a" "creature" "," "it" "can't" "be" "destroyed" "by" "damage" "."
+/* @sem String::'Indestructible' */
+indestructible_it_damage_rule ::= effect_destroy_text "it" "." creature_indestructible_damage_rule
+/* @sem String::'Indestructible' */
+indestructible_that_permanent_damage_rule ::= effect_destroy_text "that" "permanent" "." creature_indestructible_damage_rule
+/* @sem String::'Indestructible' */
+indestructible_them_damage_rule ::= effect_destroy_text "them" "." creature_indestructible_damage_rule
+/* @sem String::'Indestructible' */
+indestructible_them_artifact_creature_rule ::= effect_destroy_text "them" "." "artifact" creature_indestructible_damage_rule_plural
+/* @sem String::'Indestructible' */
+indestructible_creature_with_ability_rule ::= destroy_text_reminder "a" "creature" "with" "indestructible" "."
+/* @sem () */
+creature_indestructible_damage_rule ::= "a" "creature" "with" "indestructible" "can't" "be" "destroyed" "by" "damage" "."
+/* @sem () */
+creature_indestructible_damage_rule_plural ::= "creatures" "with" "indestructible" "can't" "be" "destroyed" "by" "damage" "."
+/* @sem () */
+effect_destroy_text ::= "effects" "that" "say" '"' "↓" "destroy" '"' "don't" "destroy"
+
+/* @sem String::'RegenerationShield' */
+regeneration_if_it_regenerates ::= "if" "it" "regenerates" "," "the" "next" "time" "it" "would" "be" "destroyed" regeneration_effect_explanation
+/* @sem String::'RegenerationShield' */
+regeneration_tap_and_heal ::= "tap" "it" "," "remove" "it" "from" "combat" "," "and" "heal" "all" "damage" "on" "it" "."
+/* @sem String::'OwnRegenerationShield' */
+regeneration_source_he_him ::= "the" "next" "time" "he" "would" "be" "destroyed" "this" "turn" "," "instead" "tap" "him" "," "remove" "him" "from" "combat" "," "and" "heal" "all" "damage" "on" "him" "."
+/* @sem String::'OwnRegenerationShield' */
+regeneration_source_creature ::= self_regeneration_rule_words
+/* @sem String::'SliverRegeneration' */
+regeneration_granted_sliver ::= "the" "next" "time" "that" "Sliver" "would" "be" "destroyed" regeneration_effect_explanation
+
+/* @sem String::'PhaseOutNormally' */
+phaseout_single_before_controller_untaps ::= "it" "phases" "in" "before" "its" "controller" "untaps" "during" "their" "next" "untap" "step" "."
+/* @sem String::'ControlledGroupPhasesOut' */
+phaseout_group_before_you_untap ::= "they" "phase" "in" "before" "you" "untap" "during" "your" "next" "untap" "step" "."
+/* @sem String::'PhaseOutGroupNormally' */
+phased_out_permanents_definition ::= phased_out_permanents_invisible "until" "their" "controller's" "next" "turn" "."
+/* @sem String::'PhaseOutGroupNormally' */
+phased_out_permanents_rule_only ::= phased_out_permanents_invisible "."
+/* @sem () */
+phased_out_permanents_invisible ::= "treat" "phased-out" "permanents" "and" "anything" "attached" "to" "them" "as" "though" "they" "don't" "exist"
+
+/* @sem String::'TokenProwess' */
+prowess_it_explanation ::= "whenever" "you" "cast" "a" "noncreature" "spell" "," "it" "gets" prowess_single_pump
+/* @sem String::'TokenProwess' */
+prowess_token_explanation ::= "whenever" "you" "cast" "a" "noncreature" "spell" "," "the" "token" "gets" prowess_single_pump
+/* @sem String::'GroupTokenProwess' */
+prowess_group_explanation ::= "whenever" "you" "cast" "a" "noncreature" "spell" "," "they" "get" prowess_single_pump
+/* @sem String::'Prowess' */
+prowess_any_creature_definition ::= "whenever" "you" "cast" "a" "noncreature" "spell" "," "a" "creature" "with" "prowess" "gets" prowess_single_pump
+/* @sem String::'SourceProwess' */
+prowess_this_creature_explanation ::= "whenever" "you" "cast" "a" "noncreature" "spell" "," "this" "creature" "gets" prowess_single_pump
+/* @sem () */
+prowess_single_pump ::= "+" "1" "/" "+" "1" "until" "end" "of" "turn" "."
+
+/* @sem String::'FreeCastXZero' */
+free_play_x_zero_explanation ::= "if" "it" "has" "X" "in" "its" "mana" "cost" "," "↑" "x" "is" "0" "."
+
+/* @sem String::'CreatureEquipment' */
+creature_equipment_rules ::= "Equipment" "that's" "a" "creature" "can't" "equip" "a" "creature" "."
+/* @sem String::'FaceDownHiddenCard' */
+face_down_hidden_card_explanation ::= "you" "can't" "look" "at" "it" "."
+/* @sem String::'EntryHexproofCounter' */
+entry_hexproof_counter_explanation ::= "a" "creature" "with" "hexproof" "can't" "be" "the" "target" "of" "spells" "or" "abilities" "your" "opponents" "control" "."
+/* @sem String::'EntryMenaceCounter' */
+entry_menace_counter_explanation ::= "a" "creature" "with" "menace" "can't" "be" "blocked" "except" "by" "two" "or" "more" "creatures" "."
+
+/* Here X is a rule parameter for any of the scry actions on the line. */
+/* @sem String::'Scry' */
+scry_generic_x_explanation ::= "to" "scry" "X" "," "look" "at" "the" "top" "X" "cards" "of" "your" "library" "," "then" "put" "any" "number" "of" "them" "on" "the" "bottom" "and" "the" "rest" "on" "top" "in" "any" "order" "."
+/* @sem String::'Scry' */
+scry_generic_player_x_explanation ::= "to" "scry" "X" "," "a" "player" "looks" "at" "the" "top" "X" "cards" "of" "their" "library" "," "then" "puts" "any" "number" "of" "them" "on" "the" "bottom" "and" "the" "rest" "on" "top" "in" "any" "order" "."

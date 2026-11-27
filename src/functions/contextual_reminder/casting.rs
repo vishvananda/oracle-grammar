@@ -1,4 +1,29 @@
+use super::evidence::{step_operation, unscoped};
 use serde_json::{Value, json};
+
+pub(super) fn spells_have_zero_x_when_played(ability: &Value) -> bool {
+    let steps = &unscoped(ability)["args"]["body"]["instructions"];
+    let Some(operation) = steps.as_array().and_then(|s| step_operation(s.last()?)) else {
+        return false;
+    };
+    let args = &operation["args"];
+    operation["kind"] == "CreateContinuousEffect"
+        && super::object_notes::is_controller(&args["affected"]["Players"])
+        && args["changes"].as_array().is_some_and(|changes| {
+            changes.iter().take(16).any(|change| {
+                let permission = &change["args"]["PlayPermissionWith"];
+                let play = &permission["permission"]["PlayPermission"];
+                let cards = &play["cards"];
+                change["kind"] == "PlayerRule"
+                    && permission["terms"]["cost"] == "Free"
+                    && matches!(play["action"].as_str(), Some("Either" | "CastSpell"))
+                    && (cards["kind"] == "One"
+                        || cards["kind"] == "Take"
+                            && cards["args"]["count"]["kind"] == "Constant"
+                            && cards["args"]["count"]["args"] == 1)
+            })
+        })
+}
 
 pub(super) fn permission_notes(value: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {
     let args = &value["args"];
