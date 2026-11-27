@@ -11,8 +11,10 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
     }
     if ability["kind"] == "Static"
         && args["affected"]["Objects"].is_object()
-        && makes_creature(&args["changes"], false)
-        && visit("SummoningSickness")
+        && (makes_creature(&args["changes"], false) && visit("SummoningSickness")
+            || args["affected"]["Objects"]["kind"] == "Zone"
+                && grants_keyword(&args["changes"], "Wither")
+                && visit("WitherGroup"))
     {
         return true;
     }
@@ -29,7 +31,9 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                 phases_out_for_controller(&op["args"], frame) && visit("PhaseOutUntilYourTurn")
             }
             Some("CreateTokens") => {
-                creature_tokens_without_haste(&op["args"]["tokens"]) && visit("SummoningSickness")
+                let tokens = &op["args"]["tokens"];
+                creature_tokens_without_haste(tokens) && visit("SummoningSickness")
+                    || creates_group_with_infect(tokens) && visit("InfectTokenGroup")
             }
             _ => false,
         }
@@ -173,4 +177,29 @@ fn has_haste(abilities: &Value) -> bool {
                     && (ability["args"]["kind"] == "Haste" || ability["args"] == "Haste")
             })
     })
+}
+
+fn grants_keyword(changes: &Value, name: &str) -> bool {
+    changes.as_array().is_some_and(|changes| {
+        changes
+            .iter()
+            .take(32)
+            .any(|change| change["kind"] == "GrantKeyword" && change["args"]["kind"] == name)
+    })
+}
+
+fn creates_group_with_infect(tokens: &Value) -> bool {
+    let Some([token]) = tokens.as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let amount = &token["amount"];
+    amount["kind"] == "Constant"
+        && amount["args"].as_u64().is_some_and(|count| count > 1)
+        && token["recipe"]["Defined"]["abilities"]
+            .as_array()
+            .is_some_and(|abilities| {
+                abilities.iter().take(32).any(|ability| {
+                    ability["kind"] == "Keyword" && ability["args"]["kind"] == "Infect"
+                })
+            })
 }

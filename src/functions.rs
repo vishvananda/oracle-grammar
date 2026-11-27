@@ -14,6 +14,7 @@ mod continuous;
 pub(crate) mod copy_subject;
 mod costs;
 pub(crate) mod counts;
+pub(crate) mod damage_recipients;
 pub(crate) mod definitions;
 pub(crate) mod integer_interval;
 pub(crate) mod number_condition;
@@ -317,7 +318,11 @@ pub(crate) fn substituted(mut body: Value, value: &Value) -> Value {
     crate::traverse::children(&mut body, |child| {
         crate::traverse::rewrite(child, &mut |node| {
             if is_x(node) {
-                *node = value.clone();
+                *node = if number_condition::was_written_x(node) {
+                    number_condition::written_amount(value.clone())
+                } else {
+                    value.clone()
+                };
                 crate::traverse::Visit::Skip
             } else {
                 crate::traverse::Visit::Children

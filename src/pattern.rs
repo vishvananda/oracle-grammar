@@ -6,8 +6,8 @@ use crate::functions::{
     agreed, applied, conjunction, contextual_reminder, continuous_parts, either_event, entering,
     incremented, negated, product, saga_chapters, substituted, subtype_name, unify_agree,
     unify_and, unify_apply, unify_continuous_parts, unify_either_event, unify_negate,
-    unify_plus_one, unify_subtype_name, unify_times, unify_token_abilities, unify_where,
-    unify_zone, with_token_abilities, zone_card_members,
+    unify_plus_one, unify_subtype_name, unify_times, unify_token_abilities, unify_zone,
+    with_token_abilities, zone_card_members,
 };
 use crate::model::ir_schema::{Fields, Schema, Ty, TypeDef};
 use serde_json::{Map, Value};
@@ -600,6 +600,9 @@ impl Pattern {
                     (name, [ability, explanation]) if contextual_reminder::is_symbol(name) => {
                         return contextual_reminder::attach(name, ability, explanation);
                     }
+                    ("recipient_pair", [left, right]) => {
+                        return Ok(crate::functions::damage_recipients::pair(left, right));
+                    }
                     ("integer_interval", [lower, upper]) => {
                         return crate::functions::integer_interval::build(lower, upper);
                     }
@@ -689,14 +692,20 @@ impl Pattern {
                         return crate::bind::exiled_card::annotate(operation, at);
                     }
                     ("where", [body, value]) => {
+                        let mut written = body.clone();
+                        crate::functions::number_condition::mark_keyword_amounts(&mut written);
                         if crate::functions::value_snapshot::required(body, value)? {
-                            return crate::functions::value_snapshot::snapshot(body, value, at)
+                            return crate::functions::value_snapshot::snapshot(&written, value, at)
                                 .map(crate::functions::number_condition::definition);
                         }
                         return Ok(crate::functions::number_condition::definition(substituted(
-                            body.clone(),
-                            value,
+                            written, value,
                         )));
+                    }
+                    ("written_x", [amount]) => {
+                        return Ok(crate::functions::number_condition::written_amount(
+                            amount.clone(),
+                        ));
                     }
                     ("where_snapshot", [body, value]) => {
                         return crate::functions::value_snapshot::snapshot(body, value, at)
@@ -950,6 +959,9 @@ impl Pattern {
             "integer_interval" => {
                 return crate::functions::integer_interval::unify(args, value, bindings);
             }
+            "recipient_pair" => {
+                return crate::functions::damage_recipients::unify(args, value, bindings);
+            }
             "and_sequence"
             | "then_sequence"
             | "optional_then"
@@ -996,12 +1008,10 @@ impl Pattern {
             "computed_condition" => {
                 return crate::functions::computed_condition::unify(args, value, bindings);
             }
-            "where" => return unify_where(args, value, bindings),
-            "where_snapshot" => {
-                return crate::functions::value_snapshot::unify(args, value, bindings);
-            }
-            "capture_amount" => {
-                return crate::functions::capture_amount::unify(args, value, bindings);
+            "where" | "where_snapshot" | "capture_amount" | "written_x" => {
+                return crate::functions::number_condition::unify_definition(
+                    name, args, value, bindings, ctx,
+                );
             }
             "token_abilities" => return unify_token_abilities(args, value, bindings),
             "negate" => return unify_negate(args, value, bindings),

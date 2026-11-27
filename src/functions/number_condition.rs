@@ -1,10 +1,88 @@
 //! Numeric X conditions require an actual choice or an applied definition.
 //! Private derivation marks distinguish an explicit where-definition from an
 //! unrelated numeric effect with the same native shape; none survive binding.
+use crate::model::ir_schema::{Schema, Ty};
+use crate::pattern::{Bindings, Pattern, Syntax, UnifyCtx, elaborate};
 use serde_json::{Value, json};
 
 const DEFINITION: &str = "$where_x_definition";
 const CONDITION: &str = "$number_condition";
+const WRITTEN_AMOUNT: &str = "$written_x_amount";
+
+pub(super) fn checked_written_amount(
+    args: &[Syntax],
+    ty: &Ty,
+    schema: &Schema,
+) -> Result<Pattern, String> {
+    match args {
+        [amount] if *ty == Ty::Named("Expr".into()) => Ok(Pattern::Symbol(
+            "written_x".into(),
+            vec![elaborate(amount, ty, schema)?],
+        )),
+        _ => Err("@written_x annotates one Expr".into()),
+    }
+}
+
+pub(crate) fn unify_definition<'p, 'v>(
+    name: &str,
+    args: &'p [Pattern],
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+    ctx: Option<UnifyCtx<'p>>,
+) -> Vec<Bindings<'p, 'v>> {
+    match (name, args) {
+        ("where", _) => super::unify_where(args, value, bindings),
+        ("where_snapshot", _) => super::value_snapshot::unify(args, value, bindings),
+        ("capture_amount", _) => super::capture_amount::unify(args, value, bindings),
+        ("written_x", [amount]) => amount.unify_with(value, bindings, ctx),
+        _ => Vec::new(),
+    }
+}
+
+/// The operative expression may have replaced a literal X before a reminder
+/// is checked. Keep the spelling witness private to the derivation.
+pub(crate) fn written_amount(mut amount: Value) -> Value {
+    if let Some(fields) = amount.as_object_mut() {
+        fields.insert(WRITTEN_AMOUNT.into(), Value::Bool(true));
+    }
+    amount
+}
+
+pub(super) fn was_written_x(amount: &Value) -> bool {
+    amount[WRITTEN_AMOUNT] == true
+}
+
+pub(super) fn same_unmarked_amount(amount: &Value, expected: &Value) -> bool {
+    amount.as_object().is_some_and(|actual| {
+        expected.as_object().is_some_and(|expected| {
+            actual.len() == expected.len() + 1
+                && expected
+                    .iter()
+                    .all(|(name, value)| actual.get(name) == Some(value))
+        })
+    })
+}
+
+pub(crate) fn mark_keyword_amounts(body: &mut Value) {
+    use crate::traverse::{Visit, rewrite};
+    rewrite(body, &mut |node| {
+        if matches!(node["kind"].as_str(), Some("Keyword" | "KeywordEach"))
+            && let Some((name, action)) = node
+                .pointer_mut("/args/action")
+                .and_then(Value::as_object_mut)
+                .and_then(|actions| actions.iter_mut().next())
+            && matches!(
+                name.as_str(),
+                "Earthbend" | "Amass" | "Bolster" | "Connive" | "Monstrosity"
+            )
+            && let Some(amount) = action.get_mut("amount")
+            && super::is_x(amount)
+        {
+            *amount = written_amount(amount.take());
+        }
+        Visit::Children
+    });
+}
 
 pub(crate) fn definition(mut value: Value) -> Value {
     let node = if value.get("instructions").is_some() {
@@ -117,6 +195,7 @@ fn walk(
         Value::Object(fields) => {
             fields.remove(DEFINITION);
             fields.remove(CONDITION);
+            fields.remove(WRITTEN_AMOUNT);
             for (key, child) in fields {
                 if boundary(child) || matches!(key.as_str(), "ability" | "abilities" | "cost") {
                     region(

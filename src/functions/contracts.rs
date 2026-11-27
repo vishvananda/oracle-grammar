@@ -702,6 +702,8 @@ fn specialized_call(
     schema: &Schema,
 ) -> Result<Option<Pattern>, String> {
     match name {
+        "recipient_pair" => super::damage_recipients::checked_call(args, ty, schema).map(Some),
+        "written_x" => super::number_condition::checked_written_amount(args, ty, schema).map(Some),
         "defining_static" | "defining_changes" => defining_call(name, args, ty, schema).map(Some),
         _ if super::ability_labels::is_symbol(name) => {
             super::ability_labels::checked_call(name, args, ty, schema).map(Some)

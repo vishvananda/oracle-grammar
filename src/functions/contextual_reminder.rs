@@ -1,11 +1,14 @@
 //! A closed explanatory sentence needs a matching operand in its own ability.
 use crate::pattern::{Bindings, Pattern};
 use serde_json::{Value, json};
+use std::sync::LazyLock;
 
 mod casting;
 mod evidence;
 mod mechanic_notes;
 mod object_notes;
+
+static PRINTED_X: LazyLock<Value> = LazyLock::new(|| json!({"kind":"AnnouncedX"}));
 
 pub(crate) fn is_symbol(name: &str) -> bool {
     matches!(
@@ -316,6 +319,7 @@ fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
                 "Bolster" => "Bolster",
                 "CollectEvidence" => "CollectEvidence",
                 "Blight" => "Blight",
+                "Connive" => "Connive",
                 "Amass" => {
                     let amass = &action["Amass"];
                     let topic = match amass["creature_type"].as_str()? {
@@ -346,6 +350,22 @@ fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
         _ => evidence::measurement(value),
     }
     .filter(|(_, amount)| !amount.is_null())
+}
+
+fn admits_written_x(topic: &str, amount: &Value) -> bool {
+    matches!(
+        topic,
+        "Earthbend" | "AmassOrcs" | "AmassZombies" | "Bolster" | "Connive" | "Monstrosity"
+    ) && !amount.is_null()
+        && amount["kind"] != "Constant"
+}
+
+fn matches_measurement(topic: &str, amount: Option<&Value>, expected: Option<&Value>) -> bool {
+    amount == expected
+        || matches!((amount, expected), (Some(amount), Some(expected))
+            if super::number_condition::was_written_x(amount)
+                && (admits_written_x(topic, &PRINTED_X) && *expected == *PRINTED_X
+                    || super::number_condition::same_unmarked_amount(amount, expected)))
 }
 
 fn mill_recipient(value: &Value) -> Option<(&'static str, &Value)> {
@@ -419,6 +439,9 @@ fn visit_mentions<'a>(
                     .is_some_and(|(topic, amount)| visit(topic, Some(amount)))
                     || mill_recipient(value)
                         .is_some_and(|(topic, amount)| visit(topic, Some(amount)))
+                    || value["kind"] == "Mill"
+                        && value["args"]["players"]["kind"] == "All"
+                        && visit("EachPlayerMill", value["args"].get("amount"))
                     || optional_mill(value)
                         .is_some_and(|(topic, amount)| visit(topic, Some(amount)));
             }
@@ -535,6 +558,8 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "PhaseOutUntilYourTurn"
                     | "EquipmentKeepsController"
                     | "SummoningSickness"
+                    | "InfectTokenGroup"
+                    | "WitherGroup"
                     | "EpicWithoutTargets"
                     | "EpicWithTargets"
             )
@@ -590,12 +615,13 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
         ability
     };
     // Spell paragraphs can share a whole-card frame. A claim about the
-    // spell's own targets must wait for that announcement to be bound.
+    // spell's own targets or resolved objects must wait for binding.
     let needs_bound_spell = matches!(
         explanation.as_str(),
         Some(
             "EquipmentKeepsController"
                 | "SummoningSickness"
+                | "InfectTokenGroup"
                 | "EpicWithoutTargets"
                 | "EpicWithTargets"
         )
@@ -609,7 +635,7 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
     } else {
         let (topic, amount) = claim(explanation).ok_or("invalid contextual reminder claim")?;
         visit_mentions(inner, amount.is_some(), |found, quantity| {
-            found == topic && quantity == amount
+            found == topic && matches_measurement(topic, quantity, amount)
         })
     };
     if !matches {
@@ -692,6 +718,12 @@ fn claims(name: &str, ability: &Value) -> Vec<Value> {
     visit_mentions(ability, name == "measured_reminder", |kind, amount| {
         if !found.contains(&(kind, amount)) {
             found.push((kind, amount));
+        }
+        if amount.is_some_and(|amount| admits_written_x(kind, amount)) {
+            let alias = (kind, Some(&*PRINTED_X));
+            if !found.contains(&alias) {
+                found.push(alias);
+            }
         }
         false
     });

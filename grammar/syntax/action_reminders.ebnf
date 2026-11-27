@@ -6,7 +6,7 @@ line_contextual_reminder ::= line_contextual_group | line_paid_permanent_copy_no
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
 line_contextual_group ::= remindable_line "(" ability_explanation ")"
 remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_blocks_blocked
-    | line_repeat_card_last | line_pair_enters_put | line_spell_paragraphs | line_saga | static_form_grants_goad
+    | line_repeat_card_last | line_pair_enters_put | line_spell_paragraphs | line_saga | static_form_grants_goad | line_host_base_restrictions
 
 /* A single native ability owns the complete phased-out group. */
 /* @sem Vec<Ability>::@contextual_reminder($line_one, $phaseout_each_controller_explanation) */
@@ -52,8 +52,10 @@ line_measured_reminder ::= remindable_line "(" measured_explanation ")"
 measured_explanation ::= monstrosity_explanation | monstrosity_one_explanation | mill_number_explanation | incubation_explanation | discover_explanation | toxic_number_explanation
     | scry_context_amount | surveil_context_amount | surveil_defining_amount | mill_controller_explanation
     | adapt_context_amount | renown_one_explanation | renown_number_explanation | bloodthirst_one_explanation | bloodthirst_number_explanation
-    | earthbend_measured_explanation | bolster_measured_explanation | amass_zombies_measured_explanation | amass_orcs_measured_explanation
+    | earthbend_measured_explanation | bolster_measured_explanation | amass_zombies_measured_explanation | amass_orcs_measured_explanation | connive_x_explanation
+    | bolster_definition_explanation | amass_orcs_definition_explanation | amass_zombies_definition_explanation
     | expend_four_measured_explanation | mill_them_measured_explanation | mill_them_one_explanation | mill_any_actor_measured_explanation
+    | mill_each_player_one_explanation
     | mill_controller_one_explanation | collect_evidence_measured_explanation
     | scry_defining_one_explanation | scry_defining_many_explanation
     | firebending_granted_explanation | monstrosity_x_explanation | collect_evidence_short_explanation
@@ -128,17 +130,37 @@ bloodthirst_one_explanation ::= bloodthirst_context_head "a" "+" "1" "/" "+" "1"
 /* @sem Operand::List([Text(Bloodthirst), Number($number_words)]) */
 bloodthirst_number_explanation ::= bloodthirst_context_head number_words "+" "1" "/" "+" "1" "counters" "on" "it" "."
 
-/* @sem Operand::List([Text(Earthbend), Number($printed_plus_one_counters)]) */
-earthbend_measured_explanation ::= "target" "land" "you" "control" "becomes" "a" "0" "/" "0" "creature" "with" "haste" "that's" "still" "a" "land" "." "put" printed_plus_one_counters "on" "it" "." "when" "it" "dies" "or" "is" "exiled" "," "return" "it" "to" "the" "battlefield" "tapped" "."
+measured_plus_one_counters ::= printed_plus_one_counters | written_x_plus_one_counters
+/* @sem Expr::AnnouncedX */
+written_x_plus_one_counters ::= "X" "+" "1" "/" "+" "1" "counters"
 
-/* @sem Operand::List([Text(Bolster), Number($printed_plus_one_counters)]) */
-bolster_measured_explanation ::= "choose" "a" "creature" "with" "the" "least" "toughness" "among" "creatures" "you" "control" "and" "put" printed_plus_one_counters "on" "it" "."
+/* @sem Operand::List([Text(Connive), Number(@agree($number_x, $number_x_2))]) */
+connive_x_explanation ::= "draw" number_x "cards" "," "then" "discard" number_x "cards" "." "put" "a" "+" "1" "/" "+" "1" "counter" "on" "that" "creature" "for" "each" "nonland" "card" "discarded" "this" "way" "."
 
-/* @sem Operand::List([Text(AmassZombies), Number($printed_plus_one_counters)]) */
-amass_zombies_measured_explanation ::= "put" printed_plus_one_counters "on" "an" "Army" "you" "control" "." "it's" "also" "a" "Zombie" "." "if" "you" "don't" "control" "an" "Army" "," "create" "a" "0" "/" "0" "black" "Zombie" "Army" "creature" "token" "first" "."
+/* @sem Operand::List([Text(Earthbend), Number($measured_plus_one_counters)]) */
+earthbend_measured_explanation ::= "target" "land" "you" "control" "becomes" "a" "0" "/" "0" "creature" "with" "haste" "that's" "still" "a" "land" "." "put" measured_plus_one_counters "on" "it" "." "when" "it" "dies" "or" "is" "exiled" "," "return" "it" "to" "the" "battlefield" "tapped" "."
 
-/* @sem Operand::List([Text(AmassOrcs), Number($printed_plus_one_counters)]) */
-amass_orcs_measured_explanation ::= "put" printed_plus_one_counters "on" "an" "Army" "you" "control" "." "it's" "also" "an" "Orc" "." "if" "you" "don't" "control" "an" "Army" "," "create" "a" "0" "/" "0" "black" "Orc" "Army" "creature" "token" "first" "."
+/* @sem Operand::List([Text(Bolster), Number($bolster_note_amount)]) */
+bolster_measured_explanation ::= bolster_note_amount
+/* @sem Operand::List([Text(Bolster), Number(@agree($number_digits, $bolster_note_amount))]) */
+bolster_definition_explanation ::= "to" "bolster" number_digits "," bolster_note_amount
+/* @sem $measured_plus_one_counters */
+bolster_note_amount ::= "choose" "a" "creature" "with" "the" "least" "toughness" "among" "creatures" "you" "control" "and" "put" measured_plus_one_counters "on" "it" "."
+
+/* @sem Operand::List([Text(AmassZombies), Number($amass_zombies_note_amount)]) */
+amass_zombies_measured_explanation ::= amass_zombies_note_amount
+/* @sem Operand::List([Text(AmassZombies), Number(@agree($amass_note_heading_amount, $amass_zombies_note_amount))]) */
+amass_zombies_definition_explanation ::= "to" "amass" "Zombies" amass_note_heading_amount "," amass_zombies_note_amount
+/* @sem $measured_plus_one_counters */
+amass_zombies_note_amount ::= "put" measured_plus_one_counters "on" "an" "Army" "you" "control" "." "it's" "also" "a" "Zombie" "." "if" "you" "don't" "control" "an" "Army" "," "create" "a" "0" "/" "0" "black" "Zombie" "Army" "creature" "token" "first" "."
+
+/* @sem Operand::List([Text(AmassOrcs), Number($amass_orcs_note_amount)]) */
+amass_orcs_measured_explanation ::= amass_orcs_note_amount
+/* @sem Operand::List([Text(AmassOrcs), Number(@agree($amass_note_heading_amount, $amass_orcs_note_amount))]) */
+amass_orcs_definition_explanation ::= "to" "amass" "Orcs" amass_note_heading_amount "," amass_orcs_note_amount
+/* @sem $measured_plus_one_counters */
+amass_orcs_note_amount ::= "put" measured_plus_one_counters "on" "an" "Army" "you" "control" "." "it's" "also" "an" "Orc" "." "if" "you" "don't" "control" "an" "Army" "," "create" "a" "0" "/" "0" "black" "Orc" "Army" "creature" "token" "first" "."
+amass_note_heading_amount ::= number_digits | number_x
 
 /* @sem Operand::List([Text(Expend), Number(Constant(4))]) */
 expend_four_measured_explanation ::= "you" "expend" "4" "as" "you" "spend" "your" "fourth" "total" "mana" "to" "cast" "spells" "during" "a" "turn" "."
@@ -148,6 +170,8 @@ mill_them_measured_explanation ::= "they" "put" "the" "top" number_words "cards"
 
 /* @sem Operand::List([Text(OtherMill), Number(Constant(1))]) */
 mill_them_one_explanation ::= "they" "put" "the" "top" "card" "of" "their" "library" "into" "their" "graveyard" "."
+/* @sem Operand::List([Text(EachPlayerMill), Number(Constant(1))]) */
+mill_each_player_one_explanation ::= "they" "each" "put" "the" "top" "card" "of" "their" "library" "into" "their" "graveyard" "."
 
 /* @sem Operand::List([Text(Mill), Number(@agree($number_words, $number_words_2))]) */
 mill_any_actor_measured_explanation ::= "to" "mill" number_words "cards" "," "a" "player" "puts" "the" "top" number_words "cards" "of" "their" "library" "into" "their" "graveyard" "."
@@ -175,8 +199,8 @@ collect_evidence_short_explanation ::= "exile" "cards" "with" "total" "mana" "va
 
 ability_explanation ::= stun_explanation | stun_recipient_explanation | populate_definition_explanation | regeneration_the_creature_explanation | modified_explanation | historic_explanation
     | shield_explanation | venture_explanation | learn_explanation | explore_explanation
-    | explore_that_creature_explanation | explore_the_creature_explanation
-    | manifest_dread_explanation | populate_explanation | mill_explanation | goad_explanation
+    | explore_that_creature_explanation | explore_the_creature_explanation | explore_definition_explanation
+    | manifest_dread_explanation | manifest_dread_definition_explanation | populate_explanation | mill_explanation | goad_explanation
     | exert_explanation | party_explanation | crime_explanation | clash_explanation
     | snow_explanation | colorless_explanation | waterbend_explanation | indefinite_explanation
     | splice_explanation | overload_explanation | bargain_explanation | prototype_explanation
@@ -203,7 +227,7 @@ additional_rule_explanations ::= ward_cant_counter_explanation | zero_even_expla
     | escape_grant_explanation | exiled_creature_returns_explanation
     | sticker_vowels_explanation | end_turn_explanation | end_turn_spell_explanation
     | card_types_explanation | chosen_landwalk_explanation | adventure_history_explanation
-    | replaced_creature_types_explanation | lasting_mana_symbols_explanation | its_mana_symbols_explanation
+    | replaced_creature_types_explanation | also_replaced_creature_types_explanation | lasting_mana_symbols_explanation | its_mana_symbols_explanation
     | granted_upkeep_explanation | demonstrate_explanation | demonstrate_targets_explanation
     | player_shroud_explanation | spell_becomes_blocked_explanation | ability_becomes_blocked_explanation
 
@@ -215,6 +239,8 @@ chosen_landwalk_explanation ::= "it" "can't" "be" "blocked" "as" "long" "as" "de
 adventure_history_explanation ::= "it" "doesn't" "need" "to" "have" "gone" "on" "the" "adventure" "first" "."
 /* @sem String::'ReplaceCreatureTypes' */
 replaced_creature_types_explanation ::= "it" "loses" "all" "other" "creature" "types" "."
+/* @sem String::'ReplaceCreatureTypes' */
+also_replaced_creature_types_explanation ::= "it" "also" "loses" "all" "other" "creature" "types" "."
 /* @sem String::'RetainManaSymbols' */
 lasting_mana_symbols_explanation ::= "mana" "symbols" "on" "that" "permanent" "remain" "unchanged" "."
 /* @sem String::'RetainManaSymbols' */
@@ -396,12 +422,16 @@ explore_explanation ::= explore_explanation_head "this" "creature" explore_expla
 explore_that_creature_explanation ::= explore_explanation_head "that" "creature" explore_explanation_tail
 /* @sem String::'Explore' */
 explore_the_creature_explanation ::= explore_explanation_head "the" "creature" explore_explanation_tail
+/* @sem $explore_explanation */
+explore_definition_explanation ::= "to" "have" "this" "creature" "explore" "," explore_explanation
 /* @sem () */
 explore_explanation_head ::= "reveal" "the" "top" "card" "of" "your" "library" "." "put" "that" "card" "into" "your" "hand" "if" "it's" "a" "land" "." "otherwise" "," "put" "a" "+" "1" "/" "+" "1" "counter" "on"
 /* @sem () */
 explore_explanation_tail ::= "," "then" "put" "the" "card" "back" "or" "put" "it" "into" "your" "graveyard" "."
 /* @sem String::'ManifestDread' */
 manifest_dread_explanation ::= "look" "at" "the" "top" "two" "cards" "of" "your" "library" "." "put" "one" "onto" "the" "battlefield" "face" "down" "as" "a" "2" "/" "2" "creature" "and" "the" "other" "into" "your" "graveyard" "." "turn" "it" "face" "up" "any" "time" "for" "its" "mana" "cost" "if" "it's" "a" "creature" "card" "."
+/* @sem $manifest_dread_explanation */
+manifest_dread_definition_explanation ::= "to" "manifest" "dread" "," manifest_dread_explanation
 /* @sem String::'Populate' */
 populate_explanation ::= populate_note_words
 /* @sem () */
@@ -617,9 +647,11 @@ proliferate_explanation ::= ("to" "proliferate" ",")? "choose" "any" "number" "o
 /* The numeral and the reminder's written count must agree in both directions. */
 /* @sem Instruction::[Effect{result:@next, operation:Scry{players:One(AbilityController), amount:@agree($number, $scry_look_explanation)}}] */
 scry_reminded ::= "scry" number "." "(" scry_look_explanation ")"
-scry_look_explanation ::= scry_look_one | scry_look_many
+scry_look_explanation ::= scry_look_one | scry_look_one_it | scry_look_many
 /* @sem Expr::Constant(1) */
 scry_look_one ::= "look" "at" "the" "top" "card" "of" "your" "library" "." "you" "may" "put" "that" "card" "on" "the" "bottom" "."
+/* @sem Expr::Constant(1) */
+scry_look_one_it ::= "look" "at" "the" "top" "card" "of" "your" "library" "." "you" "may" "put" "it" "on" "the" "bottom" "."
 /* @sem $number_words */
 scry_look_many ::= "look" "at" "the" "top" number_words "cards" "of" "your" "library" "," "then" "put" "any" "number" "of" "them" "on" "the" "bottom" "and" "the" "rest" "on" "top" "in" "any" "order" "."
 

@@ -117,6 +117,42 @@ fn phase_out_reminder_keeps_the_controller_of_its_target() {
 }
 
 #[test]
+fn written_x_in_a_reminder_follows_the_action_amount() {
+    let context = empty_card_characteristics();
+    let note = "Target land you control becomes a 0/0 creature with haste that's still a land. Put X +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.";
+    let text = format!("Earthbend X, where X is the number of Forests you control. ({note})");
+    let reading = exact_roundtrip(&text, &context);
+    let engine = super::engine();
+    assert!(!reading.abilities.to_string().contains("$written_x_amount"));
+    assert!(
+        engine
+            .parse_card(NAME, &format!("Earthbend 2. ({note})"), &context)
+            .is_err()
+    );
+}
+
+#[test]
+fn opponent_damage_clause_shares_its_controllers() {
+    let text = "When this creature becomes monstrous, it deals 2 damage to each opponent and each creature they control.";
+    let context = empty_card_characteristics();
+    let engine = super::engine();
+    let parsed = engine.parse_card(NAME, text, &context).unwrap();
+    assert_eq!(parsed.readings.len(), 1);
+    let reading = exact_roundtrip(text, &context);
+    let recipients = &reading.abilities[0]["args"]["body"]["instructions"][0]["args"]["operation"]
+        ["args"]["recipients"]["args"];
+    let opponents = &recipients[0]["args"];
+    assert_eq!(opponents["kind"], "OpponentsOf");
+    assert!(
+        recipients[1]["args"]["args"]["filter"]["args"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|filter| filter["kind"] == "ControlledBy" && filter["args"] == *opponents)
+    );
+}
+
+#[test]
 fn native_and_bracketed_loyalty_headings_preserve_the_same_activations() {
     let context = empty_card_characteristics();
     let raw = "+2: Draw a card.\n−1: You gain 2 life.\n0: Scry 1.";
