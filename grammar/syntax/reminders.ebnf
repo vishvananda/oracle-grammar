@@ -9,7 +9,7 @@ reminded_devoid_keyword ::= kn_devoid "(" "this" "card" "has" "no" "color" "." "
 /* @sem Keyword::WithReminder{keyword:$kn_changeling, reminder:true} */
 reminded_changeling_keyword ::= kn_changeling "(" "this" "card" "is" "every" "creature" "type" "." ")"
 
-keyword_reminded ::= reminded_flying | reminded_trample | reminded_lifelink | reminded_deathtouch
+keyword_reminded ::= reminded_ward_waterbend | reminded_flying | reminded_trample | reminded_lifelink | reminded_deathtouch
     | reminded_vigilance | reminded_haste | reminded_reach | reminded_first_strike
     | reminded_double_strike | reminded_indestructible | reminded_hexproof | reminded_shroud
     | reminded_menace | reminded_defender | reminded_flash | reminded_fear | reminded_intimidate
@@ -40,8 +40,8 @@ reminded_indestructible ::= kn_indestructible "(" reminder_indestructible ")"
 /* @sem Keyword::WithReminder{keyword:$kn_hexproof, reminder:true} */
 reminded_hexproof ::= kn_hexproof "(" reminder_hexproof ")"
 /* The reminder applies the keyword's own color restriction to targeting. */
-/* @sem Keyword::WithReminder{reminder:true, keyword:HexproofFrom(Objects{kind:Any, filter:@agree($adjective_color, $adjective_color_2)})} */
-reminded_color_hexproof ::= "hexproof" "from" adjective_color "(" self_creature "can't" "be" "the" "target" "of" adjective_color "spells" "or" "abilities" "your" "opponents" "control" "." ")"
+/* @sem Keyword::WithReminder{reminder:true, keyword:HexproofFrom(Objects{kind:Any, filter:@agree($reminder_hexproof_quality, $reminder_hexproof_quality_2)})} */
+reminded_color_hexproof ::= "hexproof" "from" reminder_hexproof_quality "(" self_creature "can't" "be" "the" "target" "of" reminder_hexproof_quality "spells" "or" "abilities" "your" "opponents" "control" "." ")"
 /* @sem Keyword::WithReminder{keyword:$kn_shroud, reminder:true} */
 reminded_shroud ::= kn_shroud "(" reminder_shroud ")"
 /* @sem Keyword::WithReminder{keyword:$kn_menace, reminder:true} */
@@ -204,7 +204,7 @@ ward_grant_recipient ::= "whenever" "it" ward_reminder_effect "."
 ward_grant_equipped ::= "whenever" "equipped" "creature" ward_reminder_effect "."
 /* @sem $ward_reminder_payment */
 ward_reminder_effect ::= "becomes" "the" "target" "of" "a" "spell" "or" "ability" "an" "opponent" "controls" "," "counter" "it" "unless" "that" "player" ward_reminder_payment
-ward_reminder_payment ::= ward_reminder_mana | ward_reminder_life | third_discard_cost
+ward_reminder_payment ::= ward_reminder_evidence | ward_reminder_mana | ward_reminder_life | third_discard_cost
 /* @sem Cost::Cost{parts:[Mana($mana_symbols)]} */
 ward_reminder_mana ::= "pays" mana_symbols
 /* @sem Cost::Cost{parts:[Life($number)]} */
@@ -245,7 +245,7 @@ second_walk_reminder_land ::= ("a" | "an") reminder_walk_land
 
 /* Contextual explanations retain their preceding ability and match a native
    mechanic, action or token definition. */
-context_explanations ::= improvise_context_explanation | living_weapon_context_explanation |
+context_explanations ::= finality_permanent_context_explanation | improvise_context_explanation | living_weapon_context_explanation |
     for_mirrodin_context_explanation | job_select_context_explanation | evolve_context_explanation |
     mentor_context_explanation | myriad_context_explanation | myriad_granted_context_explanation | myriad_creature_context_explanation | split_second_context_explanation |
     miracle_context_explanation | retrace_context_explanation | unleash_context_explanation |
@@ -810,3 +810,25 @@ myriad_creature_context_explanation ::= "whenever" "a" "creature" "with" "myriad
 /* The single note describes both of the independently granted protections. */
 /* @sem Ability::[Keyword(WithReminder{reminder:true, keyword:Protection(Objects{kind:Any, filter:@agree($adjective_color, $adjective_color_3)})}), Keyword(WithReminder{reminder:true, keyword:Protection(Objects{kind:Any, filter:@agree($adjective_color_2, $adjective_color_4)})})] */
 line_paired_color_protection_reminded ::= "protection" "from" adjective_color "and" "from" adjective_color "(" reminder_subject "can't" "be" "blocked" "," "targeted" "," "dealt" "damage" "," "or" "enchanted" "by" "anything" adjective_color "or" adjective_color "." ")"
+
+reminder_hexproof_quality ::= adjective_color | adjective_monocolored
+
+/* @sem String::'Finality' */
+finality_permanent_context_explanation ::= "if" "a" "permanent" "with" "a" "finality" "counter" "on" "it" "would" "be" "put" "into" "a" "graveyard" "from" "the" "battlefield" "," "exile" "it" "instead" "."
+
+/* The repeated threshold remains the payer's collect-evidence cost. */
+/* @sem Cost::Cost{parts:[Keyword{action:CollectEvidence, amount:$evidence_amount}]} */
+ward_reminder_evidence ::= "exiles" "cards" "with" "total" "mana" "value" evidence_amount "or" "greater" "from" "their" "graveyard"
+
+/* @sem Keyword::WithReminder{keyword:@agree($keyword_ward_tight, $ward_waterbend_reminder_clause), reminder:true} */
+reminded_ward_waterbend ::= keyword_ward_tight "(" ward_waterbend_reminder_clause ")"
+/* @sem Keyword::Ward(Cost{parts:[Waterbend($mana_symbols)]}) */
+ward_waterbend_reminder_clause ::= "whenever" reminder_subject "becomes" "the" "target" "of" "a" "spell" "or" "ability" "an" "opponent" "controls" "," "counter" "it" "unless" "that" "player" "pays" mana_symbols "." "they" "can" "tap" "their" "artifacts" "and" "creatures" "to" "help" "." "each" "one" "pays" "for" "{" "1" "}" "."
+
+/* Both protection sources stay independent of first strike. */
+/* @sem Ability::[Keyword(WithReminder{reminder:true, keyword:$kn_first_strike}), Keyword(WithReminder{reminder:true, keyword:Protection(Objects{kind:Any, filter:@agree($adjective_color, $adjective_color_3)})}), Keyword(WithReminder{reminder:true, keyword:Protection(Objects{kind:Any, filter:@agree($adjective_color_2, $adjective_color_4)})})] */
+line_first_strike_paired_color_protection_reminded ::= kn_first_strike "," "protection" "from" adjective_color "and" "from" adjective_color "(" first_strike_source_walk_words protection_older_effects_it adjective_color "or" adjective_color "." ")"
+/* @sem () */
+first_strike_source_walk_words ::= reminder_subject "deals" "combat" "damage" "before" "creatures" "without" "first" "strike" "."
+/* @sem () */
+protection_older_effects_it ::= "it" "can't" "be" "blocked" "," "targeted" "," "dealt" "damage" "," "or" "enchanted" "by" "anything"
