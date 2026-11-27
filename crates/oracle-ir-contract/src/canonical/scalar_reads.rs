@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 
 fn history(args: &Value) -> bool {
     let event = &args["event"];
-    ["Player", "ZoneChange", "Spell", "Damage"]
+    ["Player", "ZoneChange", "Spell", "Damage", "Discard"]
         .iter()
         .any(|name| event.get(name).is_some())
         && matches!(
@@ -41,16 +41,17 @@ impl Visit for Pure {
             }
             ("Expr", "EventHistory") => history(args),
             ("ObjectSet", "CostObjects") => {
-                args["payment"] == "Activation"
+                (args["payment"] == "Activation" || args["payment"].get("Resolution").is_some())
                     && args["view"] == "Inputs"
                     && args["phase"] == "Before"
             }
-            ("ResultId", _) => false,
+            ("ResultId", _) => true,
             ("Expr", _) => matches!(
                 kind,
                 "Constant"
                     | "AnnouncedX"
                     | "EventAmount"
+                    | "DieResult"
                     | "PartySize"
                     | "CountObjects"
                     | "CountDistinct"
@@ -79,6 +80,8 @@ impl Visit for Pure {
                     | "Targets"
                     | "InZone"
                     | "Take"
+                    | "Transition"
+                    | "EventGroup"
                     | "LibraryTops"
             ),
             ("ObjectRef", _) => {
@@ -88,6 +91,8 @@ impl Visit for Pure {
                         | "GrantingObject"
                         | "EventSubject"
                         | "EventOther"
+                        | "BlockPair"
+                        | "Result"
                         | "Target"
                         | "Bound"
                         | "AttachedTo"
@@ -148,6 +153,21 @@ pub(super) fn signed_use(value: &Value, id: u64) -> Option<i64> {
 pub(super) fn constant(value: &Value) -> bool {
     value["kind"] == "Constant" && value["args"].as_i64().is_some()
 }
+/// View a nonconstant parameter as a value and its written sign.
+pub(super) fn parameter(value: &Value) -> Option<(&Value, i64)> {
+    if constant(value) {
+        return None;
+    }
+    if value["kind"] == "Multiply"
+        && let Some(parts) = value["args"].as_array()
+        && let [negative, operand] = parts.as_slice()
+        && negative == &json!({"kind":"Constant","args":-1})
+    {
+        return Some((operand, -1));
+    }
+    Some((value, 1))
+}
+
 pub(super) fn amount(value: &Value, sign: i64) -> Option<Value> {
     if sign == 1 {
         return Some(value.clone());

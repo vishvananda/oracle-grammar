@@ -70,6 +70,7 @@ mod owner_return;
 mod paid_self_exile;
 pub(crate) mod payments;
 mod per_recipient;
+pub(crate) use per_recipient::life_amount as life_recipient_amount;
 mod postposed_focus;
 pub(crate) mod pump_counts;
 mod references;

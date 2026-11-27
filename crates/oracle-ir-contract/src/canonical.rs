@@ -35,6 +35,7 @@ mod optional_receipts;
 mod paid_source;
 #[cfg(test)]
 mod paid_source_tests;
+mod player_life;
 mod programs;
 mod pump_untap;
 pub mod resolution_payments;
@@ -46,7 +47,6 @@ mod sets;
 mod single_choices;
 #[cfg(test)]
 mod single_choices_tests;
-mod snapshots;
 mod source_events;
 #[cfg(test)]
 mod source_events_tests;

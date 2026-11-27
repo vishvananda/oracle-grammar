@@ -804,7 +804,9 @@ fn specialized_call(
         }
         "indefinite_opponent_controller" => controller_annotation_call(args, ty, schema).map(Some),
         "event_free_once" => event_free_once_call(args, ty, schema).map(Some),
-        "recipient_value" => recipient_value_call(args, ty, schema).map(Some),
+        "recipient_value" | "life_recipient_value" => {
+            recipient_value_call(name, args, ty, schema).map(Some)
+        }
         "distributive_pump_subject" | "pump_other_ref" | "pump_name_ref" => {
             pump_annotation_call(name, args, ty, schema).map(Some)
         }
@@ -966,7 +968,12 @@ fn capture_amount_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Patt
     ))
 }
 
-fn recipient_value_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+fn recipient_value_call(
+    name: &str,
+    args: &[Syntax],
+    ty: &Ty,
+    schema: &Schema,
+) -> Result<Pattern, String> {
     let [recipients, value] = args else {
         return Err("@recipient_value needs recipients and a scalar expression".into());
     };
@@ -974,7 +981,7 @@ fn recipient_value_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pat
         return Err("@recipient_value produces Expr".into());
     }
     Ok(Pattern::Symbol(
-        "recipient_value".into(),
+        name.into(),
         vec![
             elaborate(recipients, &Ty::Named("Recipients".into()), schema)?,
             elaborate(value, ty, schema)?,

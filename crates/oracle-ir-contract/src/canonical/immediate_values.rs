@@ -10,9 +10,26 @@ pub(super) fn slots(operation: &Value) -> Option<&'static [&'static str]> {
     match operation["kind"].as_str()? {
         "DealDamage" => Some(&["/args/amount"]),
         "Draw" | "GainLife" | "LoseLife" | "Mill" | "Scry" | "Surveil"
-            if args["players"]["kind"] == "One" =>
+            if args["players"]["kind"] == "One"
+                || matches!(operation["kind"].as_str(), Some("LoseLife" | "Mill"))
+                    && args["players"]
+                        == json!({"kind":"OpponentsOf","args":{"kind":"AbilityController"}}) =>
         {
             Some(&["/args/amount"])
+        }
+        // These stats execute together in one Snapshot change. A live
+        // continuous modifier does not share this capture instant.
+        "CreateContinuousEffect"
+            if args["evaluation"] == "Snapshot"
+                && args["affected"].get("Objects").is_some()
+                && args["changes"].as_array().is_some_and(
+                    |changes| matches!(changes.as_slice(), [change] if change["kind"] == "Pump"),
+                ) =>
+        {
+            Some(&[
+                "/args/changes/0/args/power",
+                "/args/changes/0/args/toughness",
+            ])
         }
         "PutCounters"
             if args["placements"].as_array()?.len() == 1
@@ -54,6 +71,7 @@ fn candidate(
     next: &Value,
     uses: &Uses,
     tracing: bool,
+    keep_order: bool,
 ) -> Option<(Value, &'static [&'static str], u64)> {
     if first["kind"] != "Effect"
         || first["args"]["operation"]["kind"] != "BindValue"
@@ -65,6 +83,9 @@ fn candidate(
     }
     let id = super::trace::number(&first["args"]["result"])?;
     let operation = &next["args"]["operation"];
+    if keep_order && operation["kind"] != "CreateContinuousEffect" {
+        return None;
+    }
     let slots = slots(operation)?;
     let mut reads = 0;
     for slot in slots {
@@ -90,12 +111,13 @@ pub(super) fn inline_array(
     uses: &Uses,
     walker: &mut Walker<'_>,
     tracing: bool,
+    keep_order: bool,
 ) -> Result<bool, String> {
     let mut changed = false;
     let mut index = 0;
     while index + 1 < items.len() {
         if let Some((mut value, slots, id)) =
-            candidate(&items[index], &items[index + 1], uses, tracing)
+            candidate(&items[index], &items[index + 1], uses, tracing, keep_order)
             && scalar_reads::pure(&mut value, walker)?
         {
             let operation = &mut items[index + 1]["args"]["operation"];
@@ -112,11 +134,12 @@ pub(super) fn inline_array(
             // Preserve dynamic count validation and printable amount domains;
             // a signed substitution must not introduce a negative literal.
             if let Some(values) = values.filter(|values| {
-                operation["kind"] == "CreateTokens"
-                    || !values.iter().any(|value| {
-                        scalar_reads::constant(value)
-                            && value["args"].as_i64().is_some_and(|n| n < 0)
-                    })
+                matches!(
+                    operation["kind"].as_str(),
+                    Some("CreateTokens" | "CreateContinuousEffect")
+                ) || !values.iter().any(|value| {
+                    scalar_reads::constant(value) && value["args"].as_i64().is_some_and(|n| n < 0)
+                })
             }) {
                 for (slot, value) in slots.iter().zip(values) {
                     *operation.pointer_mut(slot).expect("checked parameter slot") = value;

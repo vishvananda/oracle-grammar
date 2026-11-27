@@ -4,10 +4,10 @@
 use crate::functions::target_scopes::unify as unify_targets;
 use crate::functions::{
     agreed, applied, conjunction, contextual_reminder, continuous_parts, either_event, entering,
-    incremented, negated, product, saga_chapters, substituted, subtype_name, unify_agree,
-    unify_and, unify_apply, unify_continuous_parts, unify_either_event, unify_negate,
-    unify_plus_one, unify_subtype_name, unify_times, unify_token_abilities, unify_zone,
-    with_token_abilities, zone_card_members,
+    incremented, negated, product, saga_chapters, subtype_name, unify_agree, unify_and,
+    unify_apply, unify_continuous_parts, unify_either_event, unify_negate, unify_plus_one,
+    unify_subtype_name, unify_times, unify_token_abilities, unify_zone, with_token_abilities,
+    zone_card_members,
 };
 use crate::model::ir_schema::{Fields, Schema, Ty, TypeDef};
 use serde_json::{Map, Value};
@@ -691,16 +691,13 @@ impl Pattern {
                     ("exile_result", [operation]) => {
                         return crate::bind::exiled_card::annotate(operation, at);
                     }
+                    ("life_recipient_value", [recipients, expression]) => {
+                        return Ok(crate::bind::life_recipient_amount(
+                            recipients, expression, at,
+                        ));
+                    }
                     ("where", [body, value]) => {
-                        let mut written = body.clone();
-                        crate::functions::number_condition::mark_keyword_amounts(&mut written);
-                        if crate::functions::value_snapshot::required(body, value)? {
-                            return crate::functions::value_snapshot::snapshot(&written, value, at)
-                                .map(crate::functions::number_condition::definition);
-                        }
-                        return Ok(crate::functions::number_condition::definition(substituted(
-                            written, value,
-                        )));
+                        return crate::functions::number_condition::define_where(body, value, at);
                     }
                     ("written_x", [amount]) => {
                         return Ok(crate::functions::number_condition::written_amount(
@@ -1034,7 +1031,7 @@ impl Pattern {
             "its_stat" if value.get("$sym").is_none() || damage_actor::is_view(value) => {
                 return damage_actor::literal(args, value, bindings);
             }
-            "recipient_value" if value.get("$sym").is_none() => {
+            "recipient_value" | "life_recipient_value" if value.get("$sym").is_none() => {
                 return unify_argument(args.get(1), value, bindings, None);
             }
             "remember_object" | "remember_operand" if value["$sym"] == "qualified_object" => {

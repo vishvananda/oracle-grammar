@@ -75,9 +75,13 @@ impl View {
         self.ids.insert(id);
         self.next += 1;
         self.captures += 1;
+        let reference = json!({"kind":"BoundValue","args":id});
         for slot in slots {
-            *operation.pointer_mut(slot).expect("checked immediate slot") =
-                json!({"kind":"BoundValue","args":id});
+            let operand = operation.pointer_mut(slot).expect("checked immediate slot");
+            if let Some((_, sign)) = scalar_reads::parameter(operand) {
+                *operand =
+                    scalar_reads::amount(&reference, sign).expect("bound capture is nonconstant");
+            }
         }
         Ok(Some(
             json!({"kind":"Effect","args":{"result":id,"operation":{
@@ -93,14 +97,17 @@ fn capture_parameter(item: &Value) -> Option<(&'static [&'static str], &Value)> 
     }
     let operation = &item["args"]["operation"];
     let slots = immediate_values::slots(operation)?;
-    let first = operation.pointer(slots.first()?)?;
-    if scalar_reads::constant(first)
-        || slots
-            .iter()
-            .any(|slot| operation.pointer(slot) != Some(first))
-    {
-        return None;
+    let mut first = None;
+    for slot in slots {
+        let Some((value, _)) = scalar_reads::parameter(operation.pointer(slot)?) else {
+            continue;
+        };
+        if first.is_some_and(|prior| prior != value) {
+            return None;
+        }
+        first = Some(value);
     }
+    let first = first?;
     Some((slots, first))
 }
 

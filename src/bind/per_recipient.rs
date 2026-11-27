@@ -3,6 +3,34 @@ use super::{Step, symbol_name};
 use crate::model::ir::PlayerRef;
 use serde_json::{Value, json};
 
+/// Only the written "they control" in a count derives the group-member
+/// context. Preserve an ordinary amount's shape through its enclosing X
+/// definition, and leave all other references to ordinary binding.
+pub(crate) fn life_amount(recipients: &Value, expression: &Value, at: usize) -> Value {
+    let population = &expression["args"];
+    if expression["kind"] != "CountObjects"
+        || population["kind"] != "Zone"
+        || population["args"]["scope"]["Shared"] != "Battlefield"
+    {
+        return expression.clone();
+    }
+    let filter = &population["args"]["filter"];
+    let they_control = |filter: &Value| {
+        filter["kind"] == "ControlledBy"
+            && filter["args"]["kind"] == "One"
+            && symbol_name(&filter["args"]["args"]) == Some("that_player")
+    };
+    let controlled = they_control(filter)
+        || filter["kind"] == "AllOf"
+            && filter["args"]
+                .as_array()
+                .is_some_and(|parts| parts.len() <= 64 && parts.iter().any(they_control));
+    if !controlled {
+        return expression.clone();
+    }
+    json!({"$sym":"recipient_value","args":[recipients,expression],"at":at})
+}
+
 pub(super) fn reference(
     root: &Value,
     path: &[Step],
@@ -215,18 +243,22 @@ fn visit(
 }
 
 fn loop_value(value: &Value, next: &mut u64, work: &mut Work) -> Result<Option<Value>, String> {
-    if value["kind"] != "Effect" || value["args"]["operation"]["kind"] != "DealDamage" {
+    if value["kind"] != "Effect" {
         return Ok(None);
     }
     let original = &value["args"]["operation"];
-    let recipients = &original["args"]["recipients"];
     let amount = &original["args"]["amount"];
+    let players = match original["kind"].as_str() {
+        Some("DealDamage") if original["args"]["recipients"]["kind"] == "Players" => {
+            &original["args"]["recipients"]["args"]
+        }
+        Some("LoseLife") if amount["args"][1]["kind"] == "CountObjects" => {
+            &original["args"]["players"]
+        }
+        _ => return Ok(None),
+    };
     if symbol_name(amount) != Some("recipient_value")
-        || recipients["kind"] != "Players"
-        || !matches!(
-            recipients["args"]["kind"].as_str(),
-            Some("All" | "OpponentsOf")
-        )
+        || !matches!(players["kind"].as_str(), Some("All" | "OpponentsOf"))
     {
         return Ok(None);
     }
@@ -246,10 +278,14 @@ fn loop_value(value: &Value, next: &mut u64, work: &mut Work) -> Result<Option<V
     *next = next.checked_add(1).ok_or("recipient binding overflow")?;
     let mut operation = original.clone();
     operation["args"]["amount"] = expression;
-    operation["args"]["recipients"] =
-        json!({"kind":"Players", "args":{"kind":"One", "args":reference}});
+    let recipient = json!({"kind":"One", "args":reference});
+    if original["kind"] == "DealDamage" {
+        operation["args"]["recipients"] = json!({"kind":"Players","args":recipient});
+    } else {
+        operation["args"]["players"] = recipient;
+    }
     Ok(Some(json!({"kind":"ForEachPlayer", "args":{
-        "players":recipients["args"], "binding":binding, "starting_with":null,
+        "players":players, "binding":binding, "starting_with":null,
         "in_chosen_direction":false, "body":{"instructions":[{
             "kind":"Effect", "args":{"result":value["args"]["result"], "operation":operation}
         }]}
@@ -274,25 +310,36 @@ fn unloop(value: &Value, work: &mut Work) -> Result<Option<Value>, String> {
     };
     let operation = &effect["args"]["operation"];
     let reference = json!({"kind":"Bound", "args":args["binding"]});
-    if effect["kind"] != "Effect"
-        || operation["kind"] != "DealDamage"
-        || operation["args"]["recipients"]
-            != json!({"kind":"Players", "args":{"kind":"One", "args":reference}})
-    {
+    if effect["kind"] != "Effect" {
         return Ok(None);
     }
+    let recipient = json!({"kind":"One","args":reference});
     let acting = json!({"kind":"Acting"});
-    let mut source = operation["args"]["source"].clone();
-    if replace(&mut source, &reference, &acting, work, 0)? {
-        return Ok(None);
+    match operation["kind"].as_str() {
+        Some("DealDamage")
+            if operation["args"]["recipients"] == json!({"kind":"Players","args":recipient}) =>
+        {
+            let mut source = operation["args"]["source"].clone();
+            if replace(&mut source, &reference, &acting, work, 0)? {
+                return Ok(None);
+            }
+        }
+        Some("LoseLife")
+            if operation["args"]["players"] == recipient
+                && operation["args"]["amount"]["kind"] == "CountObjects" => {}
+        _ => return Ok(None),
     }
     let mut amount = operation["args"]["amount"].clone();
     if !replace(&mut amount, &reference, &acting, work, 0)? {
         return Ok(None);
     }
     let mut copy = effect.clone();
-    copy["args"]["operation"]["args"]["recipients"] =
-        json!({"kind":"Players", "args":args["players"]});
+    if operation["kind"] == "DealDamage" {
+        copy["args"]["operation"]["args"]["recipients"] =
+            json!({"kind":"Players", "args":args["players"]});
+    } else {
+        copy["args"]["operation"]["args"]["players"] = args["players"].clone();
+    }
     copy["args"]["operation"]["args"]["amount"] = amount;
     Ok(Some(copy))
 }

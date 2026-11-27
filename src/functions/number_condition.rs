@@ -84,6 +84,15 @@ pub(crate) fn mark_keyword_amounts(body: &mut Value) {
     });
 }
 
+pub(crate) fn define_where(body: &Value, amount: &Value, at: usize) -> Result<Value, String> {
+    let mut written = body.clone();
+    mark_keyword_amounts(&mut written);
+    if super::value_snapshot::required(body, amount)? {
+        return super::value_snapshot::snapshot(&written, amount, at).map(definition);
+    }
+    Ok(definition(super::substituted(written, amount)))
+}
+
 pub(crate) fn definition(mut value: Value) -> Value {
     let node = if value.get("instructions").is_some() {
         value["instructions"]

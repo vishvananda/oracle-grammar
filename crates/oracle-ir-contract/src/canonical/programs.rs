@@ -7,7 +7,7 @@ use serde_json::Value;
 struct Needed {
     source_components: Vec<usize>,
     snapshots: bool,
-    mana: bool,
+    player_loops: bool,
     hand_reveal: bool,
     hand_choice: bool,
     native_payment: bool,
@@ -39,7 +39,7 @@ impl Visit for Normalize {
         } else if let Some(needed) = self.owners.last_mut() {
             needed.snapshots |= matches!(ty, Ty::Named(name) if name == "Operation")
                 && value["kind"] == "BindValue";
-            needed.mana |= matches!(ty, Ty::Named(name) if name == "Instruction")
+            needed.player_loops |= matches!(ty, Ty::Named(name) if name == "Instruction")
                 && value["kind"] == "ForEachPlayer";
             needed.hand_reveal |=
                 matches!(ty, Ty::Named(name) if name == "Operation") && value["kind"] == "Reveal";
@@ -97,7 +97,7 @@ impl Visit for Normalize {
         };
         let hands = needed.hand_reveal && needed.hand_choice;
         if !needed.snapshots
-            && !needed.mana
+            && !needed.player_loops
             && !hands
             && !needed.native_payment
             && !needed.optional_receipt
@@ -131,19 +131,20 @@ impl Visit for Normalize {
         for path in &uses.programs {
             if let Some(items) = value.pointer_mut(path).and_then(Value::as_array_mut) {
                 if needed.snapshots {
-                    self.changed |=
-                        super::snapshots::inline_array(items, &uses, walker, self.tracing)?;
-                    if !self.keep_order {
-                        self.changed |= super::immediate_values::inline_array(
-                            items,
-                            &uses,
-                            walker,
-                            self.tracing,
-                        )?;
-                    }
+                    self.changed |= super::immediate_values::inline_array(
+                        items,
+                        &uses,
+                        walker,
+                        self.tracing,
+                        self.keep_order,
+                    )?;
                 }
-                if needed.mana {
+                if needed.player_loops {
                     self.changed |= super::fixed_mana::flatten(items, path, &uses, self.tracing);
+                    if !self.keep_order {
+                        self.changed |=
+                            super::player_life::flatten(items, path, &uses, self.tracing);
+                    }
                 }
                 if needed.optional_receipt {
                     self.changed |= super::optional_receipts::program(items, &uses, self.tracing);

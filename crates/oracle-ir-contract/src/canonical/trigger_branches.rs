@@ -84,8 +84,90 @@ fn lift(value: &mut Value, schema: &Schema, remaining: &mut usize) -> bool {
         .is_ok()
 }
 
+fn departure_zones(left: &Value, right: &Value) -> Option<(&'static str, &'static str)> {
+    let zone = |ability: &Value| {
+        let event = &ability["args"]["event"]["ZoneChange"];
+        if ability["kind"] != "Triggered" || event["from"] != "Battlefield" {
+            return None;
+        }
+        match event["to"].as_str()? {
+            "Exile" => Some("Exile"),
+            "Graveyard" => Some("Graveyard"),
+            _ => None,
+        }
+    };
+    let a = zone(left)?;
+    let b = zone(right)?;
+    (a != b
+        && left["args"]["event"]["ZoneChange"]["objects"]
+            == right["args"]["event"]["ZoneChange"]["objects"])
+        .then_some((a, b))
+}
+
+/// EventDestination already selects only the first public incarnation and
+/// becomes empty if it leaves that zone. A return of that object has the same
+/// source, recipient, and order when its own arrival zone is implicit.
+fn library_return(ability: &mut Value, zone: &str) -> bool {
+    let Some([optional]) = ability["args"]["body"]["instructions"]
+        .as_array_mut()
+        .map(Vec::as_mut_slice)
+    else {
+        return false;
+    };
+    if optional["kind"] != "Optional" {
+        return false;
+    }
+    let Some([effect]) = optional["args"]["body"]["instructions"]
+        .as_array_mut()
+        .map(Vec::as_mut_slice)
+    else {
+        return false;
+    };
+    if effect["kind"] != "Effect" {
+        return false;
+    }
+    let operation = &mut effect["args"]["operation"];
+    if operation["kind"] != "Move"
+        || operation["args"]["destination"].get("Library").is_none()
+        || operation["args"]["qualifiers"] != json!([])
+    {
+        return false;
+    }
+    let objects = &mut operation["args"]["objects"];
+    let direct = json!({"kind":"One","args":{"kind":"EventDestination"}});
+    if *objects == direct {
+        return true;
+    }
+    if *objects
+        != json!({"kind":"One","args":{"kind":"Query","args":{
+            "objects":{"kind":"InZone","args":{"objects":direct,"zone":zone}},"index":0
+        }}})
+    {
+        return false;
+    }
+    *objects = direct;
+    true
+}
+
+fn merge_departure_returns(a: &mut Value, b: &mut Value, tracing: bool) -> bool {
+    let Some((first, second)) = departure_zones(a, b) else {
+        return false;
+    };
+    let mut left = a.clone();
+    let mut right = b.clone();
+    if !library_return(&mut left, first)
+        || !library_return(&mut right, second)
+        || !same_but_event(&left, &right, tracing)
+    {
+        return false;
+    }
+    *a = left;
+    *b = right;
+    true
+}
+
 fn compatible(a: &mut Value, b: &mut Value, schema: &Schema, tracing: bool) -> bool {
-    if same_but_event(a, b, tracing) {
+    if same_but_event(a, b, tracing) || merge_departure_returns(a, b, tracing) {
         return true;
     }
     if let Some((left, right)) = super::combat_pairs::comparable(a, b, schema, tracing)
