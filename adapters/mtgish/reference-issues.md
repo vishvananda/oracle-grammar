@@ -262,6 +262,9 @@ different are marked *(different)*. No group is open at this reference.
 
 ## Updated locally
 
+- `U0198` preserves the actual exile receipt and the written return controller
+  for five optional exile-and-return abilities.
+
 Export updates in [`updates.json`](updates.json), by id. Each names its faces,
 the IR path, the value it replaces and why.
 

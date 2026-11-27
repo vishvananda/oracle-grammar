@@ -406,7 +406,7 @@ fn every_optional_exile_return_uses_the_actual_paid_after_objects() {
         .parse("Long River Lurker", case["text"].as_str().unwrap())
         .unwrap()
         .readings;
-    assert_eq!(readings.len(), 2);
+    assert_eq!(readings.len(), 1);
     for frame in readings {
         let mut triggers = Vec::new();
         visit(&frame, "CreateTrigger", &mut triggers);
@@ -419,14 +419,9 @@ fn every_optional_exile_return_uses_the_actual_paid_after_objects() {
             json!({"kind":"PaymentChosen","args":payment["result"]})
         );
         let part = &payment["operation"]["args"]["cost"]["parts"][0];
-        let after = if let Some(action) = part.get("PlayerAction") {
-            let movement = &action["body"]["instructions"][0]["args"];
-            json!({"kind":"Transition","args":{"result":movement["result"],"phase":"After"}})
-        } else {
-            assert!(part.get("Move").is_some());
-            json!({"kind":"CostObjects","args":{"payment":{"Resolution":payment["result"]},
-                "component":[0],"view":"Performed","phase":"After"}})
-        };
+        assert!(part.get("Move").is_some());
+        let after = json!({"kind":"CostObjects","args":{"payment":{"Resolution":payment["result"]},
+            "component":[0],"view":"Performed","phase":"After"}});
         assert_eq!(
             branch["then"]["instructions"][0]["args"]["operation"]["args"]["objects"],
             json!({"kind":"InZone","args":{"objects":after,"zone":"Exile"}})

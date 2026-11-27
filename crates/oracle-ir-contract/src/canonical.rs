@@ -52,6 +52,7 @@ mod source_events;
 mod source_events_tests;
 mod spell_paragraphs;
 mod target_pairs;
+mod target_stats;
 mod trace;
 pub mod trigger_batches;
 mod trigger_branches;
@@ -656,7 +657,12 @@ impl Walker {
                         sets::exile_union(value, &scope.single_battlefield_targets, self.tracing);
                     }
                 }
-                ("Operation", "CreateContinuousEffect") => untap::controlled_population(value),
+                ("Operation", "CreateContinuousEffect") => {
+                    untap::controlled_population(value);
+                    if !self.keep_order {
+                        target_stats::normalize(value, self.tracing);
+                    }
+                }
                 ("ManaUse", "Either") => {
                     mana_uses::casting_alternatives(value, self.keep_order, self.tracing);
                 }

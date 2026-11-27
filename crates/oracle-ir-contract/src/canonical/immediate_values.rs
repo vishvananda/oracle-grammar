@@ -106,6 +106,48 @@ fn candidate(
     Some((value, slots, id))
 }
 
+/// The matched group is fixed by the event. Direct use of its cardinality
+/// across the requested draw and discard is equivalent to capturing it once.
+fn event_group_count(items: &mut [Value], uses: &Uses, tracing: bool) -> bool {
+    let [capture, draw, discard, ..] = items else {
+        return false;
+    };
+    let definition = &capture["args"]["operation"];
+    if capture["kind"] != "Effect"
+        || definition["kind"] != "BindValue"
+        || definition["args"]["value"]
+            != json!({"kind":"CountObjects","args":{"kind":"EventGroup"}})
+    {
+        return false;
+    }
+    let Some(id) = super::trace::number(&capture["args"]["result"]) else {
+        return false;
+    };
+    if uses.definitions.get(&id) != Some(&1) || uses.total.get(&id) != Some(&3) {
+        return false;
+    }
+    let actor = json!({"kind":"One","args":{"kind":"AbilityController"}});
+    let owns_amount = |item: &Value, kind: &str| {
+        let op = &item["args"]["operation"];
+        item["kind"] == "Effect"
+            && op["kind"] == kind
+            && op["args"]["players"] == actor
+            && scalar_reads::signed_use(&op["args"]["amount"], id) == Some(1)
+            && lossless::<crate::ir::Instruction>(item, tracing).is_some()
+    };
+    if !owns_amount(draw, "Draw")
+        || !owns_amount(discard, "Discard")
+        || discard["args"]["operation"]["args"]["random"] != false
+        || lossless::<crate::ir::Instruction>(capture, tracing).is_none()
+    {
+        return false;
+    }
+    let value = definition["args"]["value"].clone();
+    draw["args"]["operation"]["args"]["amount"] = value.clone();
+    discard["args"]["operation"]["args"]["amount"] = value;
+    true
+}
+
 pub(super) fn inline_array(
     items: &mut Vec<Value>,
     uses: &Uses,
@@ -116,6 +158,12 @@ pub(super) fn inline_array(
     let mut changed = false;
     let mut index = 0;
     while index + 1 < items.len() {
+        if !keep_order && event_group_count(&mut items[index..], uses, tracing) {
+            items.remove(index);
+            changed = true;
+            continue;
+        }
+
         if let Some((mut value, slots, id)) =
             candidate(&items[index], &items[index + 1], uses, tracing, keep_order)
             && scalar_reads::pure(&mut value, walker)?

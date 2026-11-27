@@ -1,6 +1,7 @@
 //! `@sem` patterns: text form, elaboration against the IR schema, and the two
 //! directions of use. A filled pattern is ordinary serde JSON for the IR type;
 //! a hole binds a child's value, never an omitted constraint.
+use crate::functions::relative_modifiers;
 use crate::functions::target_scopes::unify as unify_targets;
 use crate::functions::{
     agreed, applied, conjunction, contextual_reminder, continuous_parts, either_event, entering,
@@ -637,6 +638,9 @@ impl Pattern {
                     ("unordered", [_]) => return unordered_items(args),
                     ("and", _) => return Ok(conjunction(args)),
                     ("or", _) => return crate::functions::filter_union::join(args),
+                    ("relative_modifiers", [first, rest]) => {
+                        return relative_modifiers::join(first, rest);
+                    }
                     ("event_free_once", [ability]) => {
                         return crate::functions::trigger_batches::mark(ability);
                     }
@@ -973,6 +977,7 @@ impl Pattern {
             }
             "unordered" => return crate::functions::unordered::unify(args, value, bindings),
             "and" => return unify_and(args, value, bindings),
+            "relative_modifiers" => return relative_modifiers::unify(args, value, bindings),
             "matching_set_inverse" => return filtered_sets::unify(args, value, bindings),
             "either_event" => return unify_either_event(args, value, bindings),
             "agree" => return unify_agree(args, value, bindings),

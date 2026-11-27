@@ -118,7 +118,7 @@ fn action_part(inner: &Value) -> Option<Value> {
     None
 }
 
-fn part(effect: &Value, check: &Value, uses: &Uses, tracing: bool) -> Option<Value> {
+fn optional_action<'a>(effect: &'a Value, check: &Value, uses: &Uses) -> Option<&'a Value> {
     let pay = &effect["args"]["operation"];
     let controller = json!({"kind":"AbilityController"});
     let condition = &check["args"]["condition"];
@@ -142,15 +142,97 @@ fn part(effect: &Value, check: &Value, uses: &Uses, tracing: bool) -> Option<Val
         return None;
     };
     let action = &part["PlayerAction"];
-    if action["player"] != controller {
-        return None;
-    }
+    (action["player"] == controller).then_some(part)
+}
+
+fn part(effect: &Value, check: &Value, uses: &Uses, tracing: bool) -> Option<Value> {
+    let part = optional_action(effect, check, uses)?;
+    let action = &part["PlayerAction"];
     lossless::<CostPart>(part, tracing)?;
     match action["body"]["instructions"].as_array()?.as_slice() {
         [inner] if uses_of(uses, &inner["args"]["result"], 1) => action_part(inner),
         [choice, movement] => chosen_move(choice, movement, uses),
         _ => None,
     }
+}
+
+// The continuation may follow the whole actual exile receipt today or from
+// a single turn delay. It never acquires a new target or follows a second move.
+fn exile_return_path(check: &Value) -> Option<&'static str> {
+    let args = &check["args"];
+    if args["condition"]["kind"] != "PaymentChosen"
+        || args["otherwise"]["instructions"] != json!([])
+    {
+        return None;
+    }
+    let [next] = args["then"]["instructions"].as_array()?.as_slice() else {
+        return None;
+    };
+    if next["kind"] != "Effect" {
+        return None;
+    }
+    let next = &next["args"]["operation"];
+    let path = match next["kind"].as_str()? {
+        "Move" => "/args/then/instructions/0/args/operation",
+        "CreateDelayedTrigger"
+            if next["args"]["event"].get("Turn").is_some()
+                && next["args"]["intervening_if"].is_null()
+                && next["args"]["body"]["instructions"].as_array()?.len() == 1
+                && next["args"]["body"]["instructions"][0]["kind"] == "Effect" =>
+        {
+            "/args/then/instructions/0/args/operation/args/body/instructions/0/args/operation"
+        }
+        _ => return None,
+    };
+    let later = check.pointer(path)?;
+    (later["kind"] == "Move"
+        && later["args"]["destination"].get("Battlefield").is_some()
+        && later["args"]["objects"]["kind"] == "InZone"
+        && later["args"]["objects"]["args"]["zone"] == "Exile")
+        .then_some(path)
+}
+
+fn follow_exile_payment(
+    effect: &mut Value,
+    check: &mut Value,
+    uses: &Uses,
+    tracing: bool,
+) -> Option<()> {
+    let original = optional_action(effect, check, uses)?;
+    lossless::<CostPart>(original, tracing)?;
+    lossless::<crate::ir::Instruction>(check, tracing)?;
+    let [inner] = original["PlayerAction"]["body"]["instructions"]
+        .as_array()?
+        .as_slice()
+    else {
+        return None;
+    };
+    let movement = &inner["args"]["operation"];
+    let moved = &movement["args"];
+    let result = &inner["args"]["result"];
+    if inner["kind"] != "Effect"
+        || movement["kind"] != "Move"
+        || moved["destination"].get("Exile").is_none()
+        || !singular_selection(&moved["objects"])
+        || !uses_of(uses, result, 2)
+    {
+        return None;
+    }
+    let path = exile_return_path(check)?;
+    let part = move_part(moved, &moved["objects"], Value::Null)?;
+    let actual = &mut check.pointer_mut(path)?["args"]["objects"]["args"]["objects"];
+    if actual["kind"] != "Transition"
+        || actual["args"]["phase"] != "After"
+        || trace::number(&actual["args"]["result"]) != trace::number(result)
+    {
+        return None;
+    }
+    *actual = json!({"kind":"CostObjects","args":{
+        "payment":{"Resolution":effect["args"]["result"]},"component":[0],
+        "view":"Performed","phase":"After"
+    }});
+    effect["args"]["operation"]["args"]["cost"]["parts"][0] = part;
+    Some(())
 }
 
 pub(super) fn may_need(value: &Value) -> bool {
@@ -175,8 +257,13 @@ pub(super) fn may_need(value: &Value) -> bool {
 pub(super) fn program(items: &mut [Value], uses: &Uses, tracing: bool) -> bool {
     let mut changed = false;
     for at in 1..items.len() {
-        if let Some(normalized) = part(&items[at - 1], &items[at], uses, tracing) {
-            items[at - 1]["args"]["operation"]["args"]["cost"]["parts"][0] = normalized;
+        let (before, after) = items.split_at_mut(at);
+        let effect = &mut before[at - 1];
+        let check = &mut after[0];
+        if let Some(normalized) = part(effect, check, uses, tracing) {
+            effect["args"]["operation"]["args"]["cost"]["parts"][0] = normalized;
+            changed = true;
+        } else if follow_exile_payment(effect, check, uses, tracing).is_some() {
             changed = true;
         }
     }

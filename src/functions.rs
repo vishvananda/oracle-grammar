@@ -36,6 +36,7 @@ pub(crate) use mana::{mana_options, unify_mana};
 pub(crate) mod ability_labels;
 mod objects;
 pub(crate) mod optional_scope;
+pub(crate) mod relative_modifiers;
 mod repeated;
 pub(crate) mod repeated_damage_actor;
 pub(crate) mod saga_chapters;

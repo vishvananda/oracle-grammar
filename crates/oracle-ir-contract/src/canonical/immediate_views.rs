@@ -1,6 +1,6 @@
 //! Bounded inverse views using the same immediate-operation proofs as comparison.
 use super::{
-    immediate_values, scalar_reads, single_choices,
+    immediate_values, scalar_reads, single_choices, target_stats,
     walk::{Visit, Walker, lossless},
 };
 use crate::{ir::Instruction, ir_schema::Ty};
@@ -12,6 +12,7 @@ struct Inputs {
     ids: HashSet<u64>,
     scalar: bool,
     choices: bool,
+    affected: bool,
 }
 impl Visit for Inputs {
     fn leave(
@@ -26,6 +27,9 @@ impl Visit for Inputs {
             && let Some(id) = value.as_u64()
         {
             self.ids.insert(id);
+        }
+        if matches!(ty, Ty::Named(name) if name == "Operation") {
+            self.affected |= target_stats::may_print(value);
         }
         if matches!(ty, Ty::Named(name) if name == "Program")
             && let Some(items) = value["instructions"].as_array()
@@ -43,6 +47,7 @@ struct View {
     captures: usize,
     scalar: bool,
     choices: bool,
+    affected: bool,
     changed: bool,
 }
 impl View {
@@ -120,6 +125,9 @@ impl Visit for View {
         _: &str,
         walker: &mut Walker<'_>,
     ) -> Result<(), String> {
+        if self.affected && matches!(ty, Ty::Named(name) if name == "Operation") {
+            self.changed |= target_stats::print(value);
+        }
         if !matches!(ty, Ty::Named(name) if name == "Program") {
             return Ok(());
         }
@@ -143,8 +151,8 @@ impl Visit for View {
     }
 }
 
-/// At most three current-operand views: scalar captures, one-object receipts,
-/// and their combination. Fresh result IDs avoid every original typed ID,
+/// Current-operand views for scalar captures, one-object receipts and
+/// affected-object statistics. Fresh result IDs avoid every original typed ID,
 /// including nested scopes and unresolved references. Every returned view must
 /// normalize to the input; callers must still verify any printed text by reparse.
 pub fn print_views(value: &Value) -> Result<Vec<Value>, String> {
@@ -154,8 +162,20 @@ pub fn print_views(value: &Value) -> Result<Vec<Value>, String> {
     Walker::new(schema).walk(&mut value.clone(), &ty, false, "", 0, &mut inputs)?;
     let mut views = Vec::new();
     let mut canonical = None;
-    for (scalar, choices) in [(false, true), (true, false), (true, true)] {
-        if (scalar && !inputs.scalar) || (choices && !inputs.choices) {
+    let combinations = [
+        (false, true, false),
+        (true, false, false),
+        (true, true, false),
+        (false, false, true),
+        (false, true, true),
+        (true, false, true),
+        (true, true, true),
+    ];
+    for (scalar, choices, affected) in combinations {
+        if (scalar && !inputs.scalar)
+            || (choices && !inputs.choices)
+            || (affected && !inputs.affected)
+        {
             continue;
         }
         let mut view = value.clone();
@@ -169,6 +189,7 @@ pub fn print_views(value: &Value) -> Result<Vec<Value>, String> {
             captures: 0,
             scalar,
             choices,
+            affected,
             changed: false,
         };
         Walker::new(schema).walk(&mut view, &ty, false, "", 0, &mut proof)?;

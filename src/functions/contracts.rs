@@ -270,12 +270,19 @@ fn zone_card_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, 
     ))
 }
 
-fn filter_union_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+fn filter_pair_call(
+    name: &str,
+    args: &[Syntax],
+    ty: &Ty,
+    schema: &Schema,
+) -> Result<Pattern, String> {
     if args.len() != 2 || *ty != Ty::Named("ObjectFilter".into()) {
-        return Err("@or needs two ObjectFilters and produces ObjectFilter".into());
+        return Err(format!(
+            "@{name} needs two ObjectFilters and produces ObjectFilter"
+        ));
     }
     Ok(Pattern::Symbol(
-        "or".into(),
+        name.into(),
         args.iter()
             .map(|a| elaborate(a, ty, schema))
             .collect::<Result<_, _>>()?,
@@ -709,7 +716,7 @@ fn specialized_call(
         _ if super::ability_labels::is_symbol(name) => {
             super::ability_labels::checked_call(name, args, ty, schema).map(Some)
         }
-        "or" => filter_union_call(args, ty, schema).map(Some),
+        "or" | "relative_modifiers" => filter_pair_call(name, args, ty, schema).map(Some),
         "support_filter" => super::support::checked_call(args, ty, schema).map(Some),
         "zone_card_members" => zone_card_call(args, ty, schema).map(Some),
         "activation_removed_counters" => counter_payment_call(args, ty, schema).map(Some),

@@ -389,8 +389,8 @@ impl Engine {
     }
 
     /// Readings with the mined rules behind each ability, as if the rules in `off` were
-    /// not in the grammar. Tags keep readings of one value apart, so a card can hit the
-    /// reading limit here and not in [`Engine::parse`].
+    /// not in the grammar. Separate sets of tags retain separate entries for the
+    /// same bound value, so the audit can reach the reading limit before parsing does.
     pub fn audited(&self, name: &str, text: &str, off: &RuleSet) -> Result<Vec<Audited>, String> {
         self.audited_types(name, &[], text, off)
     }
@@ -422,7 +422,10 @@ impl Engine {
                 }
             }
             if let Ok(bound) = bind_card(&plain, name) {
-                out.push((bound, rules));
+                let tagged = (bound, rules);
+                if !out.contains(&tagged) {
+                    out.push(tagged);
+                }
             }
         }
         Ok(out)
