@@ -6,41 +6,37 @@ const TEXT: &str = "Whenever this creature attacks, you may exile a creature car
 #[test]
 fn linked_count_is_captured_inside_the_paid_branch_for_both_life_amounts() {
     let readings = engine().parse("Context example", TEXT).unwrap().readings;
+    let [reading] = readings.as_slice() else {
+        panic!("the native move and offered-action payment share one reading");
+    };
+    validate_abilities(reading).unwrap();
+    let outer = reading[0]["args"]["body"]["instructions"]
+        .as_array()
+        .unwrap();
+    assert_eq!(outer.len(), 2);
+    assert_eq!(outer[0]["args"]["operation"]["kind"], "PayCost");
+    assert_eq!(outer[1]["kind"], "If");
+    assert_eq!(outer[1]["args"]["condition"]["kind"], "PaymentChosen");
     assert_eq!(
-        readings.len(),
-        2,
-        "native move and offered-action payment views"
+        outer[1]["args"]["condition"]["args"],
+        outer[0]["args"]["result"]
     );
-    for reading in readings {
-        validate_abilities(&reading).unwrap();
-        let outer = reading[0]["args"]["body"]["instructions"]
-            .as_array()
-            .unwrap();
-        assert_eq!(outer.len(), 2);
-        assert_eq!(outer[0]["args"]["operation"]["kind"], "PayCost");
-        assert_eq!(outer[1]["kind"], "If");
-        assert_eq!(outer[1]["args"]["condition"]["kind"], "PaymentChosen");
+    let then = outer[1]["args"]["then"]["instructions"].as_array().unwrap();
+    assert_eq!(then.len(), 3);
+    assert_eq!(then[0]["args"]["operation"]["kind"], "BindValue");
+    let definition = &then[0]["args"]["operation"]["args"]["value"];
+    assert_eq!(definition["kind"], "CountObjects");
+    let mut types = Vec::new();
+    visit(definition, "CardType", &mut types);
+    assert_eq!(types, [json!("Creature")]);
+    for instruction in &then[1..] {
         assert_eq!(
-            outer[1]["args"]["condition"]["args"],
-            outer[0]["args"]["result"]
+            instruction["args"]["operation"]["args"]["amount"],
+            json!({
+            "kind":"BoundValue","args":then[0]["args"]["result"]})
         );
-        let then = outer[1]["args"]["then"]["instructions"].as_array().unwrap();
-        assert_eq!(then.len(), 3);
-        assert_eq!(then[0]["args"]["operation"]["kind"], "BindValue");
-        let definition = &then[0]["args"]["operation"]["args"]["value"];
-        assert_eq!(definition["kind"], "CountObjects");
-        let mut types = Vec::new();
-        visit(definition, "CardType", &mut types);
-        assert_eq!(types, [json!("Creature")]);
-        for instruction in &then[1..] {
-            assert_eq!(
-                instruction["args"]["operation"]["args"]["amount"],
-                json!({
-                "kind":"BoundValue","args":then[0]["args"]["result"]})
-            );
-        }
-        printed(&reading);
     }
+    printed(reading);
 }
 
 #[test]

@@ -1,5 +1,5 @@
 //! Preserve one declared optional action across an explicit conjunction.
-use crate::model::canonical::hand_payments::hand_discard;
+use crate::model::canonical::resolution_payments::hand_discard;
 use crate::pattern::{Bindings, Pattern, UnifyCtx, bind};
 use serde_json::{Value, json};
 use std::borrow::Cow;

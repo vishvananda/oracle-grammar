@@ -9,7 +9,9 @@ pub(super) fn slots(operation: &Value) -> Option<&'static [&'static str]> {
     let args = &operation["args"];
     match operation["kind"].as_str()? {
         "DealDamage" => Some(&["/args/amount"]),
-        "Draw" | "GainLife" | "LoseLife" | "Mill" if args["players"]["kind"] == "One" => {
+        "Draw" | "GainLife" | "LoseLife" | "Mill" | "Scry" | "Surveil"
+            if args["players"]["kind"] == "One" =>
+        {
             Some(&["/args/amount"])
         }
         "PutCounters"

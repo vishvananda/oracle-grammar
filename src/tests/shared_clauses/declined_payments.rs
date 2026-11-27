@@ -27,6 +27,21 @@ fn a_declined_payment_guards_what_follows() {
 }
 
 #[test]
+fn a_graveyard_exile_payment_uses_an_exact_choice() {
+    let text = "When this creature enters, you may exile a creature card from your graveyard. \
+                If you do, exile target artifact or enchantment an opponent controls.";
+    let reading = compositional(text);
+    let items = instructions(&reading);
+    let movement = &items[0]["args"]["operation"]["args"]["cost"]["parts"][0]["Move"];
+    assert_eq!(
+        movement["selections"][0]["choose"],
+        json!({"Exactly":{"kind":"Constant","args":1}})
+    );
+    assert_eq!(items[1]["args"]["condition"]["kind"], "PaymentChosen");
+    printed(&reading);
+}
+
+#[test]
 fn a_top_card_reveal_is_optional_unless_a_later_sentence_tests_it() {
     let plain = "Look at the top card of your library. If it's a land card, you may reveal it \
                  and put it into your hand.";

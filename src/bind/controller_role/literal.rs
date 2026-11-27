@@ -54,6 +54,14 @@ pub(super) fn reference(
         return Ok(json!({"kind":"ControllerOf","args":role.object}));
     }
     let fallback = per_recipient::reference(root, path, introduced, scope, contexts)?;
+    let entry = &root["args"]["event"]["ZoneChange"];
+    if fallback == json!({"kind":"ControllerOf","args":{"kind":"EventSubject"}})
+        && entry["from"].is_null()
+        && entry["to"] == "Battlefield"
+        && super::proven(&entry["objects"], &mut 131_072, 0)?
+    {
+        return Err("that player names the opponent recorded by the entry event".into());
+    }
     let Some(role) = &prior.controller_role else {
         return Ok(fallback);
     };

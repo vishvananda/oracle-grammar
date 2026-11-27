@@ -3,6 +3,17 @@ use super::walk::{Visit, Walker};
 use crate::ir_schema::Ty;
 use serde_json::{Value, json};
 
+fn history(args: &Value) -> bool {
+    let event = &args["event"];
+    ["Player", "ZoneChange", "Spell", "Damage"]
+        .iter()
+        .any(|name| event.get(name).is_some())
+        && matches!(
+            args["measure"].as_str(),
+            Some("Occurrences" | "TotalAmount")
+        )
+}
+
 struct Pure {
     safe: bool,
     filters: usize,
@@ -23,9 +34,19 @@ impl Visit for Pure {
     ) -> Result<(), String> {
         let Ty::Named(name) = ty else { return Ok(()) };
         let kind = value["kind"].as_str().unwrap_or_default();
-        let allowed = match name.as_str() {
-            "ResultId" => false,
-            "Expr" => matches!(
+        let args = &value["args"];
+        let allowed = match (name.as_str(), kind) {
+            ("Expr", "AsOf") => {
+                matches!(args["moment"].as_str(), Some("ThisSpellCast" | "TurnBegan"))
+            }
+            ("Expr", "EventHistory") => history(args),
+            ("ObjectSet", "CostObjects") => {
+                args["payment"] == "Activation"
+                    && args["view"] == "Inputs"
+                    && args["phase"] == "Before"
+            }
+            ("ResultId", _) => false,
+            ("Expr", _) => matches!(
                 kind,
                 "Constant"
                     | "AnnouncedX"
@@ -33,6 +54,8 @@ impl Visit for Pure {
                     | "PartySize"
                     | "CountObjects"
                     | "CountDistinct"
+                    | "LargestSharedGroup"
+                    | "TimesMutated"
                     | "Aggregate"
                     | "CountManaSymbols"
                     | "CountCounters"
@@ -41,11 +64,12 @@ impl Visit for Pure {
                     | "ObjectProperty"
                     | "Add"
                     | "Subtract"
+                    | "Divide"
                     | "Multiply"
                     | "Minimum"
                     | "Maximum"
             ),
-            "ObjectSet" => matches!(
+            ("ObjectSet", _) => matches!(
                 kind,
                 "Zone"
                     | "Matching"
@@ -57,7 +81,7 @@ impl Visit for Pure {
                     | "Take"
                     | "LibraryTops"
             ),
-            "ObjectRef" => {
+            ("ObjectRef", _) => {
                 matches!(
                     kind,
                     "Source"
@@ -70,7 +94,7 @@ impl Visit for Pure {
                         | "Query"
                 ) || kind == "Candidate" && self.filters > 0
             }
-            "PlayerRef" => matches!(
+            ("PlayerRef", _) => matches!(
                 kind,
                 "AbilityController"
                     | "ControllerOf"
@@ -82,8 +106,9 @@ impl Visit for Pure {
                     | "EventOtherPlayer"
                     | "Active"
                     | "DefendingPlayerOf"
+                    | "EnchantedBy"
             ),
-            "PlayerSet" => matches!(
+            ("PlayerSet", _) => matches!(
                 kind,
                 "One"
                     | "All"
@@ -94,7 +119,7 @@ impl Visit for Pure {
                     | "Matching"
                     | "Targets"
             ),
-            "Information" => *value == "CurrentOrLastKnown",
+            ("Information", _) => *value == "CurrentOrLastKnown",
             _ => kind != "Primitive",
         };
         self.safe &= allowed;

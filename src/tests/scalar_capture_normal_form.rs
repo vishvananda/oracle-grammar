@@ -32,6 +32,8 @@ fn immediate_amounts_and_token_stats_keep_exact_and_default_printing_after_captu
     for text in [
         "You gain X life, where X is the number of creatures you control.",
         "Create an X/X green Saproling creature token, where X is the number of creatures you control.",
+        "Create an X/X black Horror creature token, where X is the number of creatures that died this turn.",
+        "You gain X life, where X is twice the damage dealt to you so far this turn by artifacts.",
         "Context example deals X damage to target creature, where X is 2 plus the number of cards in your graveyard that are instant cards, sorcery cards, and/or have an Adventure.",
         "Target player reveals their hand. You choose a nonland card from it. That player puts that card into their library third from the top.",
     ] {

@@ -205,13 +205,13 @@ fn engine() -> &'static crate::engine::Engine {
 }
 
 #[test]
-fn actual_shadowheart_retires_both_source_readings_before_cli_relink() {
+fn shadowheart_saved_capture_forms_share_one_reading() {
     let f = fixture();
     let c = &f[0];
     let name = c["name"].as_str().unwrap();
     let text = c["text"].as_str().unwrap();
     let actual = engine().parse(name, text).unwrap().readings;
-    assert_eq!(actual.len(), 2);
+    assert_eq!(actual.len(), 1);
     for expected in c["expected_readings"].as_array().unwrap() {
         let expected = crate::engine::canonical_abilities(expected).unwrap();
         assert!(actual.contains(&expected));

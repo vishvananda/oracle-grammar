@@ -2,7 +2,7 @@
 
 A pure scalar capture immediately preceding its only consumer can share that
 consumer's parameter evaluation point. Comparison inlines it for one Draw,
-GainLife, LoseLife or Mill recipient; DealDamage's common amount; one object
+GainLife, LoseLife, Mill, Scry or Surveil recipient; DealDamage's common amount; one object
 counter placement; or the two stats of one defined token. The capture has one
 definition, and every typed use must be one of the audited next parameters.
 Intervening effects, later uses and captures in future programs prevent the
@@ -19,8 +19,11 @@ remain separate from Snapshot pumps.
 
 The shared bounded pure-read proof admits deterministic arithmetic and current
 object/player queries, announced X, the matched event amount and party size.
-Historical/captured information, primitives and dependencies on other results
-retain their original form. Signed substitution checks overflow and preserves
+It also admits recorded activation inputs, simple event counts and totals, and
+snapshots tied to the turn boundary or the casting of this spell. These reads
+observe the same state before the atomic operation or Snapshot effect.
+Captured information, primitives and dependencies on other results retain
+their original form. Signed substitution checks overflow and preserves
 dynamic count validation rather than introducing a negative literal count.
 Cloned target/binding leaves retain their original sites; removed capture sites
 are accounted for by mapped canonicalization. Ordinary authored print operands

@@ -16,7 +16,6 @@ mod entry;
 mod events;
 mod filters;
 mod fixed_mana;
-pub mod hand_payments;
 mod immediate_values;
 #[cfg(test)]
 mod immediate_values_tests;
@@ -35,6 +34,7 @@ mod paid_source;
 #[cfg(test)]
 mod paid_source_tests;
 mod programs;
+pub mod resolution_payments;
 #[cfg(test)]
 mod result_scopes;
 mod scalar_reads;

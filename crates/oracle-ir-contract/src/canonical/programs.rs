@@ -10,7 +10,7 @@ struct Needed {
     mana: bool,
     hand_reveal: bool,
     hand_choice: bool,
-    hand_payment: bool,
+    native_payment: bool,
 }
 #[derive(Default)]
 struct Normalize {
@@ -39,9 +39,9 @@ impl Visit for Normalize {
                 matches!(ty, Ty::Named(name) if name == "Operation") && value["kind"] == "Reveal";
             needed.hand_choice |= matches!(ty, Ty::Named(name) if name == "Operation")
                 && value["kind"] == "ChooseObjects";
-            needed.hand_payment |= !self.keep_order
+            needed.native_payment |= !self.keep_order
                 && matches!(ty, Ty::Named(name) if name == "CostPart")
-                && super::hand_payments::may_need(value);
+                && super::resolution_payments::may_need(value);
         }
     }
     fn leave(
@@ -75,7 +75,7 @@ impl Visit for Normalize {
             return Ok(());
         };
         let hands = needed.hand_reveal && needed.hand_choice;
-        if !needed.snapshots && !needed.mana && !hands && !needed.hand_payment {
+        if !needed.snapshots && !needed.mana && !hands && !needed.native_payment {
             return Ok(());
         }
         let mut uses = Uses::default();
@@ -118,8 +118,8 @@ impl Visit for Normalize {
                 if needed.mana {
                     self.changed |= super::fixed_mana::flatten(items, path, &uses, self.tracing);
                 }
-                if needed.hand_payment {
-                    self.changed |= super::hand_payments::program(items, &uses, self.tracing);
+                if needed.native_payment {
+                    self.changed |= super::resolution_payments::program(items, &uses, self.tracing);
                 }
             }
         }
