@@ -1,4 +1,4 @@
-use crate::engine::{CardNote, CardReading, empty_card_characteristics};
+use crate::engine::{CardNote, CardReading, PrintedPowerToughness, empty_card_characteristics};
 use crate::model::ir::{Characteristics, ManaColor, ManaSymbol};
 use crate::model::mtg_types::{CardType, SuperType};
 
@@ -135,6 +135,83 @@ fn mayhem_reminder_repeats_the_printed_cost() {
     exact_roundtrip(text, &context);
     let wrong = text.replace("for {1}{R}", "for {2}{R}");
     assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn partner_reminder_names_the_same_card_as_the_ability() {
+    let context = empty_card_characteristics();
+    let text = "Partner with Rory Williams (When this creature enters, target player may put Rory into their hand from their library, then shuffle.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("put Rory", "put Evie");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn transform_reminder_reads_the_current_front_name_from_source() {
+    let engine = super::engine();
+    let name = "Vault of Catlacan";
+    let mut characteristics = empty_card_characteristics();
+    characteristics.supertypes.push(SuperType::Legendary);
+    let text = "(Transforms from Storm the Vault.)\n{T}: Add {C}.";
+    let mut source = engine
+        .card_input_context(name, text, &characteristics, PrintedPowerToughness::Absent)
+        .unwrap();
+    source.transform_front = Some("Storm the Vault".into());
+    let parsed = engine.parse_card_with_source(name, text, &source).unwrap();
+    let [reading] = parsed.readings.as_slice() else {
+        panic!("expected one reading");
+    };
+    assert_eq!(reading.notes, [CardNote::TransformsFrom]);
+    let key = engine
+        .card_key_of_with_source(name, reading, &source, text, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine
+            .print_card_trail_with_source(name, reading, &source, &key)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+    assert!(engine.parse_card(name, text, &characteristics).is_err());
+    source.transform_front = Some("Dowsing Device".into());
+    assert!(engine.parse_card_with_source(name, text, &source).is_err());
+    let edited = engine
+        .print_card_keyed_with_source(name, reading, &source, &[])
+        .unwrap()
+        .unwrap();
+    assert!(edited.starts_with("(Transforms from Dowsing Device.)\n"));
+    let reparsed = engine
+        .parse_card_with_source(name, &edited, &source)
+        .unwrap();
+    assert_eq!(reparsed.readings.as_slice(), std::slice::from_ref(reading));
+}
+
+#[test]
+fn oracle_punctuation_spacing_preserves_the_token_stream() {
+    use crate::tokens::{Names, tokenize};
+    let names = Names::of(NAME);
+    let vocabulary = ["investigate", "create", "throw"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    for (text, printed) in [
+        ("Investigate.(Create.)", "Investigate. (Create.)"),
+        ("Throw ... —", "Throw... —"),
+        ("\"Investigate.\"(Create.)", "\"Investigate.\" (Create.)"),
+    ] {
+        assert_eq!(
+            tokenize(text, &names, &vocabulary).unwrap(),
+            tokenize(printed, &names, &vocabulary).unwrap()
+        );
+    }
+    for wrong in [
+        "Investigate . (Create.)",
+        "Throw  ... —",
+        "Investigate(Clue)",
+    ] {
+        assert!(tokenize(wrong, &names, &vocabulary).is_err());
+    }
 }
 
 #[test]

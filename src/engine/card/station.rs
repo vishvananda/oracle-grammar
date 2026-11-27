@@ -18,6 +18,9 @@ pub struct StationAnimationBox {
 pub struct CardInputContext {
     pub characteristics: Characteristics,
     pub printed_power_toughness: PrintedPowerToughness,
+    /// The original front name when reading the back of a transforming card.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transform_front: Option<String>,
     pub station_nonanimating: bool,
     pub station_animation: Option<StationAnimationBox>,
     pub station_present: bool,
@@ -118,6 +121,7 @@ impl Engine {
         }
         Ok(CardInputContext {
             characteristics: characteristics.clone(),
+            transform_front: None,
             station_nonanimating: station_present
                 && printed_power_toughness == PrintedPowerToughness::Absent,
             printed_power_toughness,

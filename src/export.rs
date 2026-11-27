@@ -19,6 +19,7 @@ pub struct SourceFace {
     pub source: Value,
     /// The other face's printed card types, for verifying an Adventure note.
     pub adventure_partner_types: Vec<CardType>,
+    pub transform_front: Option<String>,
     pub context: Result<(ir::Characteristics, crate::engine::PrintedPowerToughness), String>,
 }
 
@@ -82,6 +83,7 @@ pub fn outcome(engine: &Engine, face: &SourceFace) -> Value {
         let mut context = engine
             .card_input_context(&face.name, &face.text, characteristics, printed.clone())
             .map_err(|why| ("source_context", why))?;
+        context.transform_front = face.transform_front.clone();
         // A Station box describes its conditional animation stage. It is not
         // an unconditional base P/T characteristic of the source artifact.
         if context.station_present {

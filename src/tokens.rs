@@ -251,14 +251,22 @@ fn modifies_type_noun(before: &[Token], text: &str, at: usize, length: usize) ->
 }
 
 /// A card's name appearing as the proper suffix of a longer card or token name after
-/// `named` (e.g. `named Keeper of Kookus`, `named Kobolds of Kher Keep`, `named Blowfly Infestation`)
-/// is part of that referenced name, not a self-reference. Bare `named <SelfName>` stays a self-name.
+/// `named` (e.g. `named Keeper of Kookus`) or in a `(Transforms from ...)` heading
+/// is part of that referenced name. Bare `named <SelfName>` stays a self-name.
 fn proper_name_suffix(before: &[Token]) -> bool {
     let mut i = before.len();
     let mut seen_prefix = false;
     while i > 0 {
         match &before[i - 1] {
             Token::Word(word) if word == "named" => return seen_prefix,
+            Token::Word(word)
+                if word == "from"
+                    && i >= 3
+                    && matches!(&before[i - 3..i - 1],
+                        [Token::Mark('('), Token::Word(verb)] if verb == "transforms") =>
+            {
+                return true;
+            }
             Token::Word(word)
                 if word.starts_with(char::is_uppercase)
                     || matches!(
@@ -381,12 +389,40 @@ pub fn tokenize(
 ) -> Result<Vec<Token>, String> {
     let tokens = scan(text, names, vocabulary)?;
     let rendered = detokenize(&tokens, names);
-    if rendered == text {
+    if rendered == text || oracle_sentence_spacing(text, &rendered) {
         crate::print_trace::tokens(&tokens);
         Ok(tokens)
     } else {
         Err(format!("noncanonical spacing or case: {rendered:?}"))
     }
+}
+
+/// Oracle sometimes omits the gap before a sentence's reminder or prints a
+/// gap before an ellipsis. The lexer keeps the same tokens and printer
+/// spelling for both forms. All other spacing and case must still agree.
+fn oracle_sentence_spacing(text: &str, rendered: &str) -> bool {
+    let mut actual = text.as_bytes();
+    let mut expected = rendered.as_bytes();
+    while let (Some(&input), Some(&output)) = (actual.first(), expected.first()) {
+        let prefix = &rendered.as_bytes()[..rendered.len() - expected.len()];
+        if input == output {
+            actual = &actual[1..];
+            expected = &expected[1..];
+        } else if input == b'('
+            && expected.starts_with(b" (")
+            && (prefix.ends_with(b".") || prefix.ends_with(b".\""))
+        {
+            expected = &expected[1..];
+        } else if actual.starts_with(b" ...")
+            && expected.starts_with(b"...")
+            && prefix.last().is_some_and(u8::is_ascii_alphanumeric)
+        {
+            actual = &actual[1..];
+        } else {
+            return false;
+        }
+    }
+    actual.is_empty() && expected.is_empty()
 }
 
 /// A card name ending in `!` or `?` absorbs a sentence-ending period in Oracle text

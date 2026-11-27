@@ -308,10 +308,16 @@ pub(super) fn scryfall(records: &[Value]) -> Result<Vec<SourceFace>, String> {
                 .ok_or("face must be an object")?
                 .remove("card_faces");
             let context = characteristics(face);
+            let transform_front = if layout == "transform" && face_index == 1 && faces.len() == 2 {
+                faces[0]["name"].as_str().map(str::to_owned)
+            } else {
+                None
+            };
             out.push(SourceFace {
                 identity: json!({"provider_id":id,"record_index":record_index,"face_index":face_index,"layout":layout,"record_name":record["name"]}),
                 name, text, source, context,
                 adventure_partner_types: adventure_partner_types(layout, faces, face_index),
+                transform_front,
             });
         }
     }

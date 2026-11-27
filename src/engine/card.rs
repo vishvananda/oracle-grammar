@@ -32,6 +32,7 @@ pub enum CardNote {
     /// The mana granted by all current basic land types, with no copied colors.
     LandTypes,
     LayoutReminder(LayoutReminder),
+    TransformsFrom,
     StationPowerToughness {
         ability: usize,
         stage: usize,
@@ -318,6 +319,7 @@ impl Engine {
         if surface.notes.len()
             + usize::from(surface.land_mana.is_some())
             + usize::from(surface.layout_reminder.is_some())
+            + usize::from(surface.transforms_from.is_some())
             + usize::from(surface.assist_limit.is_some())
             > self.limits.depth
         {
@@ -410,6 +412,17 @@ impl Engine {
                 notes.push(CardNote::LayoutReminder(reminder));
             }
         }
+        if let Some(front) = surface.transforms_from {
+            let expected = source.and_then(|context| context.transform_front.as_deref());
+            if Some(front.as_str()) != expected {
+                return Err(Refusal::Binding(
+                    "transform reminder disagrees with the original front face".into(),
+                ));
+            }
+            for notes in &mut choices {
+                notes.push(CardNote::TransformsFrom);
+            }
+        }
         let abilities =
             serde_json::to_value(surface.abilities).map_err(|e| Refusal::Binding(e.to_string()))?;
         Ok(choices
@@ -425,6 +438,7 @@ impl Engine {
         &self,
         reading: &CardReading,
         context: &Characteristics,
+        transform_front: Option<&str>,
         written: bool,
     ) -> Result<Vec<Value>, String> {
         self.card_context(context)?;
@@ -435,6 +449,7 @@ impl Engine {
         let mut assist_limit = None;
         let mut land_colors = None;
         let mut layout_reminder = None;
+        let mut transforms_from = None;
         for note in &reading.notes {
             match note {
                 CardNote::ManaCost { slot } | CardNote::AssistLimit { slot } => {
@@ -465,12 +480,20 @@ impl Engine {
                         return Err("duplicate layout reminder".into());
                     }
                 }
+                CardNote::TransformsFrom => {
+                    let front = transform_front
+                        .filter(|name| !name.is_empty() && name.len() <= 4096)
+                        .ok_or("transform reminder needs the original front face name")?;
+                    if transforms_from.replace(front).is_some() {
+                        return Err("duplicate transform reminder".into());
+                    }
+                }
             }
         }
         let land_mana = land_colors.map(|colors| json!({"colors":colors}));
         Ok(Self::native_surfaces(&reading.abilities, written)?
             .into_iter()
-            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"land_mana":land_mana,"layout_reminder":layout_reminder,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
+            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
             .collect())
     }
     /// A card's surfaces, with the views only a `written` text asks for when it does.
@@ -480,7 +503,7 @@ impl Engine {
         context: &Characteristics,
         written: bool,
     ) -> Result<Vec<Value>, String> {
-        let surfaces = self.card_surfaces_inner(reading, context, written)?;
+        let surfaces = self.card_surfaces_inner(reading, context, None, written)?;
         station::checked_surfaces(reading, None, surfaces)
     }
     fn card_surfaces_with_source(
@@ -492,7 +515,12 @@ impl Engine {
         station::checked_surfaces(
             reading,
             Some(context),
-            self.card_surfaces_inner(reading, &context.characteristics, written)?,
+            self.card_surfaces_inner(
+                reading,
+                &context.characteristics,
+                context.transform_front.as_deref(),
+                written,
+            )?,
         )
     }
 }

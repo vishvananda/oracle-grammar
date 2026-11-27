@@ -74,6 +74,7 @@ pub(super) fn input(engine: &Engine, sources: &Sources, face: &Value) -> Result<
             CardInputContext {
                 characteristics: empty,
                 printed_power_toughness: PrintedPowerToughness::Unavailable,
+                transform_front: None,
                 station_nonanimating: false,
                 station_animation: None,
                 station_present: true,

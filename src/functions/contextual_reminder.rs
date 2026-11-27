@@ -82,6 +82,7 @@ fn mechanic(value: &Value) -> Option<&'static str> {
         "Banding" => Some("Banding"),
         "Persist" => Some("Persist"),
         "Exalted" => Some("Exalted"),
+        "Escape" => Some("Escape"),
         _ => None,
     }
 }
@@ -171,6 +172,11 @@ fn marker(value: &Value) -> Option<&'static str> {
         Some("Lifelink") => Some("Lifelink"),
         Some("Vigilance") => Some("Vigilance"),
         Some("Reach") => Some("Reach"),
+        Some("Vocabulary")
+            if args["family"] == "CounterType" && args["form"] == "FinalityCounter" =>
+        {
+            Some("Finality")
+        }
         Some("FirstStrike") => Some("FirstStrike"),
         Some("DoubleStrike") => Some("DoubleStrike"),
         Some("Keyword" | "KeywordEach") => match action_name(&args["action"]) {

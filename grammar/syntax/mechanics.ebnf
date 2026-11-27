@@ -42,6 +42,7 @@ mechanic_reminded_text ::= ingest_reminded_text | convoke_reminded_text | delve_
     | hidden_agenda_reminded_text | double_agenda_reminded_text | undaunted_reminded_text | conspire_short_reminded_text
     | reinforce_reminded_text | devour_reminded_text | double_team_reminded_text | banding_blocking_reminded_text
     | provoke_reminded_text | mayhem_cost_reminded_text | hideaway_reminded_text | ripple_reminded_text
+    | web_slinging_reminded_text
 
 /* @sem $mechanic_ingest */
 ingest_reminded_text ::= mechanic_ingest "(" "whenever" reminder_subject "deals" "combat" "damage" "to" "a" "player" "," "that" "player" "exiles" "the" "top" "card" "of" "their" "library" "." ")"
@@ -53,9 +54,14 @@ convoke_reminded_text ::= mechanic_convoke "(" "your" "creatures" "can" "help" "
 delve_reminded_text ::= mechanic_delve "(" "each" "card" "you" "exile" "from" "your" "graveyard" "while" "casting" "this" "spell" "pays" "for" "{" "1" "}" "." ")"
 
 /* Every explanation is paired with its own native mechanic or deck rule. */
-deck_rule_reminded_text ::= partner_reminded_text | background_reminded_text | doctor_companion_reminded_text
+deck_rule_reminded_text ::= partner_reminded_text | partner_with_reminded_text | background_reminded_text | doctor_companion_reminded_text
 /* @sem $deck_rule_partner */
 partner_reminded_text ::= deck_rule_partner "(" "you" "can" "have" "two" "commanders" "if" "both" "have" "partner" "." ")"
+/* @sem Ability::@agree($deck_rule_partner_with, $partner_search_explanation) */
+partner_with_reminded_text ::= deck_rule_partner_with "(" partner_search_explanation ")"
+/* @sem Ability::DeckRule(Partner(With($partner_search_name))) */
+partner_search_explanation ::= "when" "this" "creature" "enters" "," "target" "player" "may" "put" partner_search_name "into" "their" "hand" "from" "their" "library" "," "then" "shuffle" "."
+partner_search_name ::= referenced_card_name | partner_short_search_name
 /* @sem $deck_rule_choose_background */
 background_reminded_text ::= deck_rule_choose_background "(" "you" "can" "have" "a" "Background" "as" "a" "second" "commander" "." ")"
 /* @sem $deck_rule_doctors_companion */
@@ -110,6 +116,9 @@ provoke_reminded_text ::= bare_provoke "(" "whenever" "this" "creature" "attacks
 
 /* @sem Ability::Mechanic{mechanic:$mechanic_mayhem_name, cost:Cost::@agree($keyword_payment, $keyword_payment_2)} */
 mayhem_cost_reminded_text ::= mechanic_mayhem_name keyword_payment "(" "you" "may" "cast" "this" "card" "from" "your" "graveyard" "for" keyword_payment "if" "you" "discarded" "it" "this" "turn" "." "timing" "rules" "still" "apply" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:$mechanic_web_slinging_name, cost:Cost::@agree($keyword_payment, $keyword_payment_2)} */
+web_slinging_reminded_text ::= mechanic_web_slinging_name keyword_payment "(" "you" "may" "cast" "this" "spell" "for" keyword_payment "if" "you" "also" "return" "a" "tapped" "creature" "you" "control" "to" "its" "owner's" "hand" "." ")"
 
 /* @sem Ability::Mechanic{mechanic:Ripple, amount:Expr::@agree($number_digits, $ripple_explanation_amount)} */
 ripple_reminded_text ::= "ripple" number_digits "(" ripple_explanation_amount ")"

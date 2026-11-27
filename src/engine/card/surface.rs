@@ -13,6 +13,7 @@ pub(super) struct CardSurface {
     pub station_declaration: Option<StationSource>,
     pub land_mana: Option<LandMana>,
     pub layout_reminder: Option<LayoutReminder>,
+    pub transforms_from: Option<String>,
     pub abilities: Vec<Ability>,
 }
 
