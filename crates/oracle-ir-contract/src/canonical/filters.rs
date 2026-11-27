@@ -157,3 +157,28 @@ pub(super) fn event_subject_disjunction(value: &mut Value, tracing: bool) {
         "object":subject,"filter":{"kind":"AnyOf","args":alternatives}
     }});
 }
+
+/// The candidate fails each explicitly excluded type, in one snapshot.
+/// Keep the transform confined to type tests, which have no nested bindings.
+pub(super) fn excluded_types(value: &mut Value, tracing: bool) {
+    if value["kind"] != "Not" || value["args"]["kind"] != "AnyOf" {
+        return;
+    }
+    let Some([a, b]) = value["args"]["args"].as_array().map(Vec::as_slice) else {
+        return;
+    };
+    if !matches!(
+        (a["kind"].as_str(), b["kind"].as_str()),
+        (Some("CardType"), Some("Subtype")) | (Some("Subtype"), Some("CardType"))
+    ) || ![a, b].iter().all(|item| {
+        item.as_object().is_some_and(|terms| terms.len() == 2) && item["args"].is_string()
+    }) {
+        return;
+    }
+    let mut tests = [
+        json!({"kind":"Not","args":a}),
+        json!({"kind":"Not","args":b}),
+    ];
+    tests.sort_by_cached_key(|test| trace::key(test, tracing));
+    *value = json!({"kind":"AllOf","args":tests});
+}

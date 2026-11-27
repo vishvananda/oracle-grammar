@@ -11,7 +11,9 @@ use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
+mod casting_grants;
 mod combat_pairs;
+mod damage_parts;
 mod entry;
 mod events;
 mod filters;
@@ -673,6 +675,12 @@ impl Walker {
                         keywords::turn_linked_face_up(value);
                     }
                 }
+                ("Ability", "Static") if !self.keep_order => {
+                    casting_grants::normalize(value, self.tracing);
+                }
+                ("Operation", "DealDamageParts") if !self.keep_order => {
+                    damage_parts::equal_amounts(value);
+                }
                 ("ObjectFilter", "Property") if !self.keep_order => {
                     filters::equal_or_ordered_stats(value, self.tracing);
                 }
@@ -698,7 +706,10 @@ impl Walker {
                     mana_uses::casting_alternatives(value, self.keep_order, self.tracing);
                 }
                 ("ObjectFilter", "InSet") => one_object_set(value),
-                ("ObjectFilter", "Not") if !self.keep_order => filters::negated_condition(value),
+                ("ObjectFilter", "Not") if !self.keep_order => {
+                    filters::negated_condition(value);
+                    filters::excluded_types(value, self.tracing);
+                }
                 ("ObjectSet", "Zone") => {
                     narrow_zone_scope(content_of(value));
                     if let Some(filter) = battlefield_filter_mut(value) {

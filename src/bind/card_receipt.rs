@@ -35,7 +35,7 @@ pub(super) fn is_receipt(name: &str) -> bool {
     named(name).is_some()
 }
 
-fn at<'a>(mut value: &'a Value, path: &[Step]) -> Option<&'a Value> {
+pub(super) fn at<'a>(mut value: &'a Value, path: &[Step]) -> Option<&'a Value> {
     for step in path {
         value = match step {
             Step::Key(key) => value.get(key)?,
@@ -87,6 +87,72 @@ fn effect(instruction: &Value) -> Option<(u64, &Value)> {
         operation = operation["args"].get(0)?;
     }
     Some((instruction["args"]["result"].as_u64()?, operation))
+}
+
+/// A direct clause tests the immediately preceding exile and names the
+/// opponent whose graveyard supplied that card.
+pub(super) fn tested_exile_owner(root: &Value, path: &[Step]) -> Option<Value> {
+    if path.len() > 128 {
+        return None;
+    }
+    let (sequence, index) = enclosing(path)?;
+    let [
+        conditional_path @ ..,
+        Step::Key(args),
+        Step::Key(then),
+        Step::Key(_),
+    ] = sequence
+    else {
+        return None;
+    };
+    if index != 0 || args != "args" || then != "then" {
+        return None;
+    }
+    let conditional = at(root, conditional_path)?;
+    let payment = &conditional["args"]["condition"];
+    let action = &conditional["args"]["then"]["instructions"][0]["args"]["operation"];
+    let players = &action["args"]["players"];
+    if conditional["kind"] != "If"
+        || payment["kind"] != "ObjectMatches"
+        || action["kind"] != "LoseLife"
+        || players["kind"] != "One"
+        || !std::ptr::eq(at(root, path)?, &players["args"])
+    {
+        return None;
+    }
+    let (outer, position) = enclosing(conditional_path)?;
+    let (result, operation) = effect(at(root, outer)?.get(position.checked_sub(1)?)?)?;
+    let receipt = json!({"kind":"Result","args":{"result":result,"phase":"After","index":0}});
+    let objects = &operation["args"]["objects"];
+    let target = &objects["args"];
+    let slot = &target["args"]["slot"];
+    if operation["kind"] != "Move"
+        || super::movement::zone(&operation["args"]["destination"]) != Some("Exile")
+        || objects["kind"] != "One"
+        || target["kind"] != "Target"
+        || target["args"]["index"] != 0
+        || symbol_name(slot) != Some("target")
+        || payment["args"]["object"] != receipt
+    {
+        return None;
+    }
+    let spec = slot["args"].get(0)?;
+    let domain = &spec["kind"]["Object"];
+    let graveyard = json!({"kind":"InZone","args":{"Players":{"zone":"Graveyard",
+        "players":{"kind":"OpponentsOf","args":{"kind":"AbilityController"}}}}});
+    let filter = &spec["filter"];
+    if domain["kind"] != "Card"
+        || domain["zones"] != json!(["Graveyard"])
+        || !constant_one(&spec["count"]["Exactly"])
+        || !(filter == &graveyard
+            || filter["kind"] == "AllOf"
+                && filter["args"]
+                    .as_array()
+                    .is_some_and(|parts| parts.len() <= 64 && parts.contains(&graveyard)))
+    {
+        return None;
+    }
+    Some(json!({"kind":"OwnerOf","args":receipt}))
 }
 
 /// The receipt one producer leaves for its single card, if it proves one.

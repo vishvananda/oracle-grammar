@@ -406,7 +406,7 @@ instructions_parley_investigate ::= parley_reveal "you" "investigate" parley_dra
 
 /* A scalar destroyed target provides pre-move controller information, even if
    destruction moves it or changes which object its target reference locates. */
-/* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:One($target_object), regeneration:true}}, Effect{result:@next, operation:CreateTokens{players:One(ControllerOf(Result{result:@prior, phase:Before, index:0})), tokens:$token_groups_tapped, entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}] */
+/* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:One($target_object), regeneration:true}}, Effect{result:@next, operation:CreateTokens{players:One(ControllerOf($target_object)), tokens:$token_groups_tapped, entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}] */
 clause_destroy_controller_tapped_tokens ::= "destroy" target_object "." "its" "controller" "creates" token_groups_tapped
 
 /* Retained mined entry points delegate to this owned construction. Token
@@ -1491,12 +1491,8 @@ created_damage_counter_program ::= create_one_defined "." "put" "a" "number" "of
 triggered_group_damage_created_counters ::= "whenever" event_group_combat_damage_to_player "," created_damage_counter_program "."
 
 /* The delayed action refers to this creation's result, irrespective of earlier effects. */
-/* @sem Instruction::[Effect{result:@mark, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:$owned_exile_card_with_counter, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}})}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, expires:EndOfCombat, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}] */
-instructions_copy_owned_exile_combat ::= "for" "each" owned_exile_card_with_counter "," "create" "a" "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" "it" "." "exile" "those" "tokens" "at" "end" "of" "combat"
-
-/* Preserve the independent unbounded delayed-trigger reading. */
 /* @sem Instruction::[Effect{result:@mark, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:$owned_exile_card_with_counter, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}})}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}] */
-instructions_copy_owned_exile_combat_unbounded ::= "for" "each" owned_exile_card_with_counter "," "create" "a" "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" "it" "." "exile" "those" "tokens" "at" "end" "of" "combat"
+instructions_copy_owned_exile_combat ::= "for" "each" owned_exile_card_with_counter "," "create" "a" "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" "it" "." "exile" "those" "tokens" "at" "end" "of" "combat"
 
 /* The Rock name proves that the named sacrifice pays with this granting token. */
 /* @sem TokenRecipe::Defined{ name:Explicit(Rock), colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, abilities:[$token_rock_quoted, $keyword_equip] } */
@@ -2000,7 +1996,7 @@ clause_each_controlled_subtype_role ::= "for" "each" creature_subtype "you" "con
 created_then_exile_other_controlled ::= create_base "." "then" "exile" "all" "other" filter_phrase filter_plural "you" "control"
 
 /* Keep the singular creation and its combat-end sacrifice in one scope. */
-/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$singular_cleanup_defined_token], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, expires:EndOfCombat, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]} */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$singular_cleanup_defined_token], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]} */
 singular_attacking_token_combat_sacrifice ::= "create" singular_cleanup_defined_token "that's" "tapped" "and" "attacking" "." "sacrifice" "that" "token" "at" "end" "of" "combat"
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:$singular_attacking_token_combat_sacrifice, otherwise:Program{}}]} */
@@ -2304,7 +2300,7 @@ instructions_create_departure_damage ::= "create" "a" token_recipe_base token_ke
 token_keyword_upkeep_sentence ::= "." "it" "has" keyword_name "and" '"' "cumulative" "upkeep" mana_symbols "." '"'
 
 /* Keep the singular creation and its delayed sacrifice in one receipt scope. */
-/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe_explicit_name_with}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, expires:EndOfCombat, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}] */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe_explicit_name_with}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}] */
 clause_named_attacking_token_combat_sacrifice ::= "create" "a" token_recipe_explicit_name_with "that's" "tapped" "and" "attacking" "." "sacrifice" "that" "token" "at" "end" "of" "combat"
 
 /* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:Program{instructions:[...$clause_named_attacking_token_combat_sacrifice]}} */

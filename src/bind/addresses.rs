@@ -47,10 +47,9 @@ pub(super) fn quantity(
             "that much after a mana-spent test needs its explicit numeric antecedent".into(),
         );
     }
-    if let Some(quantity) = scope
-        .event_quantity
-        .filter(|_| !many || scope.results.lexical_issued() < 2)
-    {
+    if let Some(quantity) = scope.event_quantity.filter(|_| {
+        !many || scope.results.lexical_issued() < 2 || damage_before_self_sacrifice(root, path)
+    }) {
         return Ok(quantity.expression());
     }
     let result = scope.results.back(2)?;
@@ -74,6 +73,56 @@ pub(super) fn quantity(
     } else {
         json!({"kind":"Performed","args":result})
     })
+}
+
+// A bare sacrifice of the damage source supplies no written count. The
+// immediately joined token creation still reads the combat damage amount.
+fn damage_before_self_sacrifice(root: &Value, path: &[Step]) -> bool {
+    let Some((sequence, 1)) = super::card_receipt::enclosing(path) else {
+        return false;
+    };
+    if !matches!(sequence, [Step::Key(args), Step::Key(body), Step::Key(instructions)]
+        if args == "args" && body == "body" && instructions == "instructions")
+    {
+        return false;
+    }
+    let args = &root["args"];
+    let event = &args["event"]["Damage"];
+    let event_source = &event["sources"];
+    let Some([first, second]) = args["body"]["instructions"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let mut sacrifice = &first["args"]["operation"];
+    if super::symbol_name(sacrifice) == Some("sacrificed_result") {
+        sacrifice = &sacrifice["args"][0];
+    }
+    let mut create = &second["args"]["operation"];
+    if super::symbol_name(create) == Some("created_result") {
+        create = &create["args"][0];
+    }
+    let Some([token]) = create["args"]["tokens"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let objects = &sacrifice["args"]["objects"];
+    root["kind"] == "Triggered"
+        && event["kind"] == "Combat"
+        && event_source["kind"] == "SameObject"
+        && (event_source["args"]["kind"] == "Source"
+            || matches!(
+                super::symbol_name(&event_source["args"]),
+                Some("named_source" | "self")
+            ))
+        && first["kind"] == "Effect"
+        && second["kind"] == "Effect"
+        && sacrifice["kind"] == "Sacrifice"
+        && objects["kind"] == "One"
+        && (matches!(
+            objects["args"]["kind"].as_str(),
+            Some("Source" | "EventSubject")
+        ) || objects["args"]["kind"] == "Damage" && objects["args"]["args"] == "Source")
+        && create["kind"] == "CreateTokens"
+        && super::card_receipt::at(root, path)
+            .is_some_and(|value| std::ptr::eq(value, &token["amount"]))
 }
 
 /// "The result" names the latest die roll in this result address space, so a

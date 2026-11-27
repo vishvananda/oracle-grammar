@@ -73,6 +73,7 @@ pub(super) fn strip(value: &mut Value) {
         symbol_name(value),
         Some(
             "member_count_it"
+                | "implicit_control_change"
                 | "literal_damage_itself"
                 | "literal_damage_itself_objects"
                 | "indefinite_opponent_controller"

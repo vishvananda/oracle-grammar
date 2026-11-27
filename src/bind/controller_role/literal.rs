@@ -53,6 +53,9 @@ pub(super) fn reference(
     {
         return Ok(json!({"kind":"ControllerOf","args":role.object}));
     }
+    if let Some(owner) = super::super::card_receipt::tested_exile_owner(root, path) {
+        return Ok(owner);
+    }
     let fallback = per_recipient::reference(root, path, introduced, scope, contexts)?;
     let entry = &root["args"]["event"]["ZoneChange"];
     if fallback == json!({"kind":"ControllerOf","args":{"kind":"EventSubject"}})

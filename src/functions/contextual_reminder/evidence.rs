@@ -469,11 +469,7 @@ fn ability_mentions(
         {
             return true;
         }
-        if changes
-            .as_array()
-            .is_some_and(|changes| changes.iter().take(32).any(replicate_grant))
-            && visit("PermanentSpellCopyRule")
-        {
+        if spell_grants_replicate(args) && visit("PermanentSpellCopyRule") {
             return true;
         }
         if grants_saga_replicate(args) && visit("SagaReplicate") {
@@ -621,6 +617,22 @@ pub(super) fn copies_source_spell(ability: &Value) -> bool {
                     && copy["times"]["kind"] == "Constant"
                     && copy["times"]["args"] == 1
             })
+    })
+}
+
+fn spell_grants_replicate(args: &Value) -> bool {
+    let objects = &args["affected"]["Objects"];
+    let stack_spell = objects["kind"] == "Zone"
+        && objects["args"]["scope"]["Shared"] == "Stack"
+        && objects["args"]["kind"] == "Spell";
+    args["changes"].as_array().is_some_and(|changes| {
+        changes.iter().take(32).any(|change| {
+            replicate_grant(change)
+                || (stack_spell
+                    && change["kind"] == "GrantAbility"
+                    && change["args"]["kind"] == "Mechanic"
+                    && change["args"]["args"]["mechanic"] == "Replicate")
+        })
     })
 }
 

@@ -262,6 +262,18 @@ different are marked *(different)*. No group is open at this reference.
 
 ## Updated locally
 
+- `U0207` keeps the end-of-combat delayed triggers on Altaïr Ibn-La'Ahad,
+  Fortune, Loyal Steed, Kavaron Harrier and Mordor Trebuchet pending if the
+  end-of-combat step is skipped (CR 511.2, 603.7b, 725.2d–e).
+- `U0208` makes Forth Eorlingas! match one or more simultaneous combat-damage
+  recipients as one occurrence (CR 603.2c).
+- `U0209` makes the two Cityscape Leveler triggers give the Powerstone to the
+  targeted permanent's controller. The instruction still applies when the
+  permanent is indestructible (CR 101.3, 608.2b–c, 702.12).
+- `U0210` makes Aleatory schedule its draw after either outcome of the coin
+  flip. Its separate printed paragraph is independent of the conditional pump
+  (CR 608.2c).
+
 - `U0202` requires the targets on Perpetual Timepiece and The Bath Song to
   be in the ability controller’s graveyard.
 

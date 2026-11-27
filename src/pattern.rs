@@ -1142,6 +1142,7 @@ fn transparent_symbol(name: &str) -> bool {
     matches!(
         name,
         "look_inline"
+            | "implicit_control_change"
             | "indefinite_opponent_controller"
             | "linked_return_literal"
             | "literal_damage_itself_objects"

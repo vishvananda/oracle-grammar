@@ -41,6 +41,37 @@ fn untap_and_remove_from_combat(body: &[Value], tail: &[Value]) -> bool {
             .is_some()
 }
 
+// The shared actor extends through an actorless control change referring to
+// the one object being untapped. An explicitly written actor has its own clause.
+fn untap_and_gain_control(body: &[Value], tail: &[Value]) -> bool {
+    let ([untap], Some(control)) = (body, tail.first()) else {
+        return false;
+    };
+    let untap_operation = &untap["args"]["operation"];
+    let target = &untap_operation["args"]["objects"];
+    let change = &control["args"]["operation"];
+    if untap["kind"] != "Effect"
+        || untap_operation["kind"] != "SetTapped"
+        || untap_operation["args"]["tapped"] != false
+        || target["kind"] != "One"
+        || target["args"]["kind"] != "Target"
+        || target["args"]["args"]["index"] != 0
+        || control["kind"] != "Effect"
+        || change["$sym"] != "implicit_control_change"
+    {
+        return false;
+    }
+    let control_operation = &change["args"][0];
+    let objects = &control_operation["args"]["affected"]["Objects"];
+    let mut reference = &objects["args"];
+    if reference["$sym"] == "member_count_it" {
+        reference = &reference["args"][0];
+    }
+    control_operation["kind"] == "CreateContinuousEffect"
+        && objects["kind"] == "One"
+        && reference["$sym"] == "it"
+}
+
 fn compound(mut actions: &[Value]) -> bool {
     while let [only] = actions {
         if only["kind"] != "Group" {
@@ -66,7 +97,9 @@ fn split_optional(head: &[Value], tail: &[Value]) -> bool {
     let discard =
         body.is_some_and(|body| matches!(body.as_slice(), [discard] if hand_discard(discard)));
     discard && tail.first().is_some_and(controller_draw)
-        || body.is_some_and(|body| untap_and_remove_from_combat(body, tail))
+        || body.is_some_and(|body| {
+            untap_and_remove_from_combat(body, tail) || untap_and_gain_control(body, tail)
+        })
         || checked_payment(&tail[..tail.len().min(2)])
 }
 

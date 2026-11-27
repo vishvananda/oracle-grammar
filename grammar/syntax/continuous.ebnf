@@ -71,8 +71,17 @@ gain_control_player ::= control_other_player "gains" "control" "of" object_set d
 
 control_other_player ::= target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller
 
+gain_control_you ::= gain_control_implicit | gain_control_explicit
+
+/* An actorless conjunction can share the preceding optional actor. */
+/* @sem Operation::@implicit_control_change($gain_control_action) */
+gain_control_implicit ::= gain_control_action
+
+/* @sem $gain_control_action */
+gain_control_explicit ::= "you" gain_control_action
+
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($object_set), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot} */
-gain_control_you ::= "you"? "gain" "control" "of" object_set duration
+gain_control_action ::= "gain" "control" "of" object_set duration
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(RequireCombat{action:Block(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
 combat_block_any_requirement ::= affected ("blocks" | "block") this_duration "if" "able"
@@ -1094,9 +1103,8 @@ granted_mechanic ::= bare_mentor | bare_double_team | bare_phasing | granted_ech
 /* @sem Ability::Mechanic{mechanic:Replicate, cost:Cost{parts:[ManaCostOf(Source)]}} */
 granted_replicate_mana_cost ::= "replicate" "." "the" "replicate" "cost" "is" "equal" "to" "its" "mana" "cost"
 
-/* Cast-time grants have distinct native spell-object and casting-player
-   readings. Keep both; neither is an equality alias for the other. Source in
-   each granted cost is the receiving spell, not the granting permanent. */
+/* Cast-time grants apply to the matching proposal. In each granted cost,
+   Source names the receiving spell. */
 static_mechanic_grant ::= shared_cast_granted_offspring | static_each_other_bloodthirst | static_spell_mana_grant_with_cost_reduction | static_spell_mana_grant | static_spell_keyword_cost_reduction | static_spell_mechanic_grant | static_object_mechanic_grant | static_owned_origin_spell_effect
 /* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:$spell_mana_grant_subject, abilities:List([$spell_mana_grant_effect])})]} */
 static_spell_mana_grant ::= spell_mana_grant_subject ("has" | "have") spell_mana_grant_effect "."

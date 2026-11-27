@@ -815,6 +815,9 @@ fn specialized_call(
             )))
         }
         "indefinite_opponent_controller" => controller_annotation_call(args, ty, schema).map(Some),
+        "implicit_control_change" => {
+            typed_annotation_call(name, args, ty, schema, "Operation").map(Some)
+        }
         "event_free_once" => event_free_once_call(args, ty, schema).map(Some),
         "recipient_value" | "life_recipient_value" => {
             recipient_value_call(name, args, ty, schema).map(Some)
@@ -831,7 +834,9 @@ fn specialized_call(
         | "move_after_current_type"
         | "move_after_actor"
         | "move_after_property"
-        | "move_after_other" => object_annotation_call(name, args, ty, schema).map(Some),
+        | "move_after_other" => {
+            typed_annotation_call(name, args, ty, schema, "ObjectRef").map(Some)
+        }
         "fixed_mana" | "variable_mana" | "inline_counter_price" | "captured_counter_price" => {
             guarded_value_call(name, args, ty, schema).map(Some)
         }
@@ -1020,17 +1025,18 @@ fn scalar_annotation_call(
     ))
 }
 
-fn object_annotation_call(
+fn typed_annotation_call(
     name: &str,
     args: &[Syntax],
     ty: &Ty,
     schema: &Schema,
+    expected: &str,
 ) -> Result<Pattern, String> {
     let [value] = args else {
-        return Err(format!("@{name} needs one object reference"));
+        return Err(format!("@{name} needs one {expected}"));
     };
-    if *ty != Ty::Named("ObjectRef".into()) {
-        return Err(format!("@{name} produces ObjectRef"));
+    if *ty != Ty::Named(expected.into()) {
+        return Err(format!("@{name} produces {expected}"));
     }
     Ok(Pattern::Symbol(
         name.into(),

@@ -221,6 +221,7 @@ pub(super) fn collect(
         symbol,
         Some(
             "exile_followup"
+                | "implicit_control_change"
                 | "return_grant_set"
                 | "move_after_current_type"
                 | "move_after_actor"

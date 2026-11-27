@@ -1448,7 +1448,7 @@ receipt_span_permission ::= "you" "may" "play" ("it" | "that" "card") receipt_sp
 receipt_span_duration ::= this_turn | until_end_of_your_next_turn
 
 /* @prefer always */
-instructions_exile_receipt_span ::= instructions_exile_attack_batch_permission | optional_exile_permission_outside | optional_exile_permission_inside | instructions_exile_one_permission | instructions_exile_many_permission | instructions_exile_each_permission | instructions_exile_receipt_life | instructions_exile_receipt_plain | instructions_exile_vote_permission | instructions_exile_permission_counters
+instructions_exile_receipt_span ::= instructions_exile_attack_batch_permission | optional_exile_permission_outside | instructions_exile_one_permission | instructions_exile_many_permission | instructions_exile_each_permission | instructions_exile_receipt_life | instructions_exile_receipt_plain | instructions_exile_vote_permission | instructions_exile_permission_counters
 
 /* Explicit alternative bundles are chosen independently for each counted object.
    Keep each bundle intact; `any one color` retains its existing nested choice. */
@@ -8399,9 +8399,6 @@ clause_return_one_graveyard_card_battlefield ::= "return" "a" filter_phrase "car
 /* Both optional scopes retain the exact singular exile producer and its receipt. */
 /* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$card_exile_value_producer}}, ...$permission_exiled_that_until] */
 optional_exile_permission_outside ::= "you" "may" card_exile_value_producer "." "if" "you" "do" "," permission_exiled_that_until
-
-/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[...$card_exile_value_producer, ...$permission_exiled_that_until]}}] */
-optional_exile_permission_inside ::= "you" "may" card_exile_value_producer "." "if" "you" "do" "," permission_exiled_that_until
 
 /* The plural pronoun refers to precisely the population tapped by this instruction. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:SetTapped{objects:$object_set, tapped:true}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($object_set), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})], duration:DuringControllersNextUntapStep, evaluation:LiveObjects}}]} */
@@ -16778,7 +16775,7 @@ choose_one_event_saddler ::= "up" "to" "one" own_attack_saddler
 /* @sem MovementDestination::Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
 return_their_owner_control ::= "under" "their" "owner's" "control"
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, expires:EndOfCombat, body:Program{instructions:[Effect{result:@next, operation:$choose_event_saddler}, Effect{result:@next, operation:Move{objects:Union([One(EventSubject), Selected(@prior)]), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Transition{result:@prior, phase:After}, zone:Exile}, destination:$saddler_return_control, qualifiers:[]}}]}}}]} */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:$choose_event_saddler}, Effect{result:@next, operation:Move{objects:Union([One(EventSubject), Selected(@prior)]), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Transition{result:@prior, phase:After}, zone:Exile}, destination:$saddler_return_control, qualifiers:[]}}]}}}]} */
 combat_end_event_saddler_blink ::= "at" "end" "of" "combat" "," "exile" "it" "and" choose_event_saddler "," "then" "return" "those" "cards" "to" "the" "battlefield" saddler_return_control
 
 /* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$combat_end_event_saddler_blink} */
@@ -20166,11 +20163,6 @@ each_type_defender_graveyard ::= "defending" "player's"
 /* @sem Instruction::[...$each_type_graveyard_exile, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:CountObjects(Transition{result:@prior, phase:Before})}]}}] */
 instructions_each_type_exile_counters ::= each_type_graveyard_exile "." "put" "a" counter_kind "counter" "on" affected "for" "each" "card" "exiled" "this" "way"
 
-/* The simultaneous creation reading retains the whole created batch as the
-   recipient; the exile producer fixes the meaning of the Before receipt. */
-/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_plural, $filter_plural_2)}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:All, tokens:$token_groups, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, ForEachPlayer{players:All, binding:0, body:Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:InSet(Recorded(@prior))}), kind:$counter_kind, amount:Aggregate{objects:Matching{objects:Transition{result:@marked, phase:Before}, filter:AllOf([$filter_plural_2, ControlledBy(One(Bound(0)))])}, property:$creature_stat, aggregation:Sum}}]}}]}}] */
-instructions_exile_all_shared_tokens_exiled_stat ::= "exile" "all" filter_plural "." "each" "player" "creates" token_groups "and" "puts" "a" "number" "of" counter_kind "counters" "on" "it" "equal" "to" "the" "total" creature_stat "of" filter_plural "they" "controlled" "that" "were" "exiled" "this" "way"
-
 /* Each opponent chooses a controlled permanent and a random library card,
    exiles both, and takes damage equal to their total mana value. */
 /* @prefer always */
@@ -20238,13 +20230,6 @@ optional_sacrifice_coin_process ::= "you" "may" cost_sacrifice "." "if" "you" "d
 
 /* @sem Ability::Triggered{event:$event_cast_nth, limits:TriggerLimits{}, announcement:@announcement, body:$optional_sacrifice_coin_process} */
 triggered_nth_cast_sacrifice_coin ::= "whenever" event_cast_nth "," optional_sacrifice_coin_process
-
-/* Preserve the grouped continuation representation as a distinct reading. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[$cost_sacrifice]}, optional:true}}, ...$clause_flip_coin_reflexive_win_lose]} */
-optional_sacrifice_grouped_coin_process ::= "you" "may" cost_sacrifice "." "if" "you" "do" "," clause_flip_coin_reflexive_win_lose "."
-
-/* @sem Ability::Triggered{event:$event_cast_nth, limits:TriggerLimits{}, announcement:@announcement, body:$optional_sacrifice_grouped_coin_process} */
-triggered_nth_cast_grouped_sacrifice_coin ::= "whenever" event_cast_nth "," optional_sacrifice_grouped_coin_process
 
 /* The producer and counted controller receipt share the same exile instruction. */
 /* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$plural_target_count_any, filter:Any})), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, ForEachPlayer{players:All, binding:0, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(Bound(0)), tokens:[TokenSpec{amount:CountObjects(Matching{objects:Transition{result:@marked, phase:Before}, filter:ControlledBy(One(Bound(0)))}), words:CreatingEffect, recipe:$singular_counted_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}] */
@@ -20466,10 +20451,6 @@ clause_may_return_linked_same_name_plural ::= "you" "may" "put" count_plural "of
 
 /* @sem Instruction::[If{condition:$no_linked_cards, then:_{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[Sacrifice{objects:One(Source)}]}}}, If{condition:PaymentChosen(@last_result), then:_{instructions:$conjoined}, otherwise:_{}}]}, otherwise:_{}}] */
 clause_if_no_linked_cards_sacrifice ::= "if" no_linked_cards "," "sacrifice" "it" "." "if" "you" "do" "," conjoined
-
-/* A coin outcome governs an action and a separately printed deferred action. */
-/* @sem Instruction::[Effect{result:@mark, operation:$flip_a_coin}, If{condition:CoinFlip{result:@marked, outcome:$flip_outcome}, then:Program{instructions:[...$conjoined, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:All}, start:NextTurn, body:Program{instructions:$clause_imperative}}}]}, otherwise:Program{}}] */
-clause_coin_outcome_delayed_next_turn ::= flip_a_coin "." "if" "you" flip_outcome "the" "flip" "," conjoined "." NEWLINE clause_imperative "at" "the" "beginning" "of" "the" "next" "turn's" "upkeep"
 
 /* This program is only dispatched under a proved activation tap payment. */
 /* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, SharesWithAny{property:CreatureTypes, with:CostObjects{payment:Activation, component:[0], view:Performed, phase:Before}}])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]} */
