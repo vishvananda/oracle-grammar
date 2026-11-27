@@ -147,6 +147,44 @@ fn partner_reminder_names_the_same_card_as_the_ability() {
 }
 
 #[test]
+fn role_reminder_checks_the_attached_recipe_and_prints_its_attack_trigger() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Creature);
+    let text = concat!(
+        "{1}, Sacrifice this creature: Create a Young Hero Role token attached to another target creature. ",
+        "(If you control another Role on it, put that one into the graveyard. ",
+        "Enchanted creature has \"Whenever this creature attacks, if its toughness is 3 or less, ",
+        "put a +1/+1 counter on it.\")"
+    );
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("Young Hero Role token", "Royal Role token");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn exiled_creature_reminder_follows_the_same_move_receipt() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Enchantment);
+    let text = "When this enchantment enters, exile target creature until this enchantment leaves the battlefield. (That creature returns under its owner's control.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("exile target creature", "exile target artifact");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn cast_copy_reminder_requires_a_spell_cast_from_the_copy_result() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Creature);
+    let text = "When this creature enters, exile target nonland card with mana value 3 or less from your graveyard. Copy it, then you may cast the copy without paying its mana cost. (A copy of a permanent spell becomes a token.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace(
+        ", then you may cast the copy without paying its mana cost",
+        "",
+    );
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
 fn transform_reminder_reads_the_current_front_name_from_source() {
     let engine = super::engine();
     let name = "Vault of Catlacan";

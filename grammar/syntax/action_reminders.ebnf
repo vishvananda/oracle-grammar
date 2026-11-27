@@ -2,7 +2,7 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
-line_contextual_reminder ::= line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder
+line_contextual_reminder ::= line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
 line_contextual_group ::= remindable_line "(" ability_explanation ")"
 remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_blocks_blocked
@@ -14,6 +14,11 @@ line_historic_copy_reminder ::= remindable_line "(" historic_explanation token_c
 
 /* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $grant_hexproof_explanation), $grant_indestructible_explanation) */
 line_hexproof_indestructible_reminder ::= remindable_line "(" grant_hexproof_explanation grant_indestructible_explanation ")"
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $monster_role_explanation), $fight_creatures_explanation) */
+line_role_fight_reminder ::= remindable_line "(" monster_role_explanation fight_creatures_explanation ")"
+/* @sem String::'Fight' */
+fight_creatures_explanation ::= "creatures" "that" "fight" "each" "deal" "damage" "equal" "to" "their" "power" "to" "the" "other" "."
 
 /* @sem Vec<Ability>::@ward_grant_reminder($remindable_line, $ward_grant_explanation) */
 line_ward_grant_reminder ::= remindable_line "(" ward_grant_explanation ")"
@@ -160,7 +165,7 @@ ability_explanation ::= stun_explanation | modified_explanation | historic_expla
     | snow_explanation | colorless_explanation | waterbend_explanation | indefinite_explanation
     | splice_explanation | overload_explanation | bargain_explanation | prototype_explanation
     | nonmana_ability_explanation | grant_keyword_explanation | additional_rule_explanations
-    | context_explanations | token_context_explanations
+    | context_explanations | token_context_explanations | role_explanation
 
 additional_rule_explanations ::= ward_cant_counter_explanation | zero_even_explanation | prepared_cast_explanation
     | flashback_granted_cast_explanation | flashback_owner_cast_explanation | charge_sunburst_explanation
@@ -175,7 +180,23 @@ additional_rule_explanations ::= ward_cant_counter_explanation | zero_even_expla
     | flash_permission_it_explanation | regeneration_it_explanation | regeneration_creature_explanation
     | banding_controller_explanation | banding_player_explanation | legendary_bands_explanation
     | exert_recipient_explanation | empty_piles_explanation | attack_declaration_cost_explanation
-    | escape_grant_explanation
+    | escape_grant_explanation | exiled_creature_returns_explanation
+    | sticker_vowels_explanation | end_turn_explanation | end_turn_spell_explanation
+
+/* @sem String::'StickerVowels' */
+sticker_vowels_explanation ::= "the" "vowels" "are" "A" "," "E" "," "↑" "i" "," "O" "," "U" "," "and" "Y" "."
+
+/* @sem String::'EndTheTurn' */
+end_turn_explanation ::= end_turn_stack_words "." end_turn_cleanup_words
+/* @sem String::'EndTurnFromSpell' */
+end_turn_spell_explanation ::= end_turn_stack_words "," "including" "this" "card" "." end_turn_cleanup_words
+/* @sem () */
+end_turn_stack_words ::= "exile" "all" "spells" "and" "abilities" "from" "the" "stack"
+/* @sem () */
+end_turn_cleanup_words ::= "the" "player" "whose" "turn" "it" "is" "discards" "down" "to" "their" "maximum" "hand" "size" "." "damage" "wears" "off" "," "and" '"' "↓" "this" "turn" '"' "and" '"' "↓" "until" "end" "of" "turn" '"' "effects" "end" "."
+
+/* @sem String::'ReturnExiledCreature' */
+exiled_creature_returns_explanation ::= "that" "creature" "returns" "under" "its" "owner's" "control" "."
 
 /* @sem String::'Escape' */
 escape_grant_explanation ::= "you" "may" "cast" "cards" "from" "your" "graveyard" "for" "their" "escape" "cost" "."

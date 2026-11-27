@@ -202,6 +202,7 @@ fn marker(value: &Value) -> Option<&'static str> {
             Some("TimeTravel") => Some("TimeTravel"),
             Some("Discover") => Some("Discover"),
             Some("Detain") => Some("Detain"),
+            Some("EndTheTurn") => Some("EndTheTurn"),
             _ => None,
         },
         Some("Populate") => Some("Populate"),
@@ -421,6 +422,9 @@ fn visit_mentions<'a>(
                     || topic == "PhaseOut"
                         && evidence::normal_phasing(value)
                         && visit("PhaseOutNormally", None)
+                    || topic == "EndTheTurn"
+                        && ability["kind"] == "Spell"
+                        && visit("EndTurnFromSpell", None)
             }) || evidence::flashback_at_mana_cost(value) && visit("FlashbackAtManaCost", None)
                 || object
                     .get("Mana")
@@ -483,6 +487,7 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "PermanentSpellCopyRule"
                     | "NoncreatureForm"
                     | "BattlefieldReturn"
+                    | "ReturnExiledCreature"
             )
         )
     )

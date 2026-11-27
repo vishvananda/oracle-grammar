@@ -184,6 +184,8 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         Some("ManaSpent") if args["filter"]["snow"] == true => Some("Snow"),
         Some("PhaseOut") => Some("PhaseOut"),
         Some("Seek") if args["top"].is_null() => Some("SeekWholeLibrary"),
+        Some("Stickers") if args["measure"] == "UniqueVowels" => Some("StickerVowels"),
+        Some("CreateTokens") => attached_role(args),
         Some("SeparatePiles" | "Piles") => Some("EmptyPiles"),
         Some("GameEffect")
             if args["effect"]["kind"] == "Term"
@@ -212,6 +214,36 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
             Some("LegendaryBands")
         }
         _ if value["Named"] == "PoisonCounter" => Some("PoisonCounter"),
+        _ => None,
+    }
+}
+
+fn attached_role(args: &Value) -> Option<&'static str> {
+    let [entry] = args["entry"]["states"].as_array()?.as_slice() else {
+        return None;
+    };
+    entry.get("AttachedTo")?;
+    let [token] = args["tokens"].as_array()?.as_slice() else {
+        return None;
+    };
+    let recipe = &token["recipe"]["Defined"];
+    // The named rules recipe supplies the role abilities. A custom or copied
+    // token can share a name or a subtype without supplying those abilities.
+    if token["words"] != "Rules"
+        || !matches!(recipe["card_types"].as_array()?.as_slice(), [kind] if kind == "Enchantment")
+        || !matches!(recipe["subtypes"].as_array()?.as_slice(),
+            [a, b] if (a == "Aura" && b == "Role") || (a == "Role" && b == "Aura"))
+    {
+        return None;
+    }
+    match recipe["name"]["Explicit"].as_str()? {
+        "Wicked" => Some("WickedRole"),
+        "Young Hero" => Some("YoungHeroRole"),
+        "Sorcerer" => Some("SorcererRole"),
+        "Monster" => Some("MonsterRole"),
+        "Royal" => Some("RoyalRole"),
+        "Cursed" => Some("CursedRole"),
+        "Virtuous" => Some("VirtuousRole"),
         _ => None,
     }
 }
@@ -348,33 +380,50 @@ fn ability_mentions(
             return true;
         }
     }
-    in_resolution(&args["body"], args, 0, remaining, &mut |op, frame| {
-        if op["kind"] == "Keyword"
-            && op["args"]["action"]["Prepare"]["object"]["kind"] == "Source"
-            && visit("PreparedSource")
-        {
-            return true;
-        }
-        if noncreature_form(op) && visit("NoncreatureForm") {
-            return true;
-        }
-        if op["kind"] == "Keyword"
-            && op["args"]["action"].get("ExchangeControl").is_some()
-            && visit("Indefinite")
-        {
-            return true;
-        }
-        // A delayed trigger's move uses the captured references of its creator.
-        let move_frame = if frame.get("start").is_some() {
-            args
-        } else {
-            frame
-        };
-        if battlefield_return(op, move_frame, permanent) && visit("BattlefieldReturn") {
-            return true;
-        }
-        copy_mentions(op, frame, visit)
-    })
+    in_resolution(
+        &args["body"],
+        args,
+        0,
+        remaining,
+        &mut |step, frame, previous| {
+            if let Some(previous) = previous {
+                if exiled_creature_returns(step, previous, frame) && visit("ReturnExiledCreature") {
+                    return true;
+                }
+                if casts_created_copy(step, previous) && visit("PermanentSpellCopyRule") {
+                    return true;
+                }
+            }
+            let Some(op) = step_operation(step) else {
+                return false;
+            };
+            if op["kind"] == "Keyword"
+                && op["args"]["action"]["Prepare"]["object"]["kind"] == "Source"
+                && visit("PreparedSource")
+            {
+                return true;
+            }
+            if noncreature_form(op) && visit("NoncreatureForm") {
+                return true;
+            }
+            if op["kind"] == "Keyword"
+                && op["args"]["action"].get("ExchangeControl").is_some()
+                && visit("Indefinite")
+            {
+                return true;
+            }
+            // A delayed trigger's move uses the captured references of its creator.
+            let move_frame = if frame.get("start").is_some() {
+                args
+            } else {
+                frame
+            };
+            if battlefield_return(op, move_frame, permanent) && visit("BattlefieldReturn") {
+                return true;
+            }
+            copy_mentions(op, frame, visit)
+        },
+    )
 }
 
 fn copy_mentions(op: &Value, frame: &Value, visit: &mut impl FnMut(&'static str) -> bool) -> bool {
@@ -440,7 +489,7 @@ fn in_resolution(
     frame: &Value,
     depth: usize,
     remaining: &mut usize,
-    visit: &mut impl FnMut(&Value, &Value) -> bool,
+    visit: &mut impl FnMut(&Value, &Value, Option<&Value>) -> bool,
 ) -> bool {
     if depth == 12 || *remaining == 0 {
         return false;
@@ -448,18 +497,19 @@ fn in_resolution(
     let Some(steps) = program["instructions"].as_array() else {
         return false;
     };
-    for step in steps {
+    for (index, step) in steps.iter().enumerate() {
         if *remaining == 0 {
             break;
         }
         *remaining -= 1;
         let args = &step["args"];
-        let found = match step["kind"].as_str() {
-            Some("Effect") => {
-                let operation = &args["operation"];
-                let op_args = &operation["args"];
-                visit(operation, frame)
-                    || match operation["kind"].as_str() {
+        let previous = index.checked_sub(1).map(|i| &steps[i]);
+        let found = visit(step, frame, previous)
+            || match step["kind"].as_str() {
+                Some("Effect") => {
+                    let operation = &args["operation"];
+                    let op_args = &operation["args"];
+                    match operation["kind"].as_str() {
                         Some("CreateTrigger" | "CreateDelayedTrigger") => {
                             in_resolution(&op_args["body"], op_args, depth + 1, remaining, visit)
                         }
@@ -477,16 +527,18 @@ fn in_resolution(
                         }),
                         _ => false,
                     }
-            }
-            Some("If") => [&args["then"], &args["otherwise"]]
-                .into_iter()
-                .any(|body| in_resolution(body, frame, depth + 1, remaining, visit)),
-            Some("Optional" | "ForEachPlayer" | "ForEachObject" | "RepeatableWithLimit") => {
-                in_resolution(&args["body"], frame, depth + 1, remaining, visit)
-            }
-            Some("Group" | "Repeatable") => in_resolution(args, frame, depth + 1, remaining, visit),
-            _ => false,
-        };
+                }
+                Some("If") => [&args["then"], &args["otherwise"]]
+                    .into_iter()
+                    .any(|body| in_resolution(body, frame, depth + 1, remaining, visit)),
+                Some("Optional" | "ForEachPlayer" | "ForEachObject" | "RepeatableWithLimit") => {
+                    in_resolution(&args["body"], frame, depth + 1, remaining, visit)
+                }
+                Some("Group" | "Repeatable") => {
+                    in_resolution(args, frame, depth + 1, remaining, visit)
+                }
+                _ => false,
+            };
         if found {
             return true;
         }
@@ -541,7 +593,107 @@ fn battlefield_return(operation: &Value, frame: &Value, permanent: bool) -> bool
     if object["kind"] == "Source" {
         return permanent;
     }
-    object["kind"] == "EventSubject" && combat_events(&frame["event"], 0, &mut 32)
+    let event = &frame["event"];
+    object["kind"] == "EventSubject" && combat_events(event, 0, &mut 32)
+        || object["kind"] == "BlockPair"
+            && object["args"] == "Attacker"
+            && event["Pair"]["event"] == "Blocks"
+}
+
+fn step_operation(step: &Value) -> Option<&Value> {
+    if step["kind"] == "Effect" {
+        step["args"].get("operation")
+    } else {
+        None
+    }
+}
+
+fn casts_created_copy(step: &Value, previous: &Value) -> bool {
+    let Some(copy) = step_operation(previous) else {
+        return false;
+    };
+    if copy["kind"] != "CopyCards" {
+        return false;
+    }
+    let cast = if step["kind"] == "Optional" {
+        let Some([cast]) = step["args"]["body"]["instructions"]
+            .as_array()
+            .map(Vec::as_slice)
+        else {
+            return false;
+        };
+        cast
+    } else {
+        step
+    };
+    let Some(play) = step_operation(cast) else {
+        return false;
+    };
+    let cards = &play["args"]["cards"];
+    play["kind"] == "PlayCards"
+        && play["args"]["action"] == "CastSpell"
+        && cards["kind"] == "Copies"
+        && cards["args"].is_u64()
+        && cards["args"] == previous["args"]["result"]
+}
+
+fn exiled_creature_returns(step: &Value, previous: &Value, frame: &Value) -> bool {
+    let (Some(returns), Some(moves)) = (step_operation(step), step_operation(previous)) else {
+        return false;
+    };
+    let moved = &moves["args"];
+    let receipt = &returns["args"]["objects"];
+    if returns["kind"] != "ReturnAfter"
+        || moves["kind"] != "Move"
+        || moved["destination"].get("Exile").is_none()
+        || moved["objects"]["kind"] != "One"
+        || receipt["kind"] != "Transition"
+        || receipt["args"]["phase"] != "After"
+        || !receipt["args"]["result"].is_u64()
+        || receipt["args"]["result"] != previous["args"]["result"]
+    {
+        return false;
+    }
+    // CR 610.3c returns the creature to the battlefield under its owner's control.
+    let object = &moved["objects"]["args"];
+    if let Some(target) = target_spec(object, &frame["announcement"]) {
+        let domain = &target["kind"]["Object"];
+        return domain["kind"] == "Permanent"
+            && domain["zones"]
+                .as_array()
+                .is_some_and(|zones| matches!(zones.as_slice(), [zone] if zone == "Battlefield"))
+            && is_creature_filter(&target["filter"], 0, &mut 32);
+    }
+    let damage = &frame["event"]["Damage"];
+    object["kind"] == "EventSubject"
+        && damage["source_kind"] == "Permanent"
+        && damage["subject"] == "Source"
+        && is_creature_filter(&damage["sources"], 0, &mut 32)
+}
+
+fn is_creature_filter(filter: &Value, depth: usize, remaining: &mut usize) -> bool {
+    if depth == 8 || *remaining == 0 {
+        return false;
+    }
+    *remaining -= 1;
+    let args = &filter["args"];
+    match filter["kind"].as_str() {
+        Some("CardType") => args == "Creature",
+        Some("AllOf" | "AnyOf") => args.as_array().is_some_and(|items| {
+            if items.is_empty() || items.len() > 16 {
+                return false;
+            }
+            let mut proven = items
+                .iter()
+                .map(|item| is_creature_filter(item, depth + 1, remaining));
+            if filter["kind"] == "AllOf" {
+                proven.any(|is_creature| is_creature)
+            } else {
+                proven.all(|is_creature| is_creature)
+            }
+        }),
+        _ => false,
+    }
 }
 
 fn combat_events(event: &Value, depth: usize, remaining: &mut usize) -> bool {

@@ -21409,14 +21409,17 @@ instructions_tap_targets_one_counter ::= "tap" "up" "to" number_words "target" f
 delayed_sacrifice_affected_creatures ::= "sacrifice" "those" "creatures" "at" "the" "beginning" "of" "the" "next" "end" "step"
 
 /* The introductory keyword action and the alternative each retain their own operands. */
+ascend_action ::= bare_ascend_action | reminded_ascend_action
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Ascend} */
-shared_ascend_action ::= "ascend"
+bare_ascend_action ::= "ascend"
+/* @sem $bare_ascend_action */
+reminded_ascend_action ::= bare_ascend_action ascend_explanation
 
 /* @sem Instruction::If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:$shared_only_opponents_population_pump}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$shared_all_population_pump}]}} */
 shared_conditional_population_pump ::= shared_all_population_pump "." "if" condition "," "instead" shared_only_opponents_population_pump
 
-/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$shared_ascend_action}, $shared_conditional_population_pump]}} */
-shared_ascend_conditional_population_spell ::= shared_ascend_action NEWLINE shared_conditional_population_pump "."
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$ascend_action}, $shared_conditional_population_pump]}} */
+shared_ascend_conditional_population_spell ::= ascend_action NEWLINE shared_conditional_population_pump "."
 
 /* Another permanent excludes the event subject; the printed filter supplies its controller. */
 /* @sem Cost::Cost{parts:[Move{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(EventSubject)), $filter_phrase])}, choose:Exactly(Constant(1))}], destination:OwnersHand(CardArrival{})}]} */
