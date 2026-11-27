@@ -316,13 +316,25 @@ additional_rule_explanations ::= normal_timing_and_costs_explanation | outlaw_an
     | exert_recipient_explanation | empty_piles_explanation | attack_declaration_cost_explanation
     | escape_grant_explanation | exiled_creature_returns_explanation
     | sticker_vowels_explanation | end_turn_explanation | end_turn_spell_explanation
-    | card_types_explanation | chosen_landwalk_explanation | adventure_history_explanation
+    | card_types_explanation | card_types_examples | card_types_before_kindred | permanent_types_explanation
+    | casting_help_explanations | targeted_player_group_phaseout_explanation | repeated_flanking_explanation | aura_copy_token_explanation
+    | chosen_landwalk_explanation | adventure_history_explanation
     | replaced_creature_types_explanation | also_replaced_creature_types_explanation | lasting_mana_symbols_explanation | its_mana_symbols_explanation
     | granted_upkeep_explanation | demonstrate_explanation | demonstrate_targets_explanation
     | player_shroud_explanation | spell_becomes_blocked_explanation | ability_becomes_blocked_explanation
 
 /* @sem String::'CardTypes' */
 card_types_explanation ::= "artifact" "," "battle" "," "creature" "," "enchantment" "," "instant" "," "kindred" "," "land" "," "planeswalker" "," "and" "sorcery" "are" "card" "types" "."
+/* @sem String::'CardTypes' */
+card_types_examples ::= "artifact" "," "creature" "," "enchantment" "," "land" "," "and" "planeswalker" "are" "card" "types" "."
+/* @sem String::'CardTypes' */
+card_types_before_kindred ::= "artifact" "," "battle" "," "creature" "," "enchantment" "," "instant" "," "land" "," "planeswalker" "," "and" "sorcery" "are" "card" "types" "."
+/* @sem String::'PermanentTypes' */
+permanent_types_explanation ::= "artifact" "," "battle" "," "creature" "," "enchantment" "," "land" "," "and" "planeswalker" "are" "permanent" "types" "."
+/* @sem String::'RepeatedFlanking' */
+repeated_flanking_explanation ::= "each" "instance" "of" "flanking" "triggers" "separately" "."
+/* @sem String::'AuraSpellCopyRule' */
+aura_copy_token_explanation ::= "a" "copy" "of" "an" "Aura" "spell" "becomes" "a" "token" "."
 /* @sem String::'VariableLandwalk' */
 chosen_landwalk_explanation ::= "it" "can't" "be" "blocked" "as" "long" "as" "defending" "player" "controls" "a" "land" "of" "that" "type" "."
 /* @sem String::'HasAdventure' */
@@ -667,7 +679,7 @@ reminder_turn_if ::= "at" turn_event "," "if" condition "," reminder_program_sen
 reminder_program_sentence ::= reminder_instructions
 reminder_instructions ::= reminder_closed | reminder_before | reminder_closed_before
     | reminder_after_plain | reminder_after_reminder | reminder_open_then_plain | reminder_open_then_reminder
-reminder_before ::= reminder_before_period | reminder_before_then | reminder_before_line | reminder_before_controller_energy
+reminder_before ::= reminder_before_surveil | reminder_before_period | reminder_before_then | reminder_before_line | reminder_before_controller_energy
 /* @sem Instruction::[...$clause, ...$reminder_you] */
 reminder_before_controller_energy ::= clause "and" reminder_you "."
 /* @sem Instruction::[...$clause, ...$reminder_instructions] */
@@ -690,7 +702,7 @@ reminder_open_then_reminder ::= reminder_open (sequencer | "," "then") reminder_
 /* @sem $reminder_open */
 reminder_open_closed ::= reminder_open "."
 
-reminder_closed ::= shield_counter_reminded | tap_stun_counter_reminded | surveil_defined_reminded | open_attraction_reminded | open_two_attractions_reminded | limited_mana_cost_spending_reminded | reminder_open_closed | proliferate_reminded | proliferate_twice_reminded | proliferate_pair_reminded
+reminder_closed ::= explore_twice_reminded | explores_many_reminded | each_explores_reminded | surveil_defined_with_followup_reminder | shield_counter_reminded | tap_stun_counter_reminded | surveil_defined_reminded | open_attraction_reminded | open_two_attractions_reminded | limited_mana_cost_spending_reminded | reminder_open_closed | proliferate_reminded | proliferate_twice_reminded | proliferate_pair_reminded
     | scry_reminded | surveil_reminded | investigate_reminded | named_token_reminded | fight_reminded
     | reminder_if | reminder_optional | reminder_paid | support_reminded
     | incubate_x_reminded | exile_incubate_x_reminded | vibranium_reminded
@@ -1536,3 +1548,57 @@ outlaw_and_other_creatures_explanation ::= outlaw_type_words "everyone" "else" "
 goaded_creature_next_turn ::= "a" "goaded" "creature" "attacks" "each" "combat" "if" "able" "and" "attacks" "a" "player" "other" "than" "you" "if" "able" "," "until" "your" "next" "turn" "."
 /* @sem String::'PermanentSpellCopyRule' */
 copies_of_permanent_spells_rules ::= "copies" "of" "permanent" "spells" "become" "tokens" "."
+
+
+/* @sem $instructions_explore_twice */
+explore_twice_reminded ::= instructions_explore_twice "." "(" repeated_explore_rules ")"
+/* @sem () */
+repeated_explore_rules ::= explore_rules_prefix "that" "creature" explore_rules_suffix "then" "repeat" "this" "process" "."
+/* @sem () */
+explore_rules_prefix ::= "reveal" "the" "top" "card" "of" "your" "library" "." "put" "that" "card" "into" "your" "hand" "if" "it's" "a" "land" "." "otherwise" "," "put" "a" "+" "1" "/" "+" "1" "counter" "on"
+/* @sem () */
+explore_rules_suffix ::= "," "then" "put" "the" "card" "back" "or" "put" "it" "into" "your" "graveyard" "."
+
+/* @sem Instruction::[Effect{result:@next, operation:$object_explores_number_times}] */
+explores_many_reminded ::= object_explores_number_times "." "(" "to" "have" "it" "explore" "," explore_rules_prefix "that" "creature" explore_rules_suffix ")"
+/* @sem Instruction::[Effect{result:@next, operation:$each_explores}] */
+each_explores_reminded ::= each_explores "." "(" explore_rules_prefix "the" "exploring" "creature" explore_rules_suffix ")"
+
+/* @sem Instruction::[...$clause, ...$surveil_reminded] */
+reminder_before_surveil ::= clause "and" surveil_reminded
+
+/* @sem Instruction::[Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $surveil_defined_base)}, ...$clause] */
+surveil_defined_with_followup_reminder ::= surveil_defined_base "." "then" clause "." "(" "to" "surveil" "X" "," surveil_written_x_lookup ")"
+
+casting_help_explanations ::= creature_spell_convoke_explanation | artifact_spell_convoke_explanation
+    | noncreature_spell_convoke_explanation | legendary_creature_convoke_explanation | exiled_noncreature_convoke_explanation
+    | first_spell_convoke_explanation | any_player_convoke_explanation | granted_delve_explanation
+/* @sem String::'OwnCreatureConvoke' */
+creature_spell_convoke_explanation ::= convoke_own_help convoke_tap_own "a" "creature" "spell" convoke_payment_words
+/* @sem String::'OwnArtifactConvoke' */
+artifact_spell_convoke_explanation ::= convoke_own_help convoke_tap_own "an" "artifact" "spell" convoke_payment_words
+/* @sem String::'OwnNoncreatureConvoke' */
+noncreature_spell_convoke_explanation ::= convoke_own_help convoke_tap_own "a" "noncreature" "spell" convoke_payment_words
+/* @sem String::'OwnLegendaryCreatureConvoke' */
+legendary_creature_convoke_explanation ::= convoke_own_help convoke_tap_own "a" "legendary" "creature" "spell" convoke_payment_words
+/* @sem String::'OwnExiledNoncreatureConvoke' */
+exiled_noncreature_convoke_explanation ::= convoke_tap_own "a" "noncreature" "spell" "from" "exile" convoke_payment_words
+/* @sem String::'OwnFirstSpellConvoke' */
+first_spell_convoke_explanation ::= "your" "creatures" "can" "help" "cast" "it" "." convoke_tap_own "it" convoke_payment_words
+/* @sem String::'AllNoncreatureConvoke' */
+any_player_convoke_explanation ::= "a" "player's" "creatures" "can" "help" "cast" "those" "spells" "." "each" "creature" "they" "tap" "while" "casting" "a" "noncreature" "spell" convoke_payment_words
+/* @sem String::'OwnDelve' */
+granted_delve_explanation ::= "each" "card" "you" "exile" "from" "your" "graveyard" "while" "casting" "those" "spells" "pays" "for" "{" "1" "}" "."
+/* @sem () */
+convoke_own_help ::= "your" "creatures" "can" "help" "cast" "those" "spells" "."
+/* @sem () */
+convoke_tap_own ::= "each" "creature" "you" "tap" "while" "casting"
+/* @sem () */
+convoke_payment_words ::= "pays" "for" "{" "1" "}" "or" "one" "mana" "of" "that" "creature's" "color" "."
+
+/* Both named casting costs occur on this line. */
+/* @sem Ability::[$mechanic_convoke, WithPresentation{reminder:true, ability:$mechanic_delve}] */
+line_convoke_delve_reminder ::= mechanic_convoke "," mechanic_delve "(" convoke_tap_own "this" "spell" convoke_payment_words "each" "card" "you" "exile" "from" "your" "graveyard" "pays" "for" "{" "1" "}" "." ")"
+
+/* @sem String::'TargetPlayerGroupPhasesOut' */
+targeted_player_group_phaseout_explanation ::= "while" "they're" "phased" "out" "," "they're" "treated" "as" "though" "they" "don't" "exist" "." "they" "phase" "in" "before" "that" "player" "untaps" "during" "their" "next" "untap" "step" "."

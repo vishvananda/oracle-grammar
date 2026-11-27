@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 
 mod cascade_notes;
 mod casting;
+mod casting_help;
 mod evidence;
 mod mechanic_notes;
 mod object_notes;
@@ -558,6 +559,7 @@ fn visit_mentions<'a>(
         })
         || !measured && ordinary_activation(ability) && visit("InstantActivation", None)
         || !measured && mechanic_notes::root_mentions(ability, |topic| visit(topic, None))
+        || !measured && casting_help::grant_note(ability).is_some_and(|topic| visit(topic, None))
         || !measured && cascade_notes::mentions(ability, |topic| visit(topic, None))
         || !measured && object_notes::mentions(ability, |topic| visit(topic, None))
         || !measured && token_notes::prowess_notes(ability, |topic| visit(topic, None))
@@ -632,6 +634,13 @@ fn claim(explanation: &Value) -> Option<(&str, Option<&Value>)> {
 }
 
 fn bound_claim(name: &str, explanation: &Value) -> bool {
+    if name == "contextual_reminder"
+        && explanation
+            .as_str()
+            .is_some_and(casting_help::needs_bound_scope)
+    {
+        return true;
+    }
     matches!(
         (name, claim(explanation).map(|(topic, _)| topic)),
         (
@@ -682,6 +691,9 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "SourceProwess"
                     | "TokenProwess"
                     | "GroupTokenProwess"
+                    | "TargetPlayerGroupPhasesOut"
+                    | "AuraSpellCopyRule"
+                    | "CardTypes"
             )
         )
     )
@@ -771,6 +783,7 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
                 | "EscapeFromYourGraveyardThisTurn"
                 | "TokenProwess"
                 | "GroupTokenProwess"
+                | "TargetPlayerGroupPhasesOut"
         )
     );
     let mut deferred =

@@ -6,12 +6,18 @@ kicker_branch_header ::= "kicker" keyword_payment
 kicker_branch_reminded_header ::= "kicker" keyword_payment kicker_branch_note
 /* @sem $additional_payment */
 kicker_branch_note ::= "(" "you" "may" additional_payment "as" "you" "cast" "this" "spell" "." ")"
+/* @sem $additional_mana_and_word_payment */
+kicker_mixed_cost_note ::= "(" "you" "may" additional_mana_and_word_payment buyback_other_costs "as" "you" "cast" "this" "spell" "." ")"
+/* @sem Cost::@agree($keyword_payment, $kicker_mixed_cost_note) */
+kicker_mixed_cost_header ::= "kicker" keyword_payment kicker_mixed_cost_note
 kicker_checked_header ::= kicker_branch_header | kicker_branch_reminded_header | kicker_branch_reminded_word_header
 
 /* @sem Ability::@kicker_branch($kicker_branch_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program}) */
 spell_kicker_branch ::= kicker_branch_header NEWLINE kicker_branch_program
 /* @sem Ability::WithPresentation{reminder:true, ability:@kicker_branch($kicker_branch_explained_payment, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
 spell_kicker_branch_reminded ::= kicker_branch_explained_payment NEWLINE kicker_branch_program
+/* @sem Ability::WithPresentation{reminder:true, ability:@kicker_branch($kicker_mixed_cost_header, Ability::Spell{announcement:@announcement, body:$kicker_destroy_distinct_targets})} */
+spell_kicker_mixed_cost_reminded ::= kicker_mixed_cost_header NEWLINE kicker_destroy_distinct_targets
 /* @sem Ability::WithPresentation{reminder:true, ability:@kicker_branch($kicker_branch_reminded_header, Ability::Spell{announcement:@announcement, body:$reminder_program_sentence})} */
 spell_kicker_branch_with_reminded_body ::= kicker_branch_reminded_header NEWLINE reminder_program_sentence
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:@kicker_branch($kicker_branch_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
@@ -231,8 +237,8 @@ prevent_distributed_this_way ::= "prevent" "the" "next" number "damage" "this" "
 /* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:UpTo($number), filter:Any, distribute:$number})), kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:DamageToEach(Expr::DistributedShare(@share)), duration:EndOfTurn, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
 prevent_distributed_this_turn ::= "prevent" "the" "next" number "damage" "that" "would" "be" "dealt" "this" "turn" "to" "any" "number" "of" "targets" "," "divided" "as" "you" "choose"
 
-/* @sem Ability::CostBranch{keyword:Kicker, cost:$kicker_branch_header, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$prevent_distributed_this_way}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$prevent_distributed_this_turn}]}})} */
-spell_kicker_distributed_override ::= kicker_branch_header NEWLINE prevent_distributed_this_turn "." "if" "this" "spell" "was" "kicked" "," prevent_distributed_this_way "instead" "."
+/* @sem Ability::@optional_cost_reminder(CostBranch{keyword:Kicker, cost:$kicker_branch_header, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$prevent_distributed_this_way}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$prevent_distributed_this_turn}]}})}, $kicker_word_cost_note) */
+spell_kicker_distributed_override ::= kicker_branch_header kicker_word_cost_note? NEWLINE prevent_distributed_this_turn "." "if" "this" "spell" "was" "kicked" "," prevent_distributed_this_way "instead" "."
 
 /* The bracketed filter applies only to the unpaid count. Both spells count
    the same controlled population and preserve independent result scopes. */
@@ -289,6 +295,9 @@ conditional_damage_to_creature_controller ::= SELF_NAME "deals" number "damage" 
 /* @sem Ability::CostBranch{keyword:Entwine, cost:$keyword_payment, paid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:@length($entwine_opponent_graveyard_modes), maximum:@length($entwine_opponent_graveyard_modes)}, options:$entwine_opponent_graveyard_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}, unpaid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:$number_words, maximum:$number_words}, options:$entwine_opponent_graveyard_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}} */
 spell_entwine_opponent_graveyards ::= "choose" number_words "—" NEWLINE entwine_opponent_graveyard_modes NEWLINE "entwine" keyword_payment
 
+/* @sem Ability::WithPresentation{reminder:true, ability:$spell_entwine_opponent_graveyards} */
+spell_entwine_opponent_graveyards_reminded ::= spell_entwine_opponent_graveyards "(" "choose" "all" "if" "you" "pay" "the" "entwine" "cost" "." ")"
+
 /* This list scopes the possessive graveyard spelling to its modal setting;
    surrounding modes remain independently compositional. */
 /* @sem Mode::[$entwine_opponent_sacrifice_mode, $entwine_opponent_graveyard_mode, ...$modes] */
@@ -314,8 +323,8 @@ instructions_unless_sacrifice ::= "unless" "you" cost_sacrifice "," instructions
 spell_cleave_search_selected ::= "cleave" cost cleave_explanation? NEWLINE "search" "your" "library" "for" "a" "[" card_filter "]" "card" "," "[" "reveal" "it" "," "]" search_selected_it_to_hand_shuffle "."
 
 /* The abbreviated second search changes only the quantity. */
-/* @sem Ability::CostBranch{keyword:Kicker, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:@agree($card_filter, $card_filter_2), count:UpTo($value)}]}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, ...$search_selected_it_to_hand_shuffle]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:@agree($card_filter, $card_filter_2), count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, ...$search_selected_it_to_hand_shuffle]}})} */
-spell_kicker_search_selected ::= "kicker" keyword_payment NEWLINE "search" "your" "library" "for" "a" card_filter "card" "," "reveal" "it" "," search_selected_it_to_hand_shuffle "." "if" "this" "spell" "was" "kicked" "," "search" "your" "library" "for" value card_filter "cards" "instead" "of" "one" "."
+/* @sem Ability::@optional_cost_reminder(CostBranch{keyword:Kicker, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:@agree($card_filter, $card_filter_2), count:UpTo($value)}]}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, ...$search_selected_it_to_hand_shuffle]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:@agree($card_filter, $card_filter_2), count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, ...$search_selected_it_to_hand_shuffle]}})}, $kicker_branch_note) */
+spell_kicker_search_selected ::= "kicker" keyword_payment kicker_branch_note? NEWLINE "search" "your" "library" "for" "a" card_filter "card" "," "reveal" "it" "," search_selected_it_to_hand_shuffle "." "if" "this" "spell" "was" "kicked" "," "search" "your" "library" "for" value card_filter "cards" "instead" "of" "one" "."
 
 /* Each alternative has an independent announcement and damage operation. */
 /* @sem Ability::@optional_ability_reminder(CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$spell_divided_damage_instead}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$spell_divided_damage}]}})}, $madness_reminder) */
@@ -650,8 +659,15 @@ teamwork_if_followup ::= top_reveal_draw | clause
 cleave_explanation ::= "(" "you" "may" "cast" "this" "spell" "for" "its" "cleave" "cost" "." "if" "you" "do" "," "remove" "the" "words" "in" "square" "brackets" "." ")"
 
 
-/* @sem Cost::@agree($additional_word_payment, $additional_word_payment_2) */
-kicker_branch_reminded_word_header ::= "kicker" "―" additional_word_payment "." "(" "you" "may" additional_word_payment "in" "addition" "to" "any" "other" "costs" "as" "you" "cast" "this" "spell" "." ")"
+/* @sem Cost::@agree($additional_word_payment, $kicker_word_cost_note) */
+kicker_branch_reminded_word_header ::= "kicker" "―" additional_word_payment "." kicker_word_cost_note
+/* @sem $kicker_word_reminder_payment */
+kicker_word_cost_note ::= "(" "you" "may" kicker_word_reminder_payment buyback_other_costs "as" "you" "cast" "this" "spell" "." ")"
+kicker_word_reminder_payment ::= additional_word_payment | kicker_tap_reminder_payment
+
+/* The abbreviated tap payment still requires an untapped permanent. */
+/* @sem Cost::Cost{parts:[ChangeTapState{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::Tapped), $controlled_singular_population)}, choose:Exactly(Constant(1))}], tapped:true}]} */
+kicker_tap_reminder_payment ::= "tap" "a" controlled_singular_population
 kicker_branch_explained_payment ::= kicker_branch_reminded_header | kicker_branch_reminded_word_header
 /* @sem Cost::Cost{parts:[Keyword{action:Blight, amount:$branch_blight_value}]} */
 branch_reminded_blight ::= "blight" branch_blight_value

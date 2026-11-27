@@ -3037,8 +3037,19 @@ replacement_you_lose_life ::= "you" "lose" "that" "much" "life"
 
 /* The single discarded card is the kicker payment, and the following entry
    clause is conditional on that same kicker. Keep both sides in one scope. */
-/* @sem Ability::[Mechanic{mechanic:Kicker, cost:Cost{parts:[$cost_mana, $discard_one_receipt_cost]}}, @entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject(Source)}, body:Program{instructions:[If{condition:$condition_kicked, then:Program{instructions:$kicked_discard_entry_changes}, otherwise:Program{}}]}})] */
-line_kicker_discard_entry ::= "kicker" ("―" | "—") cost_mana "," "↑" discard_one_receipt_cost "." NEWLINE "if" condition_kicked "," "it" "enters" "with" kicked_discard_entry_changes "."
+/* @sem Ability::[$kicker_discard_header, $kicked_discard_entry] */
+line_kicker_discard_entry ::= kicker_discard_header NEWLINE kicked_discard_entry
+
+kicker_discard_header ::= kicker_discard_plain | kicker_discard_reminded
+/* @sem Ability::Mechanic{mechanic:Kicker, cost:$kicker_discard_payment} */
+kicker_discard_plain ::= kicker_discard_payment
+/* @sem Ability::WithPresentation{reminder:true, ability:Mechanic{mechanic:Kicker, cost:Cost::@agree($kicker_discard_payment, $kicker_mixed_cost_note)}} */
+kicker_discard_reminded ::= kicker_discard_payment kicker_mixed_cost_note
+/* @sem Cost::Cost{parts:[$cost_mana, $discard_one_receipt_cost]} */
+kicker_discard_payment ::= "kicker" ("―" | "—") cost_mana "," "↑" discard_one_receipt_cost "."
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject(Source)}, body:Program{instructions:[If{condition:$condition_kicked, then:Program{instructions:$kicked_discard_entry_changes}, otherwise:Program{}}]}}) */
+kicked_discard_entry ::= "if" condition_kicked "," "it" "enters" "with" kicked_discard_entry_changes "."
 
 /* The keyword and counter kind are independent entry modifications. */
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Earlier{what:Discarded, measure:Of(ManaValue)}})}}, Effect{result:@next, operation:ModifyEvent{change:Entry(Changes([GrantKeyword($keyword_value)]))}}] */

@@ -70,6 +70,9 @@ pub(super) fn target_slot(object: &Value) -> Option<u64> {
 
 pub(super) fn mention(value: &Value) -> Option<&'static str> {
     let args = &value["args"];
+    if value["CommonProperty"] == "CardTypes" || value["OneForEachCardType"] == "All" {
+        return Some("CardTypes");
+    }
     match value["kind"].as_str()? {
         "Landwalk" if varying_land_type(args) => Some("VariableLandwalk"),
         "CreatureTypes"
@@ -81,6 +84,8 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
             Some("ReplaceCreatureTypes")
         }
         "ChooseValue" if args["kind"] == "CardType" => Some("CardTypes"),
+        "Shares" if args["property"] == "CardTypes" => Some("CardTypes"),
+        "CountDistinct" if args["property"] == "PermanentTypes" => Some("PermanentTypes"),
         "Triggered" => counters_on_damage_recipient(args),
         "Keyword"
             if args["action"]["ManifestDread"].is_object()

@@ -149,9 +149,6 @@ entry_copy_explicit_tail ::= entry_copy_stats_tail | entry_copy_creature_types_t
 /* @sem ObjectFilter::AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:ManaSpent{object:$self_explicit_ref, filter:_{}, aggregation:Count}}}]) */
 entry_copy_mana_spent ::= "any" filter_phrase "on" "the" "battlefield" "with" "mana" "value" "less" "than" "or" "equal" "to" "the" "amount" "of" "mana" "spent" "to" "cast" self_explicit_ref
 
-/* @sem Vec<CopyException>::[CopyException::AddAbilityIfAbsent{ability:Mechanic{mechanic:VanishingEnters, amount:$value}, matching:KeywordFamily(Vanishing)}] */
-copy_vanishing_absent_list ::= "it" "has" "vanishing" value "if" "that" "creature" "doesn't" "have" "vanishing"
-
 /* @sem Vec<CopyException>::[CopyException::AddCardTypes([Artifact, Creature]), CopyException::KeepPowerToughness] */
 copy_artifact_creature_stats_list ::= "it's" "an" "artifact" "creature" "in" "addition" "to" "its" "other" "types" "," "and" "its" "power" "and" "toughness" "are" "equal" "to" "this" "creature's" "power" "and" "toughness"
 
@@ -173,8 +170,15 @@ entry_copy_battlefield_explicit ::= entry_copy_any
 
 copy_battlefield_exception ::= copy_battlefield_vanishing | copy_artifact_activated_list
 
-/* @sem $copy_vanishing_absent_list */
-copy_battlefield_vanishing ::= copy_vanishing_absent_list "."
+/* @sem Vec<CopyException>::[CopyException::AddAbilityIfAbsent{ability:Mechanic{mechanic:VanishingEnters, amount:$copy_vanishing_count}, matching:KeywordFamily(Vanishing)}] */
+copy_battlefield_vanishing ::= "it" "has" "vanishing" copy_vanishing_count
+copy_vanishing_count ::= copy_vanishing_plain_count | copy_vanishing_reminded_count
+/* @sem $value */
+copy_vanishing_plain_count ::= value copy_vanishing_condition
+/* @sem Expr::@agree($value, @agree($number_digits, $suspend_time_counters)) */
+copy_vanishing_reminded_count ::= value copy_vanishing_condition "(" "a" "permanent" "with" "vanishing" number_digits "enters" "with" suspend_time_counters "on" "it" "." "at" "the" "beginning" "of" "your" "upkeep" "," "remove" "a" "time" "counter" "from" "it" "." "when" "the" "last" "is" "removed" "," "sacrifice" "it" "." ")"
+/* @sem () */
+copy_vanishing_condition ::= "if" "that" "creature" "doesn't" "have" "vanishing" "."
 
 /* @sem CopyException::SetPowerToughness{power:$number_digits, toughness:$number_digits_2} */
 copy_fixed_stats ::= "it's" number_digits "/" number_digits

@@ -117,6 +117,32 @@ fn phase_out_reminder_keeps_the_controller_of_its_target() {
 }
 
 #[test]
+fn reminded_spell_can_print_as_two_paragraphs_without_a_key() {
+    let mut context = empty_card_characteristics();
+    context.card_types = vec![CardType::Instant];
+    let text = "Choose target opponent. Until that player's next turn, they gain protection from everything and their life total can't change. All nonland permanents they control phase out. (While they're phased out, they're treated as though they don't exist. They phase in before that player untaps during their next untap step.)\nExile Synthetic.";
+    let reading = exact_roundtrip(text, &context);
+    let engine = super::engine();
+    let source = engine
+        .card_input_context(NAME, text, &context, PrintedPowerToughness::Absent)
+        .unwrap();
+    for printed in [
+        engine.print_card_keyed(NAME, &reading, &context, &[]),
+        engine.print_card_keyed_with_source(NAME, &reading, &source, &[]),
+    ] {
+        let printed = printed.unwrap().expect("merged spell prints without a key");
+        assert!(printed.contains(".)\nExile Synthetic."), "{printed}");
+        assert!(
+            engine
+                .parse_card(NAME, &printed, &context)
+                .unwrap()
+                .readings
+                .contains(&reading)
+        );
+    }
+}
+
+#[test]
 fn written_x_in_a_reminder_follows_the_action_amount() {
     let context = empty_card_characteristics();
     let note = "Target land you control becomes a 0/0 creature with haste that's still a land. Put X +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.";
@@ -939,4 +965,21 @@ fn a_hidden_card_reminder_requires_face_down_exile() {
     exact_roundtrip(text, &context);
     let wrong = text.replace(" face down", "");
     assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn convoke_reminders_keep_the_caster_and_the_eligible_spells() {
+    let context = empty_card_characteristics();
+    let text = "Creature spells you cast have convoke. (Your creatures can help cast those spells. Each creature you tap while casting a creature spell pays for {1} or one mana of that creature's color.)";
+    exact_roundtrip(text, &context);
+    for wrong in [
+        text.replace("Creature spells you cast", "Noncreature spells you cast"),
+        text.replace("Creature spells you cast", "Creature spells"),
+        text.replace(
+            "casting a creature spell",
+            "casting a legendary creature spell",
+        ),
+    ] {
+        assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    }
 }

@@ -27,6 +27,14 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                 && visit("JumpStartFromYourGraveyard")
             || grants_sliver_regeneration(&args["changes"]) && visit("SliverRegeneration")
             || grants_source_prowess(args) && visit("SourceProwess")
+            || grants_keyword(&args["changes"], "Flanking")
+                && filter_proves(
+                    &args["affected"]["Objects"]["args"]["filter"],
+                    &|term| term["kind"] == "HasKeyword" && term["args"]["kind"] == "Flanking",
+                    0,
+                    &mut 256,
+                )
+                && visit("RepeatedFlanking")
             || makes_artifact_creature(&args["changes"]) && visit("CreatureEquipment")
             || replacement_notes(&args["changes"], &mut visit)
             || lifelink_notes(args, args, &mut visit))
@@ -75,6 +83,8 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                 Some("KeywordEach") => {
                     controlled_group_phases_out(&op["args"], frame)
                         && visit("ControlledGroupPhasesOut")
+                        || target_player_group_phases_out(&op["args"], frame, previous)
+                            && visit("TargetPlayerGroupPhasesOut")
                 }
                 Some("CreateDelayedTrigger") => {
                     delayed_controlled_group_phases_out(&op["args"], frame)
@@ -466,6 +476,52 @@ fn controlled_group_phases_out(args: &Value, frame: &Value) -> bool {
         0,
         &mut 256,
     )
+}
+
+fn target_player_group_phases_out(args: &Value, frame: &Value, previous: Option<&Value>) -> bool {
+    let phase = &args["action"]["PhaseOut"];
+    if !phase.is_object() || !phase["until"].is_null() || !is_controller(&args["actor"]) {
+        return false;
+    }
+    let announcement = &frame["announcement"];
+    let Some([target]) = announcement["targets"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let count = &target["count"]["Exactly"];
+    if target["kind"] != "Player" || count["kind"] != "Constant" || count["args"] != 1 {
+        return false;
+    }
+    let mut objects = &args["objects"];
+    if objects["kind"] == "Selected" {
+        let Some(previous) = previous else {
+            return false;
+        };
+        let Some(choice) = step_operation(previous) else {
+            return false;
+        };
+        if choice["kind"] != "ChooseObjects"
+            || !objects["args"].is_u64()
+            || objects["args"] != previous["args"]["result"]
+        {
+            return false;
+        }
+        objects = &choice["args"]["objects"];
+    }
+    objects["kind"] == "Zone"
+        && objects["args"]["scope"]["Shared"] == "Battlefield"
+        && filter_proves(
+            &objects["args"]["filter"],
+            &|term| {
+                let player = &term["args"]["args"];
+                term["kind"] == "ControlledBy"
+                    && term["args"]["kind"] == "One"
+                    && player["kind"] == "Target"
+                    && player["args"]["slot"] == target["slot"]
+                    && player["args"]["index"] == 0
+            },
+            0,
+            &mut 256,
+        )
 }
 
 fn delayed_controlled_group_phases_out(delayed: &Value, frame: &Value) -> bool {

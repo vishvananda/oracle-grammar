@@ -1,6 +1,8 @@
 //! Card surfaces use the shared enumerator, matcher and derivation replay.
 use super::{CardReading, Characteristics, Engine};
 use crate::engine::Enumerated;
+use crate::engine::spell_paragraphs::can_split_reminded_spell;
+use serde_json::Value;
 
 impl Engine {
     pub fn enumerate_card(
@@ -23,7 +25,7 @@ impl Engine {
         }
         self.enumerated_surfaces(
             self.card_root()?,
-            self.card_surfaces(reading, context, !key.is_empty())?,
+            &self.card_surfaces(reading, context, !key.is_empty())?,
             name,
             &types,
             cap,
@@ -43,15 +45,37 @@ impl Engine {
             return Err("card name byte limit".into());
         }
         let types = self.card_context(context)?;
+        let split_retry = key.is_empty() && can_split_reminded_spell(&wanted.abilities);
+        let verify = |text: &str| self.reads_as_card(name, text, &wanted, context);
         if reading.notes.is_empty() {
-            return self.print_keyed(name, &reading.abilities, &types, key);
+            let printed = self.print_keyed(name, &reading.abilities, &types, key)?;
+            if printed.is_some() || !split_retry {
+                return Ok(printed);
+            }
+        } else {
+            let surfaces = self.card_surfaces(&wanted, context, !key.is_empty())?;
+            let printed = self.verify_card_surfaces(name, &types, &surfaces, key, verify)?;
+            if printed.is_some() || !split_retry {
+                return Ok(printed);
+            }
         }
+        let surfaces = self.card_surfaces(&wanted, context, true)?;
+        self.verify_card_surfaces(name, &types, &surfaces, key, verify)
+    }
+
+    pub(super) fn verify_card_surfaces(
+        &self,
+        name: &str,
+        types: &[String],
+        surfaces: &[Value],
+        key: &[String],
+        mut verifies: impl FnMut(&str) -> bool,
+    ) -> Result<Option<String>, String> {
+        let root = self.card_root()?;
         for cap in [8, 32, 128] {
-            let found = self.enumerate_card(name, &wanted, context, cap, key)?;
-            for text in found.texts {
-                if self.reads_as_card(name, &text, &wanted, context) {
-                    return Ok(Some(text));
-                }
+            let found = self.enumerated_surfaces(root, surfaces, name, types, cap, key)?;
+            if let Some(text) = found.texts.into_iter().find(|text| verifies(text)) {
+                return Ok(Some(text));
             }
             if !found.cut {
                 break;

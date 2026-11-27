@@ -1,6 +1,7 @@
 //! Card surfaces use the shared enumerator, matcher and derivation replay.
 use super::{CardInputContext, CardReading, Engine};
 use crate::engine::Enumerated;
+use crate::engine::spell_paragraphs::can_split_reminded_spell;
 
 impl Engine {
     pub fn enumerate_card_with_source(
@@ -21,7 +22,7 @@ impl Engine {
 
         self.enumerated_surfaces(
             self.card_root()?,
-            self.card_surfaces_with_source(reading, context, !key.is_empty())?,
+            &self.card_surfaces_with_source(reading, context, !key.is_empty())?,
             name,
             &types,
             cap,
@@ -40,20 +41,16 @@ impl Engine {
         if name.len() > 4096 {
             return Err("card name byte limit".into());
         }
-        self.card_context(&context.characteristics)?;
-
-        for cap in [8, 32, 128] {
-            let found = self.enumerate_card_with_source(name, &wanted, context, cap, key)?;
-            for text in found.texts {
-                if self.reads_as_card_with_source(name, &text, &wanted, context) {
-                    return Ok(Some(text));
-                }
-            }
-            if !found.cut {
-                break;
-            }
+        let types = self.card_context(&context.characteristics)?;
+        let verify = |text: &str| self.reads_as_card_with_source(name, text, &wanted, context);
+        let surfaces = self.card_surfaces_with_source(&wanted, context, !key.is_empty())?;
+        let printed = self.verify_card_surfaces(name, &types, &surfaces, key, verify)?;
+        if printed.is_some() || !key.is_empty() || !can_split_reminded_spell(&wanted.abilities) {
+            return Ok(printed);
         }
-        Ok(None)
+        // A merged spell can need a paragraph break to place its reminder.
+        let surfaces = self.card_surfaces_with_source(&wanted, context, true)?;
+        self.verify_card_surfaces(name, &types, &surfaces, key, verify)
     }
 
     pub fn card_key_of_with_source(

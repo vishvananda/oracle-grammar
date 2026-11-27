@@ -549,6 +549,7 @@ fn copy_mentions(op: &Value, frame: &Value, visit: &mut impl FnMut(&'static str)
         return false;
     };
     visit("PermanentSpellCopyRule")
+        || aura_eligible_copy(filter) && visit("AuraSpellCopyRule")
         || copy["times"]["kind"] == "Constant"
             && copy["times"]["args"] == 1
             && (permanent_spell_filter(filter, 0, &mut 256) && visit("PermanentSpellCopy")
@@ -558,6 +559,26 @@ fn copy_mentions(op: &Value, frame: &Value, visit: &mut impl FnMut(&'static str)
                     0,
                     &mut 256,
                 ) && visit("CreatureSpellCopy"))
+}
+
+fn aura_eligible_copy(filter: &Value) -> bool {
+    filter["kind"] == "Subtype" && filter["args"] == "Aura"
+        || filter["kind"] == "AllOf"
+            && filter["args"].as_array().is_some_and(|terms| {
+                matches!(terms.as_slice(), [_, _])
+                    && terms
+                        .iter()
+                        .any(|term| term["kind"] == "OnStack" && term["args"] == "SingleTarget")
+                    && terms.iter().any(|term| {
+                        let objects = &term["args"]["args"];
+                        term["kind"] == "TargetsAny"
+                            && term["args"]["kind"] == "Objects"
+                            && objects["kind"] == "Zone"
+                            && objects["args"]["scope"]["Shared"] == "Battlefield"
+                            && objects["args"]["kind"] == "Permanent"
+                            && is_creature_filter(&objects["args"]["filter"], 0, &mut 32)
+                    })
+            })
 }
 
 /// The trigger watches this source's cast and copies that exact stack object.
@@ -754,6 +775,24 @@ fn casts_created_copy(step: &Value, previous: &Value) -> bool {
         else {
             return false;
         };
+        cast
+    } else if let Some(payment) = step_operation(step).filter(|op| op["kind"] == "PayCost") {
+        let args = &payment["args"];
+        let Some([part]) = args["cost"]["parts"].as_array().map(Vec::as_slice) else {
+            return false;
+        };
+        let action = &part["PlayerAction"];
+        let Some([cast]) = action["body"]["instructions"].as_array().map(Vec::as_slice) else {
+            return false;
+        };
+        if action["player"] != args["player"]
+            || !step_operation(cast).is_some_and(|play| {
+                let actor = &play["args"]["actor"];
+                actor["kind"] == "One" && actor["args"] == action["player"]
+            })
+        {
+            return false;
+        }
         cast
     } else {
         step

@@ -1,6 +1,8 @@
 //! Adjacent ordinary spell paragraphs share a binding frame.
 use serde_json::{Value, json};
 
+const MAX_SPLIT_INSTRUCTIONS: usize = 16;
+
 /// Ordinary spell paragraphs share a resolution. A modal announcement owns
 /// its selected programs; neighboring unconditional instructions remain separate.
 fn ordinary_instructions(value: &Value) -> Option<&Vec<Value>> {
@@ -68,7 +70,18 @@ pub(super) fn can_merge(items: &[Value]) -> bool {
         .any(|pair| continuation(&pair[0], &pair[1]).is_some())
 }
 
-/// Exact replay can spell one bound resolution as two original paragraphs.
+pub(super) fn can_split_reminded_spell(abilities: &Value) -> bool {
+    abilities.as_array().is_some_and(|items| {
+        items.iter().any(|ability| {
+            ability["kind"] == "WithPresentation"
+                && ability["args"]["reminder"] == true
+                && ordinary_instructions(ability)
+                    .is_some_and(|body| (2..=MAX_SPLIT_INSTRUCTIONS).contains(&body.len()))
+        })
+    })
+}
+
+/// Spell one bound resolution as two paragraphs for printing and replay.
 /// Split unbound views so all references still belong to the merged frame.
 pub(super) fn written_splits(surfaces: &[Value]) -> Vec<Value> {
     const MAX_SPLITS: usize = 64;
@@ -90,7 +103,7 @@ pub(super) fn written_splits(surfaces: &[Value]) -> Vec<Value> {
                 let Some(instructions) = ordinary_instructions(ability) else {
                     continue;
                 };
-                if instructions.len() > 16 {
+                if instructions.len() > MAX_SPLIT_INSTRUCTIONS {
                     continue;
                 }
                 for split in 1..instructions.len() {

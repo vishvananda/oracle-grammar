@@ -535,13 +535,13 @@ impl Engine {
     pub(super) fn enumerated_surfaces(
         &self,
         root: u32,
-        surfaces: Vec<Value>,
+        surfaces: &[Value],
         name: &str,
         types: &[String],
         cap: usize,
         key: &[String],
     ) -> Result<Enumerated, String> {
-        self.enumerated_settings(root, &surfaces, (name, types), (cap, key, true), None)
+        self.enumerated_settings(root, surfaces, (name, types), (cap, key, true), None)
     }
 
     fn enumerated_settings(
