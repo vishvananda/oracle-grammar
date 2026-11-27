@@ -377,6 +377,7 @@ pub(super) fn scope_for(ability: &Value, card_name: &str, holders: u16) -> Scope
         cost_index: named_cost_part(ability),
         holders,
         defined_x: super::payments::declared(&ability["args"]["cost"]),
+        support_on_permanent: crate::functions::support::permanent_ability(ability),
         possible_announced_x: cast_x
             || ability_kind(ability) == Some("Spell")
             || ability["args"]["event"]["ZoneChange"]["to"] == "Battlefield"

@@ -192,6 +192,66 @@ fn a_fixed_airbend_explanation_keeps_the_action_and_payment() {
 }
 
 #[test]
+fn support_keeps_the_permanent_and_spell_target_domains_distinct() {
+    let context = empty_card_characteristics();
+    let spell = "Support 2. (Put a +1/+1 counter on each of up to two target creatures.)";
+    let permanent = "When this creature enters, support 2. (Put a +1/+1 counter on each of up to two other target creatures.)";
+    let spell_reading = exact_roundtrip(spell, &context);
+    let permanent_reading = exact_roundtrip(permanent, &context);
+    let filter = |reading: &CardReading| {
+        reading.abilities[0]["args"]["ability"]["args"]["announcement"]["targets"][0]["filter"]
+            .clone()
+    };
+    assert_eq!(filter(&spell_reading)["kind"], "CardType");
+    assert_eq!(
+        filter(&permanent_reading)["args"][1]["args"]["args"]["kind"],
+        "Source"
+    );
+    for wrong in [
+        spell.replace("two target", "two other target"),
+        permanent.replace("two other", "three other"),
+    ] {
+        assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    }
+}
+
+#[test]
+fn a_spell_copy_note_uses_the_bound_cast_trigger_subject() {
+    let context = empty_card_characteristics();
+    let text = "Whenever you cast a creature spell, copy it. (The copy becomes a token.)";
+    let reading = exact_roundtrip(text, &context);
+    assert!(
+        reading.abilities[0]["args"]
+            .get("$bound_reminders")
+            .is_none()
+    );
+    for wrong in [
+        text.replace("creature spell", "instant spell"),
+        text.replace("copy it", "draw a card"),
+    ] {
+        assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    }
+}
+
+#[test]
+fn preparation_note_names_the_current_holder_after_binding() {
+    let context = empty_card_characteristics();
+    let text = "At the beginning of your end step, this creature becomes prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("this creature", "target creature");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn battlefield_return_note_requires_a_battlefield_incarnation() {
+    let context = empty_card_characteristics();
+    let text = "At the beginning of the end step, return this creature to its owner's hand. (Return it only if it's on the battlefield.)";
+    exact_roundtrip(text, &context);
+    let wrong = "Return target creature card from your graveyard to your hand. (Return it only if it's on the battlefield.)";
+    assert!(super::engine().parse_card(NAME, wrong, &context).is_err());
+}
+
+#[test]
 fn copy_explanation_distinguishes_permanent_spells_from_abilities() {
     let context = empty_card_characteristics();
     let text = "{4}, {T}: Copy target permanent spell you control. (The copy becomes a token.)";

@@ -843,6 +843,9 @@ impl Pattern {
         }
         match name {
             "other_filter" => return crate::bind::other_filter::unify(args, value, bindings),
+            "support_filter" if value.get("$sym").is_none() => {
+                return crate::functions::support::unify(args, value, bindings);
+            }
             "single_player" => {
                 return args[0]
                     .unify_made(&serde_json::json!({"kind":"One","args":value}), &bindings);

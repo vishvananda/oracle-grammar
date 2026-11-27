@@ -441,6 +441,54 @@ fn claim(explanation: &Value) -> Option<(&str, Option<&Value>)> {
         .then_some((topic["args"].as_str()?, Some(&amount["args"])))
 }
 
+fn bound_claim(name: &str, explanation: &Value) -> bool {
+    matches!(
+        (name, claim(explanation).map(|(topic, _)| topic)),
+        (
+            "contextual_reminder",
+            Some(
+                "EncounteredPhenomenon"
+                    | "CounterProhibited"
+                    | "PreparedSource"
+                    | "PermanentSpellCopy"
+                    | "PermanentSpellCopyRule"
+                    | "NoncreatureForm"
+                    | "BattlefieldReturn"
+            )
+        )
+    )
+}
+
+const BOUND_CLAIMS: &str = "$bound_reminders";
+
+pub(crate) fn take_bound_claims(ability: &mut Value) -> Result<Vec<Value>, String> {
+    if ability["kind"] != "WithPresentation" {
+        return Ok(Vec::new());
+    }
+    let Some(value) = ability["args"]
+        .as_object_mut()
+        .and_then(|args| args.remove(BOUND_CLAIMS))
+    else {
+        return Ok(Vec::new());
+    };
+    match value {
+        Value::Array(claims) if claims.len() <= 8 => Ok(claims),
+        _ => Err("invalid bound reminder list".into()),
+    }
+}
+
+pub(crate) fn check_bound_claims(ability: &Value, claims: &[Value]) -> Result<(), String> {
+    for explanation in claims {
+        let (topic, expected) = claim(explanation).ok_or("invalid bound reminder claim")?;
+        if !visit_mentions(ability, expected.is_some(), |kind, operand| {
+            kind == topic && operand == expected
+        }) {
+            return Err("reminder has no matching bound operand in this ability".into());
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<Value, String> {
     let ability = last_ability(value).ok_or("reminder needs a bounded nonempty ability line")?;
     let inner = if ability["kind"] == "WithPresentation" {
@@ -448,7 +496,12 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
     } else {
         ability
     };
-    let matches = if let Some(candidates) = typed_claims(name, inner) {
+    // Spell paragraphs can share a whole-card frame. Their directly proved
+    // reminders stay with the written paragraph when paragraphs are joined.
+    let deferred = inner["kind"] != "Spell" && bound_claim(name, explanation);
+    let matches = if deferred {
+        true
+    } else if let Some(candidates) = typed_claims(name, inner) {
         candidates.iter().any(|candidate| candidate == explanation)
     } else {
         let (topic, amount) = claim(explanation).ok_or("invalid contextual reminder claim")?;
@@ -464,13 +517,26 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
     if name == "chapter_reminder" {
         return Ok(value.clone());
     }
-    let result = if ability["kind"] == "WithPresentation" {
+    let mut result = if ability["kind"] == "WithPresentation" {
         let mut attached = ability.clone();
         attached["args"]["reminder"] = Value::Bool(true);
         attached
     } else {
         json!({"kind":"WithPresentation","args":{"ability":ability,"label":null,"reminder":true}})
     };
+    if deferred {
+        let args = result["args"]
+            .as_object_mut()
+            .ok_or("reminder presentation")?;
+        let list = args
+            .entry(BOUND_CLAIMS)
+            .or_insert_with(|| Value::Array(Vec::new()));
+        let list = list.as_array_mut().ok_or("invalid bound reminder list")?;
+        if list.len() >= 8 {
+            return Err("bound reminder limit".into());
+        }
+        list.push(explanation.clone());
+    }
     Ok(replace_last(value, result))
 }
 

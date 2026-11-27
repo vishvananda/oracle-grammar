@@ -273,6 +273,10 @@ the IR path, the value it replaces and why.
   Fortune's Flame. Both of Shapeshifter's choices offer 0 through 7, with the
   optional upkeep choice and characteristic-defining formula intact.
   See [issue #38](https://github.com/vishvananda/oracle-grammar/issues/38).
+- `U0191` restores the source exclusion on the 13 permanents with Support in
+  the allowed cohort. This includes three noncreature permanents, which still
+  exclude themselves if they become creatures. Instant and sorcery Support
+  keeps its ordinary creature target. [Wizards' Support rules](https://magic.wizards.com/en/news/feature/modern-horizons-3-mechanics#support)
 
 - `U0001` (normalization): a count of spells cast is tested `>= 1`, as every other
   event history count is. Dream Thief ("draw a card if you've cast another blue

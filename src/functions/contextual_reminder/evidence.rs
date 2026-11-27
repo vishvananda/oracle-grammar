@@ -229,8 +229,34 @@ pub(super) fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
 }
 
 pub(super) fn root_mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {
+    ability_mentions(ability, 0, &mut 512, &mut visit)
+}
+
+fn ability_mentions(
+    ability: &Value,
+    depth: usize,
+    remaining: &mut usize,
+    visit: &mut impl FnMut(&'static str) -> bool,
+) -> bool {
+    if depth == 8 || *remaining == 0 {
+        return false;
+    }
+    *remaining -= 1;
+    let permanent = crate::functions::support::permanent_ability(ability);
     let ability = own_ability(ability);
     let args = &ability["args"];
+    if ability["kind"] == "Conditional" {
+        return [&args["then"], &args["otherwise"]]
+            .into_iter()
+            .any(|branch| {
+                branch.as_array().is_some_and(|abilities| {
+                    abilities
+                        .iter()
+                        .take(16)
+                        .any(|child| ability_mentions(child, depth + 1, remaining, visit))
+                })
+            });
+    }
     let encounter = &args["event"]["Player"];
     if encounter["event"] == "EncountersPhenomenon"
         && encounter["objects"]["kind"] == "SameObject"
@@ -241,48 +267,100 @@ pub(super) fn root_mentions(ability: &Value, mut visit: impl FnMut(&'static str)
     }
     let changes = &args["changes"];
     let filter = &args["affected"]["Objects"]["args"]["filter"];
-    if ability["kind"] == "Static"
-        && filter["kind"] == "SameObject"
-        && filter["args"]["kind"] == "Source"
-        && changes.as_array().is_some_and(|changes| {
-            changes
-                .iter()
-                .take(32)
-                .any(|change| change["Rule"]["Prohibit"] == "Counter")
-        })
-        && visit("CounterProhibited")
-    {
-        return true;
+    if ability["kind"] == "Static" {
+        if filter["kind"] == "SameObject"
+            && filter["args"]["kind"] == "Source"
+            && changes.as_array().is_some_and(|changes| {
+                changes.iter().take(32).any(|change| {
+                    change["kind"] == "Rule" && change["args"]["Prohibit"] == "Counter"
+                })
+            })
+            && visit("CounterProhibited")
+        {
+            return true;
+        }
+        if changes
+            .as_array()
+            .is_some_and(|changes| changes.iter().take(32).any(replicate_grant))
+            && visit("PermanentSpellCopyRule")
+        {
+            return true;
+        }
+        if excludes_creature(changes) && visit("NoncreatureForm") {
+            return true;
+        }
     }
-    let cast = cast_event(&args["event"]);
-    in_resolution(&args["body"], 0, &mut 512, &mut |op| {
+    in_resolution(&args["body"], args, 0, remaining, &mut |op, frame| {
         if op["kind"] == "Keyword"
             && op["args"]["action"]["Prepare"]["object"]["kind"] == "Source"
             && visit("PreparedSource")
         {
             return true;
         }
-        if op["kind"] != "CopyOnStack" {
-            return false;
+        if noncreature_form(op) && visit("NoncreatureForm") {
+            return true;
         }
-        let copy = &op["args"];
-        let object = &copy["object"];
-        let filter = if object["kind"] == "EventSubject" {
-            let Some(cast) = cast else {
-                return false;
-            };
-            &cast["spells"]
-        } else if let Some(target) = spell_target(object, &args["announcement"]) {
-            &target["filter"]
+        if op["kind"] == "Keyword"
+            && op["args"]["action"].get("ExchangeControl").is_some()
+            && visit("Indefinite")
+        {
+            return true;
+        }
+        // A delayed trigger's move uses the captured references of its creator.
+        let move_frame = if frame.get("start").is_some() {
+            args
         } else {
+            frame
+        };
+        if battlefield_return(op, move_frame, permanent) && visit("BattlefieldReturn") {
+            return true;
+        }
+        copy_mentions(op, frame, visit)
+    })
+}
+
+fn copy_mentions(op: &Value, frame: &Value, visit: &mut impl FnMut(&'static str) -> bool) -> bool {
+    if op["kind"] != "CopyOnStack" {
+        return false;
+    }
+    let copy = &op["args"];
+    let object = &copy["object"];
+    let event = &frame["event"];
+    if object["kind"] == "EventStackObject" && event.get("SpellOrActivation").is_some() {
+        return visit("PermanentSpellCopyRule");
+    }
+    let filter = if object["kind"] == "EventSubject" {
+        let Some(cast) = cast_event(event) else {
             return false;
         };
-        visit("PermanentSpellCopyRule")
-            || copy["times"]["kind"] == "Constant"
-                && copy["times"]["args"] == 1
-                && permanent_spell_filter(filter, 0, &mut 256)
-                && visit("PermanentSpellCopy")
-    })
+        &cast["spells"]
+    } else if let Some(target) = target_spec(object, &frame["announcement"])
+        && target["kind"]["Object"]["kind"] == "Spell"
+    {
+        &target["filter"]
+    } else {
+        return false;
+    };
+    visit("PermanentSpellCopyRule")
+        || copy["times"]["kind"] == "Constant"
+            && copy["times"]["args"] == 1
+            && permanent_spell_filter(filter, 0, &mut 256)
+            && visit("PermanentSpellCopy")
+}
+
+fn replicate_grant(change: &Value) -> bool {
+    if change["kind"] != "PlayerRule" {
+        return false;
+    }
+    let terms = &change["args"]["SpellsHaveAbilities"]["abilities"];
+    terms["kind"] == "List"
+        && terms["args"].as_array().is_some_and(|items| {
+            items.iter().take(32).any(|item| {
+                item["kind"] == "Term"
+                    && item["args"]["family"] == "SpellEffect"
+                    && item["args"]["form"] == "Replicate"
+            })
+        })
 }
 
 fn cast_event(mut event: &Value) -> Option<&Value> {
@@ -290,8 +368,8 @@ fn cast_event(mut event: &Value) -> Option<&Value> {
         if event["Spell"]["event"] == "Cast" {
             return Some(&event["Spell"]);
         }
-        event = if let Some(nth) = event.get("NthEachTurn") {
-            nth.get("event")?
+        event = if let Some(wrapper) = event.get("NthEachTurn").or_else(|| event.get("Filtered")) {
+            wrapper.get("event")?
         } else {
             event.get("FirstEachTurn")?
         };
@@ -301,9 +379,10 @@ fn cast_event(mut event: &Value) -> Option<&Value> {
 
 fn in_resolution(
     program: &Value,
+    frame: &Value,
     depth: usize,
     remaining: &mut usize,
-    visit: &mut impl FnMut(&Value) -> bool,
+    visit: &mut impl FnMut(&Value, &Value) -> bool,
 ) -> bool {
     if depth == 12 || *remaining == 0 {
         return false;
@@ -318,14 +397,36 @@ fn in_resolution(
         *remaining -= 1;
         let args = &step["args"];
         let found = match step["kind"].as_str() {
-            Some("Effect") => visit(&args["operation"]),
+            Some("Effect") => {
+                let operation = &args["operation"];
+                let op_args = &operation["args"];
+                visit(operation, frame)
+                    || match operation["kind"].as_str() {
+                        Some("CreateTrigger" | "CreateDelayedTrigger") => {
+                            in_resolution(&op_args["body"], op_args, depth + 1, remaining, visit)
+                        }
+                        Some("PlayersDo") => op_args["body"].as_array().is_some_and(|body| {
+                            body.iter().take(32).any(|step| {
+                                step["kind"] == "Program"
+                                    && in_resolution(
+                                        &step["args"],
+                                        frame,
+                                        depth + 1,
+                                        remaining,
+                                        visit,
+                                    )
+                            })
+                        }),
+                        _ => false,
+                    }
+            }
             Some("If") => [&args["then"], &args["otherwise"]]
                 .into_iter()
-                .any(|body| in_resolution(body, depth + 1, remaining, visit)),
+                .any(|body| in_resolution(body, frame, depth + 1, remaining, visit)),
             Some("Optional" | "ForEachPlayer" | "ForEachObject" | "RepeatableWithLimit") => {
-                in_resolution(&args["body"], depth + 1, remaining, visit)
+                in_resolution(&args["body"], frame, depth + 1, remaining, visit)
             }
-            Some("Group" | "Repeatable") => in_resolution(args, depth + 1, remaining, visit),
+            Some("Group" | "Repeatable") => in_resolution(args, frame, depth + 1, remaining, visit),
             _ => false,
         };
         if found {
@@ -333,6 +434,73 @@ fn in_resolution(
         }
     }
     false
+}
+
+fn excludes_creature(changes: &Value) -> bool {
+    changes.as_array().is_some_and(|items| {
+        items.iter().take(32).any(|change| {
+            change["kind"] == "SetCardTypes"
+                && change["args"].as_array().is_some_and(|types| {
+                    !types.is_empty()
+                        && types.len() <= 16
+                        && types.iter().all(|kind| kind != "Creature")
+                })
+        })
+    })
+}
+
+fn noncreature_form(operation: &Value) -> bool {
+    let args = &operation["args"];
+    match operation["kind"].as_str() {
+        Some("Move") => args["destination"]["Battlefield"]["arrival"]["states"]
+            .as_array()
+            .is_some_and(|states| {
+                states
+                    .iter()
+                    .take(32)
+                    .any(|state| excludes_creature(&state["Changes"]))
+            }),
+        Some("ModifyEvent") => excludes_creature(&args["change"]["Entry"]["CopyOf"]["exceptions"]),
+        _ => false,
+    }
+}
+
+fn battlefield_return(operation: &Value, frame: &Value, permanent: bool) -> bool {
+    let args = &operation["args"];
+    if operation["kind"] != "Move" || args["destination"].get("OwnersHand").is_none() {
+        return false;
+    }
+    let set = &args["objects"];
+    let object = if set["kind"] == "One" {
+        &set["args"]
+    } else {
+        set
+    };
+    if let Some(target) = target_spec(object, &frame["announcement"]) {
+        let domain = &target["kind"]["Object"];
+        return domain["kind"] == "Permanent" && domain["zones"] == json!(["Battlefield"]);
+    }
+    if object["kind"] == "Source" {
+        return permanent;
+    }
+    object["kind"] == "EventSubject" && combat_events(&frame["event"], 0, &mut 32)
+}
+
+fn combat_events(event: &Value, depth: usize, remaining: &mut usize) -> bool {
+    if depth == 8 || *remaining == 0 {
+        return false;
+    }
+    *remaining -= 1;
+    matches!(
+        event["Object"]["event"].as_str(),
+        Some("Attacks" | "Blocks" | "BecomesBlocked")
+    ) || event["AnyOf"].as_array().is_some_and(|items| {
+        !items.is_empty()
+            && items.len() <= 8
+            && items
+                .iter()
+                .all(|item| combat_events(item, depth + 1, remaining))
+    })
 }
 
 fn effects(program: &Value) -> impl Iterator<Item = &Value> {
@@ -345,11 +513,12 @@ fn effects(program: &Value) -> impl Iterator<Item = &Value> {
         .map(|step| &step["args"]["operation"])
 }
 
-fn spell_target<'a>(object: &'a Value, announcement: &'a Value) -> Option<&'a Value> {
-    if object["kind"] != "Target" || object["args"]["index"] != 0 {
-        return None;
-    }
-    let slot = &object["args"]["slot"];
+fn target_spec<'a>(object: &'a Value, announcement: &'a Value) -> Option<&'a Value> {
+    let slot = match object["kind"].as_str() {
+        Some("Target") if object["args"]["index"] == 0 => &object["args"]["slot"],
+        Some("Targets") => &object["args"],
+        _ => return None,
+    };
     let target = if slot["$sym"] == "target" {
         slot["args"].get(0)?
     } else {
@@ -360,8 +529,7 @@ fn spell_target<'a>(object: &'a Value, announcement: &'a Value) -> Option<&'a Va
             .take(64)
             .find(|target| target["slot"] == slot)?
     };
-    let domain = &target["kind"]["Object"];
-    (domain["kind"] == "Spell").then_some(target)
+    Some(target)
 }
 
 fn permanent_spell_filter(filter: &Value, depth: usize, remaining: &mut usize) -> bool {
@@ -374,6 +542,7 @@ fn permanent_spell_filter(filter: &Value, depth: usize, remaining: &mut usize) -
             filter["args"].as_str(),
             Some("Artifact" | "Battle" | "Creature" | "Enchantment" | "Land" | "Planeswalker")
         ),
+        Some("Subtype") => matches!(filter["args"].as_str(), Some("Equipment" | "Aura")),
         Some("AllOf" | "AnyOf") => filter["args"].as_array().is_some_and(|items| {
             if items.is_empty() || items.len() > 32 {
                 return false;

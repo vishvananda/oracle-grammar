@@ -133,6 +133,8 @@ struct Scope {
     /// Conservative snapshot guard inherited by lexical continuations.
     snapshot_payment: bool,
     possible_announced_x: bool,
+    /// Support on a permanent excludes its own source from the target domain.
+    support_on_permanent: bool,
     objects: Vec<Value>,
     /// The event or target remains available by name after a source mention.
     named_object: Option<Value>,
@@ -219,6 +221,7 @@ impl Scope {
             defined_x: self.defined_x,
             snapshot_payment: self.snapshot_payment,
             possible_announced_x: self.possible_announced_x,
+            support_on_permanent: self.support_on_permanent,
             objects: self.objects.clone(),
             named_object: self.named_object.clone(),
             others: self.others.clone(),
@@ -287,6 +290,7 @@ pub fn bind_held_ability(
     card_name: &str,
     attachment: Attachment,
 ) -> Result<(), String> {
+    let reminder_claims = crate::functions::contextual_reminder::take_bound_claims(ability)?;
     let ability = presentation::core_mut(ability);
     crate::functions::copy_subject::prepare(ability)?;
     target_contrast::prepare(ability)?;
@@ -373,7 +377,8 @@ pub fn bind_held_ability(
     target_populations::lower(ability);
     ordered_zones::lower(ability);
     single_receipts::lower(ability);
-    spell_focus::check_spell_grants(ability)
+    spell_focus::check_spell_grants(ability)?;
+    crate::functions::contextual_reminder::check_bound_claims(ability, &reminder_claims)
 }
 
 fn replace_all(value: &mut Value, old: &Value, new: &Value) {
@@ -524,6 +529,9 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                     )?;
                     continue;
                 }
+                "support_filter" => {
+                    crate::functions::support::bind_filter(node, scope.support_on_permanent)?
+                }
                 "it" | "current_it" | "loop_card_it" if item.filter == filters::Context::Scalar => {
                     json!({"kind":"Candidate"})
                 }
@@ -593,14 +601,7 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                 "other_party" => json!({"kind": "AbilityController"}),
                 "self" if scope.leaving => json!({"kind": "EventSubject"}),
                 "named_source" => holder::named_source(scope, acted)?,
-                "self" => {
-                    let source = json!({"kind":"Source"});
-                    // Acted on rather than acting, it becomes what `it` means next.
-                    if acted {
-                        scope.objects.push(source.clone());
-                    }
-                    source
-                }
+                "self" => holder::source(scope, acted),
                 "holder" => holder::bind(node, scope)?,
                 "scope" => events::bind_nested(node, scope)?,
                 branch if crate::functions::casting_branch(branch) => branches::bind(node, scope)?,

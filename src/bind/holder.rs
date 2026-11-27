@@ -130,6 +130,15 @@ pub(super) fn named_source(scope: &mut Scope, acted: bool) -> Result<Value, Stri
     Ok(reference)
 }
 
+pub(super) fn source(scope: &mut Scope, acted: bool) -> Value {
+    let source = json!({"kind":"Source"});
+    // A source that receives an action becomes the next object's pronoun focus.
+    if acted {
+        scope.objects.push(source.clone());
+    }
+    source
+}
+
 fn reference(holders: u16, leaving: bool) -> Result<Value, String> {
     Ok(match holders {
         0 if leaving => json!({"kind":"EventSubject"}),

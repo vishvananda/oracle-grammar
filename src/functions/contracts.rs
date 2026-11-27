@@ -703,6 +703,7 @@ fn specialized_call(
 
     match name {
         "or" => filter_union_call(args, ty, schema).map(Some),
+        "support_filter" => super::support::checked_call(args, ty, schema).map(Some),
         "zone_card_members" => zone_card_call(args, ty, schema).map(Some),
         "activation_removed_counters" => counter_payment_call(args, ty, schema).map(Some),
         "literal_mana_sequence" => literal_mana_call(args, ty, schema).map(Some),
