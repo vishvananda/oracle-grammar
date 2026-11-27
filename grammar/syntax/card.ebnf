@@ -673,7 +673,7 @@ line_repeat_enters_sacrificed_if ::= ("when" | "whenever") event_self "enters" "
 visit_ability ::= "visit" "—" visit_body
 /* @sem Ability::Visit{body:@scope($visit_body), prize:@scope($visit_prize)} */
 visit_with_prize ::= "visit" "—" visit_body NEWLINE "prize" "—" visit_prize
-visit_body ::= spell_opponent_paired_choices | visit_die_counters_body | spell_ability | spell_modal | visit_extreme_return_spell
+visit_body ::= spell_opponent_paired_choices | visit_die_counters_body | spell_ability | spell_modal | visit_extreme_return_spell | visit_extreme_return_reminded
 visit_prize ::= visit_token_sacrifice_prize | spell_ability | spell_modal
 
 /* Cases pair a rules-bearing solve condition with a separately scoped ability.
@@ -1951,7 +1951,7 @@ ability_entrance_mill_optional_graveyard_hand ::= "when" "this" "creature" "ente
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Loyalty($loyalty_positive_heading)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:$instructions_look_optional_reveal_value}} */
 loyalty_top_reveal_value ::= loyalty_positive_heading ":" instructions_look_optional_reveal_value "."
 
-loyalty_program_sentence ::= program_named_source_copy_prevention | program_named_target_copy_prevention | program_repeat_player_payment | activation_defined_divided_sentence | hidden_exile_token_return_sentence | program_sentence | controller_damage_unless_sentence | loyalty_reveal_partition | chosen_three_tap_loyalty_sentence | chosen_three_tap_loyalty_followed | program_search_entry_grant_return | program_search_lands_animate | loyalty_source_other_damage_sentence | program_named_walker_animation_prevention | program_draw_then_unlimited_hand_emblem | emblem_targeted_group_program | target_draw_then_spell_discount
+loyalty_program_sentence ::= loyalty_mana_riot_reminded | program_named_source_copy_prevention | program_named_target_copy_prevention | program_repeat_player_payment | activation_defined_divided_sentence | hidden_exile_token_return_sentence | program_sentence | controller_damage_unless_sentence | loyalty_reveal_partition | chosen_three_tap_loyalty_sentence | chosen_three_tap_loyalty_followed | program_search_entry_grant_return | program_search_lands_animate | loyalty_source_other_damage_sentence | program_named_walker_animation_prevention | program_draw_then_unlimited_hand_emblem | emblem_targeted_group_program | target_draw_then_spell_discount
 
 /* The discount belongs to the player targeted by the preceding draw. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Draw{players:One($target_player), amount:$card_count}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(Target{slot:0,index:0})), changes:[PlayerRule(SpellCost{spells:AnyOf([CardType(Instant), CardType(Planeswalker), CardType(Sorcery)]), modifier:$spell_cost_less})], duration:UntilNextTurn(AbilityController), evaluation:LiveObjects}}]} */
@@ -3861,3 +3861,8 @@ line_root_trigger_creature_spellbook ::= event_clause "," "draft" card_count "fr
 
 /* @sem Ability::[WithPresentation{label:$ability_label, ability:Mechanic{mechanic:Specialize, cost:$cost}}, Mechanic{mechanic:SpecializeFromGraveyard, cost:$cost}] */
 line_labelled_graveyard_specialize ::= ability_label "—" "specialize" cost "." "you" "may" "also" "activate" "this" "ability" "if" scoped_source_card "is" "in" "your" "graveyard" "."
+
+
+/* Any tied object satisfying the original extremum remains a legal choice. */
+/* @sem Ability::WithPresentation{reminder:true, ability:$visit_extreme_return_spell} */
+visit_extreme_return_reminded ::= visit_extreme_return_spell "(" "if" "multiple" "creatures" "are" "tied" "," "choose" "any" "one" "of" "them" "." ")"
