@@ -4,6 +4,7 @@
 kicker_branch_header ::= "kicker" keyword_payment
 /* @sem Cost::@agree($keyword_payment, $additional_payment) */
 kicker_branch_reminded_header ::= "kicker" keyword_payment "(" "you" "may" additional_payment "as" "you" "cast" "this" "spell" "." ")"
+kicker_checked_header ::= kicker_branch_header | kicker_branch_reminded_header
 
 /* @sem Ability::@kicker_branch($kicker_branch_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program}) */
 spell_kicker_branch ::= kicker_branch_header NEWLINE kicker_branch_program
@@ -77,8 +78,8 @@ entwine_two_modes ::= mode NEWLINE mode
 
 /* Kicker changes the number of chosen modes; each mode keeps its own target
    announcement in both casting branches. */
-/* @sem Ability::CostBranch{keyword:Kicker, cost:$keyword_payment, paid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(0), maximum:@length($modes)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}, unpaid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}} */
-spell_modal_kicker ::= "kicker" keyword_payment NEWLINE "choose" "one" "." "if" "this" "spell" "was" "kicked" "," "choose" "any" "number" "instead" "." NEWLINE modes
+/* @sem Ability::CostBranch{keyword:Kicker, cost:$kicker_checked_header, paid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(0), maximum:@length($modes)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}, unpaid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}} */
+spell_modal_kicker ::= kicker_checked_header NEWLINE "choose" "one" "." "if" "this" "spell" "was" "kicked" "," "choose" "any" "number" "instead" "." NEWLINE modes
 
 /* Two independent optional costs, not one combined payment or a mode choice. */
 /* @sem Ability::[Mechanic{mechanic:Kicker, cost:$keyword_payment}, Mechanic{mechanic:Kicker, cost:$keyword_payment_2}] */
@@ -134,19 +135,19 @@ kicker_entry_conditional_quoted ::= "if" self_ref "was" kicker_entry_test "," "i
 
 /* The kicked search replaces the ordinary search. Shared following actions
    use the actual search selection in each independently scoped spell branch. */
-/* @sem Ability::[CostBranch{keyword:Kicker, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$kicker_search_pair}, Effect{result:@next, operation:$found_reveal}, ...$search_follow]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$found_reveal}, ...$search_follow]}})}] */
-line_kicker_search_override ::= "kicker" keyword_payment NEWLINE search "." "if" "this" "spell" "was" "kicked" "," "instead" kicker_search_pair "." found_reveal search_follow "."
+/* @sem Ability::[CostBranch{keyword:Kicker, cost:$kicker_checked_header, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$kicker_search_pair}, Effect{result:@next, operation:$found_reveal}, ...$search_follow]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$found_reveal}, ...$search_follow]}})}] */
+line_kicker_search_override ::= kicker_checked_header NEWLINE search "." "if" "this" "spell" "was" "kicked" "," "instead" kicker_search_pair "." found_reveal search_follow "."
 /* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[SearchChoice{filter:$search_filter, count:UpTo(Constant(1))}, SearchChoice{filter:$search_filter_2, count:UpTo(Constant(1))}]} */
 kicker_search_pair ::= "search" "your" "library" "for" ("a" | "an") search_filter "and" ("a" | "an") search_filter
 
 /* The optional kicker payment grants this ability to the same source spell. */
-/* @sem Ability::KickedHas{cost:$keyword_payment, ability:$keyword_ability} */
-kicker_conditional_keyword ::= "kicker" keyword_payment NEWLINE "if" "this" "spell" "was" "kicked" "," "it" "has" keyword_ability "."
+/* @sem Ability::KickedHas{cost:$kicker_checked_header, ability:$keyword_ability} */
+kicker_conditional_keyword ::= kicker_checked_header NEWLINE "if" "this" "spell" "was" "kicked" "," "it" "has" keyword_ability "."
 
 /* These spending restrictions modify the kicker payment rather than the entry
    replacement in the following paragraph. */
-/* @sem Ability::Modified{ability:Mechanic{mechanic:Kicker, cost:$keyword_payment}, modifier:Term{family:CastModifier, form:SpendOnlyColoredManaOnXAndAtMostOneManaOfEachColor, operands:[]}} */
-kicker_colored_spending ::= "kicker" keyword_payment NEWLINE "spend" "only" "colored" "mana" "on" "X" "." "no" "more" "than" "one" "mana" "of" "each" "color" "may" "be" "spent" "this" "way" "."
+/* @sem Ability::Modified{ability:Mechanic{mechanic:Kicker, cost:$kicker_checked_header}, modifier:Term{family:CastModifier, form:SpendOnlyColoredManaOnXAndAtMostOneManaOfEachColor, operands:[]}} */
+kicker_colored_spending ::= kicker_checked_header NEWLINE "spend" "only" "colored" "mana" "on" "X" "." "no" "more" "than" "one" "mana" "of" "each" "color" "may" "be" "spent" "this" "way" "."
 
 /* A common root spell postlude belongs to both exhaustive casting branches. */
 /* @sem Ability::[@kicker_branch($kicker_branch_header, Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$instructions_2]}})] */
@@ -185,8 +186,8 @@ line_kicker_uncounterable_damage ::= kicker_branch_header NEWLINE stack_uncounte
 payment_sacrifice_choice ::= "sacrifice" ("a" | "an") filter_phrase "of" "their" "choice"
 
 /* The replacement retains the same token recipe in both casting branches. */
-/* @sem Ability::CostBranch{keyword:Kicker, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_words, words:CreatingEffect, recipe:$replacement_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$replacement_initial_count, words:CreatingEffect, recipe:$replacement_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}})} */
-spell_kicker_token_replacement ::= "kicker" keyword_payment NEWLINE "create" replacement_initial_count replacement_token_recipe "." "if" "this" "spell" "was" "kicked" "," "create" number_words "of" "those" "tokens" "instead" "."
+/* @sem Ability::CostBranch{keyword:Kicker, cost:$kicker_checked_header, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_words, words:CreatingEffect, recipe:$replacement_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$replacement_initial_count, words:CreatingEffect, recipe:$replacement_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}})} */
+spell_kicker_token_replacement ::= kicker_checked_header NEWLINE "create" replacement_initial_count replacement_token_recipe "." "if" "this" "spell" "was" "kicked" "," "create" number_words "of" "those" "tokens" "instead" "."
 
 /* Madness replaces both actions, keeping their quantities independently bound. */
 /* @sem Ability::CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_x, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number_x_2}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_words, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number_digits}}]}})} */
@@ -202,8 +203,8 @@ cleave_hand_size_reduction ::= "Your" "maximum" "hand" "size" "is" "reduced" "by
 
 /* The common prefix is independently bound in both teamwork branches. The
    unless clause is performed only in the unpaid branch. */
-/* @sem Ability::CostBranch{keyword:Teamwork, cost:Cost{parts:[Teamwork($number)]}, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$clause]}})} */
-spell_teamwork_unless_branch ::= "teamwork" NUMBER NEWLINE instructions "." "then" clause "unless" "this" "spell" "was" "cast" "using" "teamwork" "."
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:$teamwork_cast_cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$clause]}})} */
+spell_teamwork_unless_branch ::= teamwork_cast_cost NEWLINE instructions "." "then" clause "unless" "this" "spell" "was" "cast" "using" "teamwork" "."
 
 /* A conditional extra source adds a distinct target to the prevention set.
    The two source descriptions must agree; each branch announces its own set. */
@@ -465,9 +466,9 @@ kicker_conditional_extra_target_damage ::= SELF_NAME "deals" number "damage" "to
 conditional_then_opponent_damage_program ::= "if" condition_cast_kicked "," create_one_defined "." NEWLINE opponent_chosen_damage "."
 
 /* The common prefix is independently bound in each teamwork branch. */
-/* @sem Ability::CostBranch{keyword:Teamwork, cost:Cost{parts:[Teamwork($number)]}, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$clause_top_exile_play_those, ...$clause]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$clause_top_exile_play_those}})} */
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:$teamwork_cast_cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$clause_top_exile_play_those, ...$clause]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$clause_top_exile_play_those}})} */
 /* @prefer always */
-spell_teamwork_paid_exile_branch ::= "teamwork" NUMBER NEWLINE clause_top_exile_play_those "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," clause "."
+spell_teamwork_paid_exile_branch ::= teamwork_cast_cost NEWLINE clause_top_exile_play_those "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," clause "."
 
 /* A kicked spell may add damage to a distinct target after an ordinary action. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$spared_return}, If{condition:ObjectMatches{object:Source, filter:State(Kicked)}, then:Program{instructions:[$kicker_damage_another]}, otherwise:Program{}}]} */
@@ -596,8 +597,8 @@ kicker_replacement_sequence ::= "instead" shuffle_own_graveyard "," clause "," "
 kicker_override_after_sequence ::= clause "." "if" condition "," kicker_replacement_sequence "." NEWLINE instructions "."
 
 /* A paid teamwork spell adds its conditional follow-up to the common program. */
-/* @sem Ability::CostBranch{keyword:Teamwork, cost:Cost{parts:[Teamwork($number)]}, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$teamwork_followup]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}})} */
-spell_teamwork_also_branch ::= "teamwork" NUMBER NEWLINE instructions "." "also" teamwork_followup "if" "this" "spell" "was" "cast" "using" "teamwork" "."
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:$teamwork_cast_cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$teamwork_followup]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}})} */
+spell_teamwork_also_branch ::= teamwork_cast_cost NEWLINE instructions "." "also" teamwork_followup "if" "this" "spell" "was" "cast" "using" "teamwork" "."
 
 teamwork_followup ::= teamwork_named_counter_followup | clause
 
@@ -625,8 +626,8 @@ kicker_exile_top_override_permission ::= exile_top_cards_of_your_library "." "if
 kicker_fraction_mill_override ::= clause "." "if" condition_cast_kicked "," "instead" fraction_mill_plural "."
 
 /* The common program is bound independently in both spell scopes. */
-/* @sem Ability::CostBranch{keyword:Teamwork, cost:Cost{parts:[Teamwork($number)]}, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$teamwork_if_followup]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}})} */
-spell_teamwork_if_paid_branch ::= "teamwork" NUMBER NEWLINE instructions "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," teamwork_if_followup "."
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:$teamwork_cast_cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$teamwork_if_followup]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}})} */
+spell_teamwork_if_paid_branch ::= teamwork_cast_cost NEWLINE instructions "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," teamwork_if_followup "."
 
 teamwork_if_followup ::= top_reveal_draw | clause
 

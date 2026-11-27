@@ -2,6 +2,7 @@
 use crate::pattern::{Bindings, Pattern};
 use serde_json::{Value, json};
 
+mod casting;
 mod evidence;
 
 pub(crate) fn is_symbol(name: &str) -> bool {
@@ -15,6 +16,7 @@ pub(crate) fn is_symbol(name: &str) -> bool {
             | "awaken_reminder"
             | "ward_grant_reminder"
             | "equip_payment_reminder"
+            | "spent_pair_reminder"
     )
 }
 
@@ -77,6 +79,9 @@ fn mechanic(value: &Value) -> Option<&'static str> {
         "Emerge" => Some("Emerge"),
         "Flashback" => Some("Flashback"),
         "Harmonize" => Some("Harmonize"),
+        "Banding" => Some("Banding"),
+        "Persist" => Some("Persist"),
+        "Exalted" => Some("Exalted"),
         _ => None,
     }
 }
@@ -188,6 +193,9 @@ fn marker(value: &Value) -> Option<&'static str> {
             Some("Exert") => Some("Exert"),
             Some("Airbend") if value["kind"] == "KeywordEach" => Some("AirbendMany"),
             Some("Airbend") => Some("AirbendOne"),
+            Some("TimeTravel") => Some("TimeTravel"),
+            Some("Discover") => Some("Discover"),
+            Some("Detain") => Some("Detain"),
             _ => None,
         },
         Some("Populate") => Some("Populate"),
@@ -227,6 +235,7 @@ fn marker(value: &Value) -> Option<&'static str> {
         {
             Some("RegenerateSource")
         }
+        Some("CreateRegenerationShields") => Some("RegenerationShield"),
         Some("Activated")
             if args["origin"] == "Equip"
                 && args["cost"]["parts"] == json!([{"Mana":[{"Generic":2}]}]) =>
@@ -243,14 +252,21 @@ fn marker(value: &Value) -> Option<&'static str> {
         }
         Some("Activated") if args["limits"]["keyword"] == "Boast" => Some("Boast"),
         Some("Activated") if args["limits"]["keyword"] == "Forecast" => Some("Forecast"),
+        Some("Activated")
+            if args["limits"]["keyword"] == "PowerUp" && args["limits"]["once"] == true =>
+        {
+            Some("PowerUp")
+        }
         Some("PlayerState") if args["state"] == "Descended" => Some("Descend"),
         Some("PlayerState") if args["state"] == "CommittedCrime" => Some("Crime"),
         Some("Casting") if args["If"]["rule"].get("Flash").is_some() => Some("FlashPermission"),
+        Some("Casting") if args.get("Flash").is_some() => Some("FlashPermission"),
         _ if value["event"] == "CommitsCrime" => Some("Crime"),
         _ if value["event"] == "LosesLife" => Some("LifeLoss"),
         _ if value["Named"] == "StunCounter" => Some("Stun"),
         _ if value["Named"] == "ShieldCounter" => Some("Shield"),
         _ if value["Named"] == "FinalityCounter" => Some("Finality"),
+        _ if value["Named"] == "ExaltedCounter" => Some("Exalted"),
         _ if value["ChangeTapState"]["symbol"] == true
             && value["ChangeTapState"]["tapped"] == false =>
         {
@@ -392,6 +408,7 @@ fn visit_mentions<'a>(
             marker(value).is_some_and(|topic| {
                 visit(topic, None)
                     || matches!(topic, "AirbendOne" | "AirbendMany") && visit("AirbendRule", None)
+                    || topic == "RegenerateSource" && visit("RegenerationShield", None)
             }) || evidence::flashback_at_mana_cost(value) && visit("FlashbackAtManaCost", None)
                 || object
                     .get("Mana")
@@ -610,6 +627,7 @@ fn typed_claims(name: &str, ability: &Value) -> Option<Vec<Value>> {
         "awaken_reminder" => evidence::awaken_claim(ability).into_iter().collect(),
         "ward_grant_reminder" => evidence::ward_grant_claims(ability),
         "equip_payment_reminder" => evidence::equip_payment_claim(ability).into_iter().collect(),
+        "spent_pair_reminder" => casting::spent_pair_claims(ability),
         _ => return None,
     })
 }

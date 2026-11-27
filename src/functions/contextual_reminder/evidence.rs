@@ -180,14 +180,47 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
             Some("Nonbasicwalk")
         }
         Some("Manifest") if args["cloak"] == false => Some("Manifest"),
+        Some("Manifest") if args["cloak"] == true => Some("Cloak"),
+        Some("ManaSpent") if args["filter"]["snow"] == true => Some("Snow"),
         Some("PhaseOut") => Some("PhaseOut"),
         Some("Rule") if args["GoadedBy"]["kind"] == "AbilityController" => Some("Goad"),
         Some("Casting") if flashback_permission(value).is_some() => Some("Flashback"),
         Some("ChooseValue") if args["kind"] == "Parity" => Some("Parity"),
         Some("Compare" | "Counters") if args["comparison"] == "SameParity" => Some("Parity"),
+        Some("Static" | "CreateContinuousEffect") if controller_hexproof(args) => {
+            Some("PlayerHexproof")
+        }
+        Some("Mechanic")
+            if args["mechanic"] == "BandsWithOthers" && legendary_creatures(&args["filter"]) =>
+        {
+            Some("LegendaryBands")
+        }
         _ if value["Named"] == "PoisonCounter" => Some("PoisonCounter"),
         _ => None,
     }
+}
+
+fn controller_hexproof(args: &Value) -> bool {
+    let players = &args["affected"]["Players"];
+    players["kind"] == "One"
+        && players["args"]["kind"] == "AbilityController"
+        && args["changes"].as_array().is_some_and(|changes| {
+            changes.iter().take(32).any(|change| {
+                change["kind"] == "PlayerRule" && change["args"]["GrantKeyword"] == "Hexproof"
+            })
+        })
+}
+
+fn legendary_creatures(filter: &Value) -> bool {
+    let is_creature = |v: &Value| v["kind"] == "CardType" && v["args"] == "Creature";
+    let is_legendary = |v: &Value| v["kind"] == "Supertype" && v["args"] == "Legendary";
+    filter["kind"] == "AllOf"
+        && filter["args"]
+            .as_array()
+            .is_some_and(|items| match items.as_slice() {
+                [a, b] => is_creature(a) && is_legendary(b) || is_creature(b) && is_legendary(a),
+                _ => false,
+            })
 }
 
 fn flashback_permission(value: &Value) -> Option<&Value> {

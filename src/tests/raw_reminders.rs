@@ -74,6 +74,52 @@ fn mana_explanation_checks_the_activation_cost() {
 }
 
 #[test]
+fn reminder_checks_both_colors_spent_to_cast_the_spell() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Sorcery);
+    let text = "This spell deals 3 damage to each creature without flying if {R} was spent to cast this spell and 3 damage to each creature with flying if {G} was spent to cast this spell. (Do both if {R}{G} was spent.)";
+    exact_roundtrip(text, &context);
+    exact_roundtrip(&text.replace("{R}{G}", "{G}{R}"), &context);
+    for cost in ["{R}{W}", "{R}{R}", "{R}{G}{G}"] {
+        let wrong = text.replace("{R}{G}", cost);
+        assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    }
+}
+
+#[test]
+fn mayhem_reminder_repeats_the_printed_cost() {
+    let context = empty_card_characteristics();
+    let text = "Mayhem {1}{R} (You may cast this card from your graveyard for {1}{R} if you discarded it this turn. Timing rules still apply.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("for {1}{R}", "for {2}{R}");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn teamwork_reminder_preserves_the_optional_casting_branch() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Sorcery);
+    let bare = "Teamwork 2\nDraw three cards. Then discard a card unless this spell was cast using teamwork.";
+    let note = "2 (As an additional cost to cast this spell, you may tap any number of creatures you control with total power 2 or more.)";
+    let reminded = bare.replacen('2', note, 1);
+    assert_eq!(
+        exact_roundtrip(bare, &context),
+        exact_roundtrip(&reminded, &context)
+    );
+    let wrong = reminded.replace("power 2", "power 3");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn player_hexproof_reminder_refers_to_the_ability_controller() {
+    let context = empty_card_characteristics();
+    let text = "You have hexproof. (You can't be the target of spells or abilities your opponents control.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("You have hexproof", "Creatures you control have hexproof");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
 fn assist_limit_prints_from_the_current_mana_cost_slot() {
     let mut context = empty_card_characteristics();
     context.mana_cost = Some(vec![
