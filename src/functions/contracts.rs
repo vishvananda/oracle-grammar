@@ -680,28 +680,32 @@ fn guarded_value_call(
     ))
 }
 
+fn defining_call(name: &str, args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    let expected = if name == "defining_static" {
+        Ty::Named("Ability".into())
+    } else {
+        Ty::Vec(Box::new(Ty::Named("Change".into())))
+    };
+    if args.len() != 1 || *ty != expected {
+        return Err(format!("@{name} takes one {expected:?} argument"));
+    }
+    Ok(Pattern::Symbol(
+        name.into(),
+        vec![elaborate(&args[0], ty, schema)?],
+    ))
+}
+
 fn specialized_call(
     name: &str,
     args: &[Syntax],
     ty: &Ty,
     schema: &Schema,
 ) -> Result<Option<Pattern>, String> {
-    if matches!(name, "defining_static" | "defining_changes") {
-        let expected = if name == "defining_static" {
-            Ty::Named("Ability".into())
-        } else {
-            Ty::Vec(Box::new(Ty::Named("Change".into())))
-        };
-        if args.len() != 1 || *ty != expected {
-            return Err(format!("@{name} takes one {expected:?} argument"));
-        }
-        return Ok(Some(Pattern::Symbol(
-            name.into(),
-            vec![elaborate(&args[0], ty, schema)?],
-        )));
-    }
-
     match name {
+        "defining_static" | "defining_changes" => defining_call(name, args, ty, schema).map(Some),
+        _ if super::ability_labels::is_symbol(name) => {
+            super::ability_labels::checked_call(name, args, ty, schema).map(Some)
+        }
         "or" => filter_union_call(args, ty, schema).map(Some),
         "support_filter" => super::support::checked_call(args, ty, schema).map(Some),
         "zone_card_members" => zone_card_call(args, ty, schema).map(Some),

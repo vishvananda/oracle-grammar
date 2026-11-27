@@ -27,6 +27,37 @@ fn exact_roundtrip(text: &str, context: &Characteristics) -> CardReading {
 }
 
 #[test]
+fn labelled_spell_replacement_reprints_edited_damage() {
+    let mut context = empty_card_characteristics();
+    context.card_types = vec![CardType::Sorcery];
+    let text = "Synthetic deals 4 damage to any target.\nRaid — If you attacked this turn, instead Synthetic deals 5 damage to that permanent or player and the damage can't be prevented.";
+    let plain = text.replace("Raid — ", "");
+    let ordinary = exact_roundtrip(&plain, &context);
+    let mut labelled = exact_roundtrip(text, &context);
+    let presentation = &mut labelled.abilities[0]["args"];
+    assert_eq!(presentation["label"], "Raid");
+    assert_eq!(presentation["ability"], ordinary.abilities[0]);
+
+    let damage = &mut presentation["ability"]["args"]["body"]["instructions"][0]["args"]["otherwise"]
+        ["instructions"][0]["args"]["operation"]["args"]["amount"];
+    assert_eq!(damage["args"], 4);
+    damage["args"] = serde_json::json!(3);
+    let engine = super::engine();
+    let printed = engine
+        .print_card_keyed(NAME, &labelled, &context, &[])
+        .unwrap()
+        .expect("edited replacement must print");
+    assert!(printed.contains("deals 3 damage"), "{printed}");
+    assert!(
+        engine
+            .parse_card(NAME, &printed, &context)
+            .unwrap()
+            .readings
+            .contains(&labelled)
+    );
+}
+
+#[test]
 fn native_and_bracketed_loyalty_headings_preserve_the_same_activations() {
     let context = empty_card_characteristics();
     let raw = "+2: Draw a card.\n−1: You gain 2 life.\n0: Scry 1.";

@@ -359,8 +359,11 @@ clause_atomic_instead ::= instead_leading_payment | instead_tapped_tokens_attack
    the same explicit action families. */
 /* @sem Instruction::[@repeated_damage_actor(Instruction::If{condition:$condition, then:Program{instructions:$instead_damage_action_2}, otherwise:Program{instructions:$instead_damage_action}})] */
 instead_damage_postposed ::= instead_damage_action "." NEWLINE? instead_damage_action "instead" "if" condition
-/* @sem Instruction::[If{condition:$condition, then:Program{instructions:$instead_action_2}, otherwise:Program{instructions:$instead_action}}] */
-instead_postposed ::= instead_action "." NEWLINE? instead_action "instead" "if" condition
+/* @sem Vec<Instruction>::@unlabelled_instructions($instead_postposed_paragraph) */
+instead_postposed ::= instead_postposed_paragraph
+
+/* @sem Ability::@optional_ability_label(Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition, then:Program{instructions:$instead_action_2}, otherwise:Program{instructions:$instead_action}}]}}, $spell_paragraph_join) */
+instead_postposed_paragraph ::= instead_action "." spell_paragraph_join instead_action "instead" "if" condition
 instead_action ::= instead_counter_unless | instead_counter_named | instead_draw_action | instead_life_action | instead_mana_action | instead_destroy_action | instead_counters_action | instead_tokens_action | instead_moves_action | instead_pump_action | instead_scry_action | instead_seek_action | instead_investigate_action | instead_sacrifice_action
 
 /* The bare repeated damage actor names the earlier written dealer. This
@@ -1126,9 +1129,12 @@ shared_literal_fold_5018870ad3ea ::= "move" shared_observed_literal_121d8922b00e
 shared_observed_literal_121d8922b00e ::= same_controller_counter_all | same_controller_counter_any
 
 /* Both branches retain the same recipe while their quantities remain independent. */
-/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_amount_2, words:CreatingEffect, recipe:$instead_white_human_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:$instead_white_human_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}] */
+/* @sem Vec<Instruction>::@unlabelled_instructions($instead_token_quantity_paragraph) */
 /* @prefer always */
-instead_token_quantity ::= "create" counter_amount instead_white_human_token_recipe "." NEWLINE? "if" condition "," "create" counter_amount "of" "those" "tokens" "instead"
+instead_token_quantity ::= instead_token_quantity_paragraph
+
+/* @sem Ability::@optional_ability_label(Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_amount_2, words:CreatingEffect, recipe:$instead_white_human_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:$instead_white_human_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}]}}, $spell_paragraph_join) */
+instead_token_quantity_paragraph ::= "create" counter_amount instead_white_human_token_recipe "." spell_paragraph_join "if" condition "," "create" counter_amount "of" "those" "tokens" "instead"
 
 /* @sem TokenRecipe::Defined{ name:FromSubtypes, colors:[White], card_types:[Creature], subtypes:[Human], power_toughness:[Constant(1), Constant(1)]} */
 instead_white_human_token_recipe ::= "1" "/" "1" "white" "Human" "creature" "tokens"
@@ -1530,8 +1536,11 @@ bound_choose_keep ::= "chooses" value affected "they" "control" "and" "sacrifice
 
 /* Conditional replacement damage to the same announced group.  The first
    clause introduces the target group; the anaphor retains that exact slot. */
-/* @sem Instruction::[@repeated_damage_actor(Instruction::If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref_2, recipients:$recipients_each_of_targets, amount:$number_2, preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:Targets(@last_slot), amount:$number, preventable:true}}]}})] */
-instructions_damage_instead_group ::= damage_source_ref "deals" number "damage" "to" recipients_each_of_targets "." NEWLINE? damage_source_ref "deals" number "damage" "to" "each" "of" "those" "permanents" "and" "/" "or" "players" "instead" "if" condition
+/* @sem Vec<Instruction>::@unlabelled_instructions($instructions_damage_instead_group_paragraph) */
+instructions_damage_instead_group ::= instructions_damage_instead_group_paragraph
+
+/* @sem Ability::@optional_ability_label(Spell{announcement:@announcement, body:Program{instructions:[@repeated_damage_actor(Instruction::If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref_2, recipients:$recipients_each_of_targets, amount:$number_2, preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:Targets(@last_slot), amount:$number, preventable:true}}]}})]}}, $spell_paragraph_join) */
+instructions_damage_instead_group_paragraph ::= damage_source_ref "deals" number "damage" "to" recipients_each_of_targets "." spell_paragraph_join damage_source_ref "deals" number "damage" "to" "each" "of" "those" "permanents" "and" "/" "or" "players" "instead" "if" condition
 
 /* Additional combat phases begin after the current main phase. */
 /* @sem Operation::AddPhases{actor:One(AbilityController), phases:Combat, count:$number} */
@@ -1634,8 +1643,11 @@ spell_divided_damage_instead ::= "it" "deals" number "damage" "divided" "as" "yo
 
 /* The same two eligibility filters appear in both alternatives.  The second
    sentence refers to the first sentence's target, not a new player. */
-/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:Together([Sacrifice{players:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:All}), index:0}), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_nonlist_head, $filter_nonlist_head_3)}, choose:Exactly(Constant(1))}, Sacrifice{players:One(Target{slot:0, index:0}), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_nonlist_head_2, $filter_nonlist_head_4)}, choose:Exactly(Constant(1))}])}]}, otherwise:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(Target{slot:0, index:0}), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([@agree($filter_nonlist_head, $filter_nonlist_head_3), @agree($filter_nonlist_head_2, $filter_nonlist_head_4)])}, choose:AsManyAsCan(Constant(1))})}]}}] */
-instead_sacrifice_either_both ::= "target" "player" "sacrifices" "a" filter_nonlist_head "or" filter_nonlist_head "of" "their" "choice" "." NEWLINE "if" condition "," "instead" "that" "player" "sacrifices" "a" filter_nonlist_head "and" "a" filter_nonlist_head "of" "their" "choice"
+/* @sem Vec<Instruction>::@unlabelled_instructions($instead_sacrifice_either_both_paragraph) */
+instead_sacrifice_either_both ::= instead_sacrifice_either_both_paragraph
+
+/* @sem Ability::@optional_ability_label(Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:Together([Sacrifice{players:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:All}), index:0}), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_nonlist_head, $filter_nonlist_head_3)}, choose:Exactly(Constant(1))}, Sacrifice{players:One(Target{slot:0, index:0}), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_nonlist_head_2, $filter_nonlist_head_4)}, choose:Exactly(Constant(1))}])}]}, otherwise:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(Target{slot:0, index:0}), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([@agree($filter_nonlist_head, $filter_nonlist_head_3), @agree($filter_nonlist_head_2, $filter_nonlist_head_4)])}, choose:AsManyAsCan(Constant(1))})}]}}]}}, $spell_paragraph_break) */
+instead_sacrifice_either_both_paragraph ::= "target" "player" "sacrifices" "a" filter_nonlist_head "or" filter_nonlist_head "of" "their" "choice" "." spell_paragraph_break "if" condition "," "instead" "that" "player" "sacrifices" "a" filter_nonlist_head "and" "a" filter_nonlist_head "of" "their" "choice"
 
 /* The linked exile target stays a card and keeps the source identity. */
 /* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Exile]}), count:Exactly(Constant(1)), filter:AllOf([$noun, ExiledWith(Source)])}), index:0}) */
@@ -1647,8 +1659,11 @@ target_creature_regeneration_damage_rule ::= "target" "creature" "can't" "be" "r
 
 /* A conditional replacement composes the original discard and the alternative
    revealed-hand choice. Both amounts and the condition are current operands. */
-/* @sem Instruction::[If{condition:$condition, then:Program{instructions:$instead_revealed_hand_choice}, otherwise:Program{instructions:$instead_target_discard}}] */
-instead_discard_hand_choice ::= instead_target_discard "." NEWLINE "if" condition "," "instead" instead_revealed_hand_choice
+/* @sem Vec<Instruction>::@unlabelled_instructions($instead_discard_hand_choice_paragraph) */
+instead_discard_hand_choice ::= instead_discard_hand_choice_paragraph
+
+/* @sem Ability::@optional_ability_label(Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition, then:Program{instructions:$instead_revealed_hand_choice}, otherwise:Program{instructions:$instead_target_discard}}]}}, $spell_paragraph_break) */
+instead_discard_hand_choice_paragraph ::= instead_target_discard "." spell_paragraph_break "if" condition "," "instead" instead_revealed_hand_choice
 
 /* @sem Instruction::[Effect{result:@next, operation:Discard{players:One($target_player), amount:$card_count, random:false}}] */
 instead_target_discard ::= target_player "discards" card_count
@@ -1958,8 +1973,11 @@ redirect_damage_limit_all ::= "all"
 /* Two distinct graveyard targets get separate default destinations, while a
    condition can send both to hand instead. The shared exile stays in both
    branches and target identities remain tied to their announcements. */
-/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($pair_graveyard_card, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0}), SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(Target{slot:0, index:0})), $pair_graveyard_card_2, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0})])}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:0, index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Targets(1), destination:$pair_library_destination, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
-instead_graveyard_pair_hand ::= "return" "target" pair_graveyard_card "from" "your" "graveyard" "to" "your" "hand" "." "put" "up" "to" "one" "other" "target" pair_graveyard_card "from" "your" "graveyard" pair_library_destination "." "exile" SELF_NAME "." NEWLINE "if" condition "," "instead" "return" "those" "cards" "to" "your" "hand" "and" "exile" SELF_NAME
+/* @sem Vec<Instruction>::@unlabelled_instructions($instead_graveyard_pair_hand_paragraph) */
+instead_graveyard_pair_hand ::= instead_graveyard_pair_hand_paragraph
+
+/* @sem Ability::@optional_ability_label(Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($pair_graveyard_card, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0}), SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(Target{slot:0, index:0})), $pair_graveyard_card_2, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0})])}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:0, index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Targets(1), destination:$pair_library_destination, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}]}}, $spell_paragraph_break) */
+instead_graveyard_pair_hand_paragraph ::= "return" "target" pair_graveyard_card "from" "your" "graveyard" "to" "your" "hand" "." "put" "up" "to" "one" "other" "target" pair_graveyard_card "from" "your" "graveyard" pair_library_destination "." "exile" SELF_NAME "." spell_paragraph_break "if" condition "," "instead" "return" "those" "cards" "to" "your" "hand" "and" "exile" SELF_NAME
 
 pair_graveyard_card ::= hand_one_any | exiled_card_test
 
@@ -2166,8 +2184,11 @@ controller_mill_one ::= "you" "mill" "a" "card"
 delayed_destroy_at_combat_end ::= destroy "at" turn_end_combat
 
 /* The replacement counters the same announced spell without the payment. */
-/* @sem Instruction::[If{condition:$condition, then:Program{instructions:$instead_counter_named}, otherwise:Program{instructions:$clause_counter_unless_plain}}] */
-instead_counter_unless_replaced ::= clause_counter_unless_plain "." NEWLINE? "if" condition "," instead_counter_named "instead"
+/* @sem Vec<Instruction>::@unlabelled_instructions($instead_counter_unless_replaced_paragraph) */
+instead_counter_unless_replaced ::= instead_counter_unless_replaced_paragraph
+
+/* @sem Ability::@optional_ability_label(Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition, then:Program{instructions:$instead_counter_named}, otherwise:Program{instructions:$clause_counter_unless_plain}}]}}, $spell_paragraph_join) */
+instead_counter_unless_replaced_paragraph ::= clause_counter_unless_plain "." spell_paragraph_join "if" condition "," instead_counter_named "instead"
 
 /* The player named in the action also chooses which alternative to pay. */
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:$player_ref, cost:Cost{parts:[Choice([$third_sacrifice_choice_cost, $third_discard_cost])]}, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:@apply(PlayerSet::One($player_ref), $verbs_third)}, otherwise:Program{}}] */
@@ -2693,8 +2714,11 @@ instructions_damage_destroy_receipt ::= deal_damage "." NEWLINE? "if" "a" filter
 instead_counters_referred_kind ::= instead_counters_action "." NEWLINE? "if" replacement_object_condition "," instead_counters_action "instead"
 
 /* A conditional replacement repeats both announced damage recipients. */
-/* @sem Instruction::[@repeated_damage_actor(Instruction::If{condition:$condition_had_enter_under, then:Program{instructions:[Effect{result:@next, operation:DealDamageParts{source:$damage_source_ref_2, parts:[_{recipients:$recipients_player_or_walker, amount:$number_3}, _{recipients:$split_controlled_creature_target, amount:$number_4}], preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamageParts{source:$damage_source_ref, parts:[_{recipients:Targets(0), amount:$number}, _{recipients:Objects(One(Target{slot:1, index:0})), amount:$number_2}], preventable:true}}]}})] */
-instructions_conditional_split_damage ::= damage_source_ref "deals" number "damage" "to" recipients_player_or_walker "and" number "damage" "to" split_controlled_creature_target "." NEWLINE "if" condition_had_enter_under "," damage_source_ref "deals" number "damage" "to" "that" "player" "or" "planeswalker" "and" number "damage" "to" "that" "creature" "instead"
+/* @sem Vec<Instruction>::@unlabelled_instructions($instructions_conditional_split_damage_paragraph) */
+instructions_conditional_split_damage ::= instructions_conditional_split_damage_paragraph
+
+/* @sem Ability::@optional_ability_label(Spell{announcement:@announcement, body:Program{instructions:[@repeated_damage_actor(Instruction::If{condition:$condition_had_enter_under, then:Program{instructions:[Effect{result:@next, operation:DealDamageParts{source:$damage_source_ref_2, parts:[_{recipients:$recipients_player_or_walker, amount:$number_3}, _{recipients:$split_controlled_creature_target, amount:$number_4}], preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamageParts{source:$damage_source_ref, parts:[_{recipients:Targets(0), amount:$number}, _{recipients:Objects(One(Target{slot:1, index:0})), amount:$number_2}], preventable:true}}]}})]}}, $spell_paragraph_break) */
+instructions_conditional_split_damage_paragraph ::= damage_source_ref "deals" number "damage" "to" recipients_player_or_walker "and" number "damage" "to" split_controlled_creature_target "." spell_paragraph_break "if" condition_had_enter_under "," damage_source_ref "deals" number "damage" "to" "that" "player" "or" "planeswalker" "and" number "damage" "to" "that" "creature" "instead"
 
 /* The later creature anaphor names this exact controlled target. */
 /* @sem Recipients::Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(PlayerOrControllerOf(Targets(@last_slot))))])}), index:0})) */
@@ -3072,8 +3096,11 @@ deal_damage_players_without_state ::= object_ref "deals" value "damage" "to" rec
 
 /* A single color choice applies to both alternatives. Player and object
    recipients retain their separate continuous effects. */
-/* @sem Instruction::[Effect{result:@next, operation:$protection_color_choice}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(GrantKeyword(Protection(Objects(_{kind:Any, filter:Chosen(Color)}))))], duration:$duration_2, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($objects_each), changes:[GrantKeyword(Protection(Objects(_{kind:Any, filter:Chosen(Color)})))], duration:$duration_2, evaluation:Snapshot}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:[GrantKeyword(Protection(Objects(_{kind:Any, filter:Chosen(Color)})))], duration:$duration, evaluation:Snapshot}}]}}] */
-instead_chosen_color_protection_group ::= target_object "gains" "protection" "from" protection_color_choice duration "." NEWLINE "if" condition "," "instead" "you" "and" objects_each "gain" "protection" "from" "the" "color" "of" "your" "choice" duration
+/* @sem Vec<Instruction>::@unlabelled_instructions($instead_chosen_color_protection_group_paragraph) */
+instead_chosen_color_protection_group ::= instead_chosen_color_protection_group_paragraph
+
+/* @sem Ability::@optional_ability_label(Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$protection_color_choice}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(GrantKeyword(Protection(Objects(_{kind:Any, filter:Chosen(Color)}))))], duration:$duration_2, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($objects_each), changes:[GrantKeyword(Protection(Objects(_{kind:Any, filter:Chosen(Color)})))], duration:$duration_2, evaluation:Snapshot}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:[GrantKeyword(Protection(Objects(_{kind:Any, filter:Chosen(Color)})))], duration:$duration, evaluation:Snapshot}}]}}]}}, $spell_paragraph_break) */
+instead_chosen_color_protection_group_paragraph ::= target_object "gains" "protection" "from" protection_color_choice duration "." spell_paragraph_break "if" condition "," "instead" "you" "and" objects_each "gain" "protection" "from" "the" "color" "of" "your" "choice" duration
 
 /* After a preceding move, "Then destroy all other..." covers the remaining matching populations. */
 /* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:$three_battlefield_other_attached_populations, regeneration:true}}] */
@@ -3335,3 +3362,30 @@ clause_each_unless_discard ::= hand_plural_players verbs_third "unless" "they" e
 /* Plain third-person sacrifice without "of their choice". */
 /* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:$players_singular, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:AsManyAsCan($counter_amount)}) */
 player_sacrifices_plain_h3 ::= players_singular "sacrifices" counter_amount filter_phrase
+
+/* @sem $instructions_damage_instead_group_paragraph */
+instructions_damage_instead_group_spell ::= instructions_damage_instead_group_paragraph "."
+
+/* @sem $instead_counter_unless_replaced_paragraph */
+instead_counter_unless_replaced_spell ::= instead_counter_unless_replaced_paragraph "."
+
+/* @sem $instead_postposed_paragraph */
+instead_postposed_spell ::= instead_postposed_paragraph "."
+
+/* @sem $instead_token_quantity_paragraph */
+instead_token_quantity_spell ::= instead_token_quantity_paragraph "."
+
+/* @sem $instead_sacrifice_either_both_paragraph */
+instead_sacrifice_either_both_spell ::= instead_sacrifice_either_both_paragraph "."
+
+/* @sem $instead_graveyard_pair_hand_paragraph */
+instead_graveyard_pair_hand_spell ::= instead_graveyard_pair_hand_paragraph "."
+
+/* @sem $instead_chosen_color_protection_group_paragraph */
+instead_chosen_color_protection_group_spell ::= instead_chosen_color_protection_group_paragraph "."
+
+/* @sem $instead_discard_hand_choice_paragraph */
+instead_discard_hand_choice_spell ::= instead_discard_hand_choice_paragraph "."
+
+/* @sem $instructions_conditional_split_damage_paragraph */
+instructions_conditional_split_damage_spell ::= instructions_conditional_split_damage_paragraph "."

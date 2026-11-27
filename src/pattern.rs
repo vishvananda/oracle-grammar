@@ -515,6 +515,20 @@ fn content(
     }
 }
 
+fn fill_list(pieces: &[Item], bindings: &Bindings, at: usize) -> Result<Value, String> {
+    let mut items = Vec::with_capacity(pieces.len());
+    for piece in pieces {
+        match piece {
+            Item::One(pattern) => items.push(pattern.fill(bindings, at)?),
+            Item::Splice(name, _) => match bindings.get(name) {
+                Some(Value::Array(middle)) => items.extend(middle.iter().cloned()),
+                _ => return Err(format!("unbound splice {name}")),
+            },
+        }
+    }
+    Ok(Value::Array(items))
+}
+
 impl Pattern {
     /// Forward: replace each hole with the child's value. `at` is the token the
     /// production started on, which orders the binder's work as the text reads.
@@ -532,19 +546,7 @@ impl Pattern {
                 }
                 Ok(Value::Object(object))
             }
-            Self::List(pieces) => {
-                let mut items = Vec::with_capacity(pieces.len());
-                for piece in pieces {
-                    match piece {
-                        Item::One(pattern) => items.push(pattern.fill(bindings, at)?),
-                        Item::Splice(name, _) => match bindings.get(name) {
-                            Some(Value::Array(middle)) => items.extend(middle.iter().cloned()),
-                            _ => return Err(format!("unbound splice {name}")),
-                        },
-                    }
-                }
-                Ok(Value::Array(items))
-            }
+            Self::List(pieces) => fill_list(pieces, bindings, at),
             Self::Symbol(name, args) => {
                 let args = args
                     .iter()
@@ -557,6 +559,9 @@ impl Pattern {
                     return shared.fill(subject, arms);
                 }
                 match (name.as_str(), args.as_slice()) {
+                    _ if crate::functions::ability_labels::is_symbol(name) => {
+                        return crate::functions::ability_labels::fill(name, &args);
+                    }
                     ("single_player", [players]) => {
                         if players["kind"] != "One" {
                             return Err("one player is required".into());
@@ -936,6 +941,9 @@ impl Pattern {
             }
             "class_levels" => return crate::functions::class_levels::unify(args, value, bindings),
             "saga_final_chapter" => return saga_chapters::unify(args, value, bindings),
+            _ if crate::functions::ability_labels::is_symbol(name) => {
+                return crate::functions::ability_labels::unify(name, args, value, bindings, ctx);
+            }
             _ if contextual_reminder::is_symbol(name) => {
                 return contextual_reminder::unify(name, args, value, bindings);
             }
@@ -1017,20 +1025,14 @@ impl Pattern {
                 return damage_actor::literal(args, value, bindings);
             }
             "recipient_value" if value.get("$sym").is_none() => {
-                return args
-                    .get(1)
-                    .map_or_else(Vec::new, |inner| inner.unify(value, bindings));
+                return unify_argument(args.get(1), value, bindings, None);
             }
             "remember_object" | "remember_operand" if value["$sym"] == "qualified_object" => {
-                return args
-                    .first()
-                    .map_or_else(Vec::new, |inner| inner.unify(value, bindings));
+                return unify_argument(args.first(), value, bindings, None);
             }
             // A scope leaves no mark in the IR, so a bound value is its own inside.
             _ if transparent_symbol(name) && value.get("$sym").is_none() => {
-                return args
-                    .first()
-                    .map_or_else(Vec::new, |inner| inner.unify_with(value, bindings, ctx));
+                return unify_argument(args.first(), value, bindings, ctx);
             }
             "plus_one" => return unify_plus_one(args, value, bindings),
             _ => {}
@@ -1054,6 +1056,15 @@ impl Pattern {
             Self::Symbol(_, args) => args.iter().for_each(|p| p.holes(out)),
         }
     }
+}
+
+fn unify_argument<'p, 'v>(
+    argument: Option<&'p Pattern>,
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+    ctx: Option<UnifyCtx<'p>>,
+) -> Vec<Bindings<'p, 'v>> {
+    argument.map_or_else(Vec::new, |inner| inner.unify_with(value, bindings, ctx))
 }
 
 /// Structural fallback for a symbol not handled by the contextual dispatch.

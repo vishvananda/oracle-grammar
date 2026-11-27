@@ -53,8 +53,8 @@ event_controlled_enters ::= controlled_entry_prefix | controlled_entry_your_suff
 /* @sem EventSpec::Player{event:EntersUnderControl, players:All, objects:$controlled_entrant} */
 controlled_entry_prefix ::= controlled_entrant "enters" battlefield_entry_zone?
 
-/* @sem EventSpec::Player{event:EntersUnderControl, players:All, objects:@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)))} */
-controlled_entry_your_suffix ::= ("a" | "an") filter_phrase "enters" battlefield_entry_zone? "under" "your" "control"
+/* @sem EventSpec::Player{event:EntersUnderControl, players:All, objects:@and($entry_suffix_subject, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)))} */
+controlled_entry_your_suffix ::= entry_suffix_subject "enters" battlefield_entry_zone? "under" "your" "control"
 
 /* @sem EventSpec::Player{event:EntersUnderControl, players:All, objects:@and($filter_phrase, ObjectFilter::ControlledBy(OpponentsOf(PlayerRef::AbilityController)))} */
 controlled_entry_opponent_suffix ::= ("a" | "an") filter_phrase "enters" battlefield_entry_zone? "under" "an" "opponent's" "control"
@@ -82,8 +82,8 @@ event_you_place_sticker ::= "you" "place" "a" "sticker"
 /* @sem EventSpec::Player{event:EntersUnderControl, players:One(PlayerRef::AbilityController), objects:$controlled_entrant} */
 controlled_entry_prefix_original ::= controlled_entrant "enters" battlefield_entry_zone?
 
-/* @sem EventSpec::Player{event:EntersUnderControl, players:One(PlayerRef::AbilityController), objects:$filter_phrase} */
-controlled_entry_your_suffix_original ::= ("a" | "an") filter_phrase "enters" battlefield_entry_zone? "under" "your" "control"
+/* @sem EventSpec::Player{event:EntersUnderControl, players:One(PlayerRef::AbilityController), objects:$entry_suffix_subject} */
+controlled_entry_your_suffix_original ::= entry_suffix_subject "enters" battlefield_entry_zone? "under" "your" "control"
 
 /* @sem EventSpec::Player{event:EntersUnderControl, players:OpponentsOf(PlayerRef::AbilityController), objects:$filter_phrase} */
 controlled_entry_opponent_suffix_original ::= ("a" | "an") filter_phrase "enters" battlefield_entry_zone? "under" "an" "opponent's" "control"
@@ -93,8 +93,16 @@ event_controlled_self_or_enters_original ::= event_self "or" controlled_entrant_
 
 /* The same normal form composes below a batch wrapper; EventGroup still names
    exactly this event's entrants, and quantity remains a count of that group. */
-/* @sem EventSpec::Batch{event:Player{event:EntersUnderControl, players:All, objects:$controlled_entry_plural_filter}, per:Whole} */
-event_many_controlled_enter ::= "one" "or" "more" controlled_entry_plural_filter "enter" battlefield_entry_zone?
+/* @sem EventSpec::Batch{event:Player{event:EntersUnderControl, players:All, objects:$controlled_entry_many_clause}, per:Whole} */
+event_many_controlled_enter ::= "one" "or" "more" controlled_entry_many_clause
+
+controlled_entry_many_clause ::= controlled_entry_many_prefix | controlled_entry_many_suffix
+/* @sem $controlled_entry_plural_filter */
+controlled_entry_many_prefix ::= controlled_entry_plural_filter "enter" battlefield_entry_zone?
+/* @sem ObjectFilter::@and($filter_plural, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController))) */
+controlled_entry_many_suffix ::= filter_plural "enter" battlefield_entry_zone? "under" "your" "control"
+
+entry_suffix_subject ::= event_a | event_another
 
 controlled_entry_plural_filter ::= controlled_entry_plural_plain | controlled_entry_plural_modified
 controlled_entry_controller ::= modifier_you_control | modifier_opponent_controls | modifier_opponents_control | modifier_player_controls | modifier_they_control
@@ -859,8 +867,8 @@ spell_instant_or_sorcery ::= spell_instant "or" spell_sorcery
 
 /* These scalar fragments are reachable only from the guarded owning ability. */
 limited_entry_clause ::= limited_controlled_entry_clause | limited_plain_entry_clause
-/* @sem EventSpec::Player{event:EntersUnderControl, players:All, objects:$controlled_entry_plural_filter} */
-limited_controlled_entry_clause ::= ("when" | "whenever") "one" "or" "more" controlled_entry_plural_filter "enter"
+/* @sem EventSpec::Player{event:EntersUnderControl, players:All, objects:$controlled_entry_many_clause} */
+limited_controlled_entry_clause ::= ("when" | "whenever") "one" "or" "more" controlled_entry_many_clause
 /* @sem EventSpec::ZoneChange{objects:$filter_plural, to:Battlefield} */
 limited_plain_entry_clause ::= ("when" | "whenever") "one" "or" "more" filter_plural "enter"
 
@@ -881,8 +889,8 @@ event_conjures_other ::= "you" "conjure" "one" "or" "more" "other" "cards"
 
 /* The suffix belongs to this one root trigger. A single raw typed reading is
    reused, then bound independently in its default and graveyard owners. */
-/* @sem Ability::[$graveyard_suffix_trigger, Scoped{zones:[Graveyard], ability:@scope($graveyard_suffix_trigger)}] */
-line_additional_graveyard_trigger ::= graveyard_suffix_trigger "this" "ability" "also" "triggers" "if" "this" "card" "is" "in" "your" "graveyard" "."
+/* @sem Ability::[@optional_ability_label($graveyard_suffix_trigger, $paragraph_label), Scoped{zones:[Graveyard], ability:@scope($graveyard_suffix_trigger)}] */
+line_additional_graveyard_trigger ::= paragraph_label? graveyard_suffix_trigger "this" "ability" "also" "triggers" "if" "this" "card" "is" "in" "your" "graveyard" "."
 
 graveyard_suffix_trigger ::= graveyard_suffix_plain | graveyard_suffix_if
 /* @sem Ability::Triggered{event:$graveyard_suffix_header, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_suffix_body} */

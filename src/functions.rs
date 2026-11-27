@@ -32,6 +32,7 @@ mod mana;
 pub(crate) mod mana_restriction;
 pub(crate) mod trigger_batches;
 pub(crate) use mana::{mana_options, unify_mana};
+pub(crate) mod ability_labels;
 mod objects;
 pub(crate) mod optional_scope;
 mod repeated;

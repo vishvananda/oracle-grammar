@@ -203,7 +203,7 @@ label_survival ::= "survival"
 /* @sem String::'Sweep' */
 label_sweep ::= "sweep"
 /* @sem String::'Tempting offer' */
-label_tempting_offer ::= "tempting" "offer"
+label_tempting_offer ::= "tempting" "offer" | "tempting" "Offer"
 /* @sem String::'Undergrowth' */
 label_undergrowth ::= "undergrowth"
 /* @sem String::'Valiant' */
@@ -842,3 +842,23 @@ labelled_object_damage_override ::= damage_source_ref "deals" value "damage" "to
 labelled_any_damage_raised ::= damage_source_ref "deals" value "damage" "to" recipients_any_target "." NEWLINE ability_label "—" "if" condition "," damage_source_ref "deals" value "damage" "instead" "."
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:Spell{announcement:@announcement, body:Program{instructions:[@repeated_damage_actor(Instruction::If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref_2, recipients:Objects($target_object_set), amount:$value_2, preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:Objects(One(Target{slot:@last_slot, index:0})), amount:$value, preventable:true}}]}})]}}} */
 labelled_object_damage_raised ::= damage_source_ref "deals" value "damage" "to" target_object_set "." NEWLINE ability_label "—" "if" condition "," damage_source_ref "deals" value "damage" "instead" "."
+
+/* The paragraph boundary owns the label. Its absence keeps the ordinary spell. */
+/* @sem Option<String>::$paragraph_label */
+spell_paragraph_break ::= NEWLINE paragraph_label?
+/* @sem $ability_label */
+paragraph_label ::= ability_label "—"
+
+spell_paragraph_join ::= spell_labelled_break | spell_inline_join
+/* @sem $paragraph_label */
+spell_labelled_break ::= NEWLINE paragraph_label
+/* @sem Option<String>::None */
+spell_inline_join ::= NEWLINE?
+
+spell_with_paragraph ::= instructions_damage_raid_unpreventable_spell | instructions_chosen_pair_conditional_counters_damage_spell | instructions_counter_conditional_copy_spell
+    | instructions_damage_instead_group_spell | instructions_revealed_hand_exile_same_name_spell | instead_counter_unless_replaced_spell
+    | instead_postposed_spell | instead_token_quantity_spell | instead_sacrifice_either_both_spell
+    | instead_graveyard_pair_hand_spell | instead_chosen_color_protection_group_spell | conditional_instead_receipt_replacement_spell
+    | dig_conditional_reveal_selection_spell | dig_conditional_reveal_battlefield_spell | dig_conditional_reveal_cast_spell
+    | return_card_threshold_destination_spell
+    | instead_discard_hand_choice_spell | instructions_conditional_split_damage_spell
