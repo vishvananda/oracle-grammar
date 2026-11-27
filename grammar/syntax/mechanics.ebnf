@@ -34,7 +34,7 @@ reminded_mechanic ::= mechanic_reminded_text
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:$mechanic_reminded_text} */
 labelled_mechanic_reminder ::= ability_label "—" mechanic_reminded_text
 
-mechanic_reminded_text ::= modular_sunburst_reminded_text | mobilize_defined_reminded_text | recover_rounded_life_reminded_text | improvise_artifact_payment_reminded | casualty_x_reminded_text | offering_reminded_text | splice_instant_sorcery_reminded | ingest_reminded_text | convoke_reminded_text | delve_reminded_text
+mechanic_reminded_text ::= space_sculptor_reminded_text | modular_sunburst_reminded_text | mobilize_defined_reminded_text | recover_rounded_life_reminded_text | improvise_artifact_payment_reminded | casualty_x_reminded_text | offering_reminded_text | splice_instant_sorcery_reminded | ingest_reminded_text | convoke_reminded_text | delve_reminded_text
     | deck_rule_reminded_text | triggered_mechanic_reminded_text | standalone_mechanic_reminded_text
     | banding_reminded_text | aura_swap_reminded_text | bushido_reminded_text | affinity_reminded_text | historic_affinity_reminded_text
     | valued_mechanic_reminded_text | reconfigure_reminded_text | reconfigure_alternatives_reminded_text
@@ -1104,7 +1104,7 @@ deck_rule_minimum_size ::= "your" "minimum" "deck" "size" "is" "reduced" "by" va
 
 /* Draft rules (CR 905). Each sentence names fixed draft vocabulary. A card
    revealed as it is drafted adds one follow-up action. */
-draft_rule_sentence ::= draft_face_up | draft_reveal_as_drafted | draft_effect_sentence
+draft_rule_sentence ::= draft_face_up | draft_reveal_as_drafted | draft_effect_sentence | draft_effect_reminded | draft_add_booster_reminded
 /* @sem Ability::DraftRule([Vocabulary{family:DraftAction, form:DraftFaceUp}]) */
 draft_face_up ::= "draft" "this" "card" "face" "up" "."
 /* @sem Ability::DraftRule([Vocabulary{family:DraftAction, form:RevealThisDraftedCard}, $draft_reveal_action]) */
@@ -1725,3 +1725,26 @@ recover_explained_life_cost ::= cost_life_half
 /* Two instances produce separate entry triggers and linked exiled cards. */
 /* @sem Ability::[Mechanic{mechanic:Hideaway, amount:Expr::@agree($number_digits, $number_words)}, WithPresentation{reminder:true, ability:Mechanic{mechanic:Hideaway, amount:Expr::@agree($number_digits_2, $number_words)}}] */
 hideaway_doubled_reminded ::= "hideaway" number_digits "," "hideaway" number_digits "(" "when" self_creature "enters" "," "look" "at" "the" "top" number_words "cards" "of" "your" "library" "," "exile" "one" "face" "down" "," "then" "put" "the" "rest" "on" "the" "bottom" "in" "a" "random" "order" "." "then" "do" "it" "again" "." ")"
+
+
+/* Each explanation is scoped to its own draft action. */
+/* @sem Ability::WithPresentation{reminder:true, ability:DraftRule([$draft_reminded_effect])} */
+draft_effect_reminded ::= draft_reminded_effect
+draft_reminded_effect ::= draft_whole_pack_reminded | draft_at_random_reminded | draft_remove_up_reminded | draft_remove_down_reminded | draft_additional_pass_reminded
+/* @sem $draft_whole_pack */
+draft_whole_pack_reminded ::= draft_whole_pack "." "(" "you" "may" "look" "at" "booster" "packs" "passed" "to" "you" "." ")"
+/* @sem $draft_at_random */
+draft_at_random_reminded ::= draft_at_random "." "(" "you" "may" "look" "at" "cards" "as" "you" "draft" "them" "." ")"
+/* @sem $draft_remove_face_up */
+draft_remove_up_reminded ::= draft_remove_face_up "." "(" "it" "isn't" "in" "your" "card" "pool" "." ")"
+/* @sem $draft_remove_face_down */
+draft_remove_down_reminded ::= draft_remove_face_down "." "(" "those" "cards" "aren't" "in" "your" "card" "pool" "." ")"
+/* @sem $draft_additional_pass_next */
+draft_additional_pass_reminded ::= draft_additional_pass_next "." "(" "you" "may" "look" "at" "that" "booster" "pack" "." ")"
+
+/* The next pick and pass still belong to the pack introduced by this action. */
+/* @sem Ability::WithPresentation{reminder:true, ability:DraftRule([Vocabulary{family:DraftAction, form:RevealThisDraftedCard}, $draft_add_booster])} */
+draft_add_booster_reminded ::= "reveal" "this" "card" "as" "you" "draft" "it" draft_add_booster "." "(" "your" "next" "pick" "is" "from" "that" "booster" "pack" "." "pass" "it" "to" "the" "next" "player" "and" "it's" "drafted" "this" "draft" "round" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:$mechanic_space_sculptor_name} */
+space_sculptor_reminded_text ::= mechanic_space_sculptor_name "(" SELF_NAME "divides" "the" "battlefield" "into" "alpha" "," "beta" "," "and" "gamma" "sectors" "." "if" "a" "creature" "isn't" "assigned" "to" "a" "sector" "," "its" "controller" "assigns" "it" "to" "one" "." "opponents" "assign" "first" "." ")"
