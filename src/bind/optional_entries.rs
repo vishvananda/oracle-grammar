@@ -204,22 +204,36 @@ fn dependent(instruction: &Value, entered: u64) -> bool {
         }
 }
 
-/// The optional entry performed as a payment, when everything after it depends on it.
-fn performed(optional: &Value, result: u64) -> Option<[Value; 2]> {
+/// A terminal sequence that acts only on objects created or moved by
+/// the option belongs to the producer's success branch.
+fn performed(instructions: &[Value], at: usize, result: u64) -> Option<([Value; 2], usize)> {
+    let optional = &instructions[at];
     let decider = &optional["args"]["decider"];
-    let [entry, dependents @ ..] = optional["args"]["body"]["instructions"]
+    let [entry, inside @ ..] = optional["args"]["body"]["instructions"]
         .as_array()?
         .as_slice()
     else {
         return None;
     };
     let entered = entry["args"]["result"].as_u64()?;
-    if !enters(entry) || dependents.is_empty() || !dependents.iter().all(|i| dependent(i, entered))
-    {
+    if !enters(entry) || !inside.iter().all(|i| dependent(i, entered)) {
+        return None;
+    }
+    let tail = &instructions[at + 1..];
+    let outside = if tail.iter().all(|i| dependent(i, entered)) {
+        tail
+    } else {
+        &[]
+    };
+    if inside.is_empty() && outside.is_empty() {
         return None;
     }
     let part = json!({"PlayerAction": {"player": decider, "body": {"instructions": [entry]}}});
-    Some(payment(decider, result, part, dependents.to_vec()))
+    let dependents = inside.iter().chain(outside).cloned().collect();
+    Some((
+        payment(decider, result, part, dependents),
+        1 + outside.len(),
+    ))
 }
 
 /// The guarded form of the optional entry at `at`, and how many instructions it replaces.
@@ -338,11 +352,11 @@ pub(super) fn lower(ability: &mut Value) -> bool {
             if let Some((guarded, taken)) = lowered(instructions, at) {
                 instructions.splice(at..at + taken, guarded);
                 changed = true;
-            } else if let Some(paid) = (instructions[at]["kind"] == "Optional")
-                .then(|| performed(&instructions[at], next))
+            } else if let Some((paid, taken)) = (instructions[at]["kind"] == "Optional")
+                .then(|| performed(instructions, at, next))
                 .flatten()
             {
-                instructions.splice(at..=at, paid);
+                instructions.splice(at..at + taken, paid);
                 next += 1;
                 changed = true;
             }

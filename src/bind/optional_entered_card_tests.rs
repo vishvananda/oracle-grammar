@@ -135,7 +135,7 @@ fn operation(instruction: &Value) -> Option<&Value> {
     (instruction["kind"] == "Effect").then_some(&instruction["args"]["operation"])
 }
 /// The sentences after the entry and the reference to the entered card they must use:
-/// the optional action's move result, or the guarded payment's performed card.
+/// the move's result or the guarded payment's performed card.
 fn entry_tails(all: &[Value]) -> (Vec<&Value>, Value) {
     if let Some(optional) = all.iter().find(|i| i["kind"] == "Optional") {
         let body = optional["args"]["body"]["instructions"].as_array().unwrap();
@@ -153,16 +153,26 @@ fn entry_tails(all: &[Value]) -> (Vec<&Value>, Value) {
         .iter()
         .position(|i| operation(i).is_some_and(|o| o["kind"] == "PayCost"))
         .unwrap();
-    let paid = json!({"kind":"Query","args":{"objects":{"kind":"CostObjects","args":{
-        "payment":{"Resolution":all[at]["args"]["result"]},"component":[0],
-        "view":"Performed","phase":"After"}},"index":0}});
+    let payment = operation(&all[at]).unwrap();
+    let part = &payment["args"]["cost"]["parts"][0];
+    let entered = if let Some(action) = part.get("PlayerAction") {
+        let moved = &action["body"]["instructions"][0];
+        assert_eq!(operation(moved).unwrap()["kind"], "Move");
+        json!({"kind":"Result","args":{
+            "result":moved["args"]["result"],"phase":"After","index":0}})
+    } else {
+        assert!(part.get("Move").is_some());
+        json!({"kind":"Query","args":{"objects":{"kind":"CostObjects","args":{
+            "payment":{"Resolution":all[at]["args"]["result"]},"component":[0],
+            "view":"Performed","phase":"After"}},"index":0}})
+    };
     let mut tails: Vec<&Value> = all[at + 1]["args"]["then"]["instructions"]
         .as_array()
         .unwrap()
         .iter()
         .collect();
     tails.extend(&all[at + 2..]);
-    (tails, paid)
+    (tails, entered)
 }
 fn entered_followups(ability: &Value) {
     let all = ability["args"]["body"]["instructions"].as_array().unwrap();

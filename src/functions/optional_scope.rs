@@ -103,10 +103,46 @@ fn split_optional(head: &[Value], tail: &[Value]) -> bool {
         || checked_payment(&tail[..tail.len().min(2)])
 }
 
+// A fronted next end step governs both actions conjoined in this sentence.
+fn split_delayed_self_return(head: &[Value], tail: &[Value]) -> bool {
+    let ([delayed], [returning]) = (head, tail) else {
+        return false;
+    };
+    let d = &delayed["args"]["operation"];
+    let m = &returning["args"]["operation"];
+    let arguments = &d["args"];
+    let Some([life]) = arguments["body"]["instructions"]
+        .as_array()
+        .map(Vec::as_slice)
+    else {
+        return false;
+    };
+    let mut moved = &m["args"]["objects"];
+    if moved["$sym"] == "exile_followup" {
+        moved = &moved["args"][0];
+    }
+    delayed["kind"] == "Effect"
+        && d["kind"] == "CreateDelayedTrigger"
+        && arguments["event"] == json!({"Turn":{"point":"EndStepBegins","players":{"kind":"All"}}})
+        && arguments["start"] == "Immediately"
+        && arguments["expires"].is_null()
+        && arguments["intervening_if"].is_null()
+        && life["kind"] == "Effect"
+        && life["args"]["operation"]["kind"] == "LoseLife"
+        && life["args"]["operation"]["args"]["players"] == controller()
+        && returning["kind"] == "Effect"
+        && m["kind"] == "Move"
+        && m["args"]["destination"].get("OwnersHand").is_some()
+        && moved["kind"] == "One"
+        && moved["args"]["$sym"] == "self"
+}
+
 /// `Then if it has no counters on it, sacrifice it and you gain 4 life`: a condition
 /// governs to the end of its sentence, so `and` never ends it.
 fn forbidden_join(head: &[Value], tail: &[Value]) -> bool {
-    split_optional(head, tail) || head.last().is_some_and(|last| last["kind"] == "If")
+    split_optional(head, tail)
+        || split_delayed_self_return(head, tail)
+        || head.last().is_some_and(|last| last["kind"] == "If")
 }
 
 /// Only this EBNF-declared `and` join applies this policy. Period/then joins do

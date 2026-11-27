@@ -248,6 +248,7 @@ fn rewritten(node: &Value, scope: &Frame, lower: bool) -> Option<Value> {
     let above_zero = json!({"kind":"Compare","args":{"comparison":"Greater",
         "value":{"kind":"Constant","args":0}}});
     match kind(node) {
+        "CreateContinuousEffect" => play_while_controlled(node, scope, lower),
         "Compare" if lower && args["test"] == above_zero => {
             let counted = &args["left"]["args"];
             let any = json!({"kind":"Any"});
@@ -306,6 +307,47 @@ fn rewritten(node: &Value, scope: &Frame, lower: bool) -> Option<Value> {
         }
         _ => None,
     }
+}
+
+// A permission to play the card this source exiled while still controlling
+// the source can name one proved move receipt in either representation.
+fn play_while_controlled(node: &Value, scope: &Frame, lower: bool) -> Option<Value> {
+    let args = &node["args"];
+    let lifetime = &args["duration"]["WhileControlled"];
+    let [change] = args["changes"].as_array()?.as_slice() else {
+        return None;
+    };
+    let permission = change["args"].get("PlayPermission")?;
+    let cards = &permission["cards"];
+    if kind(change) != "PlayerRule"
+        || lifetime["player"] != json!({"kind":"AbilityController"})
+        || lifetime["object"] != json!({"kind":"Source"})
+        || permission["origins"] != json!(["Exile"])
+        || permission["action"] != "Either"
+    {
+        return None;
+    }
+    let changed = if lower {
+        let card = &cards["args"];
+        if kind(cards) != "One" || kind(card) != "Result" || card["args"]["index"] != 0 {
+            return None;
+        }
+        let result = &card["args"];
+        (result["phase"] == "After" && scope.transition(result).one).then(|| {
+            json!({"kind":"Transition","args":{"result":result["result"],"phase":result["phase"]}})
+        })?
+    } else {
+        let result = &cards["args"];
+        (kind(cards) == "Transition" && result["phase"] == "After" && scope.transition(result).one)
+            .then(|| {
+                json!({"kind":"One","args":{"kind":"Result","args":{
+                    "result":result["result"],"phase":result["phase"],"index":0
+                }}})
+            })?
+    };
+    let mut changed_rule = node.clone();
+    changed_rule["args"]["changes"][0]["args"]["PlayPermission"]["cards"] = changed;
+    Some(changed_rule)
 }
 
 /// These are exact one-object exile payments, not an effect's requested amount.

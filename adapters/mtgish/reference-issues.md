@@ -262,6 +262,10 @@ different are marked *(different)*. No group is open at this reference.
 
 ## Updated locally
 
+- `U0222` gives Gwen Stacy and Lightning, Security Sergeant the same
+  singleton exile receipt as Victor Mancha, Runaway.
+- `U0221` gives White Orchid Phantom's optional search to the legal target's
+  controller even when the destruction fails.
 - `U0220` gives Barrage of Boulders and Demoralize the live blocking
   prohibition through end of turn (CR 611.2a, 611.2c).
 - `U0219` preserves the explicit free-cast choice on Aetherflux Conduit,

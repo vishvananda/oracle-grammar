@@ -678,6 +678,12 @@ impl Walker {
                 ("Ability", "Static") if !self.keep_order => {
                     casting_grants::normalize(value, self.tracing);
                 }
+                ("Operation", "CreateBoon") if !self.keep_order => {
+                    events::boon_entry_switch(value, self.tracing);
+                }
+                ("ReplacementEvent", "Damage") if !self.keep_order => {
+                    events::combat_source(value, self.tracing);
+                }
                 ("Operation", "DealDamageParts") if !self.keep_order => {
                     damage_parts::equal_amounts(value);
                 }

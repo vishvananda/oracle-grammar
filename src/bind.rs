@@ -19,6 +19,7 @@ mod damage_actor;
 pub(crate) mod damage_reflexive;
 pub(crate) mod damage_relative;
 pub(crate) mod departure_controller;
+mod direct_receipts;
 mod drafted;
 mod event_subjects;
 mod events;
@@ -312,6 +313,9 @@ pub(crate) fn bind_held_ability_with_source(
     member_focus::prepare(ability)?;
     move_after::prepare(ability)?;
     condition_placement(ability)?;
+    if direct_receipts::unbound_searched_card_test(ability) {
+        return Err("the condition tests the card moved by the preceding search".into());
+    }
     holder::event_sources(ability, 0)?;
     unresolved_leave_player::prepare(ability)?;
     let paid_self_exile = paid_self_exile::prepare(ability)?;
@@ -332,6 +336,9 @@ pub(crate) fn bind_held_ability_with_source(
     group_contrast::lower(ability);
     payments::bind(ability)?;
     guards::optional_target_payment(ability);
+    direct_receipts::returned_target_pump(ability);
+    direct_receipts::exile_own_tapped_source(ability);
+    direct_receipts::conjure_selected_hand_card(ability);
     paid_self_exile::lower(ability, paid_self_exile)?;
     if has_cost_as_action(ability) {
         return Err("a payment with a cost of its own is that cost".into());
