@@ -1,5 +1,5 @@
 /* Card-characteristic explanations are separate from the card's abilities. */
-card_text ::= card_station_before_three_titled | card_station_raw | card_station_raw_before | card_station_plain | card_station_before | card_station_explicit | card_text_land | card_text_land_only | card_text_land_cost | card_text_cost_land | card_text_land_cost_only | card_text_cost_land_only | card_text_noted | card_text_notes_only | card_text_monocolored_hybrid | card_text_plain | card_text_adventure_reminder | card_text_room_reminder | card_text_siege_reminder | card_text_ongoing_scheme_reminder | card_text_omen_reminder | card_text_face_up_conspiracy | card_text_legendary_sorcery | card_text_assist | card_text_transforms_from
+card_text ::= card_station_before_three_titled | card_station_raw | card_station_raw_before | card_station_plain | card_station_before | card_station_explicit | card_text_land | card_text_land_only | card_text_land_cost | card_text_cost_land | card_text_land_cost_only | card_text_cost_land_only | card_text_noted | card_text_notes_only | card_text_monocolored_hybrid | card_text_prowl | card_text_prowl_after_abilities | card_text_plain | card_text_adventure_reminder | card_text_room_reminder | card_text_siege_reminder | card_text_ongoing_scheme_reminder | card_text_omen_reminder | card_text_face_up_conspiracy | card_text_legendary_sorcery | card_text_assist | card_text_transforms_from
 
 /* @sem CardSurface::CardSurface{notes:$cost_notes, abilities:$card} */
 card_text_noted ::= cost_notes NEWLINE card
@@ -191,3 +191,21 @@ station_explicit_both ::= abilities NEWLINE station_explicit_abilities NEWLINE a
 /* @prefer always */
 /* @sem Ability::[...$station_row_keywords, @scope(Ability::Static{kind:Ordinary, affected:Objects($affected_plural), changes:$grants})] */
 station_row_keyword_have ::= station_row_keywords NEWLINE affected_plural "have" grants "."
+
+/* Prowl's explanatory type list belongs to the printed characteristics. */
+/* @sem CardSurface::CardSurface{prowl_types:$prowl_explanation, abilities:[$keyword_prowl, ...$card]} */
+card_text_prowl ::= keyword_prowl "(" prowl_explanation ")" NEWLINE card
+/* @sem CardSurface::CardSurface{prowl_types:$prowl_explanation, abilities:[...$abilities, $keyword_prowl, ...$card]} */
+card_text_prowl_after_abilities ::= abilities NEWLINE keyword_prowl "(" prowl_explanation ")" NEWLINE card
+prowl_explanation ::= prowl_this_explanation | prowl_spell_explanation
+/* @sem $prowl_type_options */
+prowl_this_explanation ::= "you" "may" "cast" "this" prowl_explanation_condition prowl_type_options "."
+/* @sem $prowl_type_options */
+prowl_spell_explanation ::= "you" "may" "cast" "this" "spell" prowl_explanation_condition prowl_type_options "."
+/* @sem () */
+prowl_explanation_condition ::= "for" "its" "prowl" "cost" "if" "you" "dealt" "combat" "damage" "to" "a" "player" "this" "turn" "with"
+prowl_type_options ::= prowl_one_type | prowl_two_types
+/* @sem CreatureType::[@subtype_name($creature_subtype)] */
+prowl_one_type ::= ("a" | "an") creature_subtype
+/* @sem CreatureType::[@subtype_name($creature_subtype), @subtype_name($creature_subtype_2)] */
+prowl_two_types ::= ("a" | "an") creature_subtype "or" creature_subtype

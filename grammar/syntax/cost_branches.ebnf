@@ -4,12 +4,12 @@
 kicker_branch_header ::= "kicker" keyword_payment
 /* @sem Cost::@agree($keyword_payment, $additional_payment) */
 kicker_branch_reminded_header ::= "kicker" keyword_payment "(" "you" "may" additional_payment "as" "you" "cast" "this" "spell" "." ")"
-kicker_checked_header ::= kicker_branch_header | kicker_branch_reminded_header
+kicker_checked_header ::= kicker_branch_header | kicker_branch_reminded_header | kicker_branch_reminded_word_header
 
 /* @sem Ability::@kicker_branch($kicker_branch_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program}) */
 spell_kicker_branch ::= kicker_branch_header NEWLINE kicker_branch_program
-/* @sem Ability::WithPresentation{reminder:true, ability:@kicker_branch($kicker_branch_reminded_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
-spell_kicker_branch_reminded ::= kicker_branch_reminded_header NEWLINE kicker_branch_program
+/* @sem Ability::WithPresentation{reminder:true, ability:@kicker_branch($kicker_branch_explained_payment, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
+spell_kicker_branch_reminded ::= kicker_branch_explained_payment NEWLINE kicker_branch_program
 /* @sem Ability::WithPresentation{reminder:true, ability:@kicker_branch($kicker_branch_reminded_header, Ability::Spell{announcement:@announcement, body:$reminder_program_sentence})} */
 spell_kicker_branch_with_reminded_body ::= kicker_branch_reminded_header NEWLINE reminder_program_sentence
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:@kicker_branch($kicker_branch_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
@@ -22,7 +22,7 @@ spell_kicker_branch_labelled_reminded ::= ability_label "—" kicker_branch_remi
    answer to the spell's test of its own optional cost. */
 /* @sem Ability::@additional_branch($branch_optional_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program}) */
 spell_additional_branch ::= optional_cost_opening branch_optional_header NEWLINE kicker_branch_program
-branch_optional_header ::= branch_plain_header | branch_reminded_waterbend
+branch_optional_header ::= branch_plain_header | branch_reminded_waterbend | branch_reminded_blight
 /* @sem $branch_optional_cost */
 branch_plain_header ::= branch_optional_cost "."
 /* @sem Cost::Cost{parts:[$cost_waterbend]} */
@@ -638,3 +638,12 @@ teamwork_if_followup ::= top_reveal_draw | clause
 
 /* @sem () */
 cleave_explanation ::= "(" "you" "may" "cast" "this" "spell" "for" "its" "cleave" "cost" "." "if" "you" "do" "," "remove" "the" "words" "in" "square" "brackets" "." ")"
+
+
+/* @sem Cost::@agree($additional_word_payment, $additional_word_payment_2) */
+kicker_branch_reminded_word_header ::= "kicker" "―" additional_word_payment "." "(" "you" "may" additional_word_payment "in" "addition" "to" "any" "other" "costs" "as" "you" "cast" "this" "spell" "." ")"
+kicker_branch_explained_payment ::= kicker_branch_reminded_header | kicker_branch_reminded_word_header
+/* @sem Cost::Cost{parts:[Keyword{action:Blight, amount:$branch_blight_value}]} */
+branch_reminded_blight ::= "blight" branch_blight_value
+/* @sem Expr::@agree($number_digits, $blight_explanation_counters) */
+branch_blight_value ::= number_digits "." "(" "you" "may" "put" blight_explanation_counters "on" "a" "creature" "you" "control" "." ")"

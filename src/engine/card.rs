@@ -20,7 +20,7 @@ mod surface;
 pub use printed_stats::{PrintedPowerToughness, PrintedStat};
 pub use station::{CardInputContext, StationAnimationBox};
 pub use surface::{AdventureReturnType, LayoutReminder};
-use surface::{CardSurface, MonocoloredHybridNote, printed_mana_value};
+use surface::{CardSurface, MonocoloredHybridNote, printed_mana_value, prowl_types};
 
 /// A reference into current characteristics, never a retained mana operand.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -37,6 +37,7 @@ pub enum CardNote {
     },
     /// The mana granted by all current basic land types, with no copied colors.
     LandTypes,
+    Prowl,
     LayoutReminder(LayoutReminder),
     TransformsFrom,
     StationPowerToughness {
@@ -338,6 +339,7 @@ impl Engine {
             + usize::from(surface.transforms_from.is_some())
             + usize::from(surface.assist_limit.is_some())
             + usize::from(surface.monocolored_hybrid.is_some())
+            + usize::from(surface.prowl_types.is_some())
             > self.limits.depth
         {
             return Err(Refusal::Limit("card note limit".into()));
@@ -406,6 +408,24 @@ impl Engine {
                 }
             }
             choices = next;
+        }
+        if let Some(types) = surface.prowl_types {
+            let expected = prowl_types(context).map_err(Refusal::Binding)?;
+            let written =
+                serde_json::to_value(types).map_err(|why| Refusal::Binding(why.to_string()))?;
+            let written = written
+                .as_array()
+                .ok_or_else(|| Refusal::Binding("creature type list".into()))?;
+            if expected.len() != written.len()
+                || expected.iter().any(|kind| !written.contains(kind))
+            {
+                return Err(Refusal::Binding(
+                    "prowl reminder disagrees with the source creature types".into(),
+                ));
+            }
+            for notes in &mut choices {
+                notes.push(CardNote::Prowl);
+            }
         }
         if let Some(header) = &surface.land_mana {
             let colors = &header.colors;
@@ -477,6 +497,7 @@ impl Engine {
         let mut land_colors = None;
         let mut layout_reminder = None;
         let mut transforms_from = None;
+        let mut prowl = None;
         for note in &reading.notes {
             match note {
                 CardNote::ManaCost { slot } | CardNote::AssistLimit { slot } => {
@@ -516,6 +537,11 @@ impl Engine {
                     }
                     land_colors = Some(land_mana::colors(context)?);
                 }
+                CardNote::Prowl => {
+                    if prowl.replace(prowl_types(context)?).is_some() {
+                        return Err("duplicate prowl reminder".into());
+                    }
+                }
                 CardNote::LayoutReminder(reminder) => {
                     reminder.check(context)?;
                     if layout_reminder.replace(*reminder).is_some() {
@@ -535,7 +561,7 @@ impl Engine {
         let land_mana = land_colors.map(|colors| json!({"colors":colors}));
         Ok(Self::native_surfaces(&reading.abilities, written)?
             .into_iter()
-            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"monocolored_hybrid":monocolored_hybrid,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
+            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"monocolored_hybrid":monocolored_hybrid,"prowl_types":prowl,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
             .collect())
     }
     /// A card's surfaces, with the views only a `written` text asks for when it does.

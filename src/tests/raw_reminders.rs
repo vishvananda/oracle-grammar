@@ -1,6 +1,6 @@
 use crate::engine::{CardNote, CardReading, PrintedPowerToughness, empty_card_characteristics};
 use crate::model::ir::{Characteristics, ManaColor, ManaSymbol};
-use crate::model::mtg_types::{CardType, SuperType};
+use crate::model::mtg_types::{CardType, SubType, SuperType};
 
 const NAME: &str = "Synthetic";
 
@@ -375,6 +375,28 @@ fn ward_explanation_repeats_the_granted_payment() {
     exact_roundtrip(text, &context);
     let wrong = text.replace("pays {2}", "pays {3}");
     assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    let equipped = "Equipped creature gets +0/+1 and has ward {2}. (Whenever equipped creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nEquip {1}";
+    exact_roundtrip(equipped, &context);
+}
+
+#[test]
+fn prowl_explanation_checks_the_source_creature_types() {
+    let mut context = empty_card_characteristics();
+    context.card_types = vec![CardType::Creature];
+    context.subtypes = vec![SubType::Faerie, SubType::Rogue];
+    let text = "Flying\nProwl {2}{U} (You may cast this for its prowl cost if you dealt combat damage to a player this turn with a Faerie or Rogue.)\nWhen this creature enters, draw a card.";
+    let reading = exact_roundtrip(text, &context);
+    assert_eq!(reading.notes, [CardNote::Prowl]);
+    for altered in [
+        text.replace("Faerie or Rogue", "Rogue"),
+        text.replace("Faerie", "Goblin"),
+    ] {
+        assert!(
+            super::engine()
+                .parse_card(NAME, &altered, &context)
+                .is_err()
+        );
+    }
 }
 
 #[test]

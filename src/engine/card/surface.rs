@@ -1,6 +1,6 @@
 //! A typed grammar carrier: native rules and native symbols, before note binding.
-use crate::model::ir::{Ability, ManaColor, ManaSymbol};
-use crate::model::mtg_types::CardType;
+use crate::model::ir::{Ability, Characteristics, ManaColor, ManaSymbol};
+use crate::model::mtg_types::{CardType, CreatureType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -9,6 +9,7 @@ pub(super) struct CardSurface {
     pub notes: Vec<ManaSymbol>,
     pub assist_limit: Option<ManaSymbol>,
     pub monocolored_hybrid: Option<MonocoloredHybridNote>,
+    pub prowl_types: Option<Vec<CreatureType>>,
     pub station: bool,
     pub station_explicit: bool,
     pub station_declaration: Option<StationSource>,
@@ -80,4 +81,27 @@ pub(super) struct LandMana {
 #[serde(deny_unknown_fields)]
 pub(super) struct StationSource {
     pub minimum: Option<u32>,
+}
+
+/// Prowl keys on the source's creature subtypes, including on a kindred spell.
+/// A printed reminder enumerates that entire set once.
+pub(super) fn prowl_types(context: &Characteristics) -> Result<Vec<serde_json::Value>, String> {
+    if !context
+        .card_types
+        .iter()
+        .any(|kind| matches!(kind, CardType::Creature | CardType::Kindred))
+    {
+        return Err("prowl reminder needs a creature or kindred face".into());
+    }
+    let mut kinds = Vec::new();
+    for subtype in &context.subtypes {
+        let value = serde_json::to_value(subtype).map_err(|error| error.to_string())?;
+        if CreatureType::deserialize(&value).is_ok() && !kinds.contains(&value) {
+            kinds.push(value);
+        }
+    }
+    if kinds.is_empty() || kinds.len() > 16 {
+        return Err("prowl reminder needs a bounded nonempty creature type list".into());
+    }
+    Ok(kinds)
 }

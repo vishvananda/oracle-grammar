@@ -31,6 +31,14 @@ creature_population_grant_explanation ::= indestructible_plural_explanation | vi
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), $creature_controller_modifier])}), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot}}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Recipients::Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), $creature_controller_modifier])}), kind:$counter_kind, amount:Constant(1)}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), $creature_controller_modifier])}), changes:[GrantKeyword($keyword_name_2)], duration:$duration_2, evaluation:Snapshot}}]}, otherwise:Program{}}]}}} */
 labelled_population_counter ::= "creatures" creature_controller_modifier "gain" keyword_name duration "." NEWLINE ability_label "—" "if" condition "," "put" "a" counter_kind "counter" "on" "each" "of" "those" "creatures" "and" "they" "gain" keyword_name duration "."
 
+/* The explicit replacement covers the preceding paragraph as a unit. */
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition, then:$program_sentence, otherwise:Program{instructions:$instructions}}]}}} */
+labelled_spell_program_override ::= instructions "." NEWLINE ability_label "—" "if" condition "," "instead" program_sentence
+
+/* @sem Ability::WithPresentation{label:$label_will_of_the_planeswalkers, reminder:false, ability:Spell{announcement:@announcement, body:Program{instructions:[...$vote_spell_prefix, ...$clause_word_vote, ...$planeswalk_vote_outcomes]}}} */
+labelled_spell_vote ::= vote_spell_prefix "." NEWLINE label_will_of_the_planeswalkers "—" clause_word_vote "." planeswalk_vote_outcomes "."
+vote_spell_prefix ::= instructions_discard_hand_mana_draw | instructions_mill_graveyard_entry | instructions
+
 labelled_spell_replacement ::= kicker_replacement_standard | labelled_spell_replacement_then
 /* @sem Vec<Instruction>::@then_sequence($clause_before_then, $clause) */
 labelled_spell_replacement_then ::= "instead" clause_before_then "," "then" clause
@@ -211,7 +219,7 @@ label_will_of_the_council ::= "will" "of" "the" "council"
    https://magic.wizards.com/en/news/feature/march-of-the-machine-release-notes
    The following vote, planeswalk and chaos instructions retain their meaning. */
 /* @sem String::'Will of the Planeswalkers' */
-label_will_of_the_planeswalkers ::= "will" "of" "the" "planeswalkers"
+label_will_of_the_planeswalkers ::= "will" "of" "the" "planeswalkers" | "will" "of" "the" "Planeswalkers"
 
 /* CR 702.178: this prefix grants an ability only at max speed. It carries
    meaning, and the granted ability keeps any explicit operating zones. */
@@ -824,3 +832,13 @@ line_max_speed_static_pair ::= max_speed_prefix affected static_changes "and" af
 /* Modal flavor words for Yuna's Decision (CR 207.2d; no rules meaning). */
 /* @sem @scope(Mode::Mode{announcement:@announcement, body:$program_sentence, weight:1}) */
 mode_flavor_pilgrimage ::= "•" ("Continue" "the" "Pilgrimage" | "find" "Another" "Way") "—" program_sentence
+
+/* A damage override keeps the written dealer and the same announced recipient. */
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:Spell{announcement:@announcement, body:Program{instructions:[@repeated_damage_actor(Instruction::If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref_2, recipients:$recipients_any_target, amount:$value_2, preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:Targets(@last_slot), amount:$value, preventable:true}}]}})]}}} */
+labelled_any_damage_override ::= damage_source_ref "deals" value "damage" "to" recipients_any_target "." NEWLINE ability_label "—" damage_source_ref "deals" value "damage" "instead" "if" condition "."
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:Spell{announcement:@announcement, body:Program{instructions:[@repeated_damage_actor(Instruction::If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref_2, recipients:Objects($target_object_set), amount:$value_2, preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:Objects(One(Target{slot:@last_slot, index:0})), amount:$value, preventable:true}}]}})]}}} */
+labelled_object_damage_override ::= damage_source_ref "deals" value "damage" "to" target_object_set "." NEWLINE ability_label "—" damage_source_ref "deals" value "damage" "instead" "if" condition "."
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:Spell{announcement:@announcement, body:Program{instructions:[@repeated_damage_actor(Instruction::If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref_2, recipients:$recipients_any_target, amount:$value_2, preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:Targets(@last_slot), amount:$value, preventable:true}}]}})]}}} */
+labelled_any_damage_raised ::= damage_source_ref "deals" value "damage" "to" recipients_any_target "." NEWLINE ability_label "—" "if" condition "," damage_source_ref "deals" value "damage" "instead" "."
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:Spell{announcement:@announcement, body:Program{instructions:[@repeated_damage_actor(Instruction::If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref_2, recipients:Objects($target_object_set), amount:$value_2, preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:Objects(One(Target{slot:@last_slot, index:0})), amount:$value, preventable:true}}]}})]}}} */
+labelled_object_damage_raised ::= damage_source_ref "deals" value "damage" "to" target_object_set "." NEWLINE ability_label "—" "if" condition "," damage_source_ref "deals" value "damage" "instead" "."

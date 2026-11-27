@@ -103,6 +103,12 @@ pub(super) fn ward_grant_claims(ability: &Value) -> Vec<Value> {
     let ability = own_ability(ability);
     let affected = &ability["args"]["affected"]["Objects"];
     let subject = &affected["args"];
+    // The equipped noun records a mention until the enclosing frame binds it.
+    let subject = if subject["$sym"] == "remember_operand" {
+        &subject["args"][0]
+    } else {
+        subject
+    };
     let attached = ability["kind"] == "Static"
         && affected["kind"] == "One"
         && subject["kind"] == "AttachedTo"
