@@ -148,6 +148,83 @@ fn event_group_count(items: &mut [Value], uses: &Uses, tracing: bool) -> bool {
     true
 }
 
+/// An optional choice from hand reads a single scalar immediately. Neither
+/// deciding whether to make this choice nor the candidate filter changes state.
+fn optional_entry_bound(capture: &Value, next: &mut Value, uses: &Uses, tracing: bool) -> bool {
+    let definition = &capture["args"]["operation"];
+    let value = &definition["args"]["value"];
+    let controller = json!({"kind":"AbilityController"});
+    if capture["kind"] != "Effect"
+        || definition["kind"] != "BindValue"
+        || value["kind"] != "CountCounters"
+        || value["args"]["information"] != "CurrentOrLastKnown"
+        || value["args"]["recipients"]
+            != json!({"kind":"Objects","args":{"kind":"One","args":{"kind":"Source"}}})
+        || next["kind"] != "Optional"
+        || next["args"]["decider"] != controller
+    {
+        return false;
+    }
+    let Some(id) = super::trace::number(&capture["args"]["result"]) else {
+        return false;
+    };
+    if uses.definitions.get(&id) != Some(&1)
+        || uses.total.get(&id) != Some(&2)
+        || lossless::<crate::ir::Instruction>(capture, tracing).is_none()
+        || lossless::<crate::ir::Instruction>(next, tracing).is_none()
+    {
+        return false;
+    }
+    let Some([choice, movement]) = next["args"]["body"]["instructions"]
+        .as_array_mut()
+        .map(Vec::as_mut_slice)
+    else {
+        return false;
+    };
+    if choice["kind"] != "Effect" {
+        return false;
+    }
+    let chosen = super::trace::number(&choice["args"]["result"]);
+    let choose = &mut choice["args"]["operation"];
+    let mover = &movement["args"]["operation"];
+    if choose["kind"] != "ChooseObjects"
+        || choose["args"]["player"] != controller
+        || choose["args"]["constraints"] != json!([])
+        || choose["args"]["count"] != json!({"AsManyAsCan":{"kind":"Constant","args":1}})
+        || movement["kind"] != "Effect"
+        || mover["kind"] != "Move"
+        || mover["args"]["objects"]["kind"] != "Selected"
+        || super::trace::number(&mover["args"]["objects"]["args"]) != chosen
+        || mover["args"]["destination"]["Battlefield"]["controller"]["Player"] != controller
+    {
+        return false;
+    }
+    let objects = &mut choose["args"]["objects"];
+    if objects["kind"] != "Zone"
+        || objects["args"]["kind"] != "Card"
+        || objects["args"]["scope"]
+            != json!({"Players":{"zone":"Hand","players":{"kind":"One","args":controller}}})
+        || objects["args"]["filter"]["kind"] != "AllOf"
+    {
+        return false;
+    }
+    let Some(parts) = objects["args"]["filter"]["args"].as_array_mut() else {
+        return false;
+    };
+    let Some(property) = parts.iter_mut().find(|part| {
+        let test = &part["args"]["test"];
+        part["kind"] == "Property"
+            && part["args"]["property"] == "ManaValue"
+            && test["kind"] == "Compare"
+            && test["args"]["comparison"] == "LessOrEqual"
+            && scalar_reads::signed_use(&test["args"]["value"], id) == Some(1)
+    }) else {
+        return false;
+    };
+    property["args"]["test"]["args"]["value"] = value.clone();
+    true
+}
+
 pub(super) fn inline_array(
     items: &mut Vec<Value>,
     uses: &Uses,
@@ -162,6 +239,14 @@ pub(super) fn inline_array(
             items.remove(index);
             changed = true;
             continue;
+        }
+        if !keep_order {
+            let (before, after) = items.split_at_mut(index + 1);
+            if optional_entry_bound(&before[index], &mut after[0], uses, tracing) {
+                items.remove(index);
+                changed = true;
+                continue;
+            }
         }
 
         if let Some((mut value, slots, id)) =

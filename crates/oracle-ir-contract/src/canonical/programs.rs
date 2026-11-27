@@ -8,6 +8,7 @@ struct Needed {
     source_components: Vec<usize>,
     snapshots: bool,
     player_loops: bool,
+    player_rule_groups: bool,
     hand_observation: bool,
     hand_choice: bool,
     native_payment: bool,
@@ -41,6 +42,9 @@ impl Visit for Normalize {
                 && value["kind"] == "BindValue";
             needed.player_loops |= matches!(ty, Ty::Named(name) if name == "Instruction")
                 && value["kind"] == "ForEachPlayer";
+            needed.player_rule_groups |= !self.keep_order
+                && matches!(ty, Ty::Named(name) if name == "Instruction")
+                && super::player_rule_groups::may_need(value);
             needed.hand_observation |= matches!(ty, Ty::Named(name) if name == "Operation")
                 && matches!(value["kind"].as_str(), Some("Reveal" | "LookAt"));
             needed.hand_choice |= matches!(ty, Ty::Named(name) if name == "Operation")
@@ -98,6 +102,7 @@ impl Visit for Normalize {
         let hands = needed.hand_observation && needed.hand_choice;
         if !needed.snapshots
             && !needed.player_loops
+            && !needed.player_rule_groups
             && !hands
             && !needed.native_payment
             && !needed.optional_receipt
@@ -145,6 +150,9 @@ impl Visit for Normalize {
                         self.changed |=
                             super::player_life::flatten(items, path, &uses, self.tracing);
                     }
+                }
+                if needed.player_rule_groups {
+                    self.changed |= super::player_rule_groups::merge(items, &uses, self.tracing);
                 }
                 if needed.optional_receipt {
                     self.changed |= super::optional_receipts::program(items, &uses, self.tracing);

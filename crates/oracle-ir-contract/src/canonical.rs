@@ -35,7 +35,9 @@ mod optional_receipts;
 mod paid_source;
 #[cfg(test)]
 mod paid_source_tests;
+mod play_permissions;
 mod player_life;
+mod player_rule_groups;
 mod programs;
 mod pump_untap;
 pub mod resolution_payments;
@@ -664,6 +666,7 @@ impl Walker {
                     untap::controlled_population(value);
                     if !self.keep_order {
                         target_stats::normalize(value, self.tracing);
+                        play_permissions::join(value, self.tracing);
                     }
                 }
                 ("ManaUse", "Either") => {

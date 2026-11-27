@@ -6798,13 +6798,9 @@ instructions_exile_until_count_entry ::= "exile" "cards" "from" "the" "top" "of"
 /* @sem Instruction::[Effect{result:@next, operation:$sacrifice_objects}, ...$clause_search] */
 sacrifice_comma_search ::= sacrifice_objects "," clause_search
 
-/* The failed hand move refers to the marked move within this optional search. */
+/* Check the marked hand move after the option, including when the search was declined. */
 /* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$search_single_library}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@mark, operation:Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}}, If{condition:Compare{left:CountObjects(Transition{result:@marked, phase:Before}), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}}, then:Program{instructions:$clause}, otherwise:Program{}}] */
 instructions_optional_search_hand_failure ::= "you" "may" search_single_library "," "reveal" "it" "," "put" "it" "into" "your" "hand" "," "then" "shuffle" "." "if" "you" "don't" "put" "a" "card" "into" "your" "hand" "this" "way" "," clause
-
-/* Preserve the distinct interpretation in which the follow-up remains optional. */
-/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$search_single_library}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@mark, operation:Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}, If{condition:Compare{left:CountObjects(Transition{result:@marked, phase:Before}), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}}, then:Program{instructions:$clause}, otherwise:Program{}}]}}] */
-instructions_optional_search_hand_failure_nested ::= "you" "may" search_single_library "," "reveal" "it" "," "put" "it" "into" "your" "hand" "," "then" "shuffle" "." "if" "you" "don't" "put" "a" "card" "into" "your" "hand" "this" "way" "," clause
 
 /* The reveal, matching move and remaining cards share one observation and move receipt. */
 /* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:$reveal_until_card, count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$reveal_until_card}, destination:$until_destination, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */

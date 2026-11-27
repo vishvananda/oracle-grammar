@@ -185,6 +185,71 @@ fn optional_success(optional: &Value, uses: &Uses, tracing: bool) -> bool {
         && lossless::<Instruction>(optional, tracing).is_some()
 }
 
+/// Testing an announced target's power and offering a single free action do
+/// not change state. This offer exports no result when its test fails.
+fn conditional_target(optional: &mut Value, uses: &Uses, tracing: bool) -> bool {
+    if optional["kind"] != "Optional"
+        || optional["args"]["decider"] != json!({"kind":"AbilityController"})
+    {
+        return false;
+    }
+    let Some([guard]) = optional["args"]["body"]["instructions"]
+        .as_array()
+        .map(Vec::as_slice)
+    else {
+        return false;
+    };
+    let condition = &guard["args"]["condition"];
+    let target = &condition["args"]["object"];
+    let filter = &condition["args"]["filter"];
+    let test = &filter["args"]["test"];
+    let comparison = &test["args"]["value"];
+    let stat = &comparison["args"];
+    let pure_threshold = comparison["kind"] == "Constant"
+        || comparison["kind"] == "ObjectProperty"
+            && stat["object"]["kind"] == "Source"
+            && stat["property"] == "Power"
+            && stat["information"] == "CurrentOrLastKnown";
+    if guard["kind"] != "If"
+        || condition["kind"] != "ObjectMatches"
+        || target["kind"] != "Target"
+        || filter["kind"] != "Property"
+        || filter["args"]["property"] != "Power"
+        || test["kind"] != "Compare"
+        || !pure_threshold
+        || guard["args"]["otherwise"]["instructions"] != json!([])
+    {
+        return false;
+    }
+    let Some([result]) = guard["args"]["then"]["instructions"]
+        .as_array()
+        .map(Vec::as_slice)
+    else {
+        return false;
+    };
+    let action = &result["args"]["operation"];
+    let objects = &action["args"]["objects"];
+    let single_target_action = action["kind"] == "Destroy"
+        || action["kind"] == "Move" && action["args"]["destination"].get("OwnersHand").is_some();
+    if result["kind"] != "Effect"
+        || !single_target_action
+        || objects["kind"] != "One"
+        || !trace::same(&objects["args"], target, tracing)
+        || !trace::number(&result["args"]["result"]).is_some_and(|id| {
+            uses.total.get(&id) == Some(&1) && uses.definitions.get(&id) == Some(&1)
+        })
+        || lossless::<Instruction>(optional, tracing).is_none()
+    {
+        return false;
+    }
+    let mut guard = guard.clone();
+    let mut choice = optional.take();
+    choice["args"]["body"] = guard["args"]["then"].take();
+    guard["args"]["then"] = json!({"instructions":[choice]});
+    *optional = guard;
+    true
+}
+
 pub(super) fn may_need(instruction: &Value) -> bool {
     if instruction["kind"] != "Optional" {
         return false;
@@ -194,6 +259,7 @@ pub(super) fn may_need(instruction: &Value) -> bool {
     };
     let operation = |at: usize| &items[at]["args"]["operation"];
     match items.len() {
+        1 => items[0]["kind"] == "If",
         2 => {
             graveyard_choice(operation(0))
                 || exile_permission(operation(1))
@@ -223,6 +289,8 @@ pub(super) fn program(items: &mut Vec<Value>, uses: &Uses, tracing: bool) -> boo
                 .expect("proved continuation");
             items.insert(at + 1, continuation);
             at += 1;
+            changed = true;
+        } else if conditional_target(item, uses, tracing) {
             changed = true;
         } else if optional_return(item, uses, tracing) {
             // An eligible card must be chosen after accepting. With no eligible
