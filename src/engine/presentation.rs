@@ -29,23 +29,7 @@ fn strip(text: &str, labels: &[String]) -> String {
             }
         }
         let kept = kept.trim_end();
-        let kept = match kept.split_once(" — ") {
-            Some((label, rest))
-                if !rest.is_empty()
-                    && labels.iter().any(|known| {
-                        // Removing a parenthetical before the dash can leave
-                        // a gap after the label, as in "Raid (the Fridge)".
-                        let label = label.trim_end();
-                        label.eq_ignore_ascii_case(known)
-                            || (!label.is_ascii()
-                                && !known.is_ascii()
-                                && label.to_lowercase() == known.to_lowercase())
-                    }) =>
-            {
-                rest
-            }
-            _ => kept,
-        };
+        let kept = crate::tokens::presentation_heading(kept, labels).map_or(kept, |(_, body)| body);
         // A label such as "Throw ..." owns its punctuation. Remove the
         // classified heading before closing gaps left by reminder text.
         let kept = if line.contains('(') {

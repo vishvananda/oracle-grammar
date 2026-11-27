@@ -7,7 +7,7 @@ use crate::model::ir::{Ability, Characteristics, ManaSymbol, Mechanic};
 use crate::model::ir_schema::Schema;
 use crate::model::mtg_types::{CardType, SubType, SuperType};
 use crate::parse::{Counters, Parser, RuleSet};
-use crate::tokens::{self, Names};
+use crate::tokens::Names;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -237,8 +237,9 @@ impl Engine {
         }
         let root = self.card_root().map_err(Refusal::Binding)?;
         let names = Names::for_card(name, &types);
-        let tokens =
-            tokens::tokenize(text, &names, &self.grammar.vocabulary).map_err(Refusal::Lexical)?;
+        let tokens = self
+            .tokenize_oracle(text, &names)
+            .map_err(Refusal::Lexical)?;
         let mut card_off = off.clone();
         if let Some(wrapper) = self.grammar.names.get("line_station_explicit") {
             card_off.insert(*wrapper);

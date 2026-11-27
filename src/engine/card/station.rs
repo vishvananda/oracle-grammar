@@ -67,7 +67,7 @@ impl Engine {
                 let types = self.card_context(characteristics).unwrap_or_default();
                 Names::for_card(name, &types)
             });
-            let tokens = match tokens::tokenize(line, names, &self.grammar.vocabulary) {
+            let tokens = match self.tokenize_oracle(line, names) {
                 Ok(tokens) => tokens,
                 Err(_) if line.contains('"') => {
                     if station_present || candidate {

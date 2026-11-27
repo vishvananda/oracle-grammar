@@ -332,7 +332,7 @@ impl Engine {
     /// starts from, ability by ability.
     pub fn print_gap(&self, name: &str, text: &str, abilities: &Value) -> Result<Value, String> {
         let names = Names::of(name);
-        let tokens = tokens::tokenize(text, &names, &self.grammar.vocabulary)?;
+        let tokens = self.tokenize_oracle(text, &names)?;
         let mut parser = Parser::new(&self.grammar, &tokens, self.limits);
         let wanted = canonical_abilities(abilities)?;
         let raw: Vec<Value> = parser
@@ -403,7 +403,7 @@ impl Engine {
         off: &RuleSet,
     ) -> Result<Vec<Audited>, String> {
         let names = Names::for_card(name, types);
-        let Ok(tokens) = tokens::tokenize(text, &names, &self.grammar.vocabulary) else {
+        let Ok(tokens) = self.tokenize_oracle(text, &names) else {
             return Ok(Vec::new());
         };
         let mut parser = Parser::new(&self.grammar, &tokens, self.limits)
@@ -635,10 +635,15 @@ impl Engine {
         types: &[String],
         text: &str,
     ) -> Result<Vec<tokens::Token>, String> {
-        tokens::tokenize(
+        self.tokenize_oracle(text, &Names::for_card(name, types))
+    }
+
+    fn tokenize_oracle(&self, text: &str, names: &Names) -> Result<Vec<tokens::Token>, String> {
+        tokens::tokenize_with_headings(
             text,
-            &Names::for_card(name, types),
+            names,
             &self.grammar.vocabulary,
+            &self.grammar.presentation_labels,
         )
     }
 
@@ -723,7 +728,7 @@ impl Engine {
     /// used it, so a phrase's shapes are the grammar's and not one derivation's.
     pub fn phrases(&self, name: &str, text: &str, families: &[&str]) -> Vec<Phrase> {
         let names = Names::of(name);
-        let Ok(tokens) = tokens::tokenize(text, &names, &self.grammar.vocabulary) else {
+        let Ok(tokens) = self.tokenize_oracle(text, &names) else {
             return Vec::new();
         };
         if tokens.len() > self.limits.tokens {
@@ -760,7 +765,7 @@ impl Engine {
 
     fn stuck_root(&self, name: &str, text: &str, off: &RuleSet, root: u32) -> String {
         let names = Names::of(name);
-        let Ok(tokens) = tokens::tokenize(text, &names, &self.grammar.vocabulary) else {
+        let Ok(tokens) = self.tokenize_oracle(text, &names) else {
             return String::new();
         };
         let mut parser = Parser::new(&self.grammar, &tokens, self.limits).without(off);

@@ -692,7 +692,7 @@ impl Engine {
         ordered: bool,
     ) -> Result<Option<Vec<String>>, String> {
         let names = Names::for_card(name, types);
-        let target = tokens::tokenize(text, &names, &self.grammar.vocabulary)?;
+        let target = self.tokenize_oracle(text, &names)?;
         if target.len() > self.limits.tokens {
             return Err("key target token limit".into());
         }
@@ -893,7 +893,7 @@ impl Engine {
     ) -> Result<Option<Value>, String> {
         super::validate_abilities(abilities)?;
         let names = Names::of(name);
-        let target = tokens::tokenize(text, &names, &self.grammar.vocabulary)?;
+        let target = self.tokenize_oracle(text, &names)?;
         if target.len() > self.limits.tokens {
             return Err("frontier target token limit".into());
         }
@@ -940,7 +940,7 @@ impl Engine {
     pub fn renders_to(&self, name: &str, abilities: &Value, text: &str) -> Result<bool, String> {
         super::validate_abilities(abilities)?;
         let names = Names::of(name);
-        let target = tokens::tokenize(text, &names, &self.grammar.vocabulary)?;
+        let target = self.tokenize_oracle(text, &names)?;
         let mut matcher = Matcher::new(&self.grammar, &target);
         for surface in Self::native_surfaces(abilities, true)? {
             if matcher.reaches(self.root, &surface) {

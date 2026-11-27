@@ -396,7 +396,17 @@ pub fn tokenize(
     names: &Names,
     vocabulary: &HashSet<String>,
 ) -> Result<Vec<Token>, String> {
-    let tokens = scan(text, names, vocabulary)?;
+    tokenize_with_headings(text, names, vocabulary, &[])
+}
+
+pub(crate) fn tokenize_with_headings(
+    text: &str,
+    names: &Names,
+    vocabulary: &HashSet<String>,
+    labels: &[String],
+) -> Result<Vec<Token>, String> {
+    let labels = if text.contains(" — ") { labels } else { &[] };
+    let tokens = scan(text, names, vocabulary, labels)?;
     let rendered = detokenize(&tokens, names);
     if rendered == text || oracle_sentence_spacing(text, &rendered) {
         crate::print_trace::tokens(&tokens);
@@ -404,6 +414,23 @@ pub fn tokenize(
     } else {
         Err(format!("noncanonical spacing or case: {rendered:?}"))
     }
+}
+
+/// Match the grammar's allowlisted heading at the start of a line.
+pub(crate) fn presentation_heading<'a>(
+    line: &'a str,
+    labels: &[String],
+) -> Option<(&'a str, &'a str)> {
+    let (heading, body) = line.split_once(" — ")?;
+    let label = heading.trim_end();
+    (!body.is_empty()
+        && labels.iter().any(|known| {
+            label.eq_ignore_ascii_case(known)
+                || (!label.is_ascii()
+                    && !known.is_ascii()
+                    && label.to_lowercase() == known.to_lowercase())
+        }))
+    .then_some((heading, body))
 }
 
 /// Oracle sometimes omits the gap before a sentence's reminder or prints a
@@ -465,14 +492,28 @@ fn self_name_ends_sentence(after: &str, before: &[Token], vocabulary: &HashSet<S
     false
 }
 
-fn scan(text: &str, names: &Names, vocabulary: &HashSet<String>) -> Result<Vec<Token>, String> {
+fn scan(
+    text: &str,
+    names: &Names,
+    vocabulary: &HashSet<String>,
+    labels: &[String],
+) -> Result<Vec<Token>, String> {
     let mut tokens = Vec::with_capacity(text.len() / 4);
     let mut at = 0;
+    let mut heading_end = 0;
     while at < text.len() {
         let rest = &text[at..];
+        if !labels.is_empty() && (at == 0 || text.as_bytes()[at - 1] == b'\n') {
+            let end = rest.find('\n').unwrap_or(rest.len());
+            if let Some((heading, _)) = presentation_heading(&rest[..end], labels) {
+                heading_end = at + heading.len();
+            }
+        }
         let c = rest.chars().next().ok_or("empty character")?;
         let word_start = at == 0 || !text[..at].ends_with(char::is_alphanumeric);
-        if word_start
+        // The literal heading owns its spelling, even when it contains the card name.
+        if at >= heading_end
+            && word_start
             && !after_article(&tokens)
             && !proper_name_suffix(&tokens)
             && let Some((index, length)) = name_at(text, at, names)

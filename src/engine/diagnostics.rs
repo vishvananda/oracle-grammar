@@ -102,7 +102,7 @@ impl Engine {
     /// Format a previously returned NoParse position, without invoking recognition.
     pub fn frontier_at(&self, name: &str, text: &str, at: usize) -> String {
         let names = Names::of(name);
-        tokens::tokenize(text, &names, &self.grammar.vocabulary)
+        self.tokenize_oracle(text, &names)
             .map(|tokens| frontier(&tokens, &names, at))
             .unwrap_or_default()
     }
@@ -218,7 +218,7 @@ fn run(
     mut memo: Option<&mut ParseMemo>,
 ) -> Result<Parsed, Refusal> {
     let names = Names::for_card(name, types);
-    let tokens = tokens::tokenize(text, &names, &engine.grammar.vocabulary).map_err(|why| {
+    let tokens = engine.tokenize_oracle(text, &names).map_err(|why| {
         if capture {
             evidence.record(Stage::Lexical, None, &why);
         }

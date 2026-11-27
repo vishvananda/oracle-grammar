@@ -25,6 +25,16 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
             || own_graveyard_cards(&args["affected"]["Objects"])
                 && grants_mechanic(&args["changes"], "JumpStart")
                 && visit("JumpStartFromYourGraveyard")
+            || grants_mechanic(&args["changes"], "ReadAhead")
+                && args["affected"]["Objects"]["kind"] == "Zone"
+                && args["affected"]["Objects"]["args"]["scope"]["Shared"] == "Battlefield"
+                && filter_proves(
+                    &args["affected"]["Objects"]["args"]["filter"],
+                    &|term| term["kind"] == "Subtype" && term["args"] == "Saga",
+                    0,
+                    &mut 256,
+                )
+                && visit("SagaReadAhead")
             || grants_sliver_regeneration(&args["changes"]) && visit("SliverRegeneration")
             || grants_source_prowess(args) && visit("SourceProwess")
             || grants_keyword(&args["changes"], "Flanking")
@@ -99,13 +109,17 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                     op["args"]["change"]["Reselect"]["players_only"] == false
                         && visit("AttackReselection")
                 }
-                Some("Move") => unattachable_auras(&op["args"]) && visit("UnattachableAuras"),
+                Some("Move") => unattachable_auras(&op["args"]).is_some_and(&mut visit),
                 Some("CreateContinuousEffect") => {
                     grants_graveyard_mechanic(op, frame, "JumpStart")
                         && visit("JumpStartFromYourGraveyard")
                         || op["args"]["duration"] == "EndOfTurn"
                             && grants_graveyard_mechanic(op, frame, "Escape")
                             && visit("EscapeFromYourGraveyardThisTurn")
+                        || op["args"]["affected"]["Objects"]["kind"] == "One"
+                            && grants_keyword(&op["args"]["changes"], "Hexproof")
+                            && grants_keyword(&op["args"]["changes"], "Indestructible")
+                            && visit("HexproofAndIndestructible")
                         || lifelink_notes(&op["args"], frame, &mut visit)
                         || keeps_abilities_when_animated(&op["args"])
                             && visit("AnimationKeepsAbilities")
@@ -283,20 +297,68 @@ fn lifelink_notes(
     }
 }
 
-fn unattachable_auras(movement: &Value) -> bool {
+fn unattachable_auras(movement: &Value) -> Option<&'static str> {
     let objects = &movement["objects"];
     let args = &objects["args"];
-    movement["destination"]["Battlefield"].is_object()
-        && objects["kind"] == "Zone"
-        && args["kind"] == "Card"
-        && super::receipts::own_zone(&args["scope"]["Players"], "Graveyard")
-        && matches!(
-            (
-                args["filter"]["kind"].as_str(),
-                args["filter"]["args"].as_str()
-            ),
-            (Some("CardType"), Some("Enchantment")) | (Some("Subtype"), Some("Aura"))
-        )
+    let scope = &args["scope"]["Players"];
+    let arrival = &movement["destination"]["Battlefield"];
+    if !arrival.is_object()
+        || objects["kind"] != "Zone"
+        || args["kind"] != "Card"
+        || scope["zone"] != "Graveyard"
+    {
+        return None;
+    }
+    let filter = &args["filter"];
+    let aura_eligible = |leaf: &Value| {
+        leaf["kind"] == "CardType" && leaf["args"] == "Enchantment"
+            || leaf["kind"] == "Subtype" && leaf["args"] == "Aura"
+    };
+    if scope["players"]["kind"] == "All" {
+        return (aura_eligible(filter)
+            || filter["kind"] == "AnyOf"
+                && filter["args"]
+                    .as_array()
+                    .is_some_and(|terms| terms.iter().take(8).any(aura_eligible)))
+        .then_some("UnattachableAurasAllGraveyards");
+    }
+    if !super::receipts::own_zone(scope, "Graveyard") {
+        return None;
+    }
+    if aura_eligible(filter) {
+        return Some("UnattachableAuras");
+    }
+    let creature_filter = |leaf: &Value| leaf["kind"] == "CardType" && leaf["args"] == "Creature";
+    let chosen_host = arrival["arrival"]["states"]
+        .as_array()
+        .is_some_and(|states| {
+            states
+                .iter()
+                .take(8)
+                .any(|state| creature_filter(&state["AttachedToChosen"]))
+        });
+    let restricts_hosts = filter_proves(
+        filter,
+        &|leaf| {
+            let host = &leaf["args"];
+            leaf["kind"] == "CouldEnchant"
+                && host["kind"] == "Zone"
+                && host["args"]["scope"]["Shared"] == "Battlefield"
+                && host["args"]["kind"] == "Permanent"
+                && creature_filter(&host["args"]["filter"])
+        },
+        0,
+        &mut 256,
+    );
+    (chosen_host
+        && restricts_hosts
+        && filter_proves(
+            filter,
+            &|leaf| leaf["kind"] == "Subtype" && leaf["args"] == "Aura",
+            0,
+            &mut 256,
+        ))
+    .then_some("UnattachableCreatureAuras")
 }
 
 fn own_graveyard_cards(objects: &Value) -> bool {

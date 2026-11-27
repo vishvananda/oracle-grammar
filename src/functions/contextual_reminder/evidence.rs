@@ -476,6 +476,9 @@ fn ability_mentions(
         {
             return true;
         }
+        if grants_saga_replicate(args) && visit("SagaReplicate") {
+            return true;
+        }
         if excludes_creature(changes) && visit("NoncreatureForm") {
             return true;
         }
@@ -618,6 +621,38 @@ pub(super) fn copies_source_spell(ability: &Value) -> bool {
                     && copy["times"]["kind"] == "Constant"
                     && copy["times"]["args"] == 1
             })
+    })
+}
+
+fn grants_saga_replicate(args: &Value) -> bool {
+    use super::object_notes::{filter_proves, is_controller};
+
+    let objects = &args["affected"]["Objects"];
+    let filter = &objects["args"]["filter"];
+    let saga = |filter: &Value| {
+        filter_proves(
+            filter,
+            &|term| term["kind"] == "Subtype" && term["args"] == "Saga",
+            0,
+            &mut 256,
+        )
+    };
+    let caster = |term: &Value| term["kind"] == "Cast" && is_controller(&term["args"]["by"]);
+    args["changes"].as_array().is_some_and(|changes| {
+        changes.iter().take(16).any(|change| {
+            if change["kind"] == "GrantAbility" {
+                return objects["kind"] == "Zone"
+                    && objects["args"]["scope"]["Shared"] == "Stack"
+                    && objects["args"]["kind"] == "Spell"
+                    && saga(filter)
+                    && filter_proves(filter, &caster, 0, &mut 256)
+                    && change["args"]["kind"] == "Mechanic"
+                    && change["args"]["args"]["mechanic"] == "Replicate";
+            }
+            is_controller(&args["affected"]["Players"])
+                && saga(&change["args"]["SpellsHaveAbilities"]["spells"])
+                && replicate_grant(change)
+        })
     })
 }
 

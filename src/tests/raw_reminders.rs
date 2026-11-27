@@ -157,6 +157,48 @@ fn grouped_label_retains_its_literal_spelling() {
 }
 
 #[test]
+fn flavor_heading_keeps_its_name_literal_and_trigger_keeps_its_source() {
+    use crate::tokens::Token;
+
+    let name = "Magnus the Red";
+    let text = "Blade of Magnus — Whenever Magnus the Red deals combat damage to a player, create a 3/3 red Spawn creature token.";
+    let mut context = empty_card_characteristics();
+    context.card_types = vec![CardType::Creature];
+    context.supertypes = vec![SuperType::Legendary];
+    let engine = super::engine();
+    let types = [String::from("Legendary"), String::from("Creature")];
+    let tokens = engine.tokens_of_types(name, &types, text).unwrap();
+    assert_eq!(tokens[2], Token::Word(String::from("Magnus")));
+    assert!(matches!(tokens[5], Token::SelfName(_)));
+
+    let parsed = engine.parse_card(name, text, &context).unwrap();
+    assert_eq!(parsed.readings.len(), 1);
+    let reading = &parsed.readings[0];
+    let key = engine
+        .card_key_of(name, reading, &context, text, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine
+            .print_card_trail(name, reading, &context, &key)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+    let printed = engine
+        .print_card_keyed(name, reading, &context, &[])
+        .unwrap()
+        .unwrap();
+    assert!(
+        engine
+            .parse_card(name, &printed, &context)
+            .unwrap()
+            .readings
+            .contains(reading)
+    );
+}
+
+#[test]
 fn written_x_in_a_reminder_follows_the_action_amount() {
     let context = empty_card_characteristics();
     let note = "Target land you control becomes a 0/0 creature with haste that's still a land. Put X +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.";

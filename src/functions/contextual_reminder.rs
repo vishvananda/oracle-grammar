@@ -187,6 +187,18 @@ fn marker(value: &Value) -> Option<&'static str> {
         Some("Modified") if value.as_object()?.len() == 1 => Some("Modified"),
         Some("AnyOf") if historic_filter(args) => Some("Historic"),
         Some("AnyOf") if outlaws(args) => Some("Outlaw"),
+        Some("IsPrime") if args.is_object() => Some("PrimeNumbers"),
+        Some("AnyOf")
+            if let Some(types) = args.as_array()
+                && types.len() == 4
+                && ["Cleric", "Rogue", "Warrior", "Wizard"].iter().all(|ty| {
+                    types
+                        .iter()
+                        .any(|term| term["kind"] == "Subtype" && term["args"] == *ty)
+                }) =>
+        {
+            Some("PartyCardOrSpell")
+        }
         Some("Indestructible") => Some("Indestructible"),
         Some("Menace") => Some("Menace"),
         Some("Shroud") => Some("Shroud"),
@@ -694,6 +706,9 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "TargetPlayerGroupPhasesOut"
                     | "AuraSpellCopyRule"
                     | "CopyTriggeredAbility"
+                    | "SagaReadAhead"
+                    | "SagaReplicate"
+                    | "HexproofAndIndestructible"
                     | "CardTypes"
             )
         )
@@ -785,6 +800,7 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
                 | "TokenProwess"
                 | "GroupTokenProwess"
                 | "TargetPlayerGroupPhasesOut"
+                | "HexproofAndIndestructible"
         )
     );
     let mut deferred =
