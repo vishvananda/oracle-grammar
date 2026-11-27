@@ -1,4 +1,5 @@
 //! A single-object Suspect and Suspect over a singleton set are one action.
+use crate::ir::Operand;
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
@@ -56,6 +57,31 @@ pub(super) fn suspect(value: &mut Value, optional: Option<&HashSet<u64>>) {
     *value = json!({"kind":"KeywordEach","args":{
         "actor":actor,"action":"Suspect","objects":objects(object, optional)
     }});
+}
+
+/// Each villainous option is one program, including the legacy single-item list.
+pub(super) fn villainous_options(value: &mut Value, tracing: bool) {
+    let args = &mut value["args"];
+    if args["villainous"] != true {
+        return;
+    }
+    let Some(options) = args["options"]
+        .as_array_mut()
+        .filter(|options| options.len() == 2)
+    else {
+        return;
+    };
+    for option in options {
+        if option["kind"] != "List" {
+            continue;
+        }
+        let Some(Operand::List(children)) = super::walk::lossless(option, tracing) else {
+            continue;
+        };
+        if matches!(children.as_slice(), [Operand::Program(_)]) {
+            *option = option["args"][0].take();
+        }
+    }
 }
 
 /// A lone conditional static granting Flash to its own source spells exactly

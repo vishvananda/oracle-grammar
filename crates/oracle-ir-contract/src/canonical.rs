@@ -652,6 +652,9 @@ impl Walker {
                     value,
                     self.scopes.last().map(|scope| &scope.optional_targets),
                 ),
+                ("Operation", "ChooseAction") => {
+                    keywords::villainous_options(value, self.tracing);
+                }
                 ("Operation", "Move") if !self.keep_order => {
                     if let Some(scope) = self.scopes.last() {
                         sets::exile_union(value, &scope.single_battlefield_targets, self.tracing);

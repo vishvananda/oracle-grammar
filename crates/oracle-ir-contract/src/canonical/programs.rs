@@ -8,7 +8,7 @@ struct Needed {
     source_components: Vec<usize>,
     snapshots: bool,
     player_loops: bool,
-    hand_reveal: bool,
+    hand_observation: bool,
     hand_choice: bool,
     native_payment: bool,
     pump_untap: bool,
@@ -41,8 +41,8 @@ impl Visit for Normalize {
                 && value["kind"] == "BindValue";
             needed.player_loops |= matches!(ty, Ty::Named(name) if name == "Instruction")
                 && value["kind"] == "ForEachPlayer";
-            needed.hand_reveal |=
-                matches!(ty, Ty::Named(name) if name == "Operation") && value["kind"] == "Reveal";
+            needed.hand_observation |= matches!(ty, Ty::Named(name) if name == "Operation")
+                && matches!(value["kind"].as_str(), Some("Reveal" | "LookAt"));
             needed.hand_choice |= matches!(ty, Ty::Named(name) if name == "Operation")
                 && value["kind"] == "ChooseObjects";
             needed.optional_receipt |= !self.keep_order
@@ -95,7 +95,7 @@ impl Visit for Normalize {
         let Some(needed) = self.owners.pop() else {
             return Ok(());
         };
-        let hands = needed.hand_reveal && needed.hand_choice;
+        let hands = needed.hand_observation && needed.hand_choice;
         if !needed.snapshots
             && !needed.player_loops
             && !hands

@@ -775,15 +775,10 @@ instructions_may_discard_receipt_value ::= "you" "may" discard_receipt_value_seq
 /* @sem Instruction::[Effect{result:@mark, operation:Discard{players:One(AbilityController), amount:Constant(1)}}, Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Mill{players:One($target_player), amount:ObjectProperty{object:Query{objects:Transition{result:@marked, phase:Before}, index:0}, property:$stat, information:CurrentOrLastKnown}}}]}})}] */
 discard_receipt_value_sequence ::= "discard" "a" "card" "." "when" "you" "discard" "a" "card" ("this" "way")? "," target_player "mills" "cards" "equal" "to" "its" stat
 
-clause_villainous_each ::= clause_villainous_each_grouped | clause_villainous_each_program | clause_villainous_qualified_program
+clause_villainous_each ::= clause_villainous_each_program | clause_villainous_qualified_program
 
 /* Each opponent chooses, while each option retains its own written performer.
    Local bound-player words cannot escape this loop or replace explicit you. */
-/* @sem Instruction::[ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseAction{actor:One(Bound(0)), options:[List([Program($villainous_option)]), List([Program($villainous_option_2)])], villainous:true}}]}}] */
-clause_villainous_each_grouped ::= "each" "opponent" "faces" "a" "villainous" "choice" "—" villainous_option "," "or" villainous_option
-
-/* Both native operand containers carry the same single program. Keep each
-   typed form available; neither erases the villainous marker or its chooser. */
 /* @sem Instruction::[ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseAction{actor:One(Bound(0)), options:[Program($villainous_option), Program($villainous_option_2)], villainous:true}}]}}] */
 clause_villainous_each_program ::= "each" "opponent" "faces" "a" "villainous" "choice" "—" villainous_option "," "or" villainous_option
 
@@ -5561,7 +5556,7 @@ choose_player_most_life ::= "choose" "a" "player" "with" "the" "most" "life" "or
 instructions_any_opponent_may_pay ::= "any" "opponent" "may" willing_sacrifice_cost "." "if" "they" "do" "," program
 
 /* The loop binds the selected creature for both independently authored choices. */
-/* @sem Instruction::[ForEachObject{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo($number), filter:AllOf([CardType(Creature), ControlledBy(OthersThan(AbilityController))])})), binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseAction{actor:One(ControllerOf(Bound(0))), options:[List([Program($bound_creature_villainous_option)]), List([Program($bound_creature_villainous_option_2)])], villainous:true}}]}}] */
+/* @sem Instruction::[ForEachObject{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo($number), filter:AllOf([CardType(Creature), ControlledBy(OthersThan(AbilityController))])})), binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseAction{actor:One(ControllerOf(Bound(0))), options:[Program($bound_creature_villainous_option), Program($bound_creature_villainous_option_2)], villainous:true}}]}}] */
 clause_target_creatures_villainous ::= "choose" "up" "to" number "target" "creatures" "you" "don't" "control" "." "for" "each" "of" "them" "," "that" "creature's" "controller" "faces" "a" "villainous" "choice" "—" bound_creature_villainous_option "," "or" bound_creature_villainous_option
 
 bound_creature_villainous_option ::= bound_creature_rewrite | bound_creature_copy_token
@@ -10675,7 +10670,7 @@ exile_per_opponent_targets ::= "for" "each" "opponent" "," "exile" each_opponent
 
 /* The defending player's choice keeps the sacrifice and gained-control actions
    in separate options. The continuation belongs to that control option. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseAction{actor:One(DefendingPlayerOf(Source)), options:[List([Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(DefendingPlayerOf(Source)), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:AsManyAsCan(Constant(1))}}]}]), List([Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(DefendingPlayerOf(Source)))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Selected(@prior)), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot}}]}, Program{instructions:[Effect{result:@next, operation:SetTapped{objects:One(Earlier{what:GainedControl}), tapped:true}}]}, Program{instructions:[Effect{result:@next, operation:ChangeCombat{change:AssignAttack{objects:One(Earlier{what:GainedControl}), to:Term{family:AttackAssignment, form:Player, operands:[Player(DefendingPlayerOf(Source))]}}}}]}])], villainous:true}}] */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseAction{actor:One(DefendingPlayerOf(Source)), options:[Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(DefendingPlayerOf(Source)), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:AsManyAsCan(Constant(1))}}]}, List([Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(DefendingPlayerOf(Source)))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Selected(@prior)), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot}}]}, Program{instructions:[Effect{result:@next, operation:SetTapped{objects:One(Earlier{what:GainedControl}), tapped:true}}]}, Program{instructions:[Effect{result:@next, operation:ChangeCombat{change:AssignAttack{objects:One(Earlier{what:GainedControl}), to:Term{family:AttackAssignment, form:Player, operands:[Player(DefendingPlayerOf(Source))]}}}}]}])], villainous:true}}] */
 choice_defender_sacrifice_or_control_attack ::= "defending" "player" "faces" "a" "villainous" "choice" "—" "that" "player" "sacrifices" "a" filter_phrase "of" "their" "choice" "," "or" "you" "gain" "control" "of" "a" "creature" "of" "your" "choice" "that" "player" "controls" duration "." "if" "you" "gain" "control" "of" "a" "creature" "this" "way" "," "tap" "it" "," "and" "it's" "attacking" "that" "player"
 
 /* @sem Operand::Players(OpponentsOf(AbilityController)) */
@@ -12793,7 +12788,7 @@ instructions_conjure_intensity_followup ::= conjure_named_intensity_battlefield 
 /* @sem Ability::Triggered{event:$event_combat_damage_player, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[$event_player_villainous_choice]}} */
 triggered_event_player_villainous ::= "whenever" event_combat_damage_player "," event_player_villainous_choice "."
 
-/* @sem Instruction::Effect{result:@next, operation:ChooseAction{actor:One(EventSubject), options:[List([Program($event_player_villainous_sacrifice)]), List([Program($event_player_villainous_loss), Program($controller_villainous_draw)])], villainous:true}} */
+/* @sem Instruction::Effect{result:@next, operation:ChooseAction{actor:One(EventSubject), options:[Program($event_player_villainous_sacrifice), List([Program($event_player_villainous_loss), Program($controller_villainous_draw)])], villainous:true}} */
 event_player_villainous_choice ::= "that" "player" "faces" "a" "villainous" "choice" "—" event_player_villainous_sacrifice "," "or" event_player_villainous_loss "and" controller_villainous_draw
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(EventSubject), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:AsManyAsCan(Constant(1))}}]} */
@@ -18377,7 +18372,7 @@ return_battlefield_before_arrival ::= "return" "to" "the" "battlefield" chosen_a
 return_lesser_event_card ::= "return" target_lesser_event_graveyard_card "to" "the" "battlefield"
 
 /* A targeted chooser selects between lists of independently performed actions. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseAction{actor:One($target_opponent), options:[List([Program{instructions:[Effect{result:@next, operation:$villainous_destroy_all}]}, Program{instructions:[Effect{result:@next, operation:$villainous_opponents_loss}]}]), List([Program{instructions:[Effect{result:@next, operation:$villainous_destroy_all_2}]}])], villainous:true}}] */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseAction{actor:One($target_opponent), options:[List([Program{instructions:[Effect{result:@next, operation:$villainous_destroy_all}]}, Program{instructions:[Effect{result:@next, operation:$villainous_opponents_loss}]}]), Program{instructions:[Effect{result:@next, operation:$villainous_destroy_all_2}]}], villainous:true}}] */
 clause_villainous_target_grouped ::= target_opponent "faces" "a" "villainous" "choice" "—" villainous_destroy_all "and" villainous_opponents_loss "," "or" villainous_destroy_all
 
 /* @sem Operation::LoseLife{players:OpponentsOf(AbilityController), amount:$value} */
@@ -19148,7 +19143,7 @@ owner_choice_lose_life ::= "they" "lose" number "life"
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:OwnerOf(Target{slot:0, index:0}), objects:Zone(_{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, OwnedBy(One(OwnerOf(Target{slot:0, index:0}))), Not(SameObject(Target{slot:0, index:0}))])}), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]} */
 owner_choice_shuffle_another ::= "they" "shuffle" "another" noun "they" "own" "into" "their" "library"
 
-/* @sem Instruction::Effect{result:@next, operation:ChooseAction{actor:One(OwnerOf(Target{slot:0, index:0})), options:[List([Program($owner_choice_lose_life)]), List([Program($owner_choice_shuffle_another)])], villainous:true}} */
+/* @sem Instruction::Effect{result:@next, operation:ChooseAction{actor:One(OwnerOf(Target{slot:0, index:0})), options:[Program($owner_choice_lose_life), Program($owner_choice_shuffle_another)], villainous:true}} */
 owner_villainous_shuffle_choice ::= "then" "faces" "a" "villainous" "choice" "—" owner_choice_lose_life "," "or" owner_choice_shuffle_another
 
 /* @sem Ability::Spell{body:Program{instructions:[Effect{result:@next, operation:$owner_shuffles_target_into_library}, $owner_villainous_shuffle_choice]}, announcement:@announcement} */
@@ -19515,7 +19510,7 @@ exile_stack_population ::= receipt_counter_spells | stack_all_spells
 shared_exile_graveyards_token_maximum ::= "exile" exile_cast_return_population "," "then" "create" "X" token_recipe_plain "," "where" "X" "is" "the" "greatest" stat "among" filter_phrase "cards" "exiled" "this" "way"
 
 /* Each choice retains the independently expressed actor in its program. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseAction{actor:One($target_opponent), options:[List([Program{instructions:@apply(PlayerSet::One(Target{slot:@last_slot, index:0}), $verbs_base)}]), List([Program($program)])], villainous:true}}] */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseAction{actor:One($target_opponent), options:[Program{instructions:@apply(PlayerSet::One(Target{slot:@last_slot, index:0}), $verbs_base)}, Program($program)], villainous:true}}] */
 clause_villainous_target_they ::= target_opponent "faces" "a" "villainous" "choice" "—" "they" verbs_base "," "or" program
 
 /* The selected controlled subtype is tapped, and the draw counts that exact tap receipt. */
@@ -22998,7 +22993,7 @@ shared_trigger_cast_permission_and_grant ::= event_clause "," shared_timed_cast_
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:One(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0})}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$chosen_opponent_villainous_copy}, otherwise:Program{}}]} */
 paid_event_card_villainous_copy ::= "you" "may" "exile" "it" "." "if" "you" "do" "," chosen_opponent_villainous_copy "."
 
-/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[Players(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:PlayerNumber{player:Bound(0), number:Life}, test:NumberTest::Compare{comparison:Equal, value:AmongPlayers{players:OpponentsOf(AbilityController), number:Life, aggregation:Maximum}}}}]))]}}}, Effect{result:@next, operation:ChooseAction{actor:One(Chosen), options:[List([Program{instructions:[Effect{result:@next, operation:LoseLife{players:One(Chosen), amount:$number}}]}]), List([Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}])], villainous:true}}] */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[Players(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:PlayerNumber{player:Bound(0), number:Life}, test:NumberTest::Compare{comparison:Equal, value:AmongPlayers{players:OpponentsOf(AbilityController), number:Life, aggregation:Maximum}}}}]))]}}}, Effect{result:@next, operation:ChooseAction{actor:One(Chosen), options:[Program{instructions:[Effect{result:@next, operation:LoseLife{players:One(Chosen), amount:$number}}]}, Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}], villainous:true}}] */
 chosen_opponent_villainous_copy ::= "choose" "an" "opponent" "with" "the" "most" "life" "among" "your" "opponents" "." "that" "player" "faces" "a" "villainous" "choice" "—" "they" "lose" number "life" "," "or" "you" "create" "a" "token" "that's" "a" "copy" "of" "that" "card"
 
 /* @sem Ability::Triggered{event:$event_dies, limits:TriggerLimits{}, announcement:@announcement, body:$paid_event_card_villainous_copy} */

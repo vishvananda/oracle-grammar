@@ -7458,9 +7458,9 @@ search_paid_name_exile_conjure ::= "search" "your" "hand" "and" "library" "for" 
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$cost_exile_hand]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$search_paid_name_exile_conjure}, otherwise:Program{}}] */
 optional_hand_exile_named_conjure ::= "you" "may" cost_exile_hand "." "if" "you" "do" "," search_paid_name_exile_conjure
 
-/* The destruction and its named controller are one producer-consumer phrase.
-   The repeated noun is fixed by the target phrase, not inferred from a prior action. */
-/* @sem Instruction::[Effect{result:@mark, operation:Destroy{objects:One($destroy_receipt_named_target), regeneration:true}}, Optional{decider:ControllerOf(Result{result:@marked, phase:Before, index:0}), body:Program{instructions:[Effect{result:@next, operation:Search{searcher:ControllerOf(Result{result:@marked, phase:Before, index:0}), library_owner:ControllerOf(Result{result:@marked, phase:Before, index:0}), choices:[$search_choice_filtered]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(ControllerOf(Result{result:@marked, phase:Before, index:0})), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(ControllerOf(Result{result:@marked, phase:Before, index:0}))}}]}}] */
+/* The repeated noun and controller refer to the target even if destruction
+   is prevented. The controller can still search. */
+/* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:One($destroy_receipt_named_target), regeneration:true}}, Optional{decider:ControllerOf($destroy_receipt_named_target), body:Program{instructions:[Effect{result:@next, operation:Search{searcher:ControllerOf($destroy_receipt_named_target), library_owner:ControllerOf($destroy_receipt_named_target), choices:[$search_choice_filtered]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(ControllerOf($destroy_receipt_named_target)), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(ControllerOf($destroy_receipt_named_target))}}]}}] */
 clause_destroy_receipt_controller_search ::= destroy_receipt_named_target "controller" "may" "search" "their" "library" "for" search_choice_filtered "," "put" "it" search_option_entry "," "then" "shuffle"
 
 destroy_receipt_named_target ::= destroy_receipt_land_target | destroy_receipt_creature_target
@@ -9668,14 +9668,14 @@ search_distinct_reveal_hand ::= "search" "your" "library" "for" search_choice_wi
 /* @sem Instruction::[Effect{result:@next, operation:$found_plural_reveal}, Effect{result:@next, operation:$found_plural_hand}, ...$search_shuffle] */
 search_selected_reveal_hand ::= "," found_plural_reveal "," found_plural_hand search_shuffle
 
-/* The name search follows the actual exile arrival, while its owner is the
-   controller of the announced target. The two noun occurrences must agree. */
-/* @sem Instruction::[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@agree($exile_name_target, $exile_name_target_2)}), index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:$exile_name_controller_zones, choices:[_{filter:SharesNameWith(Result{result:@prior, phase:After, index:0}), count:$name_search_count}], also:[Graveyard, Hand]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($exile_name_controller_zones)}}] */
+/* The name and controller come from the announced target's original object.
+   Use its last-known information if it left the battlefield. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@agree($exile_name_target, $exile_name_target_2)}), index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:$exile_name_controller_zones, choices:[_{filter:SharesNameWith(Target{slot:@last_slot, index:0}), count:$name_search_count}], also:[Graveyard, Hand]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($exile_name_controller_zones)}}] */
 exile_target_controller_name_search ::= "exile" "target" exile_name_target "." exile_name_controller_zones name_search_count "cards" "with" "the" "same" "name" "as" "that" exile_name_target exile_name_search_finish
 
 exile_name_target ::= noun_artifact | noun_creature | noun_land
 
-/* @sem PlayerRef::ControllerOf(Target{slot:0, index:0}) */
+/* @sem PlayerRef::ControllerOf(Target{slot:@last_slot, index:0}) */
 exile_name_controller_zones ::= "search" "its" "controller's" "graveyard" "," "hand" "," "and" "library" "for"
 
 /* @sem () */

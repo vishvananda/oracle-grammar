@@ -22,7 +22,10 @@ pub(super) fn surface(root: &Value) -> Option<Value> {
 fn choice(first: &Value, next: &mut Value) -> bool {
     if first["kind"] != "Effect"
         || next["kind"] != "Effect"
-        || first["args"]["operation"]["kind"] != "Reveal"
+        || !matches!(
+            first["args"]["operation"]["kind"].as_str(),
+            Some("Reveal" | "LookAt")
+        )
         || next["args"]["operation"]["kind"] != "ChooseObjects"
     {
         return false;

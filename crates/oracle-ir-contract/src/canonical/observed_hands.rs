@@ -1,4 +1,4 @@
-//! An immediate choice from a wholly revealed hand names that observation.
+//! An immediate choice from a whole observed hand names that observation.
 use super::walk::{Uses, lossless};
 use crate::ir::{
     EventZone, Instruction, ObjectFilter, ObjectKind, ObjectSet, Operation, PlayerSet, ZoneScope,
@@ -23,37 +23,54 @@ fn hand(objects: &ObjectSet) -> Option<&PlayerSet> {
 fn candidate(first: &Value, next: &Value, uses: &Uses, tracing: bool) -> bool {
     if first["kind"] != "Effect"
         || next["kind"] != "Effect"
-        || first["args"]["operation"]["kind"] != "Reveal"
+        || !matches!(
+            first["args"]["operation"]["kind"].as_str(),
+            Some("Reveal" | "LookAt")
+        )
         || next["args"]["operation"]["kind"] != "ChooseObjects"
     {
         return false;
     }
-    let Some(Instruction::Effect {
-        result,
-        operation: Operation::Reveal { objects },
-    }) = lossless(first, tracing)
-    else {
+    let Some(Instruction::Effect { result, operation }) = lossless(first, tracing) else {
         return false;
+    };
+    let (objects, viewer) = match &operation {
+        Operation::Reveal { objects } => (objects, None),
+        Operation::LookAt { objects, player } => (objects, Some(player)),
+        _ => return false,
     };
     let ObjectSet::Zone {
         filter: ObjectFilter::Any,
         ..
-    } = &objects
+    } = objects
     else {
         return false;
     };
-    let Some(owner) = hand(&objects) else {
+    let Some(owner) = hand(objects) else {
         return false;
     };
     let Some(Instruction::Effect {
-        operation: Operation::ChooseObjects {
-            objects: selected, ..
-        },
+        operation:
+            Operation::ChooseObjects {
+                player,
+                objects: selected,
+                ..
+            },
         ..
     }) = lossless(next, tracing)
     else {
         return false;
     };
+    if let Some(viewer) = viewer {
+        let (Ok(viewer), Ok(player)) =
+            (serde_json::to_value(viewer), serde_json::to_value(&player))
+        else {
+            return false;
+        };
+        if viewer != player {
+            return false;
+        }
+    }
     let Some(selected_owner) = hand(&selected) else {
         return false;
     };

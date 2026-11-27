@@ -262,6 +262,15 @@ different are marked *(different)*. No group is open at this reference.
 
 ## Updated locally
 
+- `U0199` preserves Demolition Field’s controller search when the targeted land
+  survives. The reference reads the controller of the targeted land, including
+  last-known information after a successful destruction.
+- `U0200` uses the original battlefield name for Splinter’s target artifact. A
+  card that was a copy may have a different name in exile.
+- `U0201` retains one written trigger with a shared body on Ambuscade Shaman and
+  Ardoz, Cobbler of War. Both entry events retain the entering creature as
+  their subject.
+
 - `U0198` preserves the actual exile receipt and the written return controller
   for five optional exile-and-return abilities.
 
