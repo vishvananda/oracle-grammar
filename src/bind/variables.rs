@@ -21,6 +21,61 @@ pub(super) fn entry(mut ability: &Value) -> bool {
     event["ZoneChange"]["to"] == "Battlefield" && holder::self_event(event, 0)
 }
 
+/// A standalone choice to pay X in an entry trigger can inherit a cast
+/// amount only when the source supplies one (CR 107.3f, 107.3m). Keep the
+/// external-characteristics case and printed casting alternatives available.
+pub(crate) fn validate_source_payments(
+    abilities: &Value,
+    mana: Option<&[crate::model::ir::ManaSymbol]>,
+) -> Result<(), String> {
+    if mana.is_none_or(|cost| {
+        cost.iter()
+            .any(|symbol| matches!(symbol, crate::model::ir::ManaSymbol::X))
+    }) {
+        return Ok(());
+    }
+    let Some(abilities) = abilities.as_array() else {
+        return Ok(());
+    };
+    let core = abilities.iter().map(super::presentation::core);
+    if core.clone().any(|ability| {
+        matches!(
+            ability_kind(ability),
+            Some("Casting" | "CostBranch" | "CostOptions" | "Spree" | "Prototype" | "Conditional")
+        ) || ability["kind"] == "Mechanic" && payments::declared(&ability["args"]["cost"])
+    }) {
+        return Ok(());
+    }
+    if core.filter(|ability| entry(ability)).any(inherited_choice) {
+        return Err("the source has no announced cast X for this optional payment".into());
+    }
+    Ok(())
+}
+
+fn inherited_choice(ability: &Value) -> bool {
+    let instructions = &ability["args"]["body"]["instructions"];
+    instructions.as_array().is_some_and(|items| {
+        items.windows(2).any(|pair| {
+            let effect = &pair[0]["args"];
+            let operation = &effect["operation"];
+            pair[0]["kind"] == "Effect"
+                && operation["kind"] == "PayCost"
+                && operation["args"]["optional"] == true
+                && pair[1]["kind"] == "If"
+                && pair[1]["args"]["condition"]["kind"] == "PaymentChosen"
+                && pair[1]["args"]["condition"]["args"] == effect["result"]
+                && operation["args"]["cost"]["parts"]
+                    .as_array()
+                    .is_some_and(|parts| {
+                        parts.iter().any(|part| {
+                            let x = &part["ManaWithX"]["x"];
+                            x["kind"] == "CastX" && x["args"]["kind"] == "Source"
+                        })
+                    })
+        })
+    })
+}
+
 /// Published event binding semantics prove that every matched event exposes
 /// the X chosen for its cycling activation. Unknown/mixed events do not prove it.
 pub(super) fn activation(ability: &Value) -> bool {
@@ -40,7 +95,53 @@ pub(super) fn activation(ability: &Value) -> bool {
 }
 
 pub(super) fn bind(ability: &mut Value) -> Result<(), String> {
+    cast_spell_counter_amount(ability);
     transform(ability, false)
+}
+
+// CR 107.3e: the only X in this one counter instruction is the one
+// defined by the triggering spell's explicitly matched mana cost.
+fn cast_spell_counter_amount(ability: &mut Value) {
+    if ability["kind"] != "Triggered" {
+        return;
+    }
+    let args = &mut ability["args"];
+    let event = &args["event"]["NthEachTurn"]["event"]["Spell"];
+    if event["event"] != "Cast"
+        || event["spells"]["kind"] != "State"
+        || event["spells"]["args"] != "HasX"
+    {
+        return;
+    }
+    let Some([effect]) = args["body"]["instructions"]
+        .as_array_mut()
+        .map(Vec::as_mut_slice)
+    else {
+        return;
+    };
+    if effect["kind"] != "Effect" {
+        return;
+    }
+    let operation = &mut effect["args"]["operation"];
+    if operation["kind"] != "PutCounters" {
+        return;
+    }
+    let Some([placement]) = operation["args"]["placements"]
+        .as_array_mut()
+        .map(Vec::as_mut_slice)
+    else {
+        return;
+    };
+    let recipients = &placement["recipients"];
+    if recipients["kind"] == "Objects"
+        && recipients["args"]["kind"] == "One"
+        && recipients["args"]["args"]["kind"] == "Source"
+        && crate::functions::is_x(&placement["amount"])
+    {
+        placement["amount"] = json!({"kind":"ObjectProperty","args":{
+            "object":{"kind":"EventSubject"}, "property":"SpellX", "information":"CurrentOrLastKnown"
+        }});
+    }
 }
 
 pub(super) fn surface(ability: &mut Value) -> Result<(), String> {

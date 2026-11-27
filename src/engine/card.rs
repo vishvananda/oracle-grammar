@@ -187,6 +187,25 @@ impl CardReading {
     }
 }
 
+fn bind_source_abilities(
+    value: &mut Value,
+    name: &str,
+    context: &Characteristics,
+    source: Option<&CardInputContext>,
+    permanent_source: bool,
+) -> Result<Vec<CardNote>, Refusal> {
+    let notes = station::materialize(value, source).map_err(Refusal::Binding)?;
+    value["abilities"] = bind_card_with_source(&value["abilities"], name, permanent_source)
+        .map_err(Refusal::Binding)?;
+    crate::bind::validate_source_payments(&value["abilities"], context.mana_cost.as_deref())
+        .map_err(Refusal::Binding)?;
+    if notes.is_empty() {
+        return Ok(notes);
+    }
+    let mut bound = json!({"abilities":value["abilities"]});
+    station::materialize(&mut bound, source).map_err(Refusal::Binding)
+}
+
 fn subtype_reminder_types(
     context: &Characteristics,
     note: &CardNote,
@@ -348,15 +367,8 @@ impl Engine {
         permanent_source: bool,
     ) -> Result<Vec<CardReading>, Refusal> {
         let mut value = value.clone();
-        let station_notes = station::materialize(&mut value, source).map_err(Refusal::Binding)?;
-        value["abilities"] = bind_card_with_source(&value["abilities"], name, permanent_source)
-            .map_err(Refusal::Binding)?;
-        let station_notes = if station_notes.is_empty() {
-            station_notes
-        } else {
-            let mut bound = json!({"abilities":value["abilities"]});
-            station::materialize(&mut bound, source).map_err(Refusal::Binding)?
-        };
+        let station_notes =
+            bind_source_abilities(&mut value, name, context, source, permanent_source)?;
         let surface: CardSurface = serde_json::from_value(value)
             .map_err(|why| Refusal::Binding(format!("typed card surface: {why}")))?;
         if let Some(source) = source {

@@ -87,7 +87,69 @@ pub fn event_independent(value: &Value) -> Result<bool, String> {
     Ok(true)
 }
 
+fn source_exclusion(filter: &Value, source: &Value) -> bool {
+    let exclusion = |value: &Value| value["kind"] == "Not" && value["args"] == *source;
+    exclusion(filter)
+        || (filter["kind"] == "AllOf"
+            && filter["args"]
+                .as_array()
+                .is_some_and(|items| items.iter().any(exclusion)))
+}
+
+fn disjoint_source_union(left: &Value, right: &Value) -> Option<Value> {
+    let is_source =
+        |value: &Value| value["kind"] == "SameObject" && value["args"]["kind"] == "Source";
+    if (is_source(left) && source_exclusion(right, left))
+        || (is_source(right) && source_exclusion(left, right))
+    {
+        return Some(json!({"kind":"AnyOf", "args":[left,right]}));
+    }
+    None
+}
+
+fn disjoint_event_union(value: &Value) -> Option<Value> {
+    let events = value["args"]["event"]["AnyOf"].as_array()?.as_slice();
+    if let [left, right] = events
+        && once_per_turn(value)
+    {
+        let (first, second) = (&left["ZoneChange"], &right["ZoneChange"]);
+        if first["from"] == "Battlefield"
+            && second["from"] == "Battlefield"
+            && first["to"] == "Graveyard"
+            && second["to"] == "Graveyard"
+        {
+            let objects = disjoint_source_union(&first["objects"], &second["objects"])?;
+            return Some(json!({"ZoneChange":{
+                "objects":objects,"from":"Battlefield","to":"Graveyard"
+            }}));
+        }
+    }
+    let [a, b, c] = events else {
+        return None;
+    };
+    // Only the two mutually exclusive face-up alternatives are combined.
+    // The independently matched entry event keeps its own subject and scope.
+    for (entrant, left, right) in [(a, b, c), (b, a, c), (c, a, b)] {
+        let (first, second) = (&left["Object"], &right["Object"]);
+        if entrant["Player"]["event"] == "EntersUnderControl"
+            && first["event"] == "TurnsFaceUp"
+            && second["event"] == "TurnsFaceUp"
+        {
+            let objects = disjoint_source_union(&first["objects"], &second["objects"])?;
+            let faceup = json!({"Object":{"event":"TurnsFaceUp","objects":objects}});
+            return Some(json!({"AnyOf":[entrant, faceup]}));
+        }
+    }
+    None
+}
+
 pub(super) fn capped_occurrence(value: &mut Value) {
+    if let Some(event) = disjoint_event_union(value)
+        && matches!(event_independent(value), Ok(true))
+    {
+        value["args"]["event"] = event;
+        return;
+    }
     let event = &value["args"]["event"];
     let batch = &event["Batch"];
     if once_per_turn(value)

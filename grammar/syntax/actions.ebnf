@@ -11179,11 +11179,6 @@ clause_each_hand_exile_play_tax ::= players_singular bound_exile_hand_selection 
 /* @prefer always */
 put_counters_controlled_permanent_types ::= "put" number counter_kind "counters" "on" "each" "permanent" "you" "control" "that's" "a" "creature" "or" subtype
 
-/* A mixed-domain target has one independently scoped mode for each domain.
-   The continuation is shared and remains inside each mode's program. */
-/* @sem Ability::Spell{announcement:_{modes:_{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:[@scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:Any}), index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, ...$instructions]}, weight:1}), @scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:Any}), index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, ...$instructions]}, weight:1})], rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Implied}}, body:_{}} */
-spell_or_permanent_return_continuation ::= "return" "target" "spell" "or" "permanent" "to" "its" "owner's" "hand" "." instructions "."
-
 /* The announced card is both the shared-type comparison and the returned target. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($chosen_shared_sacrifice_offer, ObjectFilter::Shares{property:CardTypes, with:$return_target_card_in_your_graveyard})}, choose:Exactly(Constant(1))}]}, optional:true}}, If{condition:PaymentChosen(@last_result), then:$chosen_card_return_grant_program, otherwise:Program{}}]} */
 chosen_card_shared_sacrifice_program ::= "choose" return_target_card_in_your_graveyard "." "you" "may" "sacrifice" chosen_shared_sacrifice_offer "." "if" "you" "do" "," chosen_card_return_grant_program
@@ -11337,14 +11332,6 @@ active_opponent_puts_graveyard_card ::= target_active_opponent "puts" target_car
 /* All three later instructions refer to the arrival of this same move. */
 /* @sem Instruction::[Effect{result:@mark, operation:$active_opponent_puts_graveyard_card}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@marked, phase:After, index:0})), changes:[GrantKeyword($keyword_value)], duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Goad{object:Result{result:@marked, phase:After, index:0}}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:$delayed_move_end_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Result{result:@marked, phase:After, index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}]}}}] */
 instructions_opponent_entry_grant_goad ::= active_opponent_puts_graveyard_card "." "it" "gains" keyword_value "." "goad" "it" "." "at" delayed_move_end_event "," "exile" "it"
-
-/* The two domains retain separate announcements while sharing the movement,
-   controller restriction, permanent filter and owner-directed destination. */
-/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:[@scope(Mode::Mode{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:ControlledBy($mixed_target_controller)}), index:0}), destination:$put_exiled_singular_destination, qualifiers:[]}}]}, weight:1}), @scope(Mode::Mode{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$mixed_controlled_permanent, ControlledBy($mixed_target_controller)])}), index:0}), destination:$put_exiled_singular_destination, qualifiers:[]}}]}, weight:1})], rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Implied} */
-mixed_controlled_move_modes ::= "return" "target" "spell" "or" mixed_controlled_permanent mixed_target_controller "to" put_exiled_singular_destination
-
-/* @sem Ability::Spell{announcement:Announcement{modes:$mixed_controlled_move_modes}, body:Program{}} */
-spell_mixed_controlled_move ::= mixed_controlled_move_modes "."
 
 /* The repeated noun names the same target in both conditional copy branches. */
 /* @sem Instruction::[If{condition:$condition, then:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@agree($filter_phrase, $filter_phrase_2)}), index:0}, exceptions:$conditional_copy_exceptions}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@agree($filter_phrase, $filter_phrase_2)}), index:0}, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}] */
@@ -20103,7 +20090,7 @@ counter_controlled_land_target ::= "put" counter_amount counter_kind "counters" 
 counter_land_animation ::= "that" "land" "becomes" "a" counter_land_animation_changes
 
 /* The retained land wording carries no additional change to its land type. */
-/* @sem Change::[SetBasePowerToughness{power:$number, toughness:$number_2}, CreatureTypes{mode:Add, types:Listed($becomes_types)}, GrantKeyword($keyword_name)] */
+/* @sem Change::[SetBasePowerToughness{power:$number, toughness:$number_2}, CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature), GrantKeyword($keyword_name)] */
 counter_land_animation_changes ::= number "/" number becomes_types "creature" "with" keyword_name
 
 /* The permission is tied to the actual single face-up top-library exile. */
@@ -20645,9 +20632,9 @@ spell_random_partition_two ::= instructions_random_partition_two "."
 /* @sem Operation::ChangeCombat{change:Reselect{objects:$combat_attacker_defender, players_only:true}} */
 combat_player_reselection ::= "you" "may" "reselect" "which" "player" combat_attacker_defender
 
-/* The damage source and its measured characteristic are the same announced card. */
+/* The public exile result supplies both the damage source and its characteristic. */
 /* @prefer always */
-/* @sem Instruction::[Effect{result:@next, operation:Move{objects:One($target_card_a_graveyard), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:DealDamage{source:$target_card_a_graveyard, recipients:Objects($affected), amount:ObjectProperty{object:$target_card_a_graveyard, property:$receipt_stat, information:CurrentOrLastKnown}, preventable:true}}] */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One($target_card_a_graveyard), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:DealDamage{source:Result{result:@marked, phase:After, index:0}, recipients:Objects($affected), amount:ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:$receipt_stat, information:CurrentOrLastKnown}, preventable:true}}] */
 instructions_exile_target_card_its_stat_damage ::= "exile" target_card_a_graveyard "." "that" "card" "deals" "damage" "equal" "to" "its" receipt_stat "to" affected
 
 /* Each player performs the mana action independently. */

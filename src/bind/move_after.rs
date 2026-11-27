@@ -1,8 +1,8 @@
-//! Lexically marked current roles following one actual scalar graveyard return.
+//! Lexically marked current roles following one actual scalar graveyard move.
 use super::{Scope, Step, at_path, references::TargetIntroduction, symbol_name};
 use crate::model::ir::{
-    Count, EventZone, Expr, MovementDestination, ObjectKind, ObjectRef, ObjectSet, Operation,
-    ResultId, TargetKind,
+    Count, EventZone, ExileVisibility, Expr, MovementDestination, ObjectKind, ObjectRef, ObjectSet,
+    Operation, ResultId, TargetKind,
 };
 use serde_json::{Value, json};
 
@@ -27,7 +27,12 @@ fn unwrap(mut value: &Value) -> &Value {
     for _ in 0..16 {
         if matches!(
             symbol_name(value),
-            Some("remember_operand" | "member_count_it" | "in_filter")
+            Some(
+                "remember_operand"
+                    | "member_count_it"
+                    | "in_filter"
+                    | "activation_creature_property"
+            )
         ) {
             value = &value["args"][0];
         } else {
@@ -83,6 +88,10 @@ fn creature(filter: &Value) -> bool {
             }))
 }
 pub(super) fn eligible(operation: &Value) -> Result<bool, String> {
+    eligible_destination(operation, false)
+}
+
+fn eligible_destination(operation: &Value, face_up_exile: bool) -> Result<bool, String> {
     let Some(spec) = input_spec(operation) else {
         return Ok(false);
     };
@@ -96,12 +105,11 @@ pub(super) fn eligible(operation: &Value) -> Result<bool, String> {
     else {
         return Ok(false);
     };
+    let destination = &operation["args"]["destination"];
     Ok(domain.kind == ObjectKind::Card
         && domain.zones == [EventZone::Graveyard]
-        && creature(&spec["filter"])
-        && (operation["args"]["destination"]
-            .get("Battlefield")
-            .is_some()))
+        && (destination.get("Battlefield").is_some() && creature(&spec["filter"])
+            || face_up_exile && destination["Exile"]["visibility"] == "FaceUp"))
 }
 fn owner<'a>(root: &'a Value, path: &[Step]) -> Option<(&'a Value, usize)> {
     for depth in (0..path.len()).rev() {
@@ -112,6 +120,36 @@ fn owner<'a>(root: &'a Value, path: &[Step]) -> Option<(&'a Value, usize)> {
     }
     None
 }
+fn life_property(root: &Value, path: &[Step], property: &Value) -> bool {
+    if property["kind"] != "ObjectProperty"
+        || property["args"]["information"] != "CurrentOrLastKnown"
+    {
+        return false;
+    }
+    let mut prefix = &path[..path.len() - 2];
+    if let [outer @ .., Step::Key(wrapper), Step::Index(0)] = prefix
+        && wrapper == "args"
+        && at(root, outer).is_some_and(|value| symbol_name(value) == Some("its_stat"))
+    {
+        prefix = outer;
+    }
+    let [operation @ .., Step::Key(args), Step::Key(amount)] = prefix else {
+        return false;
+    };
+    if args != "args" || amount != "amount" {
+        return false;
+    }
+    at(root, operation).is_some_and(|value| {
+        matches!(
+            (
+                value["kind"].as_str(),
+                property["args"]["property"].as_str()
+            ),
+            (Some("LoseLife"), Some("ManaValue")) | (Some("GainLife"), Some("Power" | "Toughness"))
+        )
+    })
+}
+
 fn role(root: &Value, path: &[Step], name: &str) -> bool {
     if path.len() < 2 {
         return false;
@@ -126,14 +164,7 @@ fn role(root: &Value, path: &[Step], name: &str) -> bool {
         ACTOR => {
             parent["kind"] == "DealDamage" && matches!(field, Some(Step::Key(k)) if k == "source")
         }
-        PROPERTY => {
-            parent["kind"] == "ObjectProperty"
-                && parent["args"]["property"] == "ManaValue"
-                && parent["args"]["information"] == "CurrentOrLastKnown"
-                && path.len() >= 4
-                && matches!(&path[path.len()-3], Step::Key(k) if k == "amount")
-                && at(root, &path[..path.len() - 4]).is_some_and(|v| v["kind"] == "LoseLife")
-        }
+        PROPERTY => life_property(root, path, parent),
         OTHER => {
             let mut object_path = path.to_vec();
             if path.len() >= 2
@@ -212,10 +243,14 @@ pub(super) fn prepare(root: &mut Value) -> Result<(), String> {
     for path in found.into_iter().rev() {
         let node = at(root, &path).ok_or("move After preparation path")?;
         let name = symbol_name(node).ok_or("move After annotation")?;
-        let candidate = role(root, &path, name) && (name == OTHER || pronoun(&node["args"][0]));
+        let object = &node["args"][0];
+        let named_card = name == ACTOR && symbol_name(object) == Some("current_named_object");
+        let candidate = role(root, &path, name) && (name == OTHER || pronoun(object) || named_card);
         let keep = if candidate {
             match previous(root, &path) {
-                Some((values, index)) => eligible(&values[index - 1]["args"]["operation"])?,
+                Some((values, index)) => {
+                    eligible_destination(&values[index - 1]["args"]["operation"], named_card)?
+                }
                 None => false,
             }
         } else {
@@ -263,6 +298,7 @@ fn receipt(
     path: &[Step],
     keys: &[TargetIntroduction],
     base: usize,
+    face_up_exile: bool,
 ) -> Result<Option<Receipt>, String> {
     let Some((values, index)) = previous(root, path) else {
         return Ok(None);
@@ -271,7 +307,9 @@ fn receipt(
         return Err("move After instruction bound".into());
     }
     let instruction = &values[index - 1];
-    if instruction["kind"] != "Effect" || !eligible(&instruction["args"]["operation"])? {
+    if instruction["kind"] != "Effect"
+        || !eligible_destination(&instruction["args"]["operation"], face_up_exile)?
+    {
         return Ok(None);
     }
     let result: ResultId = serde_json::from_value(instruction["args"]["result"].clone())
@@ -300,12 +338,24 @@ fn receipt(
         .map_err(|why| format!("move After typed operation: {why}"))?;
     let Operation::Move {
         objects: ObjectSet::One(input),
-        destination: MovementDestination::Battlefield { .. },
+        destination,
         ..
     } = typed
     else {
         return Ok(None);
     };
+    if !matches!(destination, MovementDestination::Battlefield { .. })
+        && !(face_up_exile
+            && matches!(
+                destination,
+                MovementDestination::Exile {
+                    visibility: ExileVisibility::FaceUp,
+                    ..
+                }
+            ))
+    {
+        return Ok(None);
+    }
     Ok(Some(Receipt { input, result }))
 }
 fn after(receipt: &Receipt) -> Value {
@@ -331,15 +381,18 @@ pub(super) fn reference(
         }
         let mut direct = path[..depth].to_vec();
         direct.extend([Step::Key("args".into()), Step::Index(0)]);
-        while at(root, &direct)
-            .is_some_and(|v| matches!(symbol_name(v), Some("remember_operand" | "member_count_it")))
-        {
+        while at(root, &direct).is_some_and(|v| {
+            matches!(
+                symbol_name(v),
+                Some("remember_operand" | "member_count_it" | "activation_creature_property")
+            )
+        }) {
             direct.extend([Step::Key("args".into()), Step::Index(0)]);
         }
         if direct != path {
             return Ok(None);
         }
-        let Some(receipt) = receipt(root, path, keys, base)? else {
+        let Some(receipt) = receipt(root, path, keys, base, name == ACTOR)? else {
             return Ok(None);
         };
         return Ok((json!(receipt.input) == *reference).then(|| after(&receipt)));
@@ -363,7 +416,7 @@ pub(super) fn actor(
     }
     let mut instruction = path.to_vec();
     instruction.extend([Step::Key("args".into()), Step::Key("source".into())]);
-    Ok(receipt(root, &instruction, keys, base)?.is_some_and(|r| after(&r) == *value))
+    Ok(receipt(root, &instruction, keys, base, true)?.is_some_and(|r| after(&r) == *value))
 }
 
 pub(super) fn bind_marker(
@@ -491,7 +544,7 @@ mod tests {
         let mut plural = root.clone();
         plural["instructions"][0]["args"]["operation"]["args"]["objects"] =
             json!({"kind":"Selected","args":9});
-        assert!(receipt(&plural, &path, &keys, 5).unwrap().is_none());
+        assert!(receipt(&plural, &path, &keys, 5, false).unwrap().is_none());
         let mut intervening = root.clone();
         intervening["instructions"].as_array_mut().unwrap().insert(
             1,
@@ -499,7 +552,11 @@ mod tests {
         );
         let mut later = path.clone();
         later[1] = Step::Index(2);
-        assert!(receipt(&intervening, &later, &keys, 5).unwrap().is_none());
+        assert!(
+            receipt(&intervening, &later, &keys, 5, false)
+                .unwrap()
+                .is_none()
+        );
         let nested = json!({"instructions":[root["instructions"][0].clone(),{"kind":"If","args":{"then":{"instructions":[root["instructions"][1].clone()]}}}]});
         let nested_path = vec![
             Step::Key("instructions".into()),
@@ -509,13 +566,17 @@ mod tests {
             Step::Key("instructions".into()),
             Step::Index(0),
         ];
-        assert!(receipt(&nested, &nested_path, &keys, 5).unwrap().is_none());
+        assert!(
+            receipt(&nested, &nested_path, &keys, 5, false)
+                .unwrap()
+                .is_none()
+        );
     }
     #[test]
     fn target_domain_and_count_are_proved_not_assumed_from_one_index() {
         let (mut root, path, keys) = frame();
         root["instructions"][0]["args"]["operation"]["args"]["objects"]["args"][0]["args"]["args"]
             ["slot"]["args"][0]["count"] = json!("AnyNumber");
-        assert!(receipt(&root, &path, &keys, 5).unwrap().is_none());
+        assert!(receipt(&root, &path, &keys, 5, false).unwrap().is_none());
     }
 }

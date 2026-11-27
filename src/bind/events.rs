@@ -207,21 +207,18 @@ fn mentions(value: &Value, kind: &str) -> bool {
 
 /// A joined pair event names the other participant with the same description
 /// only when every branch supplies that description. Never pick one branch.
-fn pair_other_filter(event: &Value) -> Option<&Value> {
+fn pair_other_filter(event: &Value, matches_event: fn(&str) -> bool) -> Option<&Value> {
     if let Some(inner) = inner(event) {
-        return pair_other_filter(inner);
+        return pair_other_filter(inner, matches_event);
     }
     if let Some(cases) = event["AnyOf"].as_array() {
-        let first = pair_other_filter(cases.first()?)?;
+        let first = pair_other_filter(cases.first()?, matches_event)?;
         return cases
             .iter()
-            .all(|case| pair_other_filter(case) == Some(first))
+            .all(|case| pair_other_filter(case, matches_event) == Some(first))
             .then_some(first);
     }
-    if matches!(
-        event["Pair"]["event"].as_str(),
-        Some("Blocks" | "BecomesBlockedBy")
-    ) {
+    if event["Pair"]["event"].as_str().is_some_and(matches_event) {
         event.pointer("/Pair/others")
     } else {
         None
@@ -344,12 +341,12 @@ fn event_referents(event: &Value, scope: &mut Scope, surfaced: bool) {
             true,
         ));
     }
-    let paired = if event["Pair"]["event"] == "Crews" {
-        // The other participant is the vehicle. The creature that paid the
-        // crew cost can itself have the Vehicle subtype.
-        Some((json!({"kind":"EventOther"}), &event["Pair"]["others"]))
+    let paired = if let Some(vehicle) = pair_other_filter(event, |kind| kind == "Crews") {
+        // Every arm names the same Vehicle role, even if the creature that
+        // paid the crew cost can itself have the Vehicle subtype.
+        Some((json!({"kind":"EventOther"}), vehicle))
     } else {
-        pair_other_filter(event)
+        pair_other_filter(event, |kind| matches!(kind, "Blocks" | "BecomesBlockedBy"))
             .zip(scope.others.last().cloned())
             .map(|(filter, reference)| (reference, filter))
     };

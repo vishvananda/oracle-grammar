@@ -262,6 +262,17 @@ different are marked *(different)*. No group is open at this reference.
 
 ## Updated locally
 
+- `U0214` makes Selfless Exorcist determine both the damage source and its
+  power from the actual public exile result (CR 400.7j, 608.2h).
+- `U0213` makes Redemptor Dreadnought test for a card still in this source's
+  linked exile population (CR 603.4, 607.2).
+- `U0212` adds Creature on Roaring Earth and Waker of the Wilds while
+  retaining Land. Arlinn, the Moon's Fury replaces her card and creature
+  types with the written Werewolf creature form (CR 205.1a–b).
+- `U0211` makes the seven spell-or-permanent target filters distinguish spells
+  from abilities on the stack. Jeskai Revelation and Sink into Stupor use one
+  union target alongside any independently written targets (CR 110.1, 112.1,
+  113.1, 601.2b–c).
 - `U0207` keeps the end-of-combat delayed triggers on Altaïr Ibn-La'Ahad,
   Fortune, Loyal Steed, Kavaron Harrier and Mordor Trebuchet pending if the
   end-of-combat step is skipped (CR 511.2, 603.7b, 725.2d–e).

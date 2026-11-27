@@ -8066,6 +8066,16 @@ triggered_cast_x_conjure_random ::= "whenever" controller_cast_x_spell_event ","
 /* @sem Ability::Triggered{event:$event_clause, intervening_if:$condition_card_linked_exile_present, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}), count:AnyNumber, cost:Free}}]}}]}} */
 triggered_if_linked_exile_cast_free ::= event_clause "," "if" condition_card_linked_exile_present "," "you" "may" "cast" "the" "exiled" "card" "without" "paying" "its" "mana" "cost" "."
 
+/* A public linked card supplies both the intervening test and the power read. */
+/* @sem Ability::Triggered{event:$event_clause, intervening_if:$condition_card_linked_exile_present, limits:TriggerLimits{}, announcement:@announcement, body:$program_with_linked_exile_power} */
+triggered_if_linked_exile_power ::= event_clause "," "if" condition_card_linked_exile_present "," program_with_linked_exile_power "."
+
+/* @sem @where($program_plain, $linked_exile_power) */
+program_with_linked_exile_power ::= program_plain "," "where" "X" "is" linked_exile_power
+
+/* @sem Expr::ObjectProperty{object:$linked_exiled_card, property:Power, information:CurrentOrLastKnown} */
+linked_exile_power ::= "the" "power" "of" linked_exiled_card
+
 /* A passive last-counter event retains the counter kind and referenced object. */
 /* @sem EventSpec::Counters(_{change:LastRemoved, kind:$counter_kind, objects:SameObject($object_ref)}) */
 last_named_counter_removed_clause ::= "when" "the" "last" counter_kind "counter" "is" "removed" "from" object_ref

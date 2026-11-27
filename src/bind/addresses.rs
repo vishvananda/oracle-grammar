@@ -63,7 +63,7 @@ pub(super) fn quantity(
         return Err("that many after drawing requires a captured requested amount".into());
     }
     let result = serde_json::to_value(result).map_err(|e| e.to_string())?;
-    Ok(if many {
+    Ok(if many || linked_return_count(root, path) {
         json!({"kind":"CountObjects","args":{
             "kind":"Transition","args":{"result":result,"phase":"Before"}
         }})
@@ -73,6 +73,42 @@ pub(super) fn quantity(
     } else {
         json!({"kind":"Performed","args":result})
     })
+}
+
+// The amount of life is the count of that exact linked-zone movement.
+fn linked_return_count(root: &Value, path: &[Step]) -> bool {
+    use super::card_receipt::{at, enclosing};
+    let Some((sequence, index)) = enclosing(path) else {
+        return false;
+    };
+    let Some(instructions) = at(root, sequence).and_then(Value::as_array) else {
+        return false;
+    };
+    let Some(previous) = index.checked_sub(1).and_then(|i| instructions.get(i)) else {
+        return false;
+    };
+    let Some(current) = instructions.get(index) else {
+        return false;
+    };
+    let movement = &previous["args"]["operation"];
+    let loss = &current["args"]["operation"];
+    let mut objects = &movement["args"]["objects"];
+    if super::symbol_name(objects) == Some("zone_members") {
+        objects = &objects["args"][0];
+    }
+    let zone = &objects["args"];
+    previous["kind"] == "Effect"
+        && current["kind"] == "Effect"
+        && movement["kind"] == "Move"
+        && movement["args"]["destination"].get("OwnersHand").is_some()
+        && objects["kind"] == "Zone"
+        && zone["scope"]["Shared"] == "Exile"
+        && zone["kind"] == "Card"
+        && zone["filter"]["kind"] == "ExiledWith"
+        && loss["kind"] == "LoseLife"
+        && loss["args"]["players"]["kind"] == "One"
+        && loss["args"]["players"]["args"]["kind"] == "AbilityController"
+        && at(root, path).is_some_and(|value| std::ptr::eq(value, &loss["args"]["amount"]))
 }
 
 // A bare sacrifice of the damage source supplies no written count. The
@@ -197,8 +233,20 @@ fn unresolved_mana_quantity(root: &Value, path: &[Step]) -> bool {
     };
     let args = &branch["args"];
     let condition = &args["condition"];
-    let comparison = &condition["args"]["filter"]["args"];
+    let wrapped =
+        condition["kind"] == "ObjectMatches" && condition["args"]["filter"]["kind"] == "Condition";
+    let comparison = if wrapped {
+        &condition["args"]["filter"]["args"]
+    } else {
+        condition
+    };
     let mana = &comparison["args"]["left"];
+    let cast = &root["args"]["event"]["Spell"];
+    let mana_source = &mana["args"]["object"];
+    let tested_event_mana = root["kind"] == "Triggered"
+        && cast["event"] == "Cast"
+        && (mana_source["kind"] == "EventSubject"
+            || super::symbol_name(mana_source) == Some("named_spell"));
     let Some([sacrifice, damage]) = args["then"]["instructions"].as_array().map(Vec::as_slice)
     else {
         return false;
@@ -215,8 +263,6 @@ fn unresolved_mana_quantity(root: &Value, path: &[Step]) -> bool {
         && args["otherwise"]["instructions"]
             .as_array()
             .is_some_and(Vec::is_empty)
-        && condition["kind"] == "ObjectMatches"
-        && condition["args"]["filter"]["kind"] == "Condition"
         && comparison["kind"] == "Compare"
         && comparison["args"]["test"]["args"]["comparison"] == "GreaterOrEqual"
         && comparison["args"]["test"]["args"]["value"]["kind"] == "Constant"
@@ -224,11 +270,13 @@ fn unresolved_mana_quantity(root: &Value, path: &[Step]) -> bool {
             .as_i64()
             .is_some()
         && mana["kind"] == "ManaSpent"
-        && mana["args"]["object"]["kind"] == "Candidate"
+        && ((wrapped && mana_source["kind"] == "Candidate") || tested_event_mana)
         && mana["args"]["aggregation"] == "Count"
         && sacrifice["kind"] == "Sacrifice"
         && sacrifice["args"]["players"] == json!({"kind":"One","args":{"kind":"AbilityController"}})
-        && sacrifice["args"]["objects"] == json!({"kind":"One","args":{"kind":"Source"}})
+        && sacrifice["args"]["objects"]["kind"] == "One"
+        && (sacrifice["args"]["objects"]["args"]["kind"] == "Source"
+            || super::symbol_name(&sacrifice["args"]["objects"]["args"]) == Some("named_source"))
         && sacrifice["args"]["choose"].is_null()
         && damage["kind"] == "DealDamage"
 }

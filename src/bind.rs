@@ -91,6 +91,7 @@ mod unresolved_leave_player;
 mod value_snapshot;
 mod variables;
 use references::{acted_on, collect};
+pub(crate) use variables::validate_source_payments;
 
 #[derive(Debug, Clone)]
 struct Found {
