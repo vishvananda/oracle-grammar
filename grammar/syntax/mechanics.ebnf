@@ -1461,3 +1461,33 @@ rampage_reminded_text ::= "rampage" number_digits "(" "whenever" "this" "creatur
 
 /* @sem Ability::Mechanic{mechanic:Reconfigure, cost:Cost::@agree($keyword_payment, $keyword_payment_2)} */
 reconfigure_reminded_text ::= "reconfigure" keyword_payment "(" keyword_payment ":" "attach" "to" "target" "creature" "you" "control" ";" "or" "unattach" "from" "a" "creature" "." "reconfigure" "only" "as" "a" "sorcery" "." "while" "attached" "," "this" "isn't" "a" "creature" "." ")"
+
+/* @sem Ability::WithPresentation{reminder:true, ability:Ability::@agree($mechanic_craft, $craft_explanation)} */
+mechanic_craft_reminded ::= mechanic_craft "(" craft_explanation ")"
+craft_explanation ::= craft_explain_one | craft_explain_creatures_minimum | craft_explain_creatures_exact | craft_explain_any_minimum
+/* @sem Ability::Craft{materials:$craft_explain_material, cost:List($kicker_operands)} */
+craft_explain_one ::= kicker_operands craft_exile_source craft_explain_material craft_explain_result
+/* @sem Ability::Craft{materials:$craft_explain_materials, count:[GreaterOrEqual, $number_words], cost:List($kicker_operands)} */
+craft_explain_creatures_minimum ::= kicker_operands craft_exile_source number_words "or" "more" craft_explain_materials craft_explain_result
+/* @sem Ability::Craft{materials:$craft_explain_materials, count:[Equal, $number_words], cost:List($kicker_operands)} */
+craft_explain_creatures_exact ::= kicker_operands craft_exile_source "the" number_words "from" "among" craft_explain_materials craft_explain_result
+/* @sem Ability::Craft{materials:Term{family:Craftable, form:AnyCard}, count:[GreaterOrEqual, $number_words], cost:List($kicker_operands)} */
+craft_explain_any_minimum ::= kicker_operands craft_exile_source number_words "or" "more" "other" "permanents" "you" "control" "and/or" "cards" "from" "your" "graveyard" craft_explain_result
+/* @sem () */
+craft_exile_source ::= "," "↑" "exile" "this" "artifact" "," "↑" "exile"
+/* @sem () */
+craft_explain_result ::= ":" "return" "this" "card" "transformed" "under" "its" "owner's" "control" "." "craft" "only" "as" "a" "sorcery" "."
+craft_explain_material ::= craft_explain_artifact | craft_explain_creature | craft_explain_land
+/* @sem $craft_artifact */
+craft_explain_artifact ::= "another" craft_artifact "you" "control" "or" "an" "artifact" "card" "from" "your" "graveyard"
+/* @sem $craft_creature */
+craft_explain_creature ::= "a" craft_creature "you" "control" "or" "a" "creature" "card" "from" "your" "graveyard"
+/* @sem Operand::Term{family:Craftable, form:IsLandType, operands:[Vocabulary{family:LandType, form:@subtype_name(ObjectFilter::@agree($craft_land_subtype, $craft_land_subtype_2))}]} */
+craft_explain_land ::= ("a" | "an") craft_land_subtype "you" "control" "or" ("a" | "an") craft_land_subtype "card" "from" "your" "graveyard"
+craft_explain_materials ::= craft_explain_creatures | craft_explain_creatures_in | craft_explain_typed_creatures
+/* @sem $craft_creatures */
+craft_explain_creatures ::= craft_creatures "you" "control" "and/or" "creature" "cards" "from" "your" "graveyard"
+/* @sem $craft_creatures */
+craft_explain_creatures_in ::= craft_creatures "you" "control" "and/or" "creature" "cards" "in" "your" "graveyard"
+/* @sem Operand::Term{family:Craftable, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name(ObjectFilter::@agree($subtype_plural, $creature_subtype))}]} */
+craft_explain_typed_creatures ::= subtype_plural "you" "control" "and/or" creature_subtype "cards" "from" "your" "graveyard"

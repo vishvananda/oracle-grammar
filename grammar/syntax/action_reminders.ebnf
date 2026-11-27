@@ -2,7 +2,7 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
-line_contextual_reminder ::= line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder | line_phaseout_group_reminder
+line_contextual_reminder ::= line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder | line_phaseout_group_reminder | line_behold_choice_explained | line_behold_flash_explained | line_behold_exile_explained
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
 line_contextual_group ::= remindable_line "(" ability_explanation ")"
 remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_blocks_blocked
@@ -656,3 +656,29 @@ proliferate_pair ::= "proliferate" "," "then" "proliferate" "again"
 /* North Star's reminder restates the payment scope without granting another action. */
 /* @sem Instruction::[Effect{result:@next, operation:$temporary_one_spell_spending}] */
 limited_mana_cost_spending_reminded ::= temporary_one_spell_spending "." "(" "additional" "costs" "are" "still" "paid" "normally" "." ")"
+
+/* @sem Cost::Cost{parts:[Behold{count:Constant(1), what:$behold_explained_operand}]} */
+behold_one_payment_note ::= "you" "may" behold_explained_operand "."
+behold_explained_operand ::= behold_explained_type | behold_explained_creature_type
+/* @sem Operand::Term{family:CardsInHand, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name(ObjectFilter::@agree($creature_subtype, $creature_subtype_2))}]} */
+behold_explained_type ::= "choose" ("a" | "an") creature_subtype "you" "control" "or" "reveal" ("a" | "an") creature_subtype "card" "from" "your" "hand"
+/* @sem Operand::Term{family:CardsInHand, form:And, operands:[Term{family:CardsInHand, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name(ObjectFilter::@agree($creature_subtype, $creature_subtype_2))}]}, Term{family:CardsInHand, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]}]} */
+behold_explained_creature_type ::= "choose" ("a" | "an") creature_subtype "creature" "you" "control" "or" "reveal" ("a" | "an") creature_subtype "creature" "card" "from" "your" "hand"
+
+/* @sem Ability::WithPresentation{reminder:true, ability:@additional_branch($behold_reminded_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
+spell_behold_branch_reminded ::= optional_cost_opening behold_reminded_header NEWLINE kicker_branch_program
+/* @sem Cost::@agree(Cost{parts:[$cost_behold]}, $behold_one_payment_note) */
+behold_reminded_header ::= cost_behold "." "(" behold_one_payment_note ")"
+
+/* @sem Ability::[WithPresentation{reminder:true, ability:Casting(AdditionalCost{cost:_{parts:[Choice([@agree(Cost{parts:[$cost_behold]}, $behold_definition_note), $cost])]}, repetition:Once})}] */
+line_behold_choice_explained ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost_behold "or" "pay" cost "." "(" behold_definition_note ")"
+/* @sem Cost::@agree(Cost{parts:[$cost_behold]}, Cost{parts:[Behold{count:Constant(1), what:$behold_explained_operand}]}) */
+behold_definition_note ::= "to" cost_behold "," behold_explained_operand "."
+
+/* @sem Ability::[WithPresentation{reminder:true, ability:Casting(Flash{additional_cost:Cost::@agree(Cost{parts:[$cost_behold]}, $behold_definition_note)})}] */
+line_behold_flash_explained ::= "you" "may" "cast" "this" "spell" "as" "though" "it" "had" "flash" "if" "you" cost_behold "as" "an" "additional" "cost" "to" "cast" "it" "." "(" behold_definition_note ")"
+
+/* @sem Ability::[WithPresentation{reminder:true, ability:Casting(AdditionalCost{cost:@agree(Cost{parts:[$cost_behold_exile]}, $behold_exile_note), repetition:Once})}] */
+line_behold_exile_explained ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost_behold_exile "." "(" behold_exile_note ")"
+/* @sem Cost::Cost{parts:[BeholdAndExile(Term{family:CardsInHand, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name(ObjectFilter::@agree($creature_subtype, $creature_subtype_2))}]})]} */
+behold_exile_note ::= "exile" ("a" | "an") creature_subtype "you" "control" "or" ("a" | "an") creature_subtype "card" "from" "your" "hand" "."
