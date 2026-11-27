@@ -6929,7 +6929,7 @@ chosen_card_perpetual_changes ::= chosen_card_reduction | chosen_card_pump_reduc
 chosen_card_reduction ::= "gains" '"' "this" "spell" "costs" braced_amount "less" "to" "cast" "." '"'
 
 /* @sem Change::[Pump{power:$signed, toughness:$signed_2}, GrantAbility(Casting(ReduceCost([_{amount:$braced_amount}])))] */
-chosen_card_pump_reduction ::= "gets" signed "/" signed "and" "gains" '"' "this" "spell" "costs" braced_amount "less" "to" "cast" "." '"'
+chosen_card_pump_reduction ::= "gets" signed "/" signed "and" "perpetually"? "gains" '"' "this" "spell" "costs" braced_amount "less" "to" "cast" "." '"'
 
 /* The count belongs to this exact revealed hand selection, not an arbitrary receipt. */
 /* @sem Instruction::[Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:State(HasX)}, count:AnyNumber}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:CountObjects(Selected(@marked)), production:$mana_production, choice:Once}, restriction:Purpose(XCost)}}] */
@@ -11361,7 +11361,7 @@ exile_battlefield_pair_mana_ceiling ::= "exile" "all" plural_either "with" "mana
 quoted_spell_additional_mana ::= '"' "this" "spell" "costs" mana_symbols "more" "to" "cast" '"'
 
 /* @sem Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject(Source)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}]}} */
-quoted_permanent_enters_tapped ::= '"' "this" "permanent" "enters" "tapped" "." '"'
+quoted_permanent_enters_tapped ::= '"' "this" "permanent" "enters" battlefield_entry_zone? "tapped" "." '"'
 
 /* This scoped phrase ties both subsequent effects to the same exile arrival. */
 /* @sem Ability::Spell{announcement:_{targets:[]}, body:_{instructions:[Effect{result:@mark, operation:$exile_battlefield_pair_mana_ceiling}, Effect{result:@next, operation:CreatePerpetualEffect{objects:Transition{result:@marked, phase:After}, changes:[GrantAbility($quoted_spell_additional_mana), GrantAbility($quoted_permanent_enters_tapped)]}}, ForEachObject{objects:Transition{result:@marked, phase:After}, binding:0, body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(OwnerOf(Bound(0)))), changes:[PlayerRule(PlayPermission{cards:One(Bound(0)), from:Exile, action:Either, filter:Any})], duration:WhileExiled(Bound(0)), evaluation:LiveObjects}}]}}]}} */
@@ -22193,7 +22193,7 @@ defined_payment_reward ::= captured_x_draw | captured_x_you_gain | defined_draw_
 
 /* A spell's entry choice keeps the affected object and each counter operand. */
 /* @sem Instruction::[Effect{result:@next, operation:EffectOn{subject:Objects($affected), effects:[Term{family:SpellEffect, form:EntersWithACounterOfChoice, operands:[$entry_choice_counter, $entry_choice_counter_2, $entry_choice_counter_3]}]}}] */
-clause_enters_with_three_counter_choices ::= affected "enters" "with" "your" "choice" "of" "a" entry_choice_counter "counter" "," "a" entry_choice_counter "counter" "," "or" "a" entry_choice_counter "counter" "on" "it"
+clause_enters_with_three_counter_choices ::= affected "enters" battlefield_entry_zone? "with" "your" "choice" "of" "a" entry_choice_counter "counter" "," "a" entry_choice_counter "counter" "," "or" "a" entry_choice_counter "counter" "on" "it"
 
 entry_choice_counter ::= entry_face_pt_counter | entry_choice_flying | entry_choice_lifelink | entry_choice_vigilance | entry_choice_trample
 
@@ -23356,7 +23356,7 @@ prevent_all_combat_damage_interval ::= "prevent" "all" "combat" "damage" "that" 
 tap_attacking_creatures_skip_controller_untap ::= "tap" "all" "attacking" plural_creature "." "those" "creatures" "don't" "untap" "during" "their" "controller's" "next" "untap" "step"
 
 /* @sem Operation::ChangeSpell{subject:One($object_ref), changes:[EntersWithCounters(_{kind:$counter_kind, amount:Constant(1)}), EntersWithCounters(_{kind:$counter_kind_2, amount:Constant(1)}), EntersWithCounters(_{kind:$counter_kind_3, amount:Constant(1)})]} */
-boon_entry_change ::= object_ref "enters" "with" "an" "additional" counter_kind "counter" "," counter_kind "counter" "," "and" counter_kind "counter" "on" "it"
+boon_entry_change ::= object_ref "enters" battlefield_entry_zone? "with" "an" "additional" counter_kind "counter" "," counter_kind "counter" "," "and" counter_kind "counter" "on" "it"
 
 /* The named host is the subject of the history test and both counter actions. */
 /* @sem Program::Program{instructions:[If{condition:ObjectMatches{object:$attached_ref, filter:$attached_combat_since_upkeep}, then:Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($attached_ref)), kind:$counter_kind, amount:Constant(1)}]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($attached_ref)), kind:$counter_kind_2, amount:Count(Exactly(Constant(1)))}]}}]}}]} */
