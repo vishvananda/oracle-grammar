@@ -64,6 +64,7 @@ fn mechanic(value: &Value) -> Option<&'static str> {
         "Extort" => Some("Extort"),
         "Surge" => Some("Surge"),
         "Freerunning" => Some("Freerunning"),
+        "Prowl" => Some("Prowl"),
         "Enlist" => Some("Enlist"),
         "LivingMetal" => Some("LivingMetal"),
         "Riot" => Some("Riot"),
@@ -427,7 +428,9 @@ fn visit_mentions<'a>(
                         && ability["kind"] == "Spell"
                         && visit("EndTurnFromSpell", None)
             }) || evidence::flashback_at_mana_cost(value) && visit("FlashbackAtManaCost", None)
+                || casting::permission_notes(value, |topic| visit(topic, None))
                 || mechanic_notes::mention(value).is_some_and(|topic| visit(topic, None))
+                || action_duration_note(value).is_some_and(|topic| visit(topic, None))
                 || phase_out_reminders(value, |topic| visit(topic, None))
                 || object
                     .get("Mana")
@@ -448,6 +451,24 @@ fn visit_mentions<'a>(
         || !measured && ordinary_activation(ability) && visit("InstantActivation", None)
         || !measured && mechanic_notes::root_mentions(ability, |topic| visit(topic, None))
         || !measured && evidence::root_mentions(ability, |topic| visit(topic, None))
+}
+
+fn action_duration_note(value: &Value) -> Option<&'static str> {
+    let args = &value["args"];
+    let actor = &args["actor"];
+    if actor["kind"] != "One" || actor["args"]["kind"] != "AbilityController" {
+        return None;
+    }
+    let action = &args["action"];
+    match (value["kind"].as_str()?, action_name(action)?) {
+        ("Keyword", "Detain") => Some("DetainOneUntilNextTurn"),
+        ("KeywordEach", "Detain") => Some("DetainGroupUntilNextTurn"),
+        ("Keyword", "Goad") if action["Goad"]["until"].is_null() => Some("GoadOneUntilNextTurn"),
+        ("KeywordEach", "Goad") if action["Goad"]["until"].is_null() => {
+            Some("GoadGroupUntilNextTurn")
+        }
+        _ => None,
+    }
 }
 
 fn phase_out_reminders(value: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {

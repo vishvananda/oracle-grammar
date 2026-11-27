@@ -34,7 +34,7 @@ reminded_mechanic ::= mechanic_reminded_text
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:$mechanic_reminded_text} */
 labelled_mechanic_reminder ::= ability_label "—" mechanic_reminded_text
 
-mechanic_reminded_text ::= ingest_reminded_text | convoke_reminded_text | delve_reminded_text
+mechanic_reminded_text ::= splice_instant_sorcery_reminded | ingest_reminded_text | convoke_reminded_text | delve_reminded_text
     | deck_rule_reminded_text | triggered_mechanic_reminded_text | standalone_mechanic_reminded_text
     | banding_reminded_text | bushido_reminded_text | affinity_reminded_text
     | valued_mechanic_reminded_text | reconfigure_reminded_text
@@ -54,7 +54,7 @@ convoke_reminded_text ::= mechanic_convoke "(" "your" "creatures" "can" "help" "
 delve_reminded_text ::= mechanic_delve "(" "each" "card" "you" "exile" "from" "your" "graveyard" "while" "casting" "this" "spell" "pays" "for" "{" "1" "}" "." ")"
 
 /* Every explanation is paired with its own native mechanic or deck rule. */
-deck_rule_reminded_text ::= partner_reminded_text | partner_with_reminded_text | background_reminded_text | doctor_companion_reminded_text
+deck_rule_reminded_text ::= partner_reminded_text | shared_partner_reminded_text | partner_with_reminded_text | background_reminded_text | doctor_companion_reminded_text
 /* @sem $deck_rule_partner */
 partner_reminded_text ::= deck_rule_partner "(" "you" "can" "have" "two" "commanders" "if" "both" "have" "partner" "." ")"
 /* @sem Ability::@agree($deck_rule_partner_with, $partner_search_explanation) */
@@ -1499,3 +1499,13 @@ firebending_defined_reminded_text ::= mechanic_defined_amount "(" "whenever" "th
 
 /* @sem Ability::Mechanic{mechanic:Prowl, cost:$keyword_payment} */
 keyword_prowl ::= "prowl" keyword_payment
+
+/* Both commanders must have the same named partner ability. */
+/* @sem $deck_rule_partner_kind */
+shared_partner_reminded_text ::= deck_rule_partner_kind "(" shared_partner_words ")"
+
+/* The permitted spell types are repeated word-for-word in the explanation. */
+/* @sem Ability::Mechanic{mechanic:SpliceOnto, cost:$splice_payment, filter:ObjectFilter::@agree($filter_phrase, $splice_instant_sorcery_explanation)} */
+splice_instant_sorcery_reminded ::= "splice" "onto" filter_phrase splice_payment "(" splice_instant_sorcery_explanation ")"
+/* @sem ObjectFilter::AnyOf([CardType(Instant), CardType(Sorcery)]) */
+splice_instant_sorcery_explanation ::= "as" "you" "cast" "an" "instant" "or" "sorcery" "spell" "," "you" "may" "reveal" "this" "card" "from" "your" "hand" "and" "pay" "its" "splice" "cost" "." "if" "you" "do" "," "add" "this" "card's" "effects" "to" "that" "spell" "."

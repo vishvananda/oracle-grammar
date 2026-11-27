@@ -2,7 +2,7 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
-line_contextual_reminder ::= line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder | line_phaseout_group_reminder | line_behold_choice_explained | line_behold_flash_explained | line_behold_exile_explained
+line_contextual_reminder ::= line_contextual_group | line_paid_permanent_copy_note | line_combat_notes | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder | line_phaseout_group_reminder | line_behold_choice_explained | line_behold_flash_explained | line_behold_exile_explained
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
 line_contextual_group ::= remindable_line "(" ability_explanation ")"
 remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_blocks_blocked
@@ -180,6 +180,7 @@ ability_explanation ::= stun_explanation | modified_explanation | historic_expla
     | splice_explanation | overload_explanation | bargain_explanation | prototype_explanation
     | nonmana_ability_explanation | grant_keyword_explanation | additional_rule_explanations
     | context_explanations | token_context_explanations | role_explanation
+    | combat_keyword_explanation | payment_permission_explanation | phaseout_attached_explanation | colorless_clue_explanation
 
 additional_rule_explanations ::= ward_cant_counter_explanation | zero_even_explanation | prepared_cast_explanation
     | flashback_granted_cast_explanation | flashback_owner_cast_explanation | charge_sunburst_explanation
@@ -190,7 +191,8 @@ additional_rule_explanations ::= ward_cant_counter_explanation | zero_even_expla
     | airbend_it_explanation | airbend_them_explanation | airbend_creature_explanation
     | noncreature_form_explanation | battlefield_return_explanation
     | player_hexproof_explanation | power_up_explanation | fear_plural_explanation | time_travel_explanation
-    | discover_value_explanation | cloak_explanation | detain_explanation | persist_current_explanation | exalted_count_explanation
+    | discover_value_explanation | cloak_explanation | detain_explanation | detain_permanent_explanation
+    | detain_group_explanation | goad_during_turn_explanation | goad_group_during_turn_explanation | persist_current_explanation | exalted_count_explanation
     | flash_permission_it_explanation | regeneration_it_explanation | regeneration_creature_explanation
     | banding_controller_explanation | banding_player_explanation | legendary_bands_explanation
     | exert_recipient_explanation | empty_piles_explanation | attack_declaration_cost_explanation
@@ -279,7 +281,37 @@ discover_explanation_resolution ::= "cast" "it" "without" "paying" "its" "mana" 
 /* @sem String::'Cloak' */
 cloak_explanation ::= "to" "cloak" "a" "card" "," "put" "it" "onto" "the" "battlefield" "face" "down" "as" "a" "2" "/" "2" "creature" "with" "ward" "{" "2" "}" "." "turn" "it" "face" "up" "any" "time" "for" "its" "mana" "cost" "if" "it's" "a" "creature" "card" "."
 /* @sem String::'Detain' */
-detain_explanation ::= "until" "your" "next" "turn" "," "that" "creature" "can't" "attack" "or" "block" "and" "its" "activated" "abilities" "can't" "be" "activated" "."
+detain_explanation ::= detain_singular_subject detain_singular_restriction
+
+/* @sem String::'DetainOneUntilNextTurn' */
+detain_permanent_explanation ::= detain_permanent_subject detain_singular_restriction
+
+/* @sem String::'DetainGroupUntilNextTurn' */
+detain_group_explanation ::= reminder_until_your_next_turn detain_group_subject detain_common_restriction "their" detain_ability_restriction
+
+/* @sem () */
+detain_singular_subject ::= reminder_until_your_next_turn "that" "creature"
+
+/* @sem () */
+detain_permanent_subject ::= reminder_until_your_next_turn "that" "permanent"
+
+/* @sem () */
+detain_singular_restriction ::= detain_common_restriction "its" detain_ability_restriction
+
+/* @sem () */
+detain_group_subject ::= "those" detain_group_noun
+
+/* @sem () */
+detain_group_noun ::= "creatures" | "permanents"
+
+/* @sem () */
+detain_common_restriction ::= "can't" "attack" "or" "block" "and"
+
+/* @sem () */
+detain_ability_restriction ::= "activated" "abilities" "can't" "be" "activated" "."
+
+/* @sem () */
+reminder_until_your_next_turn ::= "until" "your" "next" "turn" ","
 /* @sem String::'Persist' */
 persist_current_explanation ::= "when" "it" "dies" "," "if" "it" "had" "no" "-" "1" "/" "-" "1" "counters" "on" "it" "," "return" "it" "to" "the" "battlefield" "under" "its" "owner's" "control" "with" "a" "-" "1" "/" "-" "1" "counter" "on" "it" "."
 /* @sem String::'Exalted' */
@@ -371,7 +403,27 @@ populate_explanation ::= "create" "a" "token" "that's" "a" "copy" "of" "a" "crea
 /* @sem String::'Mill' */
 mill_explanation ::= "to" "mill" "a" "card" "," "put" "the" "top" "card" "of" "your" "library" "into" "your" "graveyard" "."
 /* @sem String::'Goad' */
-goad_explanation ::= "until" "your" "next" "turn" "," "that" "creature" "attacks" "each" "combat" "if" "able" "and" "attacks" "a" "player" "other" "than" "you" "if" "able" "."
+goad_explanation ::= reminder_until_your_next_turn "that" "creature" goad_single_requirement
+
+/* @sem String::'GoadOneUntilNextTurn' */
+goad_during_turn_explanation ::= reminder_until_your_next_turn "it" goad_single_requirement
+
+/* @sem String::'GoadGroupUntilNextTurn' */
+goad_group_during_turn_explanation ::= reminder_until_your_next_turn goad_reminder_group goad_group_requirement
+
+/* @sem () */
+goad_single_requirement ::= "attacks" "each" "combat" "if" "able" "and" "attacks" "a" "player" "other" "than" "you" "if" "able" "."
+
+/* @sem () */
+goad_group_requirement ::= "attack" "each" "combat" "if" "able" "and" "attack" "a" "player" "other" "than" "you" "if" "able" "."
+
+goad_reminder_group ::= goad_reminder_them | goad_reminder_creatures
+
+/* @sem () */
+goad_reminder_them ::= "they"
+
+/* @sem () */
+goad_reminder_creatures ::= "the" "goaded" "creatures"
 /* @sem String::'Exert' */
 exert_explanation ::= "an" "exerted" "creature" "won't" "untap" "during" "your" "next" "untap" "step" "."
 /* @sem String::'Party' */
@@ -682,3 +734,143 @@ line_behold_flash_explained ::= "you" "may" "cast" "this" "spell" "as" "though" 
 line_behold_exile_explained ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost_behold_exile "." "(" behold_exile_note ")"
 /* @sem Cost::Cost{parts:[BeholdAndExile(Term{family:CardsInHand, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name(ObjectFilter::@agree($creature_subtype, $creature_subtype_2))}]})]} */
 behold_exile_note ::= "exile" ("a" | "an") creature_subtype "you" "control" "or" ("a" | "an") creature_subtype "card" "from" "your" "hand" "."
+
+/* Explanations of the keyword that the current ability grants. */
+combat_keyword_explanation ::= deathtouch_they_explanation | deathtouch_destroy_it_explanation | defender_definition_explanation
+    | fear_definition_explanation | flying_definition_explanation | flying_it_explanation
+    | double_strike_definition_explanation | first_strike_definition_explanation | indestructible_it_explanation
+    | indestructible_him_explanation | indestructible_creature_explanation | indestructible_those_creatures_explanation
+    | menace_it_explanation | horsemanship_group_explanation | haste_attack_anytime_explanation
+    | haste_attack_this_turn_explanation
+
+/* @sem String::'Deathtouch' */
+deathtouch_they_explanation ::= "any" "amount" "of" "damage" "they" "deal" deathtouch_destroy_it_words
+
+/* @sem String::'Deathtouch' */
+deathtouch_destroy_it_explanation ::= "any" "amount" "of" "damage" "it" "deals" deathtouch_destroy_it_words
+
+/* @sem String::'Defender' */
+defender_definition_explanation ::= "a" "creature" "with" "defender" "can't" "attack" "."
+
+/* @sem String::'Fear' */
+fear_definition_explanation ::= "a" "creature" "with" "fear" "can't" "be" "blocked" "except" "by" "artifact" "creatures" "and/or" "black" "creatures" "."
+
+/* @sem String::'Flying' */
+flying_definition_explanation ::= "a" "creature" "with" "flying" flying_blocks_rule
+
+/* @sem String::'Flying' */
+flying_it_explanation ::= "it" flying_blocks_rule
+
+/* @sem String::'DoubleStrike' */
+double_strike_definition_explanation ::= "a" "creature" "with" "double" "strike" "deals" "both" "first" "-" "strike" "and" "regular" "combat" "damage" "."
+
+/* @sem String::'FirstStrike' */
+first_strike_definition_explanation ::= "a" "creature" "with" "first" "strike" "deals" "combat" "damage" "before" "creatures" "without" "first" "strike" "."
+
+/* @sem String::'Indestructible' */
+indestructible_it_explanation ::= destroy_text_reminder "it" "."
+
+/* @sem String::'Indestructible' */
+indestructible_him_explanation ::= destroy_text_reminder "him" "."
+
+/* @sem String::'Indestructible' */
+indestructible_creature_explanation ::= destroy_text_reminder "the" "creature" "."
+
+/* @sem String::'Indestructible' */
+indestructible_those_creatures_explanation ::= destroy_text_reminder "those" "creatures" "."
+
+/* @sem String::'Menace' */
+menace_it_explanation ::= "it" "can't" "be" "blocked" "except" "by" "two" "or" "more" "creatures" "."
+
+/* @sem String::'Horsemanship' */
+horsemanship_group_explanation ::= "they" "can't" "be" "blocked" "except" "by" "creatures" "with" "horsemanship" "."
+
+/* @sem String::'Haste' */
+haste_attack_anytime_explanation ::= "it" "can" "attack" "and" "{" "T" "}" "no" "matter" "when" "it" "came" "under" "your" "control" "."
+
+/* @sem String::'Haste' */
+haste_attack_this_turn_explanation ::= "it" "can" "attack" "this" "turn" "."
+
+/* @sem () */
+deathtouch_destroy_it_words ::= "to" "a" "creature" "is" "enough" "to" "destroy" "it" "."
+/* @sem () */
+flying_blocks_rule ::= "can't" "be" "blocked" "except" "by" "creatures" "with" "flying" "or" "reach" "."
+/* @sem () */
+destroy_text_reminder ::= "damage" "and" "effects" "that" "say" '"' "↓" "destroy" '"' "don't" "destroy"
+
+/* Both sentences prove a claim in the same native ability. */
+line_combat_notes ::= line_deathtouch_lifelink_note | line_trample_first_strike_note
+    | line_deathtouch_mana_note | line_indestructible_snow_note | line_menace_mana_note
+    | line_intimidate_devotion_note | line_flying_haste_note | line_hexproof_haste_note | line_menace_treasure_note | line_hexproof_group_indestructible_note
+
+deathtouch_lifelink_head ::= deathtouch_creature_explanation | deathtouch_they_explanation | deathtouch_destroy_it_explanation
+deathtouch_lifelink_tail ::= lifelink_keyword_explanation | lifelink_this_explanation | lifelink_those_creatures_explanation
+/* @sem String::'Lifelink' */
+lifelink_those_creatures_explanation ::= "damage" "dealt" "by" "those" "creatures" "also" "causes" "their" "controller" "to" "gain" "that" "much" "life" "."
+menace_mana_explanation ::= snow_explanation | colorless_explanation
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $deathtouch_lifelink_head), $deathtouch_lifelink_tail) */
+line_deathtouch_lifelink_note ::= remindable_line "(" deathtouch_lifelink_head deathtouch_lifelink_tail ")"
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $trample_creature_explanation), $first_strike_definition_explanation) */
+line_trample_first_strike_note ::= remindable_line "(" trample_creature_explanation first_strike_definition_explanation ")"
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $deathtouch_destroy_it_explanation), $colorless_explanation) */
+line_deathtouch_mana_note ::= remindable_line "(" deathtouch_destroy_it_explanation colorless_explanation ")"
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $indestructible_it_explanation), $snow_explanation) */
+line_indestructible_snow_note ::= remindable_line "(" indestructible_it_explanation snow_explanation ")"
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $menace_it_explanation), $menace_mana_explanation) */
+line_menace_mana_note ::= remindable_line "(" menace_it_explanation menace_mana_explanation ")"
+
+/* A permission grants access to a card with the written cost and timing terms. */
+payment_permission_explanation ::= pay_costs_explanation | pay_costs_timing_explanation
+    | pay_spell_costs_timing_explanation | pay_additional_costs_explanation | normal_land_play_explanation
+
+/* @sem String::'PayCosts' */
+pay_costs_explanation ::= pay_costs_words "."
+/* @sem String::'PayCostsAndTiming' */
+pay_costs_timing_explanation ::= pay_costs_words "." "timing" "rules" "still" "apply" "."
+/* @sem String::'PayCostsAndTiming' */
+pay_spell_costs_timing_explanation ::= "you" "still" "pay" "the" "spell's" "costs" "." "timing" "rules" "for" "the" "spell" "still" "apply" "."
+/* @sem String::'PayAdditionalCosts' */
+pay_additional_costs_explanation ::= "you" "still" "pay" "any" "additional" "costs" "."
+/* @sem String::'LandPlayNormalTiming' */
+normal_land_play_explanation ::= pay_costs_words "." "you" "can" "play" "a" "land" "this" "way" "only" "if" "you" "have" "an" "available" "land" "play" "remaining" "."
+/* @sem () */
+pay_costs_words ::= "you" "still" "pay" "its" "costs"
+
+/* @sem String::'PhaseOutNormally' */
+phaseout_attached_explanation ::= "treat" "it" "and" "anything" "attached" "to" "it" "as" "though" "they" "don't" "exist" "until" "its" "controller's" "next" "turn" "."
+
+/* A single sentence adds no instructions to the investigation it describes. */
+/* @sem String::'Investigate' */
+colorless_clue_explanation ::= "create" "a" "colorless" "Clue" "artifact" "token" "with" clue_reminder_cost
+
+/* @sem String::'Haste' */
+haste_comes_under_control_explanation ::= "it" "can" "attack" "and" "{" "T" "}" "as" "soon" "as" "it" "comes" "under" "your" "control" "."
+
+/* @sem String::'Hexproof' */
+hexproof_it_explanation ::= "it" "can't" "be" "the" "target" "of" "spells" "or" "abilities" "your" "opponents" "control" "."
+
+/* @sem String::'TreasureToken' */
+treasure_token_recipe_explanation ::= "the" "token" "is" "an" "artifact" "with" treasure_reminder_cost
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $blocked_intimidate_creature_explanation), $devotion_context_explanation) */
+line_intimidate_devotion_note ::= remindable_line "(" blocked_intimidate_creature_explanation devotion_context_explanation ")"
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $flying_it_explanation), $haste_comes_under_control_explanation) */
+line_flying_haste_note ::= remindable_line "(" flying_it_explanation haste_comes_under_control_explanation ")"
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $hexproof_it_explanation), $haste_attack_anytime_explanation) */
+line_hexproof_haste_note ::= remindable_line "(" hexproof_it_explanation haste_attack_anytime_explanation ")"
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $menace_it_explanation), $treasure_token_recipe_explanation) */
+line_menace_treasure_note ::= remindable_line "(" menace_it_explanation treasure_token_recipe_explanation ")"
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $hexproof_context_explanation), $indestructible_plural_explanation) */
+line_hexproof_group_indestructible_note ::= remindable_line "(" hexproof_context_explanation indestructible_plural_explanation ")"
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $pay_costs_explanation), $token_copy_spell_rule_context_explanation) */
+line_paid_permanent_copy_note ::= remindable_line "(" pay_costs_explanation token_copy_spell_rule_context_explanation ")"
