@@ -322,7 +322,7 @@ pub struct PlayTerms {
     pub face_down: Option<FaceDownAs>,
     /// Require a proposed cast to match the spell as announced, including its
     /// chosen face. Land plays are unaffected when either action is allowed.
-    pub cast_filter: Option<ObjectFilter>,
+    pub cast_filter: Option<Box<ObjectFilter>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
