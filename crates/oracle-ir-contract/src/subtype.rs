@@ -365,7 +365,32 @@ fn creature_type_dispatch_3(value: &CreatureType) -> SubType {
         | CreatureType::Xindi
         | CreatureType::Yeti
         | CreatureType::Zombie
-        | CreatureType::Zubera => creature_type_case_3(value),
+        | CreatureType::Zubera
+        | CreatureType::Aenar
+        | CreatureType::Android
+        | CreatureType::Bajoran
+        | CreatureType::Betazoid
+        | CreatureType::Bolian
+        | CreatureType::Brikar
+        | CreatureType::Cardassian
+        | CreatureType::Denobulan
+        | CreatureType::Edosian
+        | CreatureType::ElAurian
+        | CreatureType::Excalbian
+        | CreatureType::Ferengi
+        | CreatureType::Hirogen
+        | CreatureType::Illyrian
+        | CreatureType::JemHadar
+        | CreatureType::Kwejian
+        | CreatureType::Medusan
+        | CreatureType::Melkotian
+        | CreatureType::NaKuhl
+        | CreatureType::Ocampa
+        | CreatureType::Talaxian
+        | CreatureType::Tamarian
+        | CreatureType::Tribble
+        | CreatureType::Trill
+        | CreatureType::VauNAkat => creature_type_case_3(value),
         _ => unreachable!("all current variants were dispatched"),
     }
 }
@@ -731,6 +756,31 @@ fn creature_type_case_3(value: &CreatureType) -> SubType {
         CreatureType::Yeti => SubType::Yeti,
         CreatureType::Zombie => SubType::Zombie,
         CreatureType::Zubera => SubType::Zubera,
+        CreatureType::Aenar => SubType::Aenar,
+        CreatureType::Android => SubType::Android,
+        CreatureType::Bajoran => SubType::Bajoran,
+        CreatureType::Betazoid => SubType::Betazoid,
+        CreatureType::Bolian => SubType::Bolian,
+        CreatureType::Brikar => SubType::Brikar,
+        CreatureType::Cardassian => SubType::Cardassian,
+        CreatureType::Denobulan => SubType::Denobulan,
+        CreatureType::Edosian => SubType::Edosian,
+        CreatureType::ElAurian => SubType::ElAurian,
+        CreatureType::Excalbian => SubType::Excalbian,
+        CreatureType::Ferengi => SubType::Ferengi,
+        CreatureType::Hirogen => SubType::Hirogen,
+        CreatureType::Illyrian => SubType::Illyrian,
+        CreatureType::JemHadar => SubType::JemHadar,
+        CreatureType::Kwejian => SubType::Kwejian,
+        CreatureType::Medusan => SubType::Medusan,
+        CreatureType::Melkotian => SubType::Melkotian,
+        CreatureType::NaKuhl => SubType::NaKuhl,
+        CreatureType::Ocampa => SubType::Ocampa,
+        CreatureType::Talaxian => SubType::Talaxian,
+        CreatureType::Tamarian => SubType::Tamarian,
+        CreatureType::Tribble => SubType::Tribble,
+        CreatureType::Trill => SubType::Trill,
+        CreatureType::VauNAkat => SubType::VauNAkat,
         _ => unreachable!("validated dispatch"),
     }
 }
@@ -764,6 +814,7 @@ pub fn artifact_type(value: &ArtifactType) -> SubType {
         ArtifactType::Bobblehead => SubType::Bobblehead,
         ArtifactType::Book => SubType::Book,
         ArtifactType::Clue => SubType::Clue,
+        ArtifactType::Communicator => SubType::Communicator,
         ArtifactType::Equipment => SubType::Equipment,
         ArtifactType::Food => SubType::Food,
         ArtifactType::Fortification => SubType::Fortification,

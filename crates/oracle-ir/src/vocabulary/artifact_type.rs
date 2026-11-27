@@ -24,4 +24,5 @@ pub enum ArtifactType {
     Treasure,
     Vehicle,
     Vibranium,
+    Communicator,
 }
