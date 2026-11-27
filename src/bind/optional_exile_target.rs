@@ -387,7 +387,7 @@ mod native_preflight {
     /// whole population, so its scalar and set views are one reading, and one moved
     /// card is tested in place.
     fn normal(value: &Value) -> Value {
-        let mut value = value.clone();
+        let mut value = crate::test_support::fixture_abilities(value);
         super::super::target_populations::lower(&mut value);
         super::super::single_receipts::lower(&mut value);
         canonical_abilities(&value).unwrap()

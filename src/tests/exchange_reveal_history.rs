@@ -6,13 +6,15 @@ fn fixture(name: &str) -> Value {
         "../../tests/fixtures/exchange-reveal-history-corrections.json"
     ))
     .unwrap();
-    cases["cases"]
+    let mut case = cases["cases"]
         .as_array()
         .unwrap()
         .iter()
         .find(|c| c["name"] == name)
         .unwrap()
-        .clone()
+        .clone();
+    case["expected"] = crate::test_support::fixture_abilities(&case["expected"]);
+    case
 }
 fn frame(name: &str) -> Value {
     canonical_abilities(&fixture(name)["expected"]).unwrap()

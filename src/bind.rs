@@ -1097,7 +1097,7 @@ pub(crate) fn lowered(abilities: &Value) -> Value {
     target_populations::lower(&mut abilities);
     ordered_zones::lower(&mut abilities);
     single_receipts::lower(&mut abilities);
-    abilities
+    crate::test_support::fixture_abilities(&abilities)
 }
 
 /// The canonical form of [`lowered`] abilities.

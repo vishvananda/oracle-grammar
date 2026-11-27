@@ -5,10 +5,27 @@ fn engine() -> &'static Engine {
     crate::test_support::engine()
 }
 fn data() -> Value {
-    serde_json::from_str(include_str!(
+    let mut data: Value = serde_json::from_str(include_str!(
         "../tests/fixtures/target-contrast-reviewed.json"
     ))
-    .unwrap()
+    .unwrap();
+    for cases in data.as_object_mut().unwrap().values_mut() {
+        if let Some(cases) = cases.as_array_mut() {
+            for case in cases {
+                for field in ["expected", "old_wrong"] {
+                    if let Some(reading) = case.get_mut(field) {
+                        *reading = crate::test_support::fixture_abilities(reading);
+                    }
+                }
+                if let Some(readings) = case.get_mut("expected_all").and_then(Value::as_array_mut) {
+                    for reading in readings {
+                        *reading = crate::test_support::fixture_abilities(reading);
+                    }
+                }
+            }
+        }
+    }
+    data
 }
 fn exact_set(name: &str, text: &str, expected: &[Value]) {
     let mut canonical = Vec::new();

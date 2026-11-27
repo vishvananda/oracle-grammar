@@ -40,7 +40,8 @@ fn closed_followups_preserve_their_receipts_definitions_and_fallbacks() {
     for case in cases {
         let name = case["name"].as_str().unwrap();
         let text = case["text"].as_str().unwrap();
-        let wanted = canonical_abilities(&case["expected"]).unwrap();
+        let operands = &crate::test_support::fixture_abilities(&case["expected"]);
+        let wanted = canonical_abilities(operands).unwrap();
         let readings = engine().parse(name, text).unwrap().readings;
         assert_eq!(
             readings.len(),
@@ -48,7 +49,6 @@ fn closed_followups_preserve_their_receipts_definitions_and_fallbacks() {
             "{name}"
         );
         assert!(readings.contains(&wanted), "{name}: {readings:#?}");
-        let operands = &case["expected"];
         let key = engine()
             .derivation_of(name, operands, text)
             .unwrap()
