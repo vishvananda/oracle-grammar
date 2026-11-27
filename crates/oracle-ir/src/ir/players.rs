@@ -23,7 +23,7 @@ pub enum PlayerRule {
     /// queries can admit later cards. A top query is re-evaluated each play.
     PlayPermission {
         cards: ObjectSet,
-        from: EventZone,
+        origins: CardPlayOrigins,
         action: CardPlayAction,
         filter: ObjectFilter,
     },
@@ -218,6 +218,10 @@ pub enum PlayerRule {
     },
 }
 
+/// Nonempty distinct card origins sharing one play permission and its limit.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct CardPlayOrigins(pub Vec<EventZone>);
+
 /// The closed list of player rules specific to one or two cards.
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -389,6 +393,14 @@ pub enum PlayerSet {
     DamagedBy(ResultId),
     /// "Those" players: whichever the row around this one names.
     Scoped,
+    /// Distinct opposing players attacked directly by this player in the
+    /// window, based on the relationship when attackers were declared.
+    /// Attacks on permanents do not count, and departed opponents stay in
+    /// the set of players recorded by the history.
+    OpponentsAttackedBy {
+        attacker: PlayerRef,
+        window: super::HistoryWindow,
+    },
 }
 
 /// Something a player did or had done to them. See `Condition::PlayerDid`.

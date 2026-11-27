@@ -351,6 +351,14 @@ pub enum Expr {
     /// evaluate its accumulated total when they resolve. This is distinct from
     /// one event's Performed receipt and from a total over a source's effects.
     DamagePreventedBy(ResultId),
+    /// Counters actually placed by this result, filtered at the placement
+    /// event. Changes to the recipients afterward do not change the count.
+    CountersPlaced {
+        result: ResultId,
+        kind: crate::counter::CounterKind,
+        objects: Box<ObjectFilter>,
+        by: PlayerRef,
+    },
 }
 
 /// Mana a number or filter reads that did not pay for a whole spell.

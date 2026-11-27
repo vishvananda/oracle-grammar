@@ -12,7 +12,7 @@ mod movement_payloads;
 mod number_tests;
 mod schema;
 mod typed;
-pub use typed::{MappedMigration, mapped_read_json};
+pub use typed::{MappedMigration, abilities_from_194, mapped_read_json};
 
 pub fn input_sites(
     version: u32,
@@ -40,7 +40,7 @@ pub fn read_json(input: &str) -> Result<UnifiedCard, String> {
     let value = crate::json_input::value(input)?;
     match value.get("schema_version").and_then(Value::as_u64) {
         Some(version) if version == u64::from(SCHEMA_VERSION) => (),
-        Some(179..=193) => {
+        Some(179..=194) => {
             return Ok(typed::upgrade(value, false)?.card);
         }
         _ => return Err("unsupported AST schema version for migration".into()),

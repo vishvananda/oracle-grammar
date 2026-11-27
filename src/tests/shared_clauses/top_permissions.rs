@@ -8,7 +8,7 @@ fn permission(action: &str, filter: Value) -> Value {
     let top = json!({"kind":"Take","args":{"objects":{"kind":"Zone","args":{"scope":{"Players":{
         "zone":"Library","players":{"kind":"One","args":{"kind":"Affected"}}}},
         "kind":"Card","filter":{"kind":"Any"}}},"count":{"kind":"Constant","args":1},"from":"Top"}});
-    json!({"kind":"PlayerRule","args":{"PlayPermission":{"cards":top,"from":"Library",
+    json!({"kind":"PlayerRule","args":{"PlayPermission":{"cards":top,"origins":["Library"],
         "action":action,"filter":filter}}})
 }
 

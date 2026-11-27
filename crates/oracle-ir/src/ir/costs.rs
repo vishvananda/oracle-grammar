@@ -71,6 +71,10 @@ pub enum CastingRule {
 pub enum CastingOrigin {
     Ordinary,
     Flashback,
+    /// Graveyard alternative that also returns a creature you control to
+    /// its owner's hand. The selected permission controls the payment and
+    /// replaces subsequent departure from the stack with exile.
+    BeamMeUp,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -316,6 +320,9 @@ pub struct PlayTerms {
     pub then: Option<Destination>,
     /// Cast face down, as this creature spell.
     pub face_down: Option<FaceDownAs>,
+    /// Require a proposed cast to match the spell as announced, including its
+    /// chosen face. Land plays are unaffected when either action is allowed.
+    pub cast_filter: Option<Box<ObjectFilter>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

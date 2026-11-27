@@ -212,6 +212,9 @@ impl Writer<'_> {
                 if n == "TargetSpec" {
                     return self.target(v);
                 }
+                if n == "CardPlayOrigins" {
+                    return self.node(&Ty::Vec(Box::new(named("EventZone"))), v);
+                }
                 if n == "Instruction" && v["kind"] == "Effect" {
                     let op = self.node(&named("Operation"), &v["args"]["operation"])?;
                     let result = &v["args"]["result"];
@@ -895,6 +898,14 @@ impl Reader {
                 }
                 if name == "TargetSpec" {
                     return self.target(n);
+                }
+                if name == "CardPlayOrigins" {
+                    let zone = named("EventZone");
+                    return if matches!(n, Node::List(_)) {
+                        self.node(&Ty::Vec(Box::new(zone)), n)
+                    } else {
+                        self.node(&zone, n).map(|origin| json!([origin]))
+                    };
                 }
                 if name == "Expr" && matches!(n, Node::Scalar(Value::Number(_))) {
                     return Ok(json!({"kind":"Constant","args":raw_value(n)?}));

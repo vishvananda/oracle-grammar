@@ -106,7 +106,7 @@ all_player_rule_more_turn ::= all_player_rule_turn "and" all_player_rule_list_tu
 /* @sem PlayerAction::PlayLand{filter:Any} */
 player_prohibit_land ::= "play" "lands"
 
-player_prohibited_action ::= player_prohibit_become_monarch | player_prohibit_attack_recipient | player_named_land_prohibition | player_prohibit_attack_creatures | player_prohibit_receive_counters | player_prohibit_land | player_prohibit_spells | player_prohibit_typed_spells | player_prohibit_named_spells | player_prohibit_land_from_zone | player_prohibit_draw | player_prohibit_gain_life | player_prohibit_lose_life | player_prohibit_win | player_prohibit_lose | player_prohibit_search | player_prohibit_discard | player_prohibit_cycle | player_prohibit_counters | player_prohibit_cast_qualified | player_prohibit_pay_life_spells | player_prohibit_activate_nonmana
+player_prohibited_action ::= player_prohibit_sacrifice_tokens | player_prohibit_become_monarch | player_prohibit_attack_recipient | player_named_land_prohibition | player_prohibit_attack_creatures | player_prohibit_receive_counters | player_prohibit_land | player_prohibit_spells | player_prohibit_typed_spells | player_prohibit_named_spells | player_prohibit_land_from_zone | player_prohibit_draw | player_prohibit_gain_life | player_prohibit_lose_life | player_prohibit_win | player_prohibit_lose | player_prohibit_search | player_prohibit_discard | player_prohibit_cycle | player_prohibit_counters | player_prohibit_cast_qualified | player_prohibit_pay_life_spells | player_prohibit_activate_nonmana
 /* @sem PlayerAction::Draw */
 player_prohibit_draw ::= "draw" "cards"
 /* @sem PlayerAction::GainLife */
@@ -793,3 +793,12 @@ next_turn_spell_filter_h3 ::= next_turn_spell_union_h3 | card_word
 
 /* @sem ObjectFilter::AnyOf([$card_word, $card_word_2]) */
 next_turn_spell_union_h3 ::= card_word "or" card_word
+
+/* The rule applies to the affected player's sacrifice action, including costs. */
+/* @sem PlayerAction::Sacrifice{objects:AllOf([Subtype(Treasure),Token])} */
+player_prohibit_sacrifice_tokens ::= "sacrifice" "Treasure" "tokens"
+
+/* It is the turn player who chooses to draw and cannot attack. The
+   counter is placed by the triggered ability's controller. */
+/* @sem Program::Program{instructions:[Optional{decider:EventSubject,body:_{instructions:[Effect{result:@next,operation:Draw{players:One(EventSubject),amount:$card_count_one}},Effect{result:@next,operation:CreateContinuousEffect{source:Source,affected:Players(One(EventSubject)),changes:[PlayerRule(Prohibit(AttackWith(Any)))],duration:EndOfTurn,evaluation:LiveObjects}},Effect{result:@next,operation:$put_counters_direct}]}}]} */
+program_active_draw_prevents_attacking ::= "that" "player" "may" "draw" card_count_one "." "if" "they" "do" "," "they" "can't" "attack" "this" "turn" "and" "you" put_counters_direct "."

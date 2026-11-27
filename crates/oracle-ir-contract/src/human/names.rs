@@ -241,6 +241,7 @@ pub fn legacy_field<'a>(owner: &str, field: &'a str) -> Option<&'a str> {
         }
         ("Operation::Search" | "Operation::ReorderLibrary", "library_owner") => Some("library"),
         ("Operation::ChooseValue", "choosers") => Some("actor"),
+        ("PlayerRule::PlayPermission", "origins") => Some("from"),
         _ => None,
     }
 }

@@ -243,6 +243,11 @@ impl<'a> Scope<'a> {
                             | Operation::Reveal { .. }
                             | Operation::RevealUntil { .. }
                             | Operation::RevealUntilGroup { .. } => ResultKind::Observation,
+                            Operation::Keyword {
+                                action: KeywordAction::Fight { .. },
+                                ..
+                            } => ResultKind::Fight,
+                            Operation::PutCounters { .. } => ResultKind::CounterPlacement,
                             Operation::CreateReplacement { event, .. }
                                 if crate::semantics::replacement_bindings(event).damage =>
                             {
@@ -270,6 +275,7 @@ impl<'a> Scope<'a> {
                             Operation::ReorderLibrary { .. }
                             | Operation::Destroy { .. }
                             | Operation::Move { .. }
+                            | Operation::PlayWith { .. }
                             | Operation::Counter { .. }
                             | Operation::SetTapped { .. }
                             | Operation::Discard { .. }

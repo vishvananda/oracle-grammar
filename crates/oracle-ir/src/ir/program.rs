@@ -674,7 +674,8 @@ pub enum Operation {
         entry: Vec<Operand>,
         face_down: Option<FaceDownAs>,
     },
-    /// `PlayCards` on terms: how it is paid for and what the spell gets.
+    /// `PlayCards` on terms: the proposed spell, its payment and what it
+    /// gets. The result records the cards played and their new incarnations.
     PlayWith {
         actor: PlayerSet,
         action: CardPlayAction,
@@ -987,6 +988,18 @@ pub enum Operation {
     /// effect supplies one receipt; clauses do not publish named intermediate
     /// receipts. Use an instruction `Group` when each action needs its own result.
     InOrder(Vec<Operation>),
+    /// Remove damage marked on the specified permanents. This neither taps
+    /// them nor removes them from combat as regeneration would.
+    RemoveMarkedDamage {
+        objects: ObjectSet,
+    },
+    /// A temporary modifier of triggering. Separate applications each
+    /// add their own trigger rather than copying an existing stack object.
+    CreateTriggerRule {
+        abilities: ObjectFilter,
+        rule: TriggerRule,
+        duration: Duration,
+    },
 }
 
 impl Program {

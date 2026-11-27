@@ -74,7 +74,11 @@ fn chosen_move(choice: &Value, movement: &Value, uses: &Uses) -> Option<Value> {
     let choose = &choice["args"]["operation"];
     let choose_args = &choose["args"];
     let objects = &choose_args["objects"];
-    let selector = &movement["args"]["operation"]["args"]["objects"];
+    let move_args = &movement["args"]["operation"]["args"];
+    let selector = &move_args["objects"];
+    let scope = &objects["args"]["scope"];
+    let owned_graveyard = *scope == json!({"Players":{"zone":"Graveyard","players":controller()}});
+    let owned_hand_to_exile = own_hand(objects) && move_args["destination"].get("Exile").is_some();
     if choice["kind"] != "Effect"
         || choose["kind"] != "ChooseObjects"
         || choose_args["player"] != json!({"kind":"AbilityController"})
@@ -82,12 +86,7 @@ fn chosen_move(choice: &Value, movement: &Value, uses: &Uses) -> Option<Value> {
         || choose_args["count"] != json!({"AsManyAsCan":{"kind":"Constant","args":1}})
         || objects["kind"] != "Zone"
         || objects["args"]["kind"] != "Card"
-        || !(objects["args"]["scope"]
-            == json!({"Players":{"zone":"Graveyard","players":controller()}})
-            || own_hand(objects)
-                && movement["args"]["operation"]["args"]["destination"]
-                    .get("Exile")
-                    .is_some())
+        || !(owned_graveyard || owned_hand_to_exile)
         || movement["kind"] != "Effect"
         || movement["args"]["operation"]["kind"] != "Move"
         || selector["kind"] != "Selected"
@@ -100,7 +99,7 @@ fn chosen_move(choice: &Value, movement: &Value, uses: &Uses) -> Option<Value> {
     // Within a cost, choosing as many as possible cannot make paying for a
     // missing card optional. Only the following Move reads the selection.
     move_part(
-        &movement["args"]["operation"]["args"],
+        move_args,
         objects,
         json!({"Exactly":{"kind":"Constant","args":1}}),
     )

@@ -65,7 +65,7 @@ fn optional_exile(optional: &Value, uses: &Uses, tracing: bool) -> bool {
         && granted["args"]
             == json!({"source":{"kind":"Source"},"affected":{"Players":controller()},
             "changes":[{"kind":"PlayerRule","args":{"PlayPermission":{
-                "cards":set,"from":"Exile","action":"Either","filter":{"kind":"Any"}
+                "cards":set,"origins":["Exile"],"action":"Either","filter":{"kind":"Any"}
             }}}],"duration":"EndOfTurn","evaluation":"LiveObjects"})
 }
 

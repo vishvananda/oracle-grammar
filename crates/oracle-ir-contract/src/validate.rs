@@ -24,6 +24,8 @@ enum ResultKind {
     ObjectTransition,
     CreatedObjects,
     DamageReplacement,
+    Fight,
+    CounterPlacement,
     Mana,
     Coin,
     CoinBatch,

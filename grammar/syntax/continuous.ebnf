@@ -390,7 +390,7 @@ rule_cant_be_targeted ::= "can't" "be" "the" "target" "of" target_ban
 /* @sem $target_ban */
 target_ban_plural ::= "can't" "be" "the" "targets" "of" target_ban
 
-target_ban ::= target_ban_triggered | target_ban_activated | target_ban_any | target_ban_opponents | target_ban_spells | target_ban_kind_spells | target_ban_kind_spells_opponents | target_ban_spells_or_sources | target_ban_abilities_from | target_ban_abilities_opponents | target_ban_opponent_spells_or_sources
+target_ban ::= target_ban_abilities_from_opponents_sources | target_ban_triggered | target_ban_activated | target_ban_any | target_ban_opponents | target_ban_spells | target_ban_kind_spells | target_ban_kind_spells_opponents | target_ban_spells_or_sources | target_ban_abilities_from | target_ban_abilities_opponents | target_ban_opponent_spells_or_sources
 /* @sem Change::[Rule(Prohibit(BeTargeted(Any)))] */
 target_ban_any ::= "spells" "or" "abilities"
 /* @sem Change::[Rule(Prohibit(BeTargeted(ControlledBy(OpponentsOf(AbilityController)))))] */
@@ -1947,7 +1947,7 @@ hands_revealed_opponents ::= "your" "opponents"
 static_hand_revealed ::= "play" "with" "your" "hand" "revealed" "."
 
 /* A card's own graveyard permission works while that card is in the graveyard. */
-/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Source), from:Graveyard, action:CastSpell, filter:Any})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Source), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any})]})} */
 static_cast_self_from_graveyard ::= "you" "may" "cast" "this" "card" "from" "your" "graveyard" "."
 
 /* Playing or casting from your library's top. "Play lands", "cast creature spells" and
@@ -1966,13 +1966,13 @@ static_self_chosen_color ::= self_ref "is" "the" "chosen" "color" "."
 /* @sem Ability::Conditional{condition:$condition, then:[Static{kind:Ordinary, affected:Objects(One($self_ref)), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})]}]} */
 static_self_skip_untap_if ::= self_ref "doesn't" "untap" "during" "your" "untap" "step" "if" condition "."
 /* Lands, played from the graveyard as from a hand. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:CardType(Land)}), from:Graveyard, action:PlayLand, filter:Any})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:CardType(Land)}), origins:CardPlayOrigins([Graveyard]), action:PlayLand, filter:Any})]}) */
 static_play_lands_from_graveyard ::= "you" "may" "play" "lands" "from" "your" "graveyard" "."
 /* "Once during each of your turns, you may cast a creature spell from your graveyard":
    one spell each turn, cast only during your own turns. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$card_filter}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$card_filter}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal}})]}) */
 static_once_each_turn_graveyard_cast ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "cast" ("a" | "an") card_filter "spell" "from" "your" "graveyard" "."
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:@and($card_filter, $modifiers)}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:@and($card_filter, $modifiers)}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal}})]}) */
 static_once_each_turn_graveyard_cast_with ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "cast" ("a" | "an") card_filter "spell" modifiers "from" "your" "graveyard" "."
 /* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$top_play_permissions})]} */
 static_cast_from_top_if ::= "as" "long" "as" condition "," top_play_permissions "."
@@ -1987,13 +1987,13 @@ top_permissions ::= top_permission | top_permission_pair
 /* @sem Change::[...$top_permission, ...$top_permission_2] */
 top_permission_pair ::= top_permission "and" top_permission
 top_permission ::= top_play_lands | top_play_kind_lands | top_cast_spells | top_play_cards
-/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:PlayLand, filter:Any})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:PlayLand, filter:Any})] */
 top_play_lands ::= "play" "lands"
-/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:PlayLand, filter:$plural_kind})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:PlayLand, filter:$plural_kind})] */
 top_play_kind_lands ::= "play" plural_kind "lands"
-/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$cast_spells_filter})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:$cast_spells_filter})] */
 top_cast_spells ::= "cast" cast_spells_filter
-/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:Either, filter:Any})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:Either, filter:Any})] */
 top_play_cards ::= "play" "cards"
 
 /* Plural spells of a kind: "spells", "creature spells", "noncreature spells", "Cleric,
@@ -2230,7 +2230,7 @@ static_graveyard_cards_grant_during_turn ::= "during" "your" "turn" "," static_g
 graveyard_grant_qualified ::= quality graveyard_grant_filter
 
 /* A graveyard casting permission uses the receiving card's own sneak ability. */
-/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}, from:Graveyard, action:CastSpell, filter:$card_filter}, terms:_{cost:Using(Sneak)}})]} */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$card_filter}, terms:_{cost:Using(Sneak)}})]} */
 static_cast_graveyard_using_sneak ::= "you" "may" "cast" card_filter "spells" "from" "your" "graveyard" "using" "their" "sneak" "abilities" "."
 
 /* Keyword removal shares its native check term; each inflection owns one
@@ -2684,7 +2684,7 @@ static_exile_spell_effect ::= "each" adjective_nontype "spell" "you" "cast" "fro
 exile_spell_effect ::= "conspire"
 
 /* A per-player cast permission uses the affected player for both turn and ownership. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$other_owned_linked_cards, from:Exile, action:CastSpell, filter:Any}, terms:_{limit:EachTurn(1), during:One(Affected), cost:Normal, spend_as:AnyType}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$other_owned_linked_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any}, terms:_{limit:EachTurn(1), during:One(Affected), cost:Normal, spend_as:AnyType}})]}) */
 static_each_turn_linked_cast ::= "during" "each" "player's" "turn" "," "that" "player" "may" "cast" "a" "spell" "from" "among" other_owned_linked_cards "," "and" "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "it" "."
 
 /* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([OwnedBy(OthersThan(Affected)), ExiledWith($object_ref)])}) */
@@ -2764,21 +2764,21 @@ shared_quoted_pair_static ::= affected shared_quoted_pair_changes
 shared_quoted_pair_changes ::= shared_trigger_activation_changes | shared_hand_trigger_changes | shared_loyalty_pair_changes | shared_look_trigger_changes
 
 /* Graveyard casting permissions compose with independent cost and condition phrases. */
-/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$affected, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Additional(Cost{parts:[$cast_additional_cost_part]})}})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$affected, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:_{cost:Additional(Cost{parts:[$cast_additional_cost_part]})}})]})} */
 static_graveyard_cast_additional ::= "you" "may" "cast" affected "from" "your" "graveyard" "by" cast_additional_cost_part "in" "addition" "to" "paying" "its" "other" "costs" "."
 
-/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:$graveyard_cast_phrase, from:Graveyard, action:CastSpell, filter:Any})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:$graveyard_cast_phrase, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any})]})} */
 static_graveyard_cast_condition ::= graveyard_cast_phrase "as" "long" "as" condition "."
 
 /* @sem ObjectSet::$cast_permission_cards */
 graveyard_cast_phrase ::= cast_permission_cards "from" "your" "graveyard"
 
-/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Using($graveyard_cast_mechanic)}})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:_{cost:Using($graveyard_cast_mechanic)}})]})} */
 static_graveyard_cast_using ::= graveyard_cast_phrase "using" "its" graveyard_cast_mechanic "ability" "."
 
 graveyard_cast_mechanic ::= reduced_blitz_cost | mechanic_mutate_name | graveyard_cast_bestow
 
-/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Alternate(Cost($cost)), into_exile:true}})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:_{cost:Alternate(Cost($cost)), into_exile:true}})]})} */
 static_graveyard_cast_alternate ::= "as" "long" "as" condition "," graveyard_cast_phrase "by" "paying" cost "rather" "than" "paying" "its" "mana" "cost" "." "if" "you" "cast" "this" "card" "this" "way" "and" "it" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead" "."
 
 /* Keyword qualification and the named evasion rule keep separate operands. */
@@ -2854,22 +2854,22 @@ turn_exile_permission_if ::= "during" "your" "turn" "," "if" condition "," turn_
 
 turn_exile_permissions ::= exile_cast_linked_spells | exile_lands_and_spells | exile_cast_flash | exile_cast_additional | exile_play_linked | exile_play_counter | exile_play_life
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:$permission_exile_cards, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:$permission_exile_cards, from:Exile, action:CastSpell, filter:Any})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:$permission_exile_cards, origins:CardPlayOrigins([Exile]), action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:$permission_exile_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any})] */
 exile_lands_and_spells ::= "you" "may" "play" "lands" "and" "cast" "spells" "from" "among" permission_exile_cards
 
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_linked_exile_cards, from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:AnyType, flash:true}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:AnyType, flash:true}})] */
 exile_cast_flash ::= "you" "may" "cast" permission_linked_exile_cards "and" "you" "may" "cast" "them" "as" "though" "they" "had" "flash" "." "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "those" "spells"
 
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_owned_linked_exile_cards, from:Exile, action:CastSpell, filter:$filter_phrase}, terms:_{cost:Additional(Cost{parts:[RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), amount:AmongThem(Exactly($value))}]}]})}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_owned_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:$filter_phrase}, terms:_{cost:Additional(Cost{parts:[RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), amount:AmongThem(Exactly($value))}]}]})}})] */
 exile_cast_additional ::= "you" "may" "cast" filter_phrase "spells" "from" "among" permission_owned_linked_exile_cards "by" "removing" value "counters" "from" "among" affected "in" "addition" "to" "paying" "their" "other" "costs"
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:$permission_linked_exile_cards, from:Exile, action:Either, filter:Any})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:$permission_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:Either, filter:Any})] */
 exile_play_linked ::= "you" "may" "play" permission_linked_exile_cards
 
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_others_counter_exile_cards, from:Exile, action:Either, filter:Any}, terms:_{cost:Normal, spend_as:AnyType}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_others_counter_exile_cards, origins:CardPlayOrigins([Exile]), action:Either, filter:Any}, terms:_{cost:Normal, spend_as:AnyType}})] */
 exile_play_counter ::= "you" "may" "play" permission_others_counter_exile_cards "," "and" "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "those" "spells"
 
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_linked_exile_cards, from:Exile, action:Either, filter:Any}, terms:_{cost:Alternate(Cost{parts:[LifeEqualToOwnManaValue]})}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:Either, filter:Any}, terms:_{cost:Alternate(Cost{parts:[LifeEqualToOwnManaValue]})}})] */
 exile_play_life ::= "you" "may" "play" permission_linked_exile_cards "." "if" "you" "cast" "a" "spell" "this" "way" "," "pay" "life" "equal" "to" "its" "mana" "value" "rather" "than" "pay" "its" "mana" "cost"
 
 /* @sem Change::[Colors{mode:Set, colors:[$mana_color_word]}] */
@@ -3204,7 +3204,7 @@ emblem_cast_spell_cost ::= emblem_cast_spell_subject "cost" spell_cost_less "to"
 emblem_cast_spell_subject ::= cast_spells_filter "you" "cast"
 
 /* A top-card casting permission with a separately composed additional cost. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Additional(Cost{parts:[$cast_additional_cost_part]})}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Additional(Cost{parts:[$cast_additional_cost_part]})}})]}) */
 static_top_cast_additional ::= "you" "may" "cast" cast_spells_filter "from" "the" "top" "of" "your" "library" "by" cast_additional_cost_part "in" "addition" "to" "paying" "their" "other" "costs" "."
 
 /* The counted attachments and the static change share the same scalar host. */
@@ -3372,7 +3372,7 @@ spell_cant_be_countered ::= "can't" "be" "countered"
 spell_cant_be_cast ::= "can't" "be" "cast"
 
 /* Casting permissions with a separately described additional payment. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$filter_phrase}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Additional(Cost{parts:[$graveyard_other_exile_payment]})}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$filter_phrase}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Additional(Cost{parts:[$graveyard_other_exile_payment]})}})]}) */
 static_once_graveyard_cast_payment ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "cast" ("a" | "an") filter_phrase "spell" "from" "your" "graveyard" "by" graveyard_other_exile_payment "in" "addition" "to" "paying" "its" "other" "costs" "."
 
 /* A cast restriction for a spell class from two public zones. */
@@ -3395,7 +3395,7 @@ conditional_battlefield_named_population ::= "if" "there" "are" "exactly" value 
 conditional_controlled_named_population ::= "if" "you" "control" "exactly" value named_plural_population "," population_legend_exemption "."
 
 /* Alternate graveyard casting payments compose mana with a separate exile cost. */
-/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Alternate(Cost{parts:[Mana($mana_symbols), $cast_exile_graveyard_other]})}})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:_{cost:Alternate(Cost{parts:[Mana($mana_symbols), $cast_exile_graveyard_other]})}})]})} */
 static_graveyard_cast_mana_and_exile ::= graveyard_cast_phrase "by" "paying" mana_symbols "and" cast_exile_graveyard_other "rather" "than" "paying" "its" "mana" "cost" "."
 
 /* Player-level rules retain the affected player separately from spell filters. */
@@ -3562,7 +3562,7 @@ animation_grants ::= grants | animation_spell_color_protection
 animation_spell_color_protection ::= "protection" "from" "each" "of" "that" "spell's" "colors"
 
 /* A graveyard casting permission composes with its payment and entry terms. */
-/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$affected, from:Graveyard, action:CastSpell, filter:Any}, terms:$graveyard_cast_terms})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$affected, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:$graveyard_cast_terms})]})} */
 static_graveyard_cast_terms ::= "you" "may" "cast" affected "from" "your" "graveyard" graveyard_cast_terms "."
 
 graveyard_cast_terms ::= graveyard_cast_finality_entry | graveyard_cast_alternate_sacrifice | graveyard_cast_alternate | graveyard_cast_alternate_counters | graveyard_cast_warp | graveyard_cast_extra_each
@@ -3585,7 +3585,7 @@ graveyard_cast_warp ::= "using" "its" "warp" "ability"
 /* @sem PlayTerms::PlayTerms{cost:Additional(Cost{parts:[Repeated{part:Mana($mana_symbols), times:CountObjects(Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([Not(SameObject($object_ref)), $filter_phrase])}))}]})} */
 graveyard_cast_extra_each ::= "if" "you" "pay" mana_symbols "more" "to" "cast" object_ref "for" "each" "other" filter_phrase "card" "in" "your" "graveyard"
 
-/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$affected, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Normal, effects:[$graveyard_entry_counter]}})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$affected, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:_{cost:Normal, effects:[$graveyard_entry_counter]}})]})} */
 static_graveyard_cast_if_entry ::= "you" "may" "cast" affected "from" "your" "graveyard" "if" condition "." "if" "you" "do" "," graveyard_entry_counter "."
 
 /* @sem Operand::List([Term{family:EnterFlag, form:EntersWithACounter, operands:[Term{family:CounterType, form:PTCounter, operands:[Integer(1), Integer(1)]}]}]) */
@@ -3729,13 +3729,13 @@ once_each_turn_graveyard_permission ::= "once" "during" "each" "of" "your" "turn
 
 turn_graveyard_permission ::= turn_graveyard_artifact_tapped | turn_graveyard_permanent_perpetual | turn_graveyard_arrival_cast
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:CardType(Artifact)}, terms:_{limit:EachTurn(1), cost:Normal, effects:[List([$cast_artifact_entry_effect])]}}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:CardType(Artifact)}, terms:_{limit:EachTurn(1), cost:Normal, effects:[List([$cast_artifact_entry_effect])]}}) */
 turn_graveyard_artifact_tapped ::= "you" "may" "cast" "an" "artifact" "spell" "from" "your" "graveyard" "." cast_artifact_entry_effect
 
 /* @sem Operand::Term{family:SpellEffect, form:EntersTapped} */
 cast_artifact_entry_effect ::= "if" "you" "cast" "a" "spell" "this" "way" "," "that" "artifact" "enters" "tapped" "."
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([Not(Subtype(Aura)), $graveyard_perpetual_cast_filter, AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])])}), from:Graveyard, action:CastSpell, filter:AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])}, terms:_{limit:EachTurn(1), cost:Normal, effects:[List([$cast_perpetual_creature_effect])]}}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([Not(Subtype(Aura)), $graveyard_perpetual_cast_filter, AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])])}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])}, terms:_{limit:EachTurn(1), cost:Normal, effects:[List([$cast_perpetual_creature_effect])]}}) */
 turn_graveyard_permanent_perpetual ::= "you" "may" "cast" "a" graveyard_perpetual_cast_filter "." cast_perpetual_creature_effect
 graveyard_perpetual_cast_filter ::= graveyard_cast_among_cards | graveyard_cast_permanent_spell
 /* @sem $filter_phrase */
@@ -3969,7 +3969,7 @@ clause_creature_change_destroy ::= creature_mana_value_remove_abilities "." dest
 /* @sem ObjectSet::$affected */
 cast_permission_cards ::= "you" "may" "cast" affected
 
-/* @sem Ability::Scoped{zones:[Exile], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:$cast_permission_cards, from:Exile, action:CastSpell, filter:Any})]})} */
+/* @sem Ability::Scoped{zones:[Exile], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:$cast_permission_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any})]})} */
 static_exile_cast_permission ::= cast_permission_cards "from" "exile" "."
 
 /* A single loss verb distributes over each independently named ability. */
@@ -4209,12 +4209,12 @@ case_top_filtered_permissions ::= "," "and" "you" "may" top_play_lands "and" cas
 /* @sem Change::[...$top_play_lands, ...$case_top_all_cast] */
 case_top_all_permissions ::= "and" "you" "may" top_play_lands "and" case_top_all_cast "from" "the" "top" "of" "your" "library"
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$case_top_cast_filter})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:$case_top_cast_filter})] */
 case_top_filtered_cast ::= "cast" case_top_cast_filter
 
 case_top_cast_filter ::= cast_kind_spells | cast_kind_pair_spells | cast_kind_list_spells | cast_two_kinds_spells | cast_modified_spells | cast_kind_modified_spells | cast_chosen_type_spells
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$cast_any_spells})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:$cast_any_spells})] */
 case_top_all_cast ::= "cast" cast_any_spells
 
 /* The qualifying state belongs to the live battlefield population. */
@@ -4640,13 +4640,18 @@ static_top_and_face_down_visibility ::= "you" "may" "look" "at" top_private_visi
 face_down_visibility ::= "face-down" affected
 
 /* Once-per-turn permissions share a singular spell filter and library location. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_once_cast_change]}) */
-static_top_once_cast ::= "once" "each" "turn" "," "you" "may" top_once_cast_change "."
+static_top_once_cast ::= static_top_once_each_turn | static_top_once_your_turn
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$top_singular_spell_filter}, terms:_{limit:EachTurn(1), cost:Normal}}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_once_cast_change]}) */
+static_top_once_each_turn ::= "once" "each" "turn" "," "you" "may" top_once_cast_change "."
+
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_once_cast_change]}], otherwise:[]} */
+static_top_once_your_turn ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" top_once_cast_change "."
+
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:$top_singular_spell_filter}, terms:_{limit:EachTurn(1), cost:Normal}}) */
 top_once_cast_change ::= "cast" top_singular_spell_filter "from" "the" "top" "of" "your" "library"
 
-top_singular_spell_filter ::= top_singular_power_spell | top_singular_instant_sorcery_spell
+top_singular_spell_filter ::= top_singular_artifact_spell | top_singular_power_spell | top_singular_instant_sorcery_spell
 
 /* @sem ObjectFilter::AllOf([$filter_phrase, Property{property:Power, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}]) */
 top_singular_power_spell ::= "a" filter_phrase "spell" "with" "power" value "or" "less"
@@ -4660,10 +4665,10 @@ static_top_cast_consequence ::= "you" "may" top_cast_consequence_change "."
 
 top_cast_consequence_change ::= top_cast_flash_change | top_cast_keyword_change
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$top_nontype_spells}, terms:$top_cast_flash_terms}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:$top_nontype_spells}, terms:$top_cast_flash_terms}) */
 top_cast_flash_change ::= "cast" top_nontype_spells "from" "the" "top" "of" "your" "library" "." top_cast_flash_terms
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$top_creature_power_spells}, terms:$top_cast_keyword_terms}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:$top_creature_power_spells}, terms:$top_cast_keyword_terms}) */
 top_cast_keyword_change ::= "cast" top_creature_power_spells "from" "the" "top" "of" "your" "library" "." top_cast_keyword_terms
 
 /* @sem $adjective_nontype */
@@ -4770,10 +4775,10 @@ affected_linked_exile_cards ::= "cards" "they" "exiled" "with" object_ref
 /* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledBy{player:Affected, with:$object_ref, this_turn:true}}) */
 affected_linked_exile_cards_turn ::= "cards" "they" "exiled" "with" object_ref "this" "turn"
 
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players($players_singular), changes:[PlayerRule(Visibility{objects:$affected_linked_exile_cards, audience:AffectedPlayer}), PlayerRule(PlayPermission{cards:$affected_linked_exile_cards, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:$affected_linked_exile_cards, from:Exile, action:CastSpell, filter:Any})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($players_singular), changes:[PlayerRule(Visibility{objects:$affected_linked_exile_cards, audience:AffectedPlayer}), PlayerRule(PlayPermission{cards:$affected_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:$affected_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any})]}) */
 linked_exile_visibility_permission ::= players_singular "may" "look" "at" affected_linked_exile_cards "," "and" "they" "may" "play" "lands" "and" "cast" "spells" "from" "among" "those" "cards" "."
 
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players($players_singular), changes:[PlayerRule(PlayPermission{cards:$affected_linked_exile_cards_turn, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:$affected_linked_exile_cards_turn, from:Exile, action:CastSpell, filter:Any})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($players_singular), changes:[PlayerRule(PlayPermission{cards:$affected_linked_exile_cards_turn, origins:CardPlayOrigins([Exile]), action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:$affected_linked_exile_cards_turn, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any})]}) */
 linked_exile_turn_permission ::= players_singular "may" "play" "lands" "and" "cast" "spells" "from" "among" affected_linked_exile_cards_turn "."
 
 /* A shared-value count is tied to the spell affected by this cost rule. */
@@ -4920,10 +4925,10 @@ graveyard_permissions ::= graveyard_cast_permission | graveyard_permission_pair 
 /* @sem Change::[...$graveyard_play_permission, ...$graveyard_cast_permission] */
 graveyard_permission_pair ::= graveyard_play_permission "and" graveyard_cast_permission
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:AllOf([$filter_plural, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), from:Graveyard, action:PlayLand, filter:Any})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:AllOf([$filter_plural, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), origins:CardPlayOrigins([Graveyard]), action:PlayLand, filter:Any})] */
 graveyard_play_permission ::= "play" filter_plural
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$graveyard_spell_filter})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$graveyard_spell_filter})] */
 graveyard_cast_permission ::= "cast" graveyard_spell_filter
 
 graveyard_spell_filter ::= cast_any_spells | graveyard_subtype_spells | spells_having_activated_ability
@@ -5121,18 +5126,18 @@ temporary_graveyard_permission_last ::= "you" "may" graveyard_cast_changes this_
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:$graveyard_cast_changes, duration:$this_duration, evaluation:LiveObjects} */
 temporary_graveyard_permission_comma ::= "you" "may" graveyard_cast_changes this_duration ","
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:$filter_plural}), from:Graveyard, action:PlayLand, filter:Any}), ...$graveyard_cast_changes] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:$filter_plural}), origins:CardPlayOrigins([Graveyard]), action:PlayLand, filter:Any}), ...$graveyard_cast_changes] */
 graveyard_play_changes ::= "play" filter_plural "and" graveyard_cast_changes
 
 graveyard_cast_changes ::= graveyard_cast_all_changes | graveyard_cast_filtered_changes | graveyard_cast_single_changes
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:Any})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any})] */
 graveyard_cast_all_changes ::= "cast" "spells" "from" "your" "graveyard"
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$filter_phrase})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$filter_phrase})] */
 graveyard_cast_filtered_changes ::= "cast" filter_phrase "spells" "from" "your" "graveyard"
 
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$cast_permission_cards, from:Graveyard, action:CastSpell, filter:Any}, terms:$adventure_cast_terms})], duration:$duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$cast_permission_cards, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:$adventure_cast_terms})], duration:$duration, evaluation:LiveObjects} */
 temporary_graveyard_adventure ::= cast_permission_cards "from" "your" "graveyard" adventure_cast_terms duration
 
 /* @sem PlayTerms::PlayTerms{cost:Using(Adventure)} */
@@ -5183,7 +5188,7 @@ static_loss_and_quoted_activation ::= affected change_lose_land_types_and_abilit
 /* @sem ObjectSet::One(Source) */
 graveyard_cast_self_phrase ::= "you" "may" "cast" "this" "card" "from" "your" "graveyard"
 
-/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_self_phrase, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Normal, into_exile:true}})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_self_phrase, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:_{cost:Normal, into_exile:true}})]})} */
 static_graveyard_cast_condition_exile ::= graveyard_cast_self_phrase "as" "long" "as" condition "." "if" "you" "cast" "it" "this" "way" "and" "it" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead" "."
 
 /* The antecedent and the text source both denote the top card of your graveyard.
@@ -5375,7 +5380,7 @@ copy_land_with_keyword ::= copy_add_land "and" copy_keyword_ability
 static_each_controller_bounded ::= filter_plural "each" "player" "controls" static_changes "as" "long" "as" players_controlling_at_most "."
 
 /* The turn restriction, per-turn limit, spell filter and card history are independent. */
-/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$turn_history_graveyard_cards, from:Graveyard, action:CastSpell, filter:$turn_history_spell}, terms:_{limit:$turn_cast_limit, cost:Normal}})]})]} */
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$turn_history_graveyard_cards, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$turn_history_spell}, terms:_{limit:$turn_cast_limit, cost:Normal}})]})]} */
 turn_history_graveyard_permission ::= turn_cast_limit "during" "each" "of" "your" "turns" "," "you" "may" "cast" turn_history_spell "from" "among" turn_history_graveyard_cards "."
 
 turn_cast_limit ::= turn_cast_once | turn_cast_twice
@@ -5773,7 +5778,7 @@ chosen_cast_filter ::= chosen_cast_card_type | modifier_chosen_type
 chosen_cast_card_type ::= "of" "the" "chosen" "type"
 
 /* The cast filter and the population's origin history are independent. */
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_nonbattlefield_graveyard_cards, from:Graveyard, action:CastSpell, filter:$filter_phrase}, terms:_{limit:EachTurn(1), cost:Normal}}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_nonbattlefield_graveyard_cards, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$filter_phrase}, terms:_{limit:EachTurn(1), cost:Normal}}) */
 turn_graveyard_arrival_cast ::= "you" "may" "cast" "a" filter_phrase "spell" "from" "among" recent_nonbattlefield_graveyard_cards "."
 
 /* @sem ObjectSet::Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([ArrivedThisTurn{}, Not(ArrivedThisTurn{from:Battlefield})])}) */
@@ -6077,7 +6082,7 @@ change_become_named_artifact_retained ::= "become" value "/" value becomes_types
 continuous_until_object_leaves ::= affected "become" basic_land_type_named "until" object_ref "leaves" "the" "battlefield"
 
 /* The granted card holds its own graveyard casting permission. */
-/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Source), from:Graveyard, action:CastSpell, filter:Any})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Source), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any})]})} */
 graveyard_quoted_permission ::= "you" "may" "cast" "this" "card" "from" "your" "graveyard"
 
 /* Keep the joint qualifier on the two affected populations while counting the live sources of the bonus. */
@@ -6198,7 +6203,7 @@ combat_target_power_sum ::= value "plus" "the" "power" "of" combat_opposing_targ
 set_own_base_toughness ::= self_possessive "base" "toughness" "becomes" "equal" "to" base_toughness_value
 
 /* A bounded graveyard play permission with a separately scoped granted ability. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:Either, filter:$graveyard_land_or_permanent_permission}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal, effects:[List([Term{family:SpellEffect, form:AddAbility, operands:[Ability(@scope($graveyard_permission_death_trigger))]}])]}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:Either, filter:$graveyard_land_or_permanent_permission}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal, effects:[List([Term{family:SpellEffect, form:AddAbility, operands:[Ability(@scope($graveyard_permission_death_trigger))]}])]}})]}) */
 static_graveyard_land_permanent_grant ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" graveyard_land_or_permanent_permission "." "if" "you" "do" "," "it" "gains" '"' graveyard_permission_death_trigger '"'
 
 /* @sem ObjectFilter::AnyOf([CardType(Land), AllOf([AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)]), Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$number}}])]) */
@@ -6393,7 +6398,7 @@ copied_check_kind ::= lost_flying | lost_first_strike | lost_trample | lost_defe
 copied_check_any_color_protection ::= "protection" "from" "any" "color"
 
 /* A linked exile permission retains both the linked object and spending terms. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_linked_exile_cards, from:Exile, action:Either, filter:Any}, terms:_{cost:Normal, spend_as:AnyColor}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:Either, filter:Any}, terms:_{cost:Normal, spend_as:AnyColor}})]}) */
 static_play_linked_any_color ::= "you" "may" "play" permission_linked_exile_cards "," "and" "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "those" "spells" "."
 
 /* A visibility grant and a separately scoped triggered ability share one holder. */
@@ -6415,11 +6420,11 @@ top_cast_once ::= "once" "each" "turn"
 /* @sem PlayLimit::EachTurn(2) */
 top_cast_twice ::= "twice" "each" "turn"
 
-/* @sem PlayerRule::PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$top_cast_shared_filter} */
+/* @sem PlayerRule::PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:$top_cast_shared_filter} */
 top_library_cast_permission ::= "cast" "a" "spell" "from" "the" "top" "of" "your" "library" "if" "it" top_cast_shared_filter
 
 /* A single cast retains its own limit and the controller's graveyard. */
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$filter_phrase}, terms:_{limit:Total(1), cost:Normal}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$filter_phrase}, terms:_{limit:Total(1), cost:Normal}})] */
 graveyard_cast_single_changes ::= "cast" "a" filter_phrase "spell" "from" "your" "graveyard"
 
 /* The named attacker and the first creature refer to the triggering object. */
@@ -6515,14 +6520,14 @@ top_card_anaphoric_changes ::= "you" "may" "look" "at" "it" "any" "time" "and" "
 
 top_card_anaphoric_permission ::= top_cast_it | top_play_it
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:Any})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:Any})] */
 top_cast_it ::= "cast" "it"
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:Either, filter:Any})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:Either, filter:Any})] */
 top_play_it ::= "play" "it"
 
 /* A once-per-turn free cast retains both the spell filter and its linked population. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$linked_exile_this_turn, from:Exile, action:CastSpell, filter:$spell_property_comparison}, terms:_{limit:EachTurn(1), cost:Free}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$linked_exile_this_turn, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:$spell_property_comparison}, terms:_{limit:EachTurn(1), cost:Free}})]}) */
 static_once_free_linked_cast ::= "once" "each" "turn" "," "you" "may" "cast" "a" "spell" spell_property_comparison "from" "among" linked_exile_this_turn "without" "paying" "its" "mana" "cost" "."
 
 /* @sem ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:$stat_comparison, value:$value}} */
@@ -6562,7 +6567,7 @@ history_cast_hand ::= "your" "hand"
 history_threshold_comparison ::= partition_at_most | bound_or_more
 
 /* The named granting permanent remains distinct from the emblem holder. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$emblem_granting_exile_cards, from:Exile, action:Either, filter:Any}, terms:_{cost:Normal, spend_as:$emblem_spending_kind}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$emblem_granting_exile_cards, origins:CardPlayOrigins([Exile]), action:Either, filter:Any}, terms:_{cost:Normal, spend_as:$emblem_spending_kind}})]}) */
 emblem_play_linked_any_color ::= "you" "may" "play" emblem_granting_exile_cards "," "and" "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" emblem_spending_kind "to" "cast" "those" "spells" "."
 
 /* @sem SpendAs::AnyColor */
@@ -6674,10 +6679,10 @@ quoted_whenever_during_your_turn ::= event_whenever "during" "your" "turn"
 quoted_when_during_your_turn ::= event_when "during" "your" "turn"
 
 /* Separate permissions share the affected player's other-player graveyard scope. */
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:OthersThan(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:PlayLand, filter:Any}, terms:_{cost:Normal}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:OthersThan(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:PlayLand, filter:Any}, terms:_{cost:Normal}})] */
 other_graveyards_land_permission ::= "play" "lands"
 
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:OthersThan(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Normal}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:OthersThan(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:_{cost:Normal}})] */
 other_graveyards_spell_permission ::= "cast" "spells"
 
 /* @sem Change::[...$other_graveyards_land_permission, ...$other_graveyards_spell_permission] */
@@ -6743,7 +6748,7 @@ command_zone_other_spells ::= "as" "long" "as" self_ref_named "is" "in" "the" "c
 command_zone_other_spell_cost ::= command_zone_other_spells "you" "cast" "cost" spell_cost_change "to" "cast" "."
 
 /* A graveyard permission with a composed additional payment. */
-/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Additional(Cost{parts:$cast_life_and_additional_parts})}})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:_{cost:Additional(Cost{parts:$cast_life_and_additional_parts})}})]})} */
 static_graveyard_cast_composed_cost ::= graveyard_cast_phrase "by" cast_life_and_additional_parts "in" "addition" "to" "paying" "its" "other" "costs" "."
 
 /* A draft-linked population and the copied keyword list are independent operands. */
@@ -6787,14 +6792,14 @@ top_spell_filter ::= adjective_historic | adjective_legendary | adjective_color
 top_play_permissions_normal ::= "you" "may" top_permissions "from" "the" "top" "of" "your" "library"
 
 /* The alternative applies to spells cast under this particular permission. */
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:Either, filter:Any}, terms:_{cost:Alternate(Cost{parts:[$top_spell_alternative_cost]})}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:Either, filter:Any}, terms:_{cost:Alternate(Cost{parts:[$top_spell_alternative_cost]})}})] */
 top_play_permissions_life ::= "you" "may" "play" "cards" "from" "the" "top" "of" "your" "library" "." top_spell_alternative_cost
 
 /* @sem CostPart::LifeEqualToOwnManaValue */
 top_spell_alternative_cost ::= "if" "you" "cast" "a" "spell" "this" "way" "," "pay" "life" "equal" "to" "its" "mana" "value" "rather" "than" "pay" "its" "mana" "cost"
 
 /* The exile replacement applies to the spell granted by this permission. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$graveyard_permission_spell_filter}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Additional(List([Program($cast_sacrificing_permanent)])), into_exile:true}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$graveyard_permission_spell_filter}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Additional(List([Program($cast_sacrificing_permanent)])), into_exile:true}})]}) */
 static_once_graveyard_cast_sacrifice_exile ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "cast" "an" graveyard_permission_spell_filter "spell" "from" "your" "graveyard" "by" cast_sacrificing_permanent "in" "addition" "to" "paying" "its" "other" "costs" "." "if" "a" "spell" "cast" "this" "way" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead" "."
 
 graveyard_permission_spell_filter ::= card_filter | filter_instant_or_sorcery
@@ -6850,14 +6855,14 @@ hand_return_origin ::= face_up_source_library | put_zone_exile
 affected_opponents_union ::= entry_opponents_union
 
 /* A limited graveyard permission can grant a replacement ability to the played object. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:Either, filter:$graveyard_play_or_cast_filter}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal, effects:[List([Term{family:SpellEffect, form:AddAbility, operands:[Ability($graveyard_play_granted_replacement)]}])]}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:Either, filter:$graveyard_play_or_cast_filter}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal, effects:[List([Term{family:SpellEffect, form:AddAbility, operands:[Ability($graveyard_play_granted_replacement)]}])]}})]}) */
 static_graveyard_play_grant ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" graveyard_play_or_cast_filter "from" "your" "graveyard" "." "if" "you" "do" "," "it" "gains" '"' graveyard_play_granted_replacement '"'
 
 /* @sem ObjectFilter::AnyOf([$filter_phrase, AllOf([$filter_phrase_2, AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])])]) */
 graveyard_play_or_cast_filter ::= "play" "a" filter_phrase "or" "cast" "a" filter_phrase "spell"
 
 /* Land-play permission keeps the outside population and cost independent. */
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:OutsideTheGame($outside_play_lands), from:Outside, action:PlayLand, filter:Any}, terms:_{cost:Normal}})], duration:EndOfTurn, evaluation:LiveObjects}}] */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:OutsideTheGame($outside_play_lands), origins:CardPlayOrigins([Outside]), action:PlayLand, filter:Any}, terms:_{cost:Normal}})], duration:EndOfTurn, evaluation:LiveObjects}}] */
 outside_land_play_this_turn ::= "this" "turn" "," "you" "may" "play" outside_play_lands "from" "outside" "the" "game"
 
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$outside_land_play_this_turn}} */
@@ -6892,7 +6897,7 @@ static_named_crew_counter_alternative ::= "you" "may" affected_counter_payment "
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players($players_singular), changes:[PlayerRule(Prohibit(CastSpell{filter:Any})), PlayerRule(Prohibit(Activate(Any))), PlayerRule(Visibility{objects:Zone(_{scope:Players{zone:Hand, players:One(Affected)}, kind:Card, filter:Any}), audience:Everyone})], duration:EndOfTurn, evaluation:LiveObjects}}] */
 chosen_player_hand_restriction ::= "choose" players_singular "." "this" "turn" "," "that" "player" "can't" "cast" "spells" "or" "activate" "abilities" "and" "plays" "with" "their" "hand" "revealed"
 
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One($zone_that_player)}, kind:Card, filter:Any}), from:Hand, action:PlayLand, filter:Any}, terms:_{cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One($zone_that_player)}, kind:Card, filter:Any}), from:Hand, action:CastSpell, filter:Any}, terms:_{cost:Normal}})], duration:EndOfTurn, evaluation:LiveObjects}}] */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One($zone_that_player)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Hand]), action:PlayLand, filter:Any}, terms:_{cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One($zone_that_player)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Hand]), action:CastSpell, filter:Any}, terms:_{cost:Normal}})], duration:EndOfTurn, evaluation:LiveObjects}}] */
 clause_play_referenced_hand ::= "you" "may" "play" "lands" "and" "cast" "spells" "from" zone_that_player "hand" "this" "turn"
 
 /* A keyword and a quoted trigger are independent changes to one holder. */
@@ -6934,7 +6939,7 @@ granted_explicit_player_program ::= "you" player_action_base
 /* grant_equipment_keyword is shared as plain_equip_grant. */
 
 /* The population and its origin are shared by all three permissions. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), from:$own_cast_zone, action:PlayLand, filter:Any}, terms:_{cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), from:$own_cast_zone, action:CastSpell, filter:Any}, terms:_{cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), from:$own_cast_zone, action:CastSpell, filter:Any}, terms:_{cost:Alternate(Cost{parts:[$permission_alternate_cost]})}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), origins:CardPlayOrigins([$own_cast_zone]), action:PlayLand, filter:Any}, terms:_{cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), origins:CardPlayOrigins([$own_cast_zone]), action:CastSpell, filter:Any}, terms:_{cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), origins:CardPlayOrigins([$own_cast_zone]), action:CastSpell, filter:Any}, terms:_{cost:Alternate(Cost{parts:[$permission_alternate_cost]})}})]}) */
 static_history_lands_spells ::= "you" "may" "play" "lands" "and" "cast" "spells" "from" "among" "cards" "in" own_cast_zone permission_history "." "if" "you" "cast" "a" "spell" "this" "way" "," "you" permission_alternate_cost "."
 
 permission_history ::= permission_surveilled_history | drawn_cards_history
@@ -7488,13 +7493,13 @@ static_own_hand_cast_permission ::= own_hand_cast_permission_change "."
 
 own_hand_cast_permission_change ::= own_hand_once_free_cast | own_hand_energy_flash_cast
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One(Affected)}, kind:Card, filter:Any}), from:Hand, action:CastSpell, filter:$own_hand_disjunct_spell}, terms:_{limit:EachTurn(1), cost:Free}}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Hand]), action:CastSpell, filter:$own_hand_disjunct_spell}, terms:_{limit:EachTurn(1), cost:Free}}) */
 own_hand_once_free_cast ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "cast" own_hand_disjunct_spell "from" "your" "hand" "without" "paying" "its" "mana" "cost"
 
 /* @sem ObjectFilter::@or($adjective_nontype, $filter_phrase) */
 own_hand_disjunct_spell ::= "a" adjective_nontype "or" filter_phrase "spell"
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One(Affected)}, kind:Card, filter:Any}), from:Hand, action:CastSpell, filter:$limited_mana_value_spells}, terms:$own_hand_energy_flash_terms}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Hand]), action:CastSpell, filter:$limited_mana_value_spells}, terms:$own_hand_energy_flash_terms}) */
 own_hand_energy_flash_cast ::= "you" "may" "cast" limited_mana_value_spells own_hand_energy_flash_terms
 
 /* The one energy symbol is the payment; the later article identifies one spell. */
@@ -7506,14 +7511,14 @@ own_hand_energy_flash_terms ::= "by" "paying" "{" "E" "}" "rather" "than" "payin
 activation_owner_graveyard_cards ::= filter_phrase "cards" "in" "your" "graveyard"
 
 /* A play-only permission ranges over the filtered card population itself. */
-/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:$filter_plural}), from:Graveyard, action:PlayLand, filter:Any})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:$filter_plural}), origins:CardPlayOrigins([Graveyard]), action:PlayLand, filter:Any})] */
 graveyard_play_only ::= "play" filter_plural
 
 /* The spell filter and its mana-value bound are independent operands. */
 /* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$value_counters_on_object}} */
 graveyard_mana_value_bound ::= "with" "mana" "value" "less" "than" "or" "equal" "to" value_counters_on_object
 
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:AllOf([$filter_phrase, $graveyard_mana_value_bound])}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:AllOf([$filter_phrase, $graveyard_mana_value_bound])}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal}})]}) */
 static_once_graveyard_bounded_cast ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "cast" "an" filter_phrase "spell" "from" "your" "graveyard" graveyard_mana_value_bound "."
 
 /* Restrictions compose while sharing the affected player population. */
@@ -7531,7 +7536,7 @@ static_players_graveyard_restrictions ::= "players" "can't" prohibit_graveyard_c
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$graveyard_each_type_permission]}) */
 static_graveyard_each_type_permission ::= "during" "each" "of" "your" "turns" "," graveyard_each_type_permission "."
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:Either, filter:Any}, terms:_{limit:$graveyard_per_type_limit, during:One(AbilityController), cost:Normal}}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:Either, filter:Any}, terms:_{limit:$graveyard_per_type_limit, during:One(AbilityController), cost:Normal}}) */
 graveyard_each_type_permission ::= "you" "may" "play" "a" "land" "and" "cast" "a" "permanent" "spell" graveyard_per_type_limit "from" "your" "graveyard"
 
 /* @sem PlayLimit::OnePerCardType(Permanent) */
@@ -7542,7 +7547,7 @@ graveyard_per_type_limit ::= "of" "each" "permanent" "type"
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$graveyard_artifact_paid_entry]}) */
 static_graveyard_artifact_paid_entry ::= graveyard_artifact_paid_entry "."
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:CardType(Artifact)}, terms:_{cost:Additional(Cost{parts:[$cast_pay_life_part]}), effects:[$cast_entry_effects]}}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:CardType(Artifact)}, terms:_{cost:Additional(Cost{parts:[$cast_pay_life_part]}), effects:[$cast_entry_effects]}}) */
 graveyard_artifact_paid_entry ::= "you" "may" "cast" "artifact" "spells" "from" "your" "graveyard" "by" cast_pay_life_part "in" "addition" "to" "paying" "their" "other" "costs" "." "if" "you" "cast" "a" "spell" "this" "way" "," "that" "artifact" cast_entry_effects
 
 /* Conditional self descriptions share the same creature animation operands. */
@@ -7794,13 +7799,13 @@ shared_static_step_window ::= window_during_your_end_step | window_during_your_u
 
 /* Temporary play permissions share their linked populations with other clauses.
    The explicit self reference proves that the effect source and link coincide. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:$permission_self_owned_linked, from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:$permission_self_owned_linked, origins:CardPlayOrigins([Exile]), action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects} */
 linked_self_owned_play ::= duration "," "you" "may" "play" permission_self_owned_linked
 
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_self_linked_single, from:Exile, action:Either, filter:Any}, terms:_{limit:Total(1), cost:Normal}})], duration:$duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_self_linked_single, origins:CardPlayOrigins([Exile]), action:Either, filter:Any}, terms:_{limit:Total(1), cost:Normal}})], duration:$duration, evaluation:LiveObjects} */
 linked_self_single_play ::= duration "," "you" "may" "play" permission_self_linked_single
 
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_self_linked_single, from:Exile, action:Either, filter:Any}, terms:_{limit:Total(1), cost:Free}})], duration:$duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_self_linked_single, origins:CardPlayOrigins([Exile]), action:Either, filter:Any}, terms:_{limit:Total(1), cost:Free}})], duration:$duration, evaluation:LiveObjects} */
 linked_self_single_play_free ::= duration "," "you" "may" "play" permission_self_linked_single "without" "paying" "its" "mana" "cost"
 
 /* The event amount and its consumer are scoped to the same resolving mana ability. */
@@ -7827,7 +7832,7 @@ granted_aim_removal_damage ::= '"' "{" "T" "}" "," "↑" "remove" "all" "aim" "c
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[...$top_play_lands, $top_cast_with_terms]}) */
 static_top_lands_and_cast_terms ::= "you" "may" top_play_lands "and" top_cast_with_terms "."
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$cast_spells_filter}, terms:$top_library_cast_terms}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:$cast_spells_filter}, terms:$top_library_cast_terms}) */
 top_cast_with_terms ::= "cast" cast_spells_filter "from" "the" "top" "of" "your" "library" "." top_library_cast_terms
 
 top_library_cast_terms ::= top_library_life_terms | top_library_entry_terms
@@ -7842,10 +7847,10 @@ top_library_entry_terms ::= "if" "you" "cast" "a" filter_phrase "spell" "this" "
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[...$any_library_play_lands, ...$any_library_cast_spells]}) */
 static_any_library_permissions ::= "you" "may" any_library_play_lands "and" any_library_cast_spells "from" "the" "top" "of" "any" "player's" "library" "."
 
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:LibraryTops(All), from:Library, action:PlayLand, filter:Any}, terms:_{cost:Normal}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:LibraryTops(All), origins:CardPlayOrigins([Library]), action:PlayLand, filter:Any}, terms:_{cost:Normal}})] */
 any_library_play_lands ::= "play" "lands"
 
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:LibraryTops(All), from:Library, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Normal}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:LibraryTops(All), origins:CardPlayOrigins([Library]), action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Normal}})] */
 any_library_cast_spells ::= "cast" cast_spells_filter
 
 /* Plot access keeps the card filter as an operand. */
@@ -7910,7 +7915,7 @@ encore_grant_owned_target ::= choose_cast_graveyard_target
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:$top_graveyard_cast_redirect, duration:$duration, evaluation:LiveObjects} */
 temporary_top_graveyard_cast_redirect ::= duration "," "you" "may" top_graveyard_cast_redirect
 
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Graveyard, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Normal, into_exile:true}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Normal, into_exile:true}})] */
 top_graveyard_cast_redirect ::= "cast" cast_spells_filter "from" "the" "top" "of" "your" "graveyard" "." "if" "a" "spell" "cast" "this" "way" "would" "be" "put" "into" "a" "graveyard" "," "exile" "it" "instead"
 
 becomes_creature_subtype ::= creature_subtype | st_assemblyworker_hyphen
@@ -8802,7 +8807,7 @@ plural_retained_land_creature_changes ::= "become" value "/" value becomes_types
 target_lands_retained_animation ::= "they" plural_retained_land_creature_changes
 
 /* The card population and its own-zone origin remain separate operands. */
-/* @sem Ability::[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$random_cards}), from:$own_cast_zone, action:Either, filter:Any})]})] */
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$random_cards}), origins:CardPlayOrigins([$own_cast_zone]), action:Either, filter:Any})]})] */
 pilot_own_zone_play_permission ::= "you" "may" "play" random_cards "from" own_cast_zone
 
 /* The window scopes a reusable graveyard-casting permission. */
@@ -8810,7 +8815,7 @@ pilot_own_zone_play_permission ::= "you" "may" "play" random_cards "from" own_ca
 shared_turn_graveyard_creature_cast ::= window_your_turn "," graveyard_creature_cast_entry
 
 /* The modifier describes the spell; the follow-up applies to that creature. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}), from:Graveyard, action:CastSpell, filter:@and(ObjectFilter::CardType(Creature), $modifiers)}, terms:_{cost:Normal, effects:[$graveyard_cast_creature_entry]}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:@and(ObjectFilter::CardType(Creature), $modifiers)}, terms:_{cost:Normal, effects:[$graveyard_cast_creature_entry]}})]}) */
 graveyard_creature_cast_entry ::= "you" "may" "cast" "creature" "spells" modifiers "from" "your" "graveyard" "." graveyard_cast_creature_entry
 
 /* @sem Operand::List([Term{family:SpellEffect, form:EntersWithACounter, operands:[Vocabulary{family:CounterType, form:FinalityCounter}]}]) */
@@ -8841,7 +8846,7 @@ hand_keyword_filtered_cards ::= filter_phrase "cards"
 /* @sem Ability::Conditional{condition:$cast_window_your_turn, then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$turn_zone_additional_cast]})]} */
 turn_zone_additional_permission ::= "during" cast_window_your_turn "," turn_zone_additional_cast "."
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:Any}), from:$own_cast_zone, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Additional(Cost{parts:[$cast_pay_life_part]})}}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:Any}), origins:CardPlayOrigins([$own_cast_zone]), action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Additional(Cost{parts:[$cast_pay_life_part]})}}) */
 turn_zone_additional_cast ::= "you" "may" "cast" cast_spells_filter "from" own_cast_zone "by" cast_pay_life_part "in" "addition" "to" "their" "other" "costs"
 
 /* The zone and generic reduction remain independent operands of the rule. */
@@ -8861,7 +8866,7 @@ replacement_creature_form ::= "a" mana_color_word becomes_types "creature" "with
 plural_kind_existing ::= filter_phrase | quality | noun_elemental_folded /* @prefer always */
 
 /* The permission belongs to the individual card receiving the ability. */
-/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Source), from:Graveyard, action:Either, filter:Any}, terms:_{cost:Normal}})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Source), origins:CardPlayOrigins([Graveyard]), action:Either, filter:Any}, terms:_{cost:Normal}})]})} */
 graveyard_quoted_play_permission ::= "you" "may" "play" "this" "card" "from" "your" "graveyard"
 
 /* All players’ current cards in the named private zone. */
@@ -8927,7 +8932,7 @@ graveyard_cast_finality_entry ::= "." "if" "you" "do" "," graveyard_cast_entry_e
 /* @sem Operand::List([Term{family:EnterFlag, form:EntersWithACounter, operands:[Vocabulary{family:CounterType, form:FinalityCounter}]}]) */
 graveyard_cast_entry_effect ::= "it" "enters" "with" "a" "finality" "counter" "on" "it"
 
-/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:$graveyard_cast_phrase, from:Graveyard, action:CastSpell, filter:Any})]})} */
+/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:$graveyard_cast_phrase, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any})]})} */
 static_graveyard_cast_if ::= graveyard_cast_phrase "if" condition "."
 
 /* Exactly one blocker is a distinct combat rule, shared by static and timed effects. */
@@ -9082,7 +9087,7 @@ limited_mana_value_spells ::= filter_phrase "spells" "with" "mana" "value" value
 /* @sem PlayTerms::PlayTerms{cost:Free, flash:true} */
 free_flash_plural_cast_terms ::= "without" "paying" "their" "mana" "costs" "and" "as" "though" "they" "had" "flash"
 
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One(Affected)}, kind:Card, filter:Any}), from:Hand, action:CastSpell, filter:$limited_mana_value_spells}, terms:$free_flash_plural_cast_terms})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Hand]), action:CastSpell, filter:$limited_mana_value_spells}, terms:$free_flash_plural_cast_terms})]}) */
 any_player_limited_free_cast ::= "any" "player" "may" "cast" limited_mana_value_spells free_flash_plural_cast_terms "."
 
 /* The color count refers to the explicit target, not an arbitrary affected set.
@@ -9221,7 +9226,7 @@ consonant_choice_land_type ::= choice_land_type_plains | choice_land_type_swamp 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$linked_lands_cast_changes}) */
 static_linked_lands_cast ::= linked_lands_cast_changes "."
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:$linked_permission_population, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$linked_permission_population, from:Exile, action:CastSpell, filter:Any}, terms:$linked_cast_spending_terms})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:$linked_permission_population, origins:CardPlayOrigins([Exile]), action:PlayLand, filter:Any}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$linked_permission_population, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any}, terms:$linked_cast_spending_terms})] */
 linked_lands_cast_changes ::= "you" "may" "play" "lands" "and" "cast" "spells" "from" "among" linked_permission_population "." linked_cast_spending_terms
 
 linked_permission_population ::= permission_linked_exile_cards | permission_owned_linked_exile_cards
@@ -9282,7 +9287,7 @@ clause_restrict_attack_sacrifice_prior ::= "you" "can't" "attack" that_player "t
 static_exile_lands_and_spells ::= exile_lands_and_spells "."
 
 /* Linked exile sources and the playable population are independent operands. */
-/* @sem Change::PlayerRule(PlayPermission{cards:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_plural, ExiledWith($linked_exile_card_source)])}), from:Exile, action:PlayLand, filter:Any}) */
+/* @sem Change::PlayerRule(PlayPermission{cards:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_plural, ExiledWith($linked_exile_card_source)])}), origins:CardPlayOrigins([Exile]), action:PlayLand, filter:Any}) */
 linked_exile_land_play_change ::= "play" filter_plural "from" "among" linked_exile_card_source
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$linked_exile_land_play_change]}) */
@@ -9297,14 +9302,14 @@ linked_cast_limit_three ::= "three" "spells"
 
 linked_cast_plural_limit ::= linked_cast_limit_two | linked_cast_limit_three
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_linked_exile_cards, from:Exile, action:CastSpell, filter:Any}, terms:_{limit:$linked_cast_plural_limit, cost:Normal}}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any}, terms:_{limit:$linked_cast_plural_limit, cost:Normal}}) */
 linked_cast_plural_permission ::= "you" "may" "cast" "spells" "from" "among" permission_linked_exile_cards "." "you" "can't" "cast" "more" "than" linked_cast_plural_limit "this" "way" "each" "turn"
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$linked_cast_plural_permission]}) */
 static_linked_cast_plural_permission ::= linked_cast_plural_permission "."
 
 /* Both permissions refer to the same population; spending applies only to spells. */
-/* @sem Change::[PlayerRule(PlayPermission{cards:$exiled_by_you_with_counters, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$exiled_by_you_with_counters, from:Exile, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Normal, spend_as:AnyColor}})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:$exiled_by_you_with_counters, origins:CardPlayOrigins([Exile]), action:PlayLand, filter:Any}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$exiled_by_you_with_counters, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Normal, spend_as:AnyColor}})] */
 exiled_counter_land_and_spell_permissions ::= "you" "may" "play" "lands" "and" "cast" cast_spells_filter "from" "among" exiled_by_you_with_counters "," "and" "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "those" "spells"
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$exiled_counter_land_and_spell_permissions}) */
@@ -9536,7 +9541,7 @@ static_is_color ::= "is" mana_color_word
 continuous_x_group_snapshot ::= objects_announced_x_targets changes duration
 
 /* The land permission and spell permission retain their independent filters. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:AllOf([CardType(Land), InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), from:Graveyard, action:PlayLand, filter:Any}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}), from:Graveyard, action:CastSpell, filter:CardType(Creature)}, terms:_{cost:Normal, effects:[$graveyard_cast_creature_entry]}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:AllOf([CardType(Land), InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), origins:CardPlayOrigins([Graveyard]), action:PlayLand, filter:Any}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:CardType(Creature)}, terms:_{cost:Normal, effects:[$graveyard_cast_creature_entry]}})]}) */
 static_graveyard_land_spell_entry ::= "you" "may" "play" "lands" "and" "cast" "creature" "spells" "from" "your" "graveyard" "." graveyard_cast_creature_entry
 
 /* A pump and a numbered granted mechanic compose without changing the
@@ -9724,10 +9729,10 @@ lost_flanking ::= "flanking"
 change_animation_loses_equipment ::= "becomes" animation_plain "that's" "no" "longer" "an" "Equipment"
 
 /* The same origin supplies both the permission and the restriction. */
-/* @sem Ability::[Scoped{zones:[$own_cast_zone], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Source), from:$own_cast_zone, action:CastSpell, filter:Any})]})}, Casting(Require(WasCastFrom{object:Source, zone:$own_cast_zone}))] */
+/* @sem Ability::[Scoped{zones:[$own_cast_zone], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Source), origins:CardPlayOrigins([$own_cast_zone]), action:CastSpell, filter:Any})]})}, Casting(Require(WasCastFrom{object:Source, zone:$own_cast_zone}))] */
 source_cast_only_own_zone ::= "you" "may" "cast" "this" "card" "from" own_cast_zone "," "but" "not" "from" "anywhere" "else" "."
 
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$cast_spells_filter})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$cast_spells_filter})]}) */
 cast_filtered_from_graveyard ::= "you" "may" "cast" cast_spells_filter "from" "your" "graveyard" "."
 
 /* @sem Ability::Conditional{condition:$condition_self_on_battlefield, then:[$cast_filtered_from_graveyard]} */
@@ -9767,7 +9772,7 @@ perpetual_type_pump_keyword ::= "becomes" "a" becomes_type_one "," "gets" signed
 removed_creatures_combat_rules ::= "each" "of" "those" "creatures" "attacks" "that" "combat" "if" "able" "." "they" rule_cant_attack_you "that" "combat"
 
 /* A temporary free cast permission follows the targeted card and redirects the resulting spell. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One($choose_cast_graveyard_from), from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Free, into_exile:true}})], duration:$duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One($choose_cast_graveyard_from), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:_{cost:Free, into_exile:true}})], duration:$duration, evaluation:LiveObjects} */
 free_target_graveyard_cast_redirect ::= duration "," "you" "may" "cast" choose_cast_graveyard_from "without" "paying" "its" "mana" "cost" "." "if" "that" "spell" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead"
 
 /* The counted counters belong to each affected permanent. */
@@ -9785,7 +9790,7 @@ static_each_counter_characteristic ::= each_positive_counter_population shared_l
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_cast_with_closed_terms]}) */
 static_top_cast_with_terms ::= "you" "may" top_cast_with_closed_terms
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$cast_spells_filter}, terms:$top_library_granted_trigger_terms}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:$cast_spells_filter}, terms:$top_library_granted_trigger_terms}) */
 top_cast_with_closed_terms ::= "cast" cast_spells_filter "from" "the" "top" "of" "your" "library" "." top_library_granted_trigger_terms
 
 /* The quoted trigger has its own holder, announcement, and body. */
@@ -9858,7 +9863,7 @@ leading_keyword_toughness_changes ::= change_grant "and" change_has_base_toughne
 /* @sem Ability::Conditional{condition:$condition_object_attack_history, then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$top_play_single_card})]} */
 attack_history_top_permission ::= "as" "long" "as" condition_object_attack_history "," top_play_single_card "."
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:Any})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, origins:CardPlayOrigins([Library]), action:CastSpell, filter:Any})] */
 top_play_single_card ::= "you" "may" "play" "the" "top" "card" "of" "your" "library"
 
 /* An unqualified protection grant fixes its recipient indefinitely. */
@@ -10081,7 +10086,7 @@ leading_live_block_cost ::= this_duration "," affected block_cost_each_controlle
 block_cost_each_controller ::= "can't" "block" "unless" "their" "controller" "pays" cost "for" "each" "blocking" "creature" "they" "control"
 
 /* A targeted graveyard cast permission carries its own replacement consequence. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One($cast_own_graveyard_target), from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Normal, into_exile:true}})], duration:$this_duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One($cast_own_graveyard_target), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:Any}, terms:_{cost:Normal, into_exile:true}})], duration:$this_duration, evaluation:LiveObjects} */
 temporary_target_graveyard_cast_exile ::= "you" "may" "cast" cast_own_graveyard_target this_duration "." "if" "that" "spell" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead"
 
 cast_own_graveyard_target ::= target_card_your_graveyard | target_any_card_your_graveyard
@@ -10657,7 +10662,7 @@ player_surveil_bonus_many ::= "may" "look" "at" "an" "additional" count_plural "
 player_surveil_bonus_one ::= "may" "look" "at" "an" "additional" "card" "each" "time" "you" "surveil"
 
 /* Linked exile permission and its independent per-turn casting limit. */
-/* @sem PlayerRule::PlayPermission{cards:$permission_linked_exile_cards, from:Exile, action:CastSpell, filter:$cast_spells_filter} */
+/* @sem PlayerRule::PlayPermission{cards:$permission_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:$cast_spells_filter} */
 linked_exile_cast_permission ::= "cast" cast_spells_filter "from" "among" permission_linked_exile_cards
 
 linked_cast_turn_limit ::= linked_cast_one_per_turn | linked_cast_two_per_turn
@@ -10672,7 +10677,7 @@ linked_cast_two_per_turn ::= "you" "can't" "cast" "more" "than" "two" "spells" "
 static_linked_cast_limited ::= "you" "may" linked_exile_cast_permission "." linked_cast_turn_limit "."
 
 /* The permission and its spending term share the same card population. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_exile_owned_counter_cards, from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:$permission_spell_spending}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_exile_owned_counter_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:$permission_spell_spending}})]}) */
 static_cast_exile_population_spending ::= "you" "may" "cast" "spells" "from" "among" permission_exile_owned_counter_cards "," "and" permission_spell_spending "."
 
 permission_spell_spending ::= permission_snow_spell_spending | permission_any_color_spell_spending
@@ -10701,7 +10706,7 @@ shared_condition_static_sequence ::= object_ref conditional_keyword_grant "and" 
 conditional_keyword_grant ::= "has" keyword_value
 
 /* The spell filter and the linked card population remain independent operands. */
-/* @sem Change::[PlayerRule(PlayPermission{cards:$permission_linked_exile_cards, from:Exile, action:CastSpell, filter:$cast_spells_filter})] */
+/* @sem Change::[PlayerRule(PlayPermission{cards:$permission_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:$cast_spells_filter})] */
 exile_cast_linked_spells ::= "you" "may" "cast" cast_spells_filter "from" "among" permission_linked_exile_cards
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$exile_cast_linked_spells}) */
@@ -10717,7 +10722,7 @@ graveyard_qualified_card_population ::= "each" filter_phrase "card" "in" "your" 
 static_qualified_graveyard_grant ::= graveyard_qualified_card_population "has" graveyard_granted_ability "."
 
 /* The permission and its entry term share the announced card target. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One($target_card_your_graveyard), from:Graveyard, action:Either, filter:Any}, terms:_{cost:Normal, effects:[List([Term{family:SpellEffect, form:EntersTapped}])]}})], duration:$this_duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One($target_card_your_graveyard), origins:CardPlayOrigins([Graveyard]), action:Either, filter:Any}, terms:_{cost:Normal, effects:[List([Term{family:SpellEffect, form:EntersTapped}])]}})], duration:$this_duration, evaluation:LiveObjects} */
 play_graveyard_target_enters_tapped ::= "you" "may" "play" target_card_your_graveyard this_duration "." "if" "you" "do" "," "it" "enters" "tapped"
 
 /* Keyword and timing remain independent operands of the player permission. */
@@ -10833,7 +10838,7 @@ own_color_protection ::= "protection" "from" "each" "of" "its" "colors"
 cast_boon_pump_only ::= singular_pump
 
 /* The land and spell permissions have independent per-turn allowances. */
-/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_graveyard_permission_cards, from:Graveyard, action:PlayLand, filter:Any}, terms:_{limit:EachTurn(1), cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_graveyard_permission_cards, from:Graveyard, action:CastSpell, filter:$turn_history_spell}, terms:_{limit:EachTurn(1), cost:Normal}})]})]} */
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_graveyard_permission_cards, origins:CardPlayOrigins([Graveyard]), action:PlayLand, filter:Any}, terms:_{limit:EachTurn(1), cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_graveyard_permission_cards, origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$turn_history_spell}, terms:_{limit:EachTurn(1), cost:Normal}})]})]} */
 recent_graveyard_land_and_spell_permission ::= "during" "each" "of" "your" "turns" "," "you" "may" "play" "a" "land" "and" "cast" turn_history_spell "from" "among" recent_graveyard_permission_cards "."
 
 /* @sem ObjectSet::Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:ArrivedThisTurn{from:$recent_graveyard_origin}}) */
@@ -10864,7 +10869,7 @@ graveyard_flashback_card_cost ::= "." "the" "flashback" "cost" "is" "equal" "to"
 word_replacement_creature_type_except_choice ::= "change" "the" "text" "of" "target" "spell" "or" "permanent" "by" "replacing" "all" "instances" "of" "one" "creature" "type" "with" "another" "." "the" "new" "creature" "type" "can't" "be" creature_subtype
 
 /* A shared per-turn exile play permission whose follow-up exiles from the acting player's library. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($self_ref_holder)}), from:Exile, action:Either, filter:AnyOf([CardType(Land), Any])}, terms:_{limit:EachTurn(1), during:One(Affected), cost:Normal, spend_as:AnyColor, effects:[Program{instructions:[Effect{result:@next, operation:$affected_library_exile}]}]}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($self_ref_holder)}), origins:CardPlayOrigins([Exile]), action:Either, filter:AnyOf([CardType(Land), Any])}, terms:_{limit:EachTurn(1), during:One(Affected), cost:Normal, spend_as:AnyColor, effects:[Program{instructions:[Effect{result:@next, operation:$affected_library_exile}]}]}})]}) */
 static_each_turn_exiled_play_exile_top ::= "during" "each" "player's" "turn" "," "that" "player" "may" "play" "a" "land" "or" "cast" "a" "spell" "from" "among" "cards" "exiled" "with" self_ref_holder "," "and" "they" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "that" "spell" "." "when" "they" "do" "," affected_library_exile "."
 
 /* A singular distribution composes with Equipment changes and retains its filters. */
@@ -11170,7 +11175,7 @@ attached_limited_grant ::= '"' cost ":" grantor_sacrifice_draw_program "." activ
 /* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$recent_graveyard_combined_permission]})]} */
 recent_graveyard_combined_turn_permission ::= "during" "each" "of" "your" "turns" "," recent_graveyard_combined_permission "."
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_graveyard_permission_cards, from:Graveyard, action:Either, filter:$turn_history_any_spell}, terms:_{limit:EachTurn(1), cost:Normal}}) */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_graveyard_permission_cards, origins:CardPlayOrigins([Graveyard]), action:Either, filter:$turn_history_any_spell}, terms:_{limit:EachTurn(1), cost:Normal}}) */
 recent_graveyard_combined_permission ::= "you" "may" "play" "a" "land" "and" "cast" turn_history_any_spell "from" "among" recent_graveyard_permission_cards
 
 /* The card's identity is independent of the zone in which the rule applies. */
@@ -11472,7 +11477,7 @@ leading_quoted_grant ::= preferred_damage_history_grant | grant_ability
 
 /* @prefer always */
 /* @sem Change::GrantAbility(@holder($static_damaged_cannot_regenerate)) */
-preferred_damage_history_grant ::= '"' static_damaged_cannot_regenerate '"' 
+preferred_damage_history_grant ::= '"' static_damaged_cannot_regenerate '"'
 
 /* Damage history belongs to the source named within the granted ability. */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, Condition(Compare{left:EventHistory{event:Damage{source_kind:Permanent, sources:SameObject($object_ref), recipients:Objects(SameObject(Candidate)), kind:Any, grouping:SourceRecipient, subject:Recipient}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})])}), changes:[Rule(Prohibit(Regenerate))]} */
@@ -11591,7 +11596,7 @@ look_at_linked_exile_plain ::= "you" "may" "look" "at" permission_linked_exile_c
 look_at_linked_exile_definite ::= "you" "may" "look" "at" "the" "cards" "exiled" "with" object_ref
 
 /* @prefer always */
-/* @sem Change::[PlayerRule(Visibility{objects:$look_at_linked_exile_cards, audience:AffectedPlayer}), PlayerRule(PlayPermission{cards:$look_at_linked_exile_cards, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:$look_at_linked_exile_cards, from:Exile, action:CastSpell, filter:Any})] */
+/* @sem Change::[PlayerRule(Visibility{objects:$look_at_linked_exile_cards, audience:AffectedPlayer}), PlayerRule(PlayPermission{cards:$look_at_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:$look_at_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any})] */
 linked_exile_look_and_play_base ::= look_at_linked_exile_cards "," "and" "you" "may" "play" "lands" "and" "cast" "spells" "from" "among" "those" "cards"
 
 /* Adjacent controller rules remain separate sentences after static merging. */
@@ -11726,7 +11731,7 @@ duration_affected_counted_grant ::= duration "," affected counted_grant_and_pump
 instructions_target_rule_conditional_grant ::= target_permanent rule_change rule_duration "." "if" "it's" "a" subtype "," "it" "also" "gains" grants duration
 
 /* A player's casting permission carries the same zone in its source and card set. */
-/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(Affected)}, kind:Card, filter:Any}), from:$own_cast_zone, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Free}})] */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([$own_cast_zone]), action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Free}})] */
 free_cast_from_own_zone ::= "you" "may" "cast" cast_spells_filter "from" own_cast_zone "without" "paying" "their" "mana" "costs"
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:$free_cast_from_own_zone, duration:$duration, evaluation:LiveObjects} */
@@ -11787,7 +11792,7 @@ rule_cant_be_blocked_by_ability_qualified ::= "can't" "be" "blocked" "by" blocke
 subtype_creatures_controlled_snapshot ::= "↑" controlled_samurai_type "creatures" "you" "control" "get" signed_literal "/" signed_literal duration
 
 /* The spell filter and the additional sacrifice are independent operands. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$graveyard_paid_spell_filter}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Additional(Cost{parts:[$cast_sacrifice_permanent_cost]})}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), origins:CardPlayOrigins([Graveyard]), action:CastSpell, filter:$graveyard_paid_spell_filter}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Additional(Cost{parts:[$cast_sacrifice_permanent_cost]})}})]}) */
 static_once_graveyard_cast_additional_sacrifice ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "cast" graveyard_paid_spell_filter "spell" "from" "your" "graveyard" "by" cast_sacrifice_permanent_cost "in" "addition" "to" "paying" "its" "other" "costs" "."
 
 /* Articles belong to their corresponding spell-type phrases. */
@@ -12312,7 +12317,7 @@ replacement_enters_additional_history_he ::= self_ref "enters" entry_additional_
 static_ordered_spell_flash ::= "you" "may" "cast" ordered_cast_spell "as" "though" "it" "had" "flash" "."
 
 /* A linked owned exile population and the entry effect retain their operands. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_owned_linked_exile_cards, from:Exile, action:CastSpell, filter:$filter_phrase}, terms:_{limit:Total(1), cost:Normal, effects:[$cast_entry_effects]}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_owned_linked_exile_cards, origins:CardPlayOrigins([Exile]), action:CastSpell, filter:$filter_phrase}, terms:_{limit:Total(1), cost:Normal, effects:[$cast_entry_effects]}})]}) */
 static_owned_linked_cast_entry ::= "you" "may" "cast" filter_phrase "spells" "from" "among" permission_owned_linked_exile_cards "." "if" "you" "cast" "a" "spell" "this" "way" "," "that" "creature" cast_entry_effects "."
 
 /* The spell filter, casting origin and granted effect are independent. */
@@ -12689,7 +12694,7 @@ continuous_live_leading_blocker_union ::= duration "," affected rule_cant_be_blo
 rule_cant_be_blocked_by_union ::= "can't" "be" "blocked" "by" blocker_exception_union
 
 /* Compose the turn limit, permissible play and origin of the cards. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_permission_cards, from:Graveyard, action:Either, filter:$play_land_or_permanent_spell}, terms:_{limit:$turn_cast_limit, during:One(AbilityController), cost:Normal}})]}) */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_permission_cards, origins:CardPlayOrigins([Graveyard]), action:Either, filter:$play_land_or_permanent_spell}, terms:_{limit:$turn_cast_limit, during:One(AbilityController), cost:Normal}})]}) */
 static_recent_graveyard_play_permission ::= turn_cast_limit "during" "each" "of" "your" "turns" "," "you" "may" play_land_or_permanent_spell "from" "among" recent_permission_cards "."
 
 /* @sem ObjectFilter::AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Land), CardType(Planeswalker)]) */
@@ -12899,3 +12904,51 @@ granted_upkeep_followup ::= granted_upkeep_bare_followup | granted_upkeep_exampl
 granted_upkeep_bare_followup ::= "that"
 /* @sem () */
 granted_upkeep_example_followup ::= granted_upkeep_word_example "That"
+
+/* The restriction reads the controller of the ability's source. */
+/* @sem Change::[Rule(Prohibit(BeTargeted(@and(ObjectFilter::Not(OnStack(Spell)), ObjectFilter::AbilityOf(@and($spell_adjectives, ObjectFilter::ControlledBy(OpponentsOf(AbilityController))))))))] */
+target_ban_abilities_from_opponents_sources ::= "abilities" "from" spell_adjectives "sources" "your" "opponents" "control"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_possessive)), changes:[SetBasePowerToughness{power:$number_digits, toughness:$number_digits_2}], duration:Indefinite, evaluation:Snapshot} */
+set_source_base_stats_indefinite ::= self_possessive "base" "power" "and" "toughness" "become" number_digits "/" number_digits
+
+/* @sem ObjectFilter::CardType(Artifact) */
+top_singular_artifact_spell ::= "an" "artifact" "spell"
+
+/* Only the power contributed by the affected creature changes. The
+   permanent whose station or crew ability is being paid for must match. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One($self_explicit_ref)), changes:[Rule(TapPowerMultiplier{cost:Crew, recipient:Subtype(Vehicle), factor:3}), Rule(TapPowerMultiplier{cost:Station, recipient:Subtype(Spacecraft), factor:3})]} */
+static_self_station_and_crew_tripled ::= self_explicit_ref "stations" "Spacecraft" "and" "crews" "Vehicles" "as" "though" "his" "power" "were" "tripled" "."
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:$value_distinct_creature_types, toughness:$value_distinct_creature_types}], duration:$duration, evaluation:Snapshot} */
+continuous_singular_defined_creature_type_pump ::= affected "gets" "+" "X" "/" "+" "X" duration "," "where" "X" "is" value_distinct_creature_types
+
+/* Give each affected object both independent abilities. */
+/* @sem Ability::Static{kind:Ordinary,affected:Objects($affected_plural),changes:[GrantKeyword($keyword_value),GrantAbility(@holder($triggered_ability))]} */
+static_keyword_and_quoted_trigger ::= affected_plural "have" keyword_value "and" '"' triggered_ability '"'
+
+/* The target is fixed when announced. The modifier ends when its source
+   stops being tapped, and never copies an already stacked trigger. */
+/* @sem Instruction::[Effect{result:@next,operation:CreateTriggerRule{abilities:AbilityOf(SameObject($retrigger_other_controlled_target)),rule:TriggersAgain,duration:WhileMatches{object:$self_explicit_ref,filter:Tapped}}}] */
+instructions_temporary_ability_retrigger ::= "choose" retrigger_other_controlled_target "." "for" "as" "long" "as" self_explicit_ref "remains" "tapped" "," "if" "a" "triggered" "ability" "of" "that" "creature" "triggers" "," "that" "ability" "triggers" "an" "additional" "time"
+
+/* Playing from either origin uses the same once-per-turn allowance. */
+/* @sem Ability::Static{kind:Ordinary,affected:Players(One(AbilityController)),changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Union([OutsideTheGame(AllOf([OwnedBy(One(Affected)),$permanent_card_word])),Zone{scope:Players{zone:Graveyard,players:One(Affected)},kind:Card,filter:$permanent_card_word}]),origins:CardPlayOrigins([Graveyard,Outside]),action:Either,filter:Any},terms:_{limit:EachTurn(1),during:One(AbilityController),cost:Normal}})]} */
+static_play_owned_permanent_from_outside_or_graveyard ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "play" "a" permanent_card_word "card" "you" "own" "from" "outside" "the" "game" "or" "from" "your" "graveyard" "."
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot,kind:Object(_{kind:Permanent,zones:[Battlefield]}),count:Exactly(Constant(1)),filter:AllOf([Not(SameObject(Source)),CardType(Creature),ControlledBy(One(AbilityController))])}),index:0} */
+retrigger_other_controlled_target ::= "another" "target" "creature" "you" "control"
+
+/* The new subtype layer and the granted abilities belong to the same
+   source incarnation. The grants have their own lexical ability scopes. */
+/* @sem Ability::Activated{origin:Ordinary,cost:$cost,limits:ActivationLimits{},announcement:@announcement,body:_{instructions:[If{condition:ObjectMatches{object:$self_explicit_ref,filter:$creature_subtype},then:_{instructions:[Effect{result:@next,operation:CreateContinuousEffect{source:Source,affected:Objects(One($self_explicit_ref)),changes:[CreatureTypes{mode:Set,types:Listed($becomes_types)},SetBasePowerToughness{power:$value,toughness:$value_2},GrantAbility(@holder($triggered_ability))],duration:Indefinite,evaluation:Snapshot}}]},otherwise:_{}}]}} */
+activated_source_types_and_quote ::= cost ":" "if" self_explicit_ref "is" "a" creature_subtype "," "he" "becomes" "a" becomes_types "with" "base" "power" "and" "toughness" value "/" value "and" "gains" '"' triggered_ability '"'
+
+/* @sem Ability::Activated{origin:Ordinary,cost:$cost,limits:ActivationLimits{},announcement:@announcement,body:_{instructions:[If{condition:ObjectMatches{object:$self_explicit_ref,filter:$creature_subtype},then:_{instructions:[Effect{result:@next,operation:CreateContinuousEffect{source:Source,affected:Objects(One($self_explicit_ref)),changes:[CreatureTypes{mode:Set,types:Listed($becomes_types)},GrantAbility($quoted_play_graveyard_lands),GrantAbility($quoted_play_another_land)],duration:Indefinite,evaluation:Snapshot}}]},otherwise:_{}}]}} */
+activated_source_types_and_land_permissions ::= cost ":" "if" self_explicit_ref "is" "a" creature_subtype "," "he" "becomes" "a" becomes_types "and" "gains" '"' quoted_play_graveyard_lands '"' "and" '"' quoted_play_another_land '"'
+
+/* @sem Ability::Static{kind:Ordinary,affected:Players(One(AbilityController)),changes:[PlayerRule(PlayPermission{cards:Zone{scope:Players{zone:Graveyard,players:One(AbilityController)},kind:Card,filter:CardType(Land)},origins:CardPlayOrigins([Graveyard]),action:PlayLand,filter:CardType(Land)})]} */
+quoted_play_graveyard_lands ::= "you" "may" "play" "lands" "from" "your" "graveyard"
+
+/* @sem Ability::Static{kind:Ordinary,affected:Players(One(AbilityController)),changes:[PlayerRule(AdditionalLandPlays(Exactly(Constant(1))))]} */
+quoted_play_another_land ::= "you" "may" "play" "an" "additional" "land" "on" "each" "of" "your" "turns" "."

@@ -20,14 +20,18 @@ impl<'a> Scope<'a> {
                 if let Some(destination) = leave_stack {
                     self.destination(destination)?;
                 }
-                if matches!(origin, CastingOrigin::Flashback) {
+                if matches!(origin, CastingOrigin::Flashback | CastingOrigin::BeamMeUp) {
+                    let keyword = match origin {
+                        CastingOrigin::Flashback => "flashback",
+                        _ => "beam me up",
+                    };
                     let owner = PlayerRef::OwnerOf(Box::new(ObjectRef::Source));
                     if !crate::semantics::same_player(player, &owner)
                         || !matches!(from,ZoneScope::Players {players:PlayerSet::One(p),..} if crate::semantics::same_player(p,&owner))
                     {
-                        return Err(
-                            "flashback permission belongs to the owner and their graveyard".into(),
-                        );
+                        return Err(format!(
+                            "{keyword} permission belongs to the owner and their graveyard"
+                        ));
                     }
                     let expected = ObjectFilter::AnyOf(vec![
                         ObjectFilter::CardType(crate::mtg_types::CardType::Instant),
@@ -43,7 +47,9 @@ impl<'a> Scope<'a> {
                         || serde_json::to_value(require).unwrap()
                             != serde_json::to_value(expected).unwrap()
                     {
-                        return Err("flashback requires graveyard permission, an instant/sorcery result, and its exile replacement".into());
+                        return Err(format!(
+                            "{keyword} requires graveyard permission, an instant/sorcery result, and its exile replacement"
+                        ));
                     }
                 }
                 Ok(())

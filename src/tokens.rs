@@ -72,10 +72,14 @@ impl Names {
         }
         let words: Vec<&str> = full.split_whitespace().collect();
         if words.len() >= 3 {
-            if matches!(words[0], "Dr." | "Captain") {
-                let last = words[words.len() - 1].trim_end_matches(',');
-                if !last.is_empty() {
-                    names.push(format!("{} {last}", words[0]));
+            if matches!(
+                words[0],
+                "Dr." | "Captain" | "Commander" | "Ensign" | "Lieutenant"
+            ) {
+                let personal_name = full.split_once(", ").map_or(full, |(name, _)| name);
+                let mut personal_words = personal_name.split_whitespace();
+                if let (Some(title), Some(last)) = (personal_words.next(), personal_words.last()) {
+                    names.push(format!("{title} {last}"));
                 }
             }
             if words[0] == "King" {
@@ -492,6 +496,26 @@ fn self_name_ends_sentence(after: &str, before: &[Token], vocabulary: &HashSet<S
     false
 }
 
+/// Ordinals may be declared as exact grammar literals, never as words or numbers.
+fn ordinal_literal(rest: &str, end: usize, vocabulary: &HashSet<String>) -> Option<usize> {
+    let digits = &rest[..end];
+    let value: u32 = digits.parse().ok()?;
+    let suffix = match (value % 100, value % 10) {
+        (11..=13, _) => "th",
+        (_, 1) => "st",
+        (_, 2) => "nd",
+        (_, 3) => "rd",
+        _ => "th",
+    };
+    let length = end + suffix.len();
+    rest.get(length..)?;
+    let literal = &rest[..length];
+    (rest[end..].starts_with(suffix)
+        && !rest[length..].starts_with(is_word_byte)
+        && vocabulary.contains(literal))
+    .then_some(length)
+}
+
 fn scan(
     text: &str,
     names: &Names,
@@ -551,7 +575,11 @@ fn scan(
                     .unwrap_or(rest.len());
                 let tail = rest[end..].chars().next();
                 if tail.is_some_and(char::is_alphabetic) {
-                    return Err(format!("number glued to a word at {at}"));
+                    let length = ordinal_literal(rest, end, vocabulary)
+                        .ok_or_else(|| format!("number glued to a word at {at}"))?;
+                    tokens.push(Token::Word(rest[..length].to_owned()));
+                    at += length;
+                    continue;
                 }
                 let value = rest[..end].parse().map_err(|_| "number too large")?;
                 tokens.push(Token::Number(value));

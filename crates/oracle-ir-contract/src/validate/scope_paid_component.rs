@@ -200,6 +200,7 @@ impl<'a> Scope<'a> {
                 self.result_zones.get(&result.0).cloned()
             }
             ObjectSet::Created(_) => Some(vec![EventZone::Battlefield]),
+            ObjectSet::OutsideTheGame(_) => Some(vec![EventZone::Outside]),
             ObjectSet::Zone { scope, .. } => Some(vec![match scope {
                 ZoneScope::Shared(z) | ZoneScope::Players { zone: z, .. } => z.clone(),
             }]),

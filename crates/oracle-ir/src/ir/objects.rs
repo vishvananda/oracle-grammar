@@ -369,6 +369,9 @@ pub enum ObjectSet {
         from: Option<EventZone>,
         to: Option<EventZone>,
     },
+    /// The actual participants of the referenced fight. If a creature
+    /// could not fight, the set is empty rather than the attempted pair.
+    FightParticipants(ResultId),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -602,6 +605,10 @@ pub enum ObjectFilter {
     /// never share a link. This relation includes nontokens; intersect Token when
     /// the words ask for tokens. Created(ResultId) remains a resolution receipt.
     CreatedWith(ObjectRef),
+    /// Battlefield incarnation from the Assimilate action linked to this
+    /// ability (CR 607). Tracks the assimilated permanent through changes of
+    /// controller, type and counters, but a new zone incarnation is unrelated.
+    AssimilatedWith(ObjectRef),
 }
 
 /// Something that happened to an object. See `ObjectFilter::History`.

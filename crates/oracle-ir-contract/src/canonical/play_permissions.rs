@@ -24,8 +24,8 @@ pub(super) fn join(effect: &mut Value, tracing: bool) {
     if !matches!(
         pair,
         (Some("PlayLand"), Some("CastSpell")) | (Some("CastSpell"), Some("PlayLand"))
-    ) || land["from"] != "Exile"
-        || spell["from"] != "Exile"
+    ) || land["origins"] != json!(["Exile"])
+        || spell["origins"] != json!(["Exile"])
         || land["filter"] != json!({"kind":"Any"})
         || spell["filter"] != land["filter"]
         || land["cards"]["kind"] != "Transition"

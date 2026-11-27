@@ -387,18 +387,28 @@ impl<'a> Scope<'a> {
                 self.objects(cards)?;
                 self.count(count)
             }
+            Operation::RemoveMarkedDamage { objects } => self.objects(objects),
+            Operation::CreateTriggerRule {
+                abilities,
+                duration,
+                ..
+            } => {
+                self.filter(abilities)?;
+                self.duration(duration)
+            }
             Operation::PlayWith {
                 actor,
                 cards,
                 count,
                 terms,
                 group,
-                ..
+                action,
             } => {
                 self.players(actor)?;
                 self.objects(cards)?;
                 self.count(count)?;
                 self.play_cost(&terms.cost)?;
+                self.play_cast_filter(action, terms)?;
                 if let Some(then) = &terms.then {
                     self.destination(then)?;
                 }

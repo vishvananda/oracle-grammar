@@ -80,7 +80,9 @@ fn schema_192_appends_variants_without_moving_existing_wire_ordinals() {
 fn schema_193_appends_receipt_and_spending_variants_without_moving_wire_ordinals() {
     let old: serde_json::Value = serde_json::from_str(super::frozen_json(192).unwrap()).unwrap();
     let old: Schema = serde_json::from_value(old["schema"].clone()).unwrap();
-    let current = Schema::of_ir().unwrap();
+    let published: serde_json::Value =
+        serde_json::from_str(super::frozen_json(193).unwrap()).unwrap();
+    let published: Schema = serde_json::from_value(published["schema"].clone()).unwrap();
     for name in ["ObjectSet", "Expr", "PlayerRule"] {
         let super::TypeDef::Enum {
             variants: before, ..
@@ -90,7 +92,7 @@ fn schema_193_appends_receipt_and_spending_variants_without_moving_wire_ordinals
         };
         let super::TypeDef::Enum {
             variants: after, ..
-        } = &current.types[name]
+        } = &published.types[name]
         else {
             panic!("{name} must remain an enum")
         };
@@ -100,4 +102,61 @@ fn schema_193_appends_receipt_and_spending_variants_without_moving_wire_ordinals
             "{name}: existing wire ordinal changed"
         );
     }
+}
+
+#[test]
+fn schema_195_preserves_published_ordinals_and_changes_only_play_payloads() {
+    use super::{Fields, Ty, TypeDef};
+
+    let previous: serde_json::Value =
+        serde_json::from_str(super::frozen_json(194).unwrap()).unwrap();
+    let mut previous: Schema = serde_json::from_value(previous["schema"].clone()).unwrap();
+    let current = Schema::of_ir().unwrap();
+    for name in ["Operation", "PlayerRule"] {
+        let Some(TypeDef::Enum {
+            variants: before, ..
+        }) = previous.types.get_mut(name)
+        else {
+            panic!("{name} must be an enum");
+        };
+        let TypeDef::Enum {
+            variants: after, ..
+        } = &current.types[name]
+        else {
+            panic!("{name} must remain an enum");
+        };
+        if name == "PlayerRule" {
+            let (_, Fields::Named(fields)) = before
+                .iter_mut()
+                .find(|(variant, _)| variant == "PlayPermission")
+                .unwrap()
+            else {
+                panic!("published PlayPermission fields");
+            };
+            let (field, old_type) = fields
+                .iter_mut()
+                .find(|(field, _)| field == "from")
+                .unwrap();
+            assert_eq!(*old_type, Ty::Named("EventZone".into()));
+            *field = "origins".into();
+            *old_type = Ty::Named("CardPlayOrigins".into());
+        }
+        assert_eq!(
+            serde_json::to_value(&after[..before.len()]).unwrap(),
+            serde_json::to_value(before).unwrap(),
+            "{name}: unreviewed existing ordinal or payload change"
+        );
+    }
+
+    let Some(TypeDef::Struct(Fields::Named(terms))) = previous.types.get_mut("PlayTerms") else {
+        panic!("published PlayTerms fields");
+    };
+    terms.push((
+        "cast_filter".into(),
+        Ty::Option(Box::new(Ty::Named("ObjectFilter".into()))),
+    ));
+    assert_eq!(
+        serde_json::to_value(&current.types["PlayTerms"]).unwrap(),
+        serde_json::to_value(&previous.types["PlayTerms"]).unwrap()
+    );
 }

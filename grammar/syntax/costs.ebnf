@@ -73,7 +73,7 @@ cost_reveal_self_hand ::= "reveal" self_explicit_ref "from" "your" "hand"
 cost_exile_self ::= "exile" self_text
 
 /* An ability paid by moving this card out of a zone works only from that zone. */
-activated_from_zone ::= activated_reveal_self_hand_unlimited | activated_reveal_self_hand_limited | activated_suspended_source | activated_exile_self_after_limited | activated_graveyard_quoted_limited | activated_exile_self | activated_exile_self_after | activated_discard_self | activated_discard_self_after | activated_graveyard_return | activated_graveyard_return_limited | activated_discard_self_after_population_limited | activated_discard_self_population_limited | activated_exile_self_limited | activated_discard_self_limited | activated_discard_self_after_limited | activated_exile_self_and_named_limited
+activated_from_zone ::= activated_put_graveyard_source_bottom_after | activated_reveal_self_hand_unlimited | activated_reveal_self_hand_limited | activated_suspended_source | activated_exile_self_after_limited | activated_graveyard_quoted_limited | activated_exile_self | activated_exile_self_after | activated_discard_self | activated_discard_self_after | activated_graveyard_return | activated_graveyard_return_limited | activated_discard_self_after_population_limited | activated_discard_self_population_limited | activated_exile_self_limited | activated_discard_self_limited | activated_discard_self_after_limited | activated_exile_self_and_named_limited
 
 /* Returning this card explicitly from the graveyard scopes the whole
    activation there, including any preceding action and its announced targets. */
@@ -2247,7 +2247,7 @@ activation_remove_self_counters_damage ::= cost_mana "," cost_tap "," "↑" cost
 /* @sem CostPart::Move{selections:[$cost_one_permanent_selection], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
 face_up_single_permanent_payment ::= "exile" cost_one_permanent_selection "face" "up"
 
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Query{objects:CostObjects{payment:Activation, component:[0], view:Performed, phase:After}, index:0}), from:Exile, action:Either, filter:Any})], duration:$this_duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Query{objects:CostObjects{payment:Activation, component:[0], view:Performed, phase:After}, index:0}), origins:CardPlayOrigins([Exile]), action:Either, filter:Any})], duration:$this_duration, evaluation:LiveObjects} */
 play_activation_exiled_card ::= "you" "may" "play" "that" "card" this_duration
 
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$face_up_single_permanent_payment]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$play_activation_exiled_card}]}} */
@@ -3183,3 +3183,27 @@ activation_exiled_source ::= activation_exiled_this_card | activation_exiled_sel
 activation_exiled_this_card ::= "this" "card"
 /* @sem () */
 activation_exiled_self_name ::= SELF_NAME
+
+/* An explicit graveyard payment restricts the activation to that zone. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, $cost_put_graveyard_source_bottom]}, limits:ActivationLimits{}, announcement:@announcement, body:$program_sentence})} */
+activated_put_graveyard_source_bottom_after ::= cost_parts "," "↑" cost_put_graveyard_source_bottom ":" program_sentence
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:One(Source)}], destination:Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{}}} */
+cost_put_graveyard_source_bottom ::= "put" "this" "card" "from" "your" "graveyard" "on" "the" "bottom" "of" "your" "library"
+
+/* Inspect the pre-move incarnation actually paid for this activation. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_sacrifice_another]}, limits:ActivationLimits{}, announcement:@announcement, body:_{instructions:[...$instructions, If{condition:Compare{left:CountObjects(Matching{objects:CostObjects{payment:Activation, component:[0], view:Performed, phase:Before}, filter:$creature_subtype}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:$clause_you}, otherwise:_{}}]}} */
+activated_sacrifice_matching_payment_followup ::= cost_sacrifice_another ":" instructions "." "if" "you" "sacrificed" "a" creature_subtype "this" "way" "," clause_you "."
+
+/* The live reduction changes the current payment. The use count still
+   belongs to this activated ability. */
+/* @sem Ability::Activated{origin:Ordinary,cost:$cost,limits:ActivationLimits{once_each_turn:true,modifiers:[ActivationRule(Cost{modifier:Reduce{reductions:[_{amount:$value}],spill_into_generic:true}})]},announcement:@announcement,body:$program_sentence} */
+activated_variable_reduction_once ::= cost ":" program_sentence "this" "ability" "costs" "{" "X" "}" "less" "to" "activate" "," "where" "X" "is" value "." "activate" "only" "once" "each" "turn" "."
+
+/* The reflexive trigger announces its own target only after the whole
+   optional cost was paid. */
+/* @sem Program::Program{instructions:[Effect{result:@mark,operation:PayCost{player:AbilityController,cost:Cost{parts:[Mana($mana_symbols),$cost_exile_your_graveyard_any]},optional:true}},Effect{result:@next,operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked,announcement:@announcement,body:$program_sentence})}]} */
+program_paid_mana_graveyard_exile_callback ::= "you" "may" "pay" mana_symbols "and" cost_exile_your_graveyard_any "." "when" "you" "do" "," program_sentence
+
+/* @sem CostPart::Move{selections:[_{objects:Zone{scope:Players{zone:Graveyard,players:One(AbilityController)},kind:Card,filter:Any},choose:Exactly(Constant(1))}], destination:Exile{visibility:FaceUp,arrival:ExileArrival{}}} */
+cost_exile_your_graveyard_any ::= "exile" "a" "card" "from" "your" "graveyard"
