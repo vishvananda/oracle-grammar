@@ -143,6 +143,20 @@ fn reminded_spell_can_print_as_two_paragraphs_without_a_key() {
 }
 
 #[test]
+fn grouped_label_retains_its_literal_spelling() {
+    let mut context = empty_card_characteristics();
+    context.card_types = vec![CardType::Creature];
+    let text =
+        "10,000 Needles — Whenever this creature attacks, it gets +9999/+0 until end of turn.";
+    let reading = exact_roundtrip(text, &context);
+    let printed = super::engine()
+        .print_card_keyed(NAME, &reading, &context, &[])
+        .unwrap()
+        .expect("literal grouped label has a default print");
+    assert!(printed.starts_with("10,000 Needles — "), "{printed}");
+}
+
+#[test]
 fn written_x_in_a_reminder_follows_the_action_amount() {
     let context = empty_card_characteristics();
     let note = "Target land you control becomes a 0/0 creature with haste that's still a land. Put X +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.";

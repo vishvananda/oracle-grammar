@@ -346,7 +346,7 @@ fn keyword_line(
 
 /// Digits in groups of three after a comma, as in `1,000`, and their length.
 /// A comma not followed by exactly three digits is punctuation.
-fn grouped(rest: &str) -> Option<(u32, usize)> {
+pub(crate) fn grouped(rest: &str) -> Option<(u32, usize)> {
     let bytes = rest.as_bytes();
     let lead = bytes.iter().take_while(|b| b.is_ascii_digit()).count();
     if !(1..=3).contains(&lead) {
@@ -366,6 +366,15 @@ fn grouped(rest: &str) -> Option<(u32, usize)> {
     }
     let digits: String = rest[..end].chars().filter(char::is_ascii_digit).collect();
     Some((digits.parse().ok()?, end))
+}
+
+pub(crate) fn grouped_literal(word: &str) -> Option<u32> {
+    let (value, len) = grouped(word)?;
+    (len == word.len()).then_some(value)
+}
+
+pub(crate) fn literal_number(word: &str) -> Option<u32> {
+    word.parse().ok().or_else(|| grouped_literal(word))
 }
 
 fn with_separators(value: u32) -> String {

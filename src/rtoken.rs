@@ -18,9 +18,19 @@ pub(crate) enum RToken {
     /// strings not already present in [`WordTable::words`]).
     Dynamic(u32),
     Number(u32),
+    Grouped(u32),
     Mark(char),
     SelfName(u8),
     Newline,
+}
+
+impl RToken {
+    pub(crate) fn number_literal(word: &str) -> Option<Self> {
+        word.parse()
+            .ok()
+            .map(Self::Number)
+            .or_else(|| crate::tokens::grouped_literal(word).map(Self::Grouped))
+    }
 }
 
 /// One pre-compiled step of a grammar alternative for the renderer.
@@ -138,8 +148,7 @@ impl WordTable {
     }
 
     fn rtoken_of_word(&mut self, word: &str) -> RToken {
-        word.parse()
-            .map_or_else(|_| RToken::Word(self.intern(word)), RToken::Number)
+        RToken::number_literal(word).unwrap_or_else(|| RToken::Word(self.intern(word)))
     }
 
     fn compile_alternative(&mut self, syms: &[Sym], holes: &[Option<String>]) -> Vec<CompiledStep> {
@@ -218,7 +227,7 @@ impl WordTable {
                 .map_or(0, |w| style::word_flags(w)),
             RToken::Mark(c) => style::mark_flags(c),
             RToken::SelfName(_) => style::F_SELF_NAME,
-            RToken::Number(_) | RToken::Newline => 0,
+            RToken::Number(_) | RToken::Grouped(_) | RToken::Newline => 0,
         }
     }
 
@@ -228,7 +237,7 @@ impl WordTable {
             match tok {
                 RToken::Word(id) => self.style_ids.get(id as usize).copied().flatten(),
                 RToken::Dynamic(id) => dyn_words.get(id as usize).and_then(|w| model.id_of_key(w)),
-                RToken::Number(_) => self.number_style_id,
+                RToken::Number(_) | RToken::Grouped(_) => self.number_style_id,
                 RToken::Mark(c) if (c as u32) < 128 => self.ascii_mark_style[c as usize],
                 RToken::Mark(c) => {
                     let mut buf = [0u8; 4];
@@ -242,7 +251,7 @@ impl WordTable {
             let key = match tok {
                 RToken::Word(id) => self.words.get(id as usize)?.as_str(),
                 RToken::Dynamic(id) => dyn_words.get(id as usize)?.as_str(),
-                RToken::Number(_) => "#",
+                RToken::Number(_) | RToken::Grouped(_) => "#",
                 RToken::Mark(c) => c.encode_utf8(&mut buf),
                 RToken::SelfName(_) => "@",
                 RToken::Newline => style::LINE,
@@ -256,6 +265,7 @@ impl WordTable {
             RToken::Word(id) => Token::Word(self.words[id as usize].clone()),
             RToken::Dynamic(id) => Token::Word(dyn_words[id as usize].clone()),
             RToken::Number(n) => Token::Number(n),
+            RToken::Grouped(n) => Token::Grouped(n),
             RToken::Mark(c) => Token::Mark(c),
             RToken::SelfName(i) => Token::SelfName(i),
             RToken::Newline => Token::Newline,

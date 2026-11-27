@@ -201,7 +201,7 @@ impl TokenSlice for RTokenSlice<'_> {
     #[inline]
     fn number(&self, at: usize) -> Option<u32> {
         match self.tokens.get(at) {
-            Some(RToken::Number(n)) => Some(*n),
+            Some(RToken::Number(n) | RToken::Grouped(n)) => Some(*n),
             _ => None,
         }
     }

@@ -767,7 +767,17 @@ fn terminal(literal: &str) -> Result<Vec<Sym>, String> {
     }
     let mut syms = Vec::new();
     let mut word = String::new();
-    for c in literal.chars() {
+    let mut chars = literal.char_indices().peekable();
+    while let Some((index, c)) = chars.next() {
+        if word.is_empty()
+            && c.is_ascii_digit()
+            && let Some((_, len)) = crate::tokens::grouped(&literal[index..])
+        {
+            let end = index + len;
+            syms.push(Sym::Word(literal[index..end].to_owned()));
+            while chars.next_if(|(next, _)| *next < end).is_some() {}
+            continue;
+        }
         if c.is_alphanumeric() || c == '\'' || c == '\u{2019}' || c == '-' {
             word.push(c);
         } else {

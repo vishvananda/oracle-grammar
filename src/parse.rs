@@ -850,7 +850,7 @@ impl<'a> Parser<'a> {
         match (sym, token) {
             (Sym::Word(expected), Token::Word(word)) => (expected == word).then_some(None),
             (Sym::Word(expected), Token::Number(value) | Token::Grouped(value)) => {
-                (expected.parse::<u32>().ok()? == *value).then_some(None)
+                (crate::tokens::literal_number(expected)? == *value).then_some(None)
             }
             (Sym::Mark(expected), Token::Mark(mark)) => (expected == mark).then_some(None),
             (Sym::Class(Class::Number), Token::Number(value) | Token::Grouped(value)) => {

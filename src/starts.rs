@@ -118,7 +118,7 @@ impl Starts {
                     let key = self.new_key(word_class(word));
                     self.words.insert(word.clone(), key);
                 }
-                let numeral = word.parse::<u32>().ok().map(|number| {
+                let numeral = crate::tokens::literal_number(word).map(|number| {
                     if !self.numbers.contains_key(&number) {
                         let key = self.new_key(NUMBER);
                         self.numbers.insert(number, key);

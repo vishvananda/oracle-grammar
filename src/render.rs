@@ -974,10 +974,9 @@ impl<'a> Renderer<'a> {
         for (index, (sym, hole)) in alternative.syms.iter().zip(&alternative.holes).enumerate() {
             match sym {
                 Sym::Word(word) => {
-                    let (tok, flags) = match word.parse::<u32>() {
-                        Ok(n) => (RToken::Number(n), 0),
-                        Err(_) => self.intern_word(word),
-                    };
+                    let (tok, flags) = RToken::number_literal(word)
+                        .map(|number| (number, 0))
+                        .unwrap_or_else(|| self.intern_word(word));
                     let rope = Rope::leaf(tok);
                     for d in &mut partial {
                         d.append_literal(&rope, 1, flags);
@@ -1304,7 +1303,8 @@ impl<'a> Matcher<'a> {
         };
         // A number reads the same with or without thousands separators.
         let same = match (&wanted, token) {
-            (Token::Number(number), Token::Grouped(grouped)) => number == grouped,
+            (Token::Number(number), Token::Grouped(grouped))
+            | (Token::Grouped(grouped), Token::Number(number)) => number == grouped,
             _ => wanted == *token,
         };
         same.then_some(at + 1)
@@ -1312,8 +1312,11 @@ impl<'a> Matcher<'a> {
 }
 
 pub(crate) fn word_token(word: &str) -> Token {
-    word.parse()
-        .map_or_else(|_| Token::Word(word.to_string()), Token::Number)
+    match word.parse() {
+        Ok(n) => Token::Number(n),
+        Err(_) => crate::tokens::grouped_literal(word)
+            .map_or_else(|| Token::Word(word.to_string()), Token::Grouped),
+    }
 }
 
 pub(crate) fn class_token(sym: &Sym, value: &Value) -> Option<Token> {
