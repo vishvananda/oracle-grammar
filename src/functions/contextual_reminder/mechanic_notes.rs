@@ -20,6 +20,31 @@ pub(super) fn targets_stack_ability(value: &Value) -> bool {
             })
 }
 
+pub(super) fn copies_stack_ability(value: &Value) -> bool {
+    let args = &value["args"];
+    match value["kind"].as_str() {
+        Some("CopyEach") => filter_proves(
+            &args["objects"],
+            &|term| {
+                term["kind"] == "OnStack"
+                    && matches!(term["args"].as_str(), Some("Activated" | "Triggered"))
+            },
+            0,
+            &mut 128,
+        ),
+        Some("AddMana") => {
+            let spent = &args["restriction"]["WhenSpent"];
+            spent["abilities"] == true
+                && spent["body"]["kind"] == "Program"
+                && effects(&spent["body"]["args"]).any(|copy| {
+                    copy["kind"] == "CopyOnStack"
+                        && copy["args"]["object"]["kind"] == "EventStackObject"
+                })
+        }
+        _ => false,
+    }
+}
+
 pub(super) fn indefinite_mana_change(args: &Value) -> bool {
     let sources = &args["event"]["ProduceColor"]["sources"];
     let object = &sources["args"];
@@ -31,7 +56,7 @@ pub(super) fn indefinite_mana_change(args: &Value) -> bool {
             || target_slot(object).is_some_and(|slot| target_slot(duration) == Some(slot)))
 }
 
-fn target_slot(object: &Value) -> Option<u64> {
+pub(super) fn target_slot(object: &Value) -> Option<u64> {
     if object["kind"] != "Target" || object["args"]["index"] != 0 {
         return None;
     }
@@ -65,7 +90,6 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         {
             Some("ManifestDreadTargetController")
         }
-        "Keyword" if args["action"]["BecomeBlocked"].is_object() => Some("BecomeBlocked"),
         "PayCost"
             if matches!(args["cost"]["parts"].as_array().map(Vec::as_slice),
                 Some([part]) if part["ManaCostOf"].is_object()) =>

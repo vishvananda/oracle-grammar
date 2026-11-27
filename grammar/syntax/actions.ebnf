@@ -6866,6 +6866,16 @@ cast_measure_property ::= cast_measure_intensity | cast_measure_mana_value
 /* @sem Operation::DraftFromSpellbook{actor:One(AbilityController), spellbook:@card_name, times:$card_count_one} */
 draft_self_spellbook_card ::= "draft" card_count_one "from" SELF_NAME "'s" "spellbook"
 
+/* The written source noun still names this card's spellbook. */
+/* @sem Operation::DraftFromSpellbook{actor:One(AbilityController), spellbook:@card_name, times:$card_count_one} */
+draft_source_noun_spellbook_card ::= "draft" card_count_one "from" own_spellbook_holder "spellbook"
+
+own_spellbook_holder ::= artifact_spellbook_holder | enchantment_spellbook_holder
+/* @sem () */
+artifact_spellbook_holder ::= "this" "artifact's"
+/* @sem () */
+enchantment_spellbook_holder ::= "this" "enchantment's"
+
 /* The controller of the sole announced creature receives the excess. Keeping
    this at spell scope proves the target reference even with other abilities. */
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DealDamageWith{source:$self_explicit_ref, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:$excess_damage_creature}), index:0})), amount:$value_number_cards, rider:ExcessTo(ControllerOf(Target{slot:0, index:0}))}}]}} */
@@ -21716,6 +21726,9 @@ immediate_next_turn_upkeep_action ::= clause_imperative "at" "the" "beginning" "
 
 /* @sem Ability::[Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$unblocked_attacker_becomes_blocked}, $immediate_next_turn_upkeep_action]}}] */
 line_blocked_then_next_turn_action ::= unblocked_attacker_becomes_blocked "." NEWLINE immediate_next_turn_upkeep_action "."
+
+/* @sem Ability::[Spell{announcement:@announcement, body:Program{instructions:[...$become_blocked_reminded, $immediate_next_turn_upkeep_action]}}] */
+line_reminded_blocked_then_next_turn_action ::= become_blocked_reminded NEWLINE immediate_next_turn_upkeep_action "."
 
 /* Sequential choices keep their reference identities in each phrase. */
 /* @sem Instruction::[...$chosen_player_counter_placement, ...$second_player_draw, ...$third_player_tokens] */

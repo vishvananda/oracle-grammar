@@ -67,13 +67,13 @@ background_reminded_text ::= deck_rule_choose_background "(" "you" "can" "have" 
 /* @sem $deck_rule_doctors_companion */
 doctor_companion_reminded_text ::= deck_rule_doctors_companion "(" "you" "can" "have" "two" "commanders" "if" "the" "other" "is" "the" "Doctor" "." ")"
 
-triggered_mechanic_reminded_text ::= exalted_reminded_text | cascade_reminded_text | rebound_reminded_text
+triggered_mechanic_reminded_text ::= exalted_reminded_text | cascade_reminded_text | cascade_mana_value_reminded_text | rebound_reminded_text
     | persist_reminded_text | undying_reminded_text | exploit_reminded_text | soulbond_reminded_text
     | haunt_creature_reminded_text | haunt_spell_reminded_text
 /* @sem $bare_exalted */
 exalted_reminded_text ::= bare_exalted "(" "whenever" "a" "creature" "you" "control" "attacks" "alone" "," "that" "creature" "gets" "+" "1" "/" "+" "1" "until" "end" "of" "turn" "." ")"
 /* @sem $bare_cascade */
-cascade_reminded_text ::= bare_cascade "(" "when" "you" "cast" "this" "spell" "," "exile" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "exile" "a" "nonland" "card" "that" "costs" "less" "." "you" "may" "cast" "it" "without" "paying" "its" "mana" "cost" "." "put" "the" "exiled" "cards" "on" "the" "bottom" "in" "a" "random" "order" "." ")"
+cascade_reminded_text ::= bare_cascade "(" cascade_this_spell_explanation ")"
 /* @sem $bare_rebound */
 rebound_reminded_text ::= bare_rebound "(" "if" "you" "cast" "this" "spell" "from" "your" "hand" "," "exile" "it" "as" "it" "resolves" "." "at" "the" "beginning" "of" "your" "next" "upkeep" "," "you" "may" "cast" "this" "card" "from" "exile" "without" "paying" "its" "mana" "cost" "." ")"
 /* @sem $bare_persist */
@@ -412,7 +412,7 @@ spree_modes_one ::= spree_mode
 /* @sem SpreeMode::[$spree_mode, ...$spree_modes] */
 spree_modes_more ::= spree_mode NEWLINE spree_modes
 
-spree_mode ::= spree_mode_exile_delayed_return | spree_mode_lose_abilities | spree_mode_choose_grant | spree_mode_plain | spree_mode_quoted | spree_mode_closed_sentence
+spree_mode ::= spree_mode_reminded_outlaw_damage | spree_mode_exile_delayed_return | spree_mode_lose_abilities | spree_mode_choose_grant | spree_mode_plain | spree_mode_quoted | spree_mode_closed_sentence
 
 /* Tiered: one mode, by name, adding its cost. The names mean nothing to the rules. */
 line_tiered ::= line_tiered_plain | line_tiered_reminded
@@ -1317,6 +1317,12 @@ spree_mode_choose_grant ::= "+" cost "—" "choose" "a" filter_phrase "you" "con
 
 /* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:$program}}) */
 spree_mode_plain ::= "+" cost "—" program "."
+
+/* A mode can explain the same outlaw population its damage uses. */
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$outlaw_damage_reminded}]}}}) */
+spree_mode_reminded_outlaw_damage ::= "+" cost "—" outlaw_damage_reminded
+/* @sem Operation::DealDamage{source:$damage_source_ref, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($noun_creature, $noun_outlaw)}), amount:$number, preventable:true} */
+outlaw_damage_reminded ::= damage_source_ref "deals" number "damage" "to" "each" noun_outlaw noun_creature "." "(" outlaw_explanation_words ")"
 
 /* Bare mechanics share the same native ability construction. */
 /* @sem Ability::Mechanic{mechanic:$unvalued_mechanic_name} */

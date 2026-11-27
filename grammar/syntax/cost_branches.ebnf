@@ -80,8 +80,7 @@ spell_entwine ::= "choose" "one" "—" NEWLINE modes NEWLINE "entwine" keyword_p
    and the two casting branches still share those independently scoped modes. */
 /* @sem Ability::WithPresentation{reminder:true, ability:CostBranch{keyword:Entwine, cost:$keyword_payment, paid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(2), maximum:Constant(2)}, options:$entwine_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}, unpaid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:$entwine_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}}} */
 spell_entwine_reminded ::= "choose" "one" "—" NEWLINE entwine_two_modes NEWLINE "entwine" keyword_payment "(" "choose" "both" "if" "you" "pay" "the" "entwine" "cost" "." ")"
-/* @sem Mode::[$mode, $mode_2] */
-entwine_two_modes ::= mode NEWLINE mode
+entwine_two_modes ::= entwine_plain_mode_pair | entwine_first_reminded | entwine_second_reminded
 
 /* Kicker changes the number of chosen modes; each mode keeps its own target
    announcement in both casting branches. */
@@ -167,8 +166,13 @@ conditional_modes ::= conditional_modes_required | conditional_modes_optional
 conditional_two_modes ::= mode NEWLINE mode
 /* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Conditional{condition:$condition, then:Constant(2), otherwise:Constant(1)}, maximum:Conditional{condition:$condition, then:Constant(2), otherwise:Constant(1)}}, options:$conditional_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
 conditional_modes_required ::= "choose" "one" "." "if" condition "," "choose" "both" "instead" "." NEWLINE conditional_two_modes
-/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Conditional{condition:$condition, then:Constant(2), otherwise:Constant(1)}}, options:$conditional_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
-conditional_modes_optional ::= "choose" "one" "." "if" condition "," "you" "may" "choose" "both" "instead" "." NEWLINE conditional_two_modes
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Conditional{condition:$optional_both_mode_header, then:Constant(2), otherwise:Constant(1)}}, options:$conditional_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
+conditional_modes_optional ::= optional_both_mode_header NEWLINE conditional_two_modes
+optional_both_mode_header ::= optional_both_mode_plain | optional_both_mode_descend
+/* @sem $condition */
+optional_both_mode_plain ::= "choose" "one" "." "if" condition "," "you" "may" "choose" "both" "instead" "."
+/* @sem $condition_descended_this_turn */
+optional_both_mode_descend ::= "choose" "one" "." "if" condition_descended_this_turn "," "you" "may" "choose" "both" "instead" "." "(" descend_explanation_words ")"
 /* @sem Ability::Spell{announcement:Announcement{modes:$conditional_modes}, body:Program{}} */
 conditional_spell_modal ::= conditional_modes
 /* @sem Ability::Triggered{event:ZoneChange{objects:$event_object, to:Battlefield}, limits:TriggerLimits{}, announcement:Announcement{modes:$conditional_modes}, body:Program{}} */
@@ -657,3 +661,10 @@ branch_blight_value ::= number_digits "." "(" "you" "may" "put" blight_explanati
 /* This explanation belongs to the Madness casting branch. */
 /* @sem bool::true */
 madness_reminder ::= "(" "if" "you" "discard" "this" "card" "," "discard" "it" "into" "exile" "." "when" "you" "do" "," "cast" "it" "for" "its" "madness" "cost" "or" "put" "it" "into" "your" "graveyard" "." ")"
+
+/* @sem Mode::[$mode, $mode_2] */
+entwine_plain_mode_pair ::= mode NEWLINE mode
+/* @sem Mode::[$reminder_mode, $mode] */
+entwine_first_reminded ::= reminder_mode NEWLINE mode
+/* @sem Mode::[$mode, $reminder_mode] */
+entwine_second_reminded ::= mode NEWLINE reminder_mode

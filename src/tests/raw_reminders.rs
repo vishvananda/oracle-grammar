@@ -835,3 +835,22 @@ fn storm_token_copies_require_a_permanent_source() {
     context.card_types = vec![CardType::Sorcery];
     assert!(super::engine().parse_card(NAME, text, &context).is_err());
 }
+
+#[test]
+fn delayed_phase_out_looks_up_targets_in_the_owning_announcement() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Planeswalker);
+    let text = "+1: Up to two other target planeswalkers you control phase out at the beginning of the next end step. (Treat them and anything attached to them as though they don't exist until your next turn.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("you control", "an opponent controls");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn first_cascade_reminder_preserves_the_origin_of_the_first_spell() {
+    let context = empty_card_characteristics();
+    let text = "The first spell you cast from exile each turn has cascade. (When you cast your first spell from exile, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replacen("from exile each turn", "each turn", 1);
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}

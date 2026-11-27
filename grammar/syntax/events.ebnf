@@ -729,7 +729,7 @@ death_exile_object ::= event_object "dies" "or" "is" "put" "into" "exile" ("from
 /* An additional functioning zone belongs to this source's one trigger. Bind the
    shared program independently in each ability; adjacent abilities stay outside. */
 /* @sem Ability::[Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence}, Scoped{zones:[Exile], ability:@scope(Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence})}] */
-line_additional_exile_trigger ::= event_clause "," program_sentence "this" "ability" "also" "triggers" "if" "this" "card" "is" "in" "exile" "."
+line_additional_exile_trigger ::= event_clause "," program_sentence "this" "ability" "also" "triggers" "if" scoped_source_card "is" "in" "exile" "."
 
 /* One ordinary trigger body composes with either event-header order above. */
 /* @sem Ability::Triggered{event:$event_clause_and_turn_event, limits:_{}, announcement:@announcement, body:$program} */
@@ -895,7 +895,7 @@ event_conjures_other ::= "you" "conjure" "one" "or" "more" "other" "cards"
 /* The suffix belongs to this one root trigger. A single raw typed reading is
    reused, then bound independently in its default and graveyard owners. */
 /* @sem Ability::[@optional_ability_label($graveyard_suffix_trigger, $paragraph_label), Scoped{zones:[Graveyard], ability:@scope($graveyard_suffix_trigger)}] */
-line_additional_graveyard_trigger ::= paragraph_label? graveyard_suffix_trigger "this" "ability" "also" "triggers" "if" "this" "card" "is" "in" "your" "graveyard" "."
+line_additional_graveyard_trigger ::= paragraph_label? graveyard_suffix_trigger "this" "ability" "also" "triggers" "if" scoped_source_card "is" "in" "your" "graveyard" "."
 
 graveyard_suffix_trigger ::= graveyard_suffix_plain | graveyard_suffix_if
 /* @sem Ability::Triggered{event:$graveyard_suffix_header, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_suffix_body} */
@@ -8677,3 +8677,14 @@ event_self_entry_and_clause_h3 ::= event_self_enters "and" event_clause
 /* @prefer always */
 /* @sem Ability::Triggered{event:$event_clause, intervening_if:ObjectMatches{object:EventSubject, filter:AnyOf([EnteredFrom(Players{zone:Graveyard, players:One(AbilityController)}), Cast{by:One(AbilityController), from:Players{zone:Graveyard, players:One(AbilityController)}}])}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:One(EventSubject)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}}}, If{condition:PaymentChosen(@last_result), then:$program, otherwise:Program{}}]}} */
 triggered_graveyard_origin_exile_if_h3 ::= event_clause "," "if" "it" "entered" "from" "your" "graveyard" "or" "you" "cast" "it" "from" "your" "graveyard" "," "exile" "it" "." "if" "you" "do" "," program "."
+
+/* @sem () */
+scoped_source_card ::= scoped_source_this_card | scoped_source_printed_name
+/* @sem () */
+scoped_source_this_card ::= "this" "card"
+/* @sem () */
+scoped_source_printed_name ::= SELF_NAME
+
+/* The named-card spelling uses the same scoped death trigger as the card form. */
+/* @sem Ability::Scoped{zones:[Graveyard, Battlefield], ability:@scope(Ability::Triggered{event:$event_many_die, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$graveyard_active_perpetual_effect}]}})} */
+graveyard_named_death_perpetual_trigger ::= "whenever" event_many_die "," graveyard_active_perpetual_effect "." "this" "ability" "also" "triggers" "if" scoped_source_printed_name "is" "in" "your" "graveyard" "."

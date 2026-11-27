@@ -23,7 +23,7 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                 && grants_keyword(&args["changes"], "Wither")
                 && visit("WitherGroup")
             || own_graveyard_cards(&args["affected"]["Objects"])
-                && grants_jump_start(&args["changes"])
+                && grants_mechanic(&args["changes"], "JumpStart")
                 && visit("JumpStartFromYourGraveyard")
             || lifelink_notes(args, args, &mut visit))
     {
@@ -63,6 +63,10 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                     controlled_group_phases_out(&op["args"], frame)
                         && visit("ControlledGroupPhasesOut")
                 }
+                Some("CreateDelayedTrigger") => {
+                    delayed_controlled_group_phases_out(&op["args"], frame)
+                        && visit("ControlledGroupPhasesOut")
+                }
                 Some("CreateTokens") => {
                     let tokens = &op["args"]["tokens"];
                     creature_tokens_without_haste(tokens) && visit("SummoningSickness")
@@ -74,16 +78,19 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                 }
                 Some("Move") => unattachable_auras(&op["args"]) && visit("UnattachableAuras"),
                 Some("CreateContinuousEffect") => {
-                    grants_graveyard_jump_start(op, frame) && visit("JumpStartFromYourGraveyard")
+                    grants_graveyard_mechanic(op, frame, "JumpStart")
+                        && visit("JumpStartFromYourGraveyard")
+                        || op["args"]["duration"] == "EndOfTurn"
+                            && grants_graveyard_mechanic(op, frame, "Escape")
+                            && visit("EscapeFromYourGraveyardThisTurn")
                         || lifelink_notes(&op["args"], frame, &mut visit)
                         || keeps_abilities_when_animated(&op["args"])
                             && visit("AnimationKeepsAbilities")
                 }
                 Some("ReflexiveTrigger") => {
-                    effects(&op["args"]["body"])
-                        .take(16)
-                        .any(|op_inside| grants_graveyard_jump_start(op_inside, &op["args"]))
-                        && visit("JumpStartFromYourGraveyard")
+                    effects(&op["args"]["body"]).take(16).any(|op_inside| {
+                        grants_graveyard_mechanic(op_inside, &op["args"], "JumpStart")
+                    }) && visit("JumpStartFromYourGraveyard")
                 }
                 _ => false,
             }
@@ -161,17 +168,17 @@ fn own_graveyard_cards(objects: &Value) -> bool {
         && super::receipts::own_zone(&args["scope"]["Players"], "Graveyard")
 }
 
-fn grants_jump_start(changes: &Value) -> bool {
+fn grants_mechanic(changes: &Value, mechanic: &str) -> bool {
     changes.as_array().is_some_and(|changes| {
         changes.iter().take(16).any(|change| {
             change["kind"] == "GrantAbility"
                 && change["args"]["kind"] == "Mechanic"
-                && change["args"]["args"]["mechanic"] == "JumpStart"
+                && change["args"]["args"]["mechanic"] == mechanic
         })
     })
 }
 
-fn grants_graveyard_jump_start(operation: &Value, frame: &Value) -> bool {
+fn grants_graveyard_mechanic(operation: &Value, frame: &Value, mechanic: &str) -> bool {
     let args = &operation["args"];
     let affected = &args["affected"]["Objects"];
     let objects = &affected["args"]["objects"];
@@ -179,7 +186,7 @@ fn grants_graveyard_jump_start(operation: &Value, frame: &Value) -> bool {
         && affected["kind"] == "InZone"
         && affected["args"]["zone"] == "Graveyard"
         && objects["kind"] == "One"
-        && grants_jump_start(&args["changes"])
+        && grants_mechanic(&args["changes"], mechanic)
         && target_spec(&objects["args"], &frame["announcement"]).is_some_and(|target| {
             filter_proves(
                 &target["filter"],
@@ -331,6 +338,23 @@ fn controlled_group_phases_out(args: &Value, frame: &Value) -> bool {
         0,
         &mut 256,
     )
+}
+
+fn delayed_controlled_group_phases_out(delayed: &Value, frame: &Value) -> bool {
+    // A delayed trigger does not announce new targets. Its single phasing
+    // instruction can use the target population announced by the enclosing
+    // effect. An independently targeted nested ability has its own frame.
+    let Some([step]) = delayed["body"]["instructions"]
+        .as_array()
+        .map(Vec::as_slice)
+    else {
+        return false;
+    };
+    step_operation(step).is_some_and(|op| {
+        op["kind"] == "KeywordEach"
+            && op["args"]["objects"]["kind"] == "Targets"
+            && controlled_group_phases_out(&op["args"], frame)
+    })
 }
 
 fn makes_creature(changes: &Value, copy: bool) -> bool {

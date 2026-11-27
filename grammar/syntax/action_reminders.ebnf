@@ -257,19 +257,20 @@ ability_explanation ::= token_summoning_sickness_explanation | haste_they_attack
     | riot_additional_counter_explanation | proliferate_definition_head_explanation | storm_when_you_cast_it_explanation | storm_when_you_cast_that_spell_explanation
     | exalted_each_instance_explanation | training_creature_you_control_explanation | dethrone_whenever_it_attacks_explanation | retrace_with_keyword_explanation
     | improvise_those_spells_payment_explanation | double_strike_this_creature_explanation | indestructible_this_creature_explanation | riot_they_enter_explanation
-    | venture_definition_explanation | storm_permanent_copies_explanation | storm_targeted_permanent_copies_explanation
+    | harmonize_power_explanation | harmonize_granted_power_explanation | venture_definition_explanation | storm_permanent_copies_explanation | storm_targeted_permanent_copies_explanation
+    | cascade_qualified_explanations | escape_graveyard_this_turn_explanation | conspire_that_spell_explanation
     | gravestorm_explanation | cascade_grant_explanation | rebound_grant_explanation | undying_grant_explanation
     | enchant_land_explanation | bloodthirst_x_explanation | your_damage_life_loss_explanation
     | animation_keeps_abilities_explanation | controlled_group_phases_out_explanation
-    | manifest_dread_target_controller_explanation | become_blocked_ignores_evasion_explanation | full_mana_cost_explanation
+    | manifest_dread_target_controller_explanation | full_mana_cost_explanation
     | stun_explanation | stun_recipient_explanation | populate_definition_explanation | regeneration_the_creature_explanation | modified_explanation | historic_explanation
     | shield_explanation | venture_explanation | learn_explanation | explore_explanation
     | explore_that_creature_explanation | explore_the_creature_explanation | explore_definition_explanation
     | manifest_dread_explanation | manifest_dread_definition_explanation | populate_explanation | mill_explanation | goad_explanation
     | exert_explanation | party_explanation | crime_explanation | clash_explanation
-    | snow_explanation | colorless_explanation | waterbend_explanation | indefinite_explanation
+    | snow_explanation | colorless_explanation | waterbend_explanation | exhaust_once_explanation | indefinite_explanation
     | splice_explanation | overload_explanation | bargain_explanation | prototype_explanation
-    | nonmana_ability_explanation | grant_keyword_explanation | additional_rule_explanations
+    | nonmana_ability_explanation | nonmana_copy_explanation | grant_keyword_explanation | additional_rule_explanations
     | context_explanations | token_context_explanations | role_explanation
     | combat_keyword_explanation | payment_permission_explanation | phaseout_attached_explanation | colorless_clue_explanation
     | phaseout_your_turn_explanation | attachment_keeps_control_explanation | summoning_sickness_explanation
@@ -481,7 +482,7 @@ airbend_creature_explanation ::= "to" "airbend" "a" "creature" "," "exile" "it" 
 /* @sem () */
 airbend_explanation_cost ::= "its" "owner" "may" "cast" "it" "for" "{" "2" "}" "rather" "than" "its" "mana" "cost" "."
 /* @sem String::'Stun' */
-stun_explanation ::= "if" "a" "permanent" "with" "a" "stun" "counter" "would" "become" "untapped" "," "remove" "one" "from" "it" "instead" "."
+stun_explanation ::= stun_counter_reminder_words
 /* @sem String::'Modified' */
 modified_explanation ::= modification_rule_words
 /* @sem () */
@@ -489,7 +490,7 @@ modification_rule_words ::= "Equipment" "," "↑" "auras" "you" "control" "," "a
 /* @sem String::'Historic' */
 historic_explanation ::= "artifacts" "," "legendaries" "," "and" "Sagas" "are" "historic" "."
 /* @sem String::'Shield' */
-shield_explanation ::= "if" "it" "would" "be" "dealt" "damage" "or" "destroyed" "," "remove" "a" "shield" "counter" "from" "it" "instead" "."
+shield_explanation ::= shield_counter_reminder_words
 /* @sem String::'Venture' */
 venture_explanation ::= "enter" "the" "first" "room" "or" "advance" "to" "the" "next" "room" "."
 /* @sem String::'Learn' */
@@ -676,7 +677,7 @@ reminder_open_then_reminder ::= reminder_open (sequencer | "," "then") reminder_
 /* @sem $reminder_open */
 reminder_open_closed ::= reminder_open "."
 
-reminder_closed ::= limited_mana_cost_spending_reminded | reminder_open_closed | proliferate_reminded | proliferate_twice_reminded | proliferate_pair_reminded
+reminder_closed ::= shield_counter_reminded | tap_stun_counter_reminded | surveil_defined_reminded | open_attraction_reminded | open_two_attractions_reminded | limited_mana_cost_spending_reminded | reminder_open_closed | proliferate_reminded | proliferate_twice_reminded | proliferate_pair_reminded
     | scry_reminded | surveil_reminded | investigate_reminded | named_token_reminded | fight_reminded
     | reminder_if | reminder_optional | reminder_paid | support_reminded
     | incubate_x_reminded | exile_incubate_x_reminded | vibranium_reminded
@@ -805,8 +806,7 @@ reminder_choose_number ::= "choose" number_words "—" NEWLINE reminder_modes
 reminder_choose_both ::= "choose" "one" "or" "both" "—" NEWLINE reminder_modes
 /* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Constant(1), maximum:@length($reminder_modes)}, options:$reminder_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
 reminder_choose_more ::= "choose" "one" "or" "more" "—" NEWLINE reminder_modes
-/* @sem @scope(Mode::Mode{announcement:@announcement, body:$reminder_program_sentence, weight:1}) */
-reminder_mode ::= "•" reminder_program_sentence
+reminder_mode ::= reminder_mode_plain | reminder_mode_with_flavor
 reminder_modes ::= reminder_mode_one | reminder_modes_before | reminder_modes_after | reminder_modes_multiple
 /* @sem Mode::[$reminder_mode] */
 reminder_mode_one ::= reminder_mode
@@ -1220,7 +1220,7 @@ storm_copies_become_tokens ::= "copies" "become" "tokens" "."
 gravestorm_explanation ::= "when" "you" "cast" "this" "spell" "," "copy" "it" "for" "each" "permanent" "put" "into" "a" "graveyard" "from" "the" "battlefield" "this" "turn" "."
 
 /* @sem String::'Cascade' */
-cascade_grant_explanation ::= "when" "you" "cast" "the" "spell" "," "exile" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "exile" "a" "nonland" "card" "that" "costs" "less" "." "you" "may" "cast" "it" "without" "paying" "its" "mana" "cost" "." "put" "the" "exiled" "cards" "on" "the" "bottom" "in" "a" "random" "order" "."
+cascade_grant_explanation ::= "when" "you" "cast" "the" "spell" "," cascade_resolution
 
 /* @sem String::'Rebound' */
 rebound_grant_explanation ::= "exile" "the" "spell" "as" "it" "resolves" "." "at" "the" "beginning" "of" "your" "next" "upkeep" "," "you" "may" "cast" "that" "card" "from" "exile" "without" "paying" "its" "mana" "cost" "."
@@ -1246,8 +1246,6 @@ controlled_group_phases_out_explanation ::= "treat" "them" "and" "anything" "att
 /* @sem String::'ManifestDreadTargetController' */
 manifest_dread_target_controller_explanation ::= "that" "player" "looks" "at" "the" "top" "two" "cards" "of" "their" "library" "," "then" "puts" "one" "onto" "the" "battlefield" "face" "down" "as" "a" "2" "/" "2" "creature" "and" "the" "other" "into" "their" "graveyard" "." "if" "it's" "a" "creature" "card" "," "it" "can" "be" "turned" "face" "up" "any" "time" "for" "its" "mana" "cost" "."
 
-/* @sem String::'BecomeBlocked' */
-become_blocked_ignores_evasion_explanation ::= "this" "spell" "works" "on" "creatures" "that" "can't" "be" "blocked" "."
 
 /* @sem String::'FullManaCost' */
 full_mana_cost_explanation ::= "mana" "cost" "includes" "color" "."
@@ -1260,3 +1258,109 @@ blight_effect_explanation ::= "put" blight_explanation_counters "on" "a" "creatu
 
 /* @sem Operand::List([Text(Firebending), Number($firebending_reminder_mana)]) */
 firebending_token_explanation ::= "whenever" "it" "attacks" "," "add" firebending_reminder_mana "." "this" "mana" "lasts" "until" "end" "of" "combat" "."
+
+/* @sem @scope(Mode::Mode{announcement:@announcement, body:$reminder_program_sentence, weight:1}) */
+reminder_mode_plain ::= "•" reminder_program_sentence
+/* @sem @scope(Mode::Mode{announcement:@announcement, body:$reminder_program_sentence, weight:1}) */
+reminder_mode_with_flavor ::= "•" modal_flavor_words "—" reminder_program_sentence
+
+/* @sem Instruction::[Effect{result:@next, operation:$open_an_attraction}] */
+open_attraction_reminded ::= open_an_attraction "." "(" "put" "the" "top" "card" "of" "your" "Attraction" "deck" "onto" "the" "battlefield" "." ")"
+
+/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:OpenAttraction{times:Constant(2)}}}] */
+open_two_attractions_reminded ::= "open" "two" "Attractions" "." "(" "put" "the" "top" "two" "cards" "of" "your" "Attraction" "deck" "onto" "the" "battlefield" "." ")"
+
+/* @sem String::'Harmonize' */
+harmonize_power_explanation ::= "you" "may" "cast" "this" "card" "from" "your" "graveyard" "for" "its" "harmonize" "cost" "." harmonize_power_discount
+/* @sem String::'Harmonize' */
+harmonize_granted_power_explanation ::= "you" "may" "cast" "that" "card" "from" "your" "graveyard" "for" "its" "harmonize" "cost" "." harmonize_power_discount
+/* @sem () */
+harmonize_power_discount ::= "you" "may" "tap" "a" "creature" "you" "control" "to" "reduce" "that" "cost" "by" "an" "amount" "of" "generic" "mana" "equal" "to" "its" "power" "." "then" "exile" "this" "spell" "."
+
+/* @sem Instruction::[Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $surveil_defined_base)}] */
+surveil_defined_reminded ::= surveil_defined_base "." "(" surveil_written_x_lookup ")"
+/* @sem () */
+surveil_written_x_lookup ::= "look" "at" "the" "top" "X" "cards" "of" "your" "library" "," "then" "put" "any" "number" "of" "them" "into" "your" "graveyard" "and" "the" "rest" "on" "top" "of" "your" "library" "in" "any" "order" "."
+
+/* @sem Instruction::[Effect{result:@next, operation:$unblocked_attacker_becomes_blocked}] */
+become_blocked_reminded ::= unblocked_attacker_becomes_blocked "." "(" "this" "spell" "works" "on" "creatures" "that" "can't" "be" "blocked" "." ")"
+
+/* Cascade's written spell populations and its resolution are independent. */
+cascade_qualified_explanations ::= cascade_this_grant_explanation | cascade_that_spell_explanation
+    | cascade_first_spell_explanation | cascade_first_exile_explanation | cascade_commander_explanation
+    | cascade_enchantment_hand_explanation | cascade_twice_on_grant_explanation | cascade_player_next_explanation
+/* @sem String::'Cascade' */
+cascade_this_grant_explanation ::= cascade_this_spell_explanation
+/* @sem String::'Cascade' */
+cascade_that_spell_explanation ::= "when" "you" "cast" "that" "spell" "," cascade_resolution
+/* @sem String::'CascadeFirstSpell' */
+cascade_first_spell_explanation ::= "when" "you" "cast" "your" "first" "spell" "," cascade_resolution
+/* @sem String::'CascadeFirstExiledSpell' */
+cascade_first_exile_explanation ::= "when" "you" "cast" "your" "first" "spell" "from" "exile" "," cascade_resolution
+/* @sem String::'CascadeCommander' */
+cascade_commander_explanation ::= "whenever" "you" "cast" "a" "commander" "," cascade_lesser_mana_value_resolution
+/* @sem String::'CascadeEnchantmentFromHand' */
+cascade_enchantment_hand_explanation ::= "whenever" "you" "cast" "an" "enchantment" "spell" "from" "your" "hand" "," cascade_resolution
+/* @sem String::'CascadeTwiceOnGrant' */
+cascade_twice_on_grant_explanation ::= "when" "you" "cast" "one" "," cascade_resolution cascade_repeat_instruction
+/* @sem String::'CascadePlayerNextSpell' */
+cascade_player_next_explanation ::= "when" "they" "cast" "their" "next" "spell" "," "they" "exile" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "exile" "a" "nonland" "card" "that" "costs" "less" "." "they" "may" "cast" "it" "without" "paying" "its" "mana" "cost" "." "they" "put" "the" "exiled" "cards" "on" "the" "bottom" "in" "a" "random" "order" "."
+
+/* @sem () */
+cascade_this_spell_explanation ::= cascade_this_spell_heading cascade_resolution
+/* @sem () */
+cascade_this_spell_heading ::= "when" "you" "cast" "this" "spell" ","
+/* @sem () */
+cascade_resolution ::= cascade_exile_prefix "that" "costs" "less" "." cascade_cast_optional cascade_cards_bottom_random
+/* @sem () */
+cascade_lesser_mana_value_resolution ::= cascade_exile_prefix "with" "lesser" "mana" "value" "." cascade_cast_optional cascade_cards_bottom_random
+/* @sem () */
+cascade_exile_prefix ::= "exile" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "exile" "a" "nonland" "card"
+/* @sem () */
+cascade_cast_optional ::= "you" "may" "cast" "it" "without" "paying" "its" "mana" "cost" "."
+/* @sem () */
+cascade_cards_bottom_random ::= "put" "the" "exiled" "cards" "on" "the" "bottom" "in" "a" "random" "order" "."
+/* @sem () */
+cascade_cards_library_bottom_random ::= "put" "the" "exiled" "cards" "on" "the" "bottom" "of" "your" "library" "in" "a" "random" "order" "."
+/* @sem () */
+cascade_repeat_instruction ::= "then" "do" "it" "again" "."
+
+/* @sem $bare_cascade */
+cascade_mana_value_reminded_text ::= bare_cascade "(" cascade_this_spell_heading cascade_lesser_mana_value_resolution ")"
+
+/* Each printed cascade gets its own native trigger. */
+repeat_cascade_reminded_line ::= cascade_twice_reminded_line | cascade_independent_instances_line
+/* @sem Ability::[$bare_cascade, WithPresentation{ability:$bare_cascade_2, reminder:true}] */
+cascade_twice_reminded_line ::= bare_cascade "," bare_cascade "(" cascade_this_spell_heading cascade_twice_resolution cascade_repeat_instruction ")"
+/* @sem () */
+cascade_twice_resolution ::= cascade_resolution | cascade_resolution_library_bottom
+/* @sem () */
+cascade_resolution_library_bottom ::= cascade_exile_prefix "that" "costs" "less" "." cascade_cast_optional cascade_cards_library_bottom_random
+/* @sem Ability::[$bare_cascade, $bare_cascade_2, $bare_cascade_3, WithPresentation{ability:$bare_cascade_4, reminder:true}] */
+cascade_independent_instances_line ::= bare_cascade "," bare_cascade "," bare_cascade "," bare_cascade "(" cascade_this_spell_explanation "multiple" "instances" "of" "cascade" "each" "trigger" "separately" "." ")"
+
+/* @sem String::'ExhaustOnce' */
+exhaust_once_explanation ::= "activate" "each" "exhaust" "ability" "only" "once" "."
+
+/* @sem String::'CopyStackAbility' */
+nonmana_copy_explanation ::= "mana" "abilities" "can't" "be" "copied" "."
+
+/* The explained counter is the counter placed in this particular mode. */
+/* @sem Instruction::[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($target_object)), kind:Named(ShieldCounter), amount:Constant(1)}]}}] */
+shield_counter_reminded ::= "put" "a" "shield" "counter" "on" target_object "." "(" shield_counter_reminder_words ")"
+/* @sem () */
+shield_counter_reminder_words ::= "if" "it" "would" "be" "dealt" "damage" "or" "destroyed" "," "remove" "a" "shield" "counter" "from" "it" "instead" "."
+
+/* @sem Instruction::[Effect{result:@next, operation:SetTapped{objects:One($target_object), tapped:true}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($target_object)), kind:Named(StunCounter), amount:Constant(1)}]}}] */
+tap_stun_counter_reminded ::= "tap" target_object "and" "put" "a" "stun" "counter" "on" "it" "." "(" stun_counter_reminder_words ")"
+/* @sem () */
+stun_counter_reminder_words ::= "if" "a" "permanent" "with" "a" "stun" "counter" "would" "become" "untapped" "," "remove" "one" "from" "it" "instead" "."
+
+/* @sem String::'EscapeFromYourGraveyardThisTurn' */
+escape_graveyard_this_turn_explanation ::= "you" "may" "cast" "it" "from" "your" "graveyard" "for" "its" "escape" "cost" "this" "turn" "."
+
+/* @sem String::'Conspire' */
+conspire_that_spell_explanation ::= "as" "you" "cast" "that" "spell" "," "you" "may" "tap" "two" "untapped" "creatures" "you" "control" "that" "share" "a" "color" "with" "it" "." "when" "you" "do" "," "copy" "it" "and" "you" "may" "choose" "new" "targets" "for" "the" "copy" "."
+
+/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Amass{amount:@agree($number_digits, $amass_orcs_note_amount), creature_type:Orc}}}] */
+amass_orcs_reminded ::= "amass" "Orcs" number_digits "." "(" amass_orcs_note_amount ")"

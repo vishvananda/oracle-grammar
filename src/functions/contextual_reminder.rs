@@ -3,6 +3,7 @@ use crate::pattern::{Bindings, Pattern};
 use serde_json::{Value, json};
 use std::sync::LazyLock;
 
+mod cascade_notes;
 mod casting;
 mod evidence;
 mod mechanic_notes;
@@ -262,6 +263,8 @@ fn marker(value: &Value) -> Option<&'static str> {
         {
             Some("SpliceArcane")
         }
+        Some("Term") if cascade_notes::spell_effect(value, "Cascade") => Some("Cascade"),
+        Some("Term") if cascade_notes::spell_effect(value, "Conspire") => Some("Conspire"),
         Some("Prototype") => Some("Prototype"),
         Some("Mechanic")
             if args["mechanic"] == "BloodthirstX"
@@ -307,6 +310,11 @@ fn marker(value: &Value) -> Option<&'static str> {
         Some("Activated") if args["limits"]["keyword"] == "Boast" => Some("Boast"),
         Some("Activated") if args["limits"]["keyword"] == "Forecast" => Some("Forecast"),
         Some("Activated")
+            if args["limits"]["keyword"] == "Exhaust" && args["limits"]["once"] == true =>
+        {
+            Some("ExhaustOnce")
+        }
+        Some("Activated")
             if args["limits"]["keyword"] == "PowerUp" && args["limits"]["once"] == true =>
         {
             Some("PowerUp")
@@ -332,6 +340,7 @@ fn marker(value: &Value) -> Option<&'static str> {
         _ if !value["Waterbend"].is_null() || !value["WaterbendX"].is_null() => Some("Waterbend"),
         _ if !value["Exert"].is_null() || value.get("MayExert").is_some() => Some("Exert"),
         _ if mechanic_notes::targets_stack_ability(value) => Some("TargetedAbility"),
+        _ if mechanic_notes::copies_stack_ability(value) => Some("CopyStackAbility"),
         _ => rules_token(value).or_else(|| evidence::mention(value)),
     }
 }
@@ -529,6 +538,7 @@ fn visit_mentions<'a>(
         })
         || !measured && ordinary_activation(ability) && visit("InstantActivation", None)
         || !measured && mechanic_notes::root_mentions(ability, |topic| visit(topic, None))
+        || !measured && cascade_notes::mentions(ability, |topic| visit(topic, None))
         || !measured && object_notes::mentions(ability, |topic| visit(topic, None))
         || !measured && suspend::mentions(ability, |topic| visit(topic, None))
         || !measured && plot::plots_for_controller(ability) && visit("PlottedByController", None)
@@ -632,6 +642,14 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "OwnSliverLifelink"
                     | "StormPermanentCopies"
                     | "ControlledGroupPhasesOut"
+                    | "ManifestDreadTargetController"
+                    | "CascadePlayerNextSpell"
+                    | "CascadeFirstSpell"
+                    | "CascadeFirstExiledSpell"
+                    | "CascadeCommander"
+                    | "CascadeEnchantmentFromHand"
+                    | "CascadeTwiceOnGrant"
+                    | "EscapeFromYourGraveyardThisTurn"
             )
         )
     )
@@ -717,6 +735,8 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
                 | "OwnCreatureLifelink"
                 | "OwnGroupLifelink"
                 | "ControlledGroupPhasesOut"
+                | "ManifestDreadTargetController"
+                | "EscapeFromYourGraveyardThisTurn"
         )
     );
     let mut deferred =
