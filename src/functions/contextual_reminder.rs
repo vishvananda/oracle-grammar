@@ -159,6 +159,9 @@ fn devotion(args: &Value) -> Option<&'static str> {
 }
 
 fn marker(value: &Value) -> Option<&'static str> {
+    if value["Keyword"]["action"] == "Forage" {
+        return Some("Forage");
+    }
     let args = &value["args"];
     match value["kind"].as_str() {
         Some("Modified") if value.as_object()?.len() == 1 => Some("Modified"),
@@ -696,7 +699,7 @@ fn claims(name: &str, ability: &Value) -> Vec<Value> {
 fn typed_claims(name: &str, ability: &Value) -> Option<Vec<Value>> {
     Some(match name {
         "cycling_reminder" => evidence::cycling_claim(ability).into_iter().collect(),
-        "cost_symbol_reminder" => evidence::cost_symbols(ability).cloned().collect(),
+        "cost_symbol_reminder" => evidence::cost_symbols(ability),
         "awaken_reminder" => evidence::awaken_claim(ability).into_iter().collect(),
         "ward_grant_reminder" => evidence::ward_grant_claims(ability),
         "equip_payment_reminder" => evidence::equip_payment_claim(ability).into_iter().collect(),

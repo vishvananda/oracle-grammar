@@ -20,7 +20,9 @@ mod surface;
 pub use printed_stats::{PrintedPowerToughness, PrintedStat};
 pub use station::{CardInputContext, StationAnimationBox};
 pub use surface::{AdventureReturnType, LayoutReminder};
-use surface::{CardSurface, MonocoloredHybridNote, printed_mana_value, prowl_types};
+use surface::{
+    CardSurface, MonocoloredHybridNote, check_compleated, creature_note_types, printed_mana_value,
+};
 
 /// A reference into current characteristics, never a retained mana operand.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -35,9 +37,13 @@ pub enum CardNote {
     MonocoloredHybrid {
         slot: usize,
     },
+    Compleated {
+        slot: usize,
+    },
     /// The mana granted by all current basic land types, with no copied colors.
     LandTypes,
     Prowl,
+    Amplify,
     LayoutReminder(LayoutReminder),
     TransformsFrom,
     StationPowerToughness {
@@ -339,7 +345,9 @@ impl Engine {
             + usize::from(surface.transforms_from.is_some())
             + usize::from(surface.assist_limit.is_some())
             + usize::from(surface.monocolored_hybrid.is_some())
+            + usize::from(surface.compleated_symbol.is_some())
             + usize::from(surface.prowl_types.is_some())
+            + usize::from(surface.amplify_types.is_some())
             > self.limits.depth
         {
             return Err(Refusal::Limit("card note limit".into()));
@@ -352,6 +360,9 @@ impl Engine {
             return Err(Refusal::Binding(
                 "hybrid explanation disagrees with printed mana value".into(),
             ));
+        }
+        if let Some(symbol) = &surface.compleated_symbol {
+            check_compleated(context, symbol).map_err(Refusal::Binding)?;
         }
         let cost: Vec<Value> = mana_cost
             .iter()
@@ -373,6 +384,12 @@ impl Engine {
                 (
                     note.symbol,
                     (|slot| CardNote::MonocoloredHybrid { slot }) as NoteFromSlot,
+                )
+            }))
+            .chain(surface.compleated_symbol.into_iter().map(|symbol| {
+                (
+                    symbol,
+                    (|slot| CardNote::Compleated { slot }) as NoteFromSlot,
                 )
             }));
         for (note, from_slot) in mana_notes {
@@ -409,10 +426,15 @@ impl Engine {
             }
             choices = next;
         }
-        if let Some(types) = surface.prowl_types {
-            let expected = prowl_types(context).map_err(Refusal::Binding)?;
-            let written =
-                serde_json::to_value(types).map_err(|why| Refusal::Binding(why.to_string()))?;
+        for (written, note, kindred_allowed) in [
+            (surface.prowl_types, CardNote::Prowl, true),
+            (surface.amplify_types, CardNote::Amplify, false),
+        ] {
+            let Some(written) = written else { continue };
+            let expected =
+                creature_note_types(context, kindred_allowed).map_err(Refusal::Binding)?;
+            let written = serde_json::to_value(written)
+                .map_err(|error| Refusal::Binding(error.to_string()))?;
             let written = written
                 .as_array()
                 .ok_or_else(|| Refusal::Binding("creature type list".into()))?;
@@ -420,11 +442,11 @@ impl Engine {
                 || expected.iter().any(|kind| !written.contains(kind))
             {
                 return Err(Refusal::Binding(
-                    "prowl reminder disagrees with the source creature types".into(),
+                    "reminder disagrees with the source creature types".into(),
                 ));
             }
             for notes in &mut choices {
-                notes.push(CardNote::Prowl);
+                notes.push(note.clone());
             }
         }
         if let Some(header) = &surface.land_mana {
@@ -498,6 +520,8 @@ impl Engine {
         let mut layout_reminder = None;
         let mut transforms_from = None;
         let mut prowl = None;
+        let mut amplify = None;
+        let mut compleated = None;
         for note in &reading.notes {
             match note {
                 CardNote::ManaCost { slot } | CardNote::AssistLimit { slot } => {
@@ -516,6 +540,18 @@ impl Engine {
                     }
                 }
                 CardNote::StationPowerToughness { .. } => {}
+                CardNote::Compleated { slot } => {
+                    let symbol = context
+                        .mana_cost
+                        .as_deref()
+                        .unwrap_or_default()
+                        .get(*slot)
+                        .ok_or("Compleated reminder references a missing mana-cost slot")?;
+                    check_compleated(context, symbol)?;
+                    if compleated.replace(symbol).is_some() {
+                        return Err("duplicate Compleated reminder".into());
+                    }
+                }
                 CardNote::MonocoloredHybrid { slot } => {
                     let cost = context.mana_cost.as_deref().unwrap_or_default();
                     let Some(symbol @ ManaSymbol::MonocoloredHybrid(_)) = cost.get(*slot) else {
@@ -537,9 +573,14 @@ impl Engine {
                     }
                     land_colors = Some(land_mana::colors(context)?);
                 }
-                CardNote::Prowl => {
-                    if prowl.replace(prowl_types(context)?).is_some() {
-                        return Err("duplicate prowl reminder".into());
+                CardNote::Prowl | CardNote::Amplify => {
+                    let is_prowl = matches!(note, CardNote::Prowl);
+                    let types = if is_prowl { &mut prowl } else { &mut amplify };
+                    if types
+                        .replace(creature_note_types(context, is_prowl)?)
+                        .is_some()
+                    {
+                        return Err("duplicate subtype reminder".into());
                     }
                 }
                 CardNote::LayoutReminder(reminder) => {
@@ -561,7 +602,7 @@ impl Engine {
         let land_mana = land_colors.map(|colors| json!({"colors":colors}));
         Ok(Self::native_surfaces(&reading.abilities, written)?
             .into_iter()
-            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"monocolored_hybrid":monocolored_hybrid,"prowl_types":prowl,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
+            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"monocolored_hybrid":monocolored_hybrid,"compleated_symbol":compleated,"prowl_types":prowl,"amplify_types":amplify,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
             .collect())
     }
     /// A card's surfaces, with the views only a `written` text asks for when it does.

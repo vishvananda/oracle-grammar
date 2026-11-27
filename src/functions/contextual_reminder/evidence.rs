@@ -69,7 +69,7 @@ pub(super) fn cycling_claim(value: &Value) -> Option<Value> {
     )
 }
 
-pub(super) fn cost_symbols(ability: &Value) -> impl Iterator<Item = &Value> {
+pub(super) fn cost_symbols(ability: &Value) -> Vec<Value> {
     let ability = own_ability(ability);
     let args = &ability["args"];
     let cost = match ability["kind"].as_str() {
@@ -78,12 +78,32 @@ pub(super) fn cost_symbols(ability: &Value) -> impl Iterator<Item = &Value> {
         Some("Casting") => &args["AdditionalCost"]["cost"],
         _ => &Value::Null,
     };
-    cost["parts"]
+    let mut symbols = Vec::new();
+    append_mana_symbols(cost, &mut symbols);
+    visit_nodes(&args["body"], |value, _| {
+        if value["kind"] == "PayCost" {
+            append_mana_symbols(&value["args"]["cost"], &mut symbols);
+        }
+        symbols.len() >= 32
+    });
+    symbols
+}
+
+fn append_mana_symbols(cost: &Value, symbols: &mut Vec<Value>) {
+    for symbol in cost["parts"]
         .as_array()
         .into_iter()
         .flatten()
         .take(32)
         .flat_map(|part| part["Mana"].as_array().into_iter().flatten().take(32))
+    {
+        if symbols.len() == 32 {
+            break;
+        }
+        if !symbols.contains(symbol) {
+            symbols.push(symbol.clone());
+        }
+    }
 }
 
 pub(super) fn equip_payment_claim(ability: &Value) -> Option<Value> {

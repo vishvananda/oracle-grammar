@@ -58,6 +58,38 @@ fn labelled_spell_replacement_reprints_edited_damage() {
 }
 
 #[test]
+fn amplify_reminder_checks_the_count_and_current_source_types() {
+    let mut context = empty_card_characteristics();
+    context.card_types = vec![CardType::Creature];
+    context.subtypes = vec![SubType::Bird, SubType::Soldier];
+    let text = "Amplify 2 (As this creature enters, put two +1/+1 counters on it for each Bird and/or Soldier card you reveal in your hand.)";
+    let reading = exact_roundtrip(text, &context);
+    assert_eq!(reading.notes, [CardNote::Amplify]);
+    let engine = super::engine();
+    for altered in [
+        text.replace("two +1/+1", "three +1/+1"),
+        text.replace("Bird and/or Soldier", "Bird"),
+    ] {
+        assert!(engine.parse_card(NAME, &altered, &context).is_err());
+    }
+}
+
+#[test]
+fn compleated_reminder_binds_the_printed_phyrexian_symbol() {
+    let mut context = empty_card_characteristics();
+    context.card_types = vec![CardType::Planeswalker];
+    context.mana_cost = Some(vec![
+        ManaSymbol::Generic(2),
+        ManaSymbol::Phyrexian(vec![ManaColor::Blue]),
+    ]);
+    let text = "Compleated ({U/P} can be paid with {U} or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n+1: Draw a card.";
+    let reading = exact_roundtrip(text, &context);
+    assert_eq!(reading.notes, [CardNote::Compleated { slot: 1 }]);
+    let wrong = text.replace("with {U} or", "with {B} or");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
 fn native_and_bracketed_loyalty_headings_preserve_the_same_activations() {
     let context = empty_card_characteristics();
     let raw = "+2: Draw a card.\n−1: You gain 2 life.\n0: Scry 1.";

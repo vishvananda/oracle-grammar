@@ -19739,6 +19739,7 @@ instructions_player_mill_choose_battlefield ::= players_singular "mills" card_co
 instructions_player_mill_choose_battlefield_many ::= players_singular "mills" card_count "." "then" "you" "put" count_plural milled_return_filter "cards" "from" "among" "the" "milled" "cards" "onto" "the" "battlefield" "under" "your" "control"
 
 /* The populate and both follow-ups share the same created-token receipt. */
+/* @prefer always */
 /* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Populate{}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@prior)), changes:[GrantKeyword($keyword_name)], duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@back(4))})}]}}}] */
 instructions_populate_grant_sacrifice ::= "populate" "." "the" "token" "created" "this" "way" "gains" keyword_name "." "sacrifice" "it" "at" "the" "beginning" "of" "the" "next" "end" "step"
 
@@ -20857,8 +20858,11 @@ callback_active_target ::= "target" filter_phrase "that" "player" "controls"
 triggered_three_time_boon ::= event_clause "," "you" "get" "a" "three-time" "boon" "with" '"' boon_entry_event "," program_sentence '"'
 
 /* A controlled group entering together produces a single batch event. */
+boon_entry_event ::= boon_entry_prefix | boon_entry_suffix
 /* @sem EventSpec::Batch{event:ZoneChange{objects:AllOf([$filter_plural, ControlledBy(One(AbilityController)), ControlledBy(One(AbilityController))]), to:Battlefield}, per:Whole} */
-boon_entry_event ::= "whenever" "one" "or" "more" filter_plural "you" "control" "enter"
+boon_entry_prefix ::= "whenever" "one" "or" "more" filter_plural "you" "control" "enter"
+/* @sem EventSpec::Batch{event:ZoneChange{objects:AllOf([$controlled_entry_many_suffix, ControlledBy(One(AbilityController))]), to:Battlefield}, per:Whole} */
+boon_entry_suffix ::= "whenever" "one" "or" "more" controlled_entry_many_suffix
 
 /* Scope the permission to the immediately preceding exile, including its destination. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:One($retirement_exile_graveyard_target), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:$exiled_play_action, filter:Any})], duration:$while_you_control, evaluation:LiveObjects}}]} */

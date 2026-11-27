@@ -195,8 +195,8 @@ payment_sacrifice_choice ::= "sacrifice" ("a" | "an") filter_phrase "of" "their"
 spell_kicker_token_replacement ::= kicker_checked_header NEWLINE "create" replacement_initial_count replacement_token_recipe "." "if" "this" "spell" "was" "kicked" "," "create" number_words "of" "those" "tokens" "instead" "."
 
 /* Madness replaces both actions, keeping their quantities independently bound. */
-/* @sem Ability::CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_x, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number_x_2}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_words, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number_digits}}]}})} */
-spell_madness_token_life_replacement ::= "madness" keyword_payment NEWLINE "create" number_words "tapped" token_recipe "and" "you" "gain" number_digits "life" "." "if" "this" "spell's" "madness" "cost" "was" "paid" "," "instead" "create" number_x "of" "those" "tokens" "and" "you" "gain" number_x "life" "."
+/* @sem Ability::@optional_ability_reminder(CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_x, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number_x_2}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_words, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number_digits}}]}})}, $madness_reminder) */
+spell_madness_token_life_replacement ::= "madness" keyword_payment madness_reminder? NEWLINE "create" number_words "tapped" token_recipe "and" "you" "gain" number_digits "life" "." "if" "this" "spell's" "madness" "cost" "was" "paid" "," "instead" "create" number_x "of" "those" "tokens" "and" "you" "gain" number_x "life" "."
 
 /* The unbracketed instructions occur in both independently bound spell branches;
    the bracketed instruction applies only when cleave was not paid. */
@@ -312,8 +312,8 @@ spell_cleave_search_selected ::= "cleave" cost cleave_explanation? NEWLINE "sear
 spell_kicker_search_selected ::= "kicker" keyword_payment NEWLINE "search" "your" "library" "for" "a" card_filter "card" "," "reveal" "it" "," search_selected_it_to_hand_shuffle "." "if" "this" "spell" "was" "kicked" "," "search" "your" "library" "for" value card_filter "cards" "instead" "of" "one" "."
 
 /* Each alternative has an independent announcement and damage operation. */
-/* @sem Ability::CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$spell_divided_damage_instead}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$spell_divided_damage}]}})} */
-spell_madness_divided_replacement ::= "madness" keyword_payment NEWLINE spell_divided_damage "." "if" "this" "spell's" "madness" "cost" "was" "paid" "," spell_divided_damage_instead "."
+/* @sem Ability::@optional_ability_reminder(CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$spell_divided_damage_instead}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$spell_divided_damage}]}})}, $madness_reminder) */
+spell_madness_divided_replacement ::= "madness" keyword_payment madness_reminder? NEWLINE spell_divided_damage "." "if" "this" "spell's" "madness" "cost" "was" "paid" "," spell_divided_damage_instead "."
 
 /* The second shield refers to the sole damage recipient announced by the first. */
 /* @sem Program::Program{instructions:[If{condition:$condition, then:_{instructions:[Effect{result:@next, operation:$prevention_same_target}]}, otherwise:_{instructions:[Effect{result:@next, operation:$prevention_targeted}]}}]} */
@@ -613,8 +613,8 @@ teamwork_named_counter_followup ::= "put" counter_amount counter_kind "counter" 
 
 /* Both branches instantiate the same conditional control instruction in
    separate spell scopes, preserving each branch's own target announcement. */
-/* @sem Ability::CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{body:_{instructions:$conditional_control_creature_2}, announcement:@announcement}), unpaid:@scope(Ability::Spell{body:_{instructions:$conditional_control_creature}, announcement:@announcement})} */
-spell_madness_control_stat_ceiling ::= "madness" keyword_payment NEWLINE "gain" "control" "of" "target" conditional_control_creature "." "if" "this" "spell's" "madness" "cost" "was" "paid" "," "instead" "gain" "control" "of" "that" conditional_control_creature "."
+/* @sem Ability::@optional_ability_reminder(CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{body:_{instructions:$conditional_control_creature_2}, announcement:@announcement}), unpaid:@scope(Ability::Spell{body:_{instructions:$conditional_control_creature}, announcement:@announcement})}, $madness_reminder) */
+spell_madness_control_stat_ceiling ::= "madness" keyword_payment madness_reminder? NEWLINE "gain" "control" "of" "target" conditional_control_creature "." "if" "this" "spell's" "madness" "cost" "was" "paid" "," "instead" "gain" "control" "of" "that" conditional_control_creature "."
 
 /* @prefer always */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$destroy_noncolor_creature_no_regeneration}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:$damage_target_creature_controller_stat}]}, otherwise:Program{}}]} */
@@ -647,3 +647,7 @@ kicker_branch_explained_payment ::= kicker_branch_reminded_header | kicker_branc
 branch_reminded_blight ::= "blight" branch_blight_value
 /* @sem Expr::@agree($number_digits, $blight_explanation_counters) */
 branch_blight_value ::= number_digits "." "(" "you" "may" "put" blight_explanation_counters "on" "a" "creature" "you" "control" "." ")"
+
+/* This explanation belongs to the Madness casting branch. */
+/* @sem bool::true */
+madness_reminder ::= "(" "if" "you" "discard" "this" "card" "," "discard" "it" "into" "exile" "." "when" "you" "do" "," "cast" "it" "for" "its" "madness" "cost" "or" "put" "it" "into" "your" "graveyard" "." ")"

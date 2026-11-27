@@ -1,5 +1,5 @@
 /* Card-characteristic explanations are separate from the card's abilities. */
-card_text ::= card_station_before_three_titled | card_station_raw | card_station_raw_before | card_station_plain | card_station_before | card_station_explicit | card_text_land | card_text_land_only | card_text_land_cost | card_text_cost_land | card_text_land_cost_only | card_text_cost_land_only | card_text_noted | card_text_notes_only | card_text_monocolored_hybrid | card_text_prowl | card_text_prowl_after_abilities | card_text_plain | card_text_adventure_reminder | card_text_room_reminder | card_text_siege_reminder | card_text_ongoing_scheme_reminder | card_text_omen_reminder | card_text_face_up_conspiracy | card_text_legendary_sorcery | card_text_assist | card_text_transforms_from
+card_text ::= card_text_compleated | card_text_amplify | card_text_amplify_after_abilities | card_station_before_three_titled | card_station_raw | card_station_raw_before | card_station_plain | card_station_before | card_station_explicit | card_text_land | card_text_land_only | card_text_land_cost | card_text_cost_land | card_text_land_cost_only | card_text_cost_land_only | card_text_noted | card_text_notes_only | card_text_monocolored_hybrid | card_text_prowl | card_text_prowl_after_abilities | card_text_plain | card_text_adventure_reminder | card_text_room_reminder | card_text_siege_reminder | card_text_ongoing_scheme_reminder | card_text_omen_reminder | card_text_face_up_conspiracy | card_text_legendary_sorcery | card_text_assist | card_text_transforms_from
 
 /* @sem CardSurface::CardSurface{notes:$cost_notes, abilities:$card} */
 card_text_noted ::= cost_notes NEWLINE card
@@ -209,3 +209,38 @@ prowl_type_options ::= prowl_one_type | prowl_two_types
 prowl_one_type ::= ("a" | "an") creature_subtype
 /* @sem CreatureType::[@subtype_name($creature_subtype), @subtype_name($creature_subtype_2)] */
 prowl_two_types ::= ("a" | "an") creature_subtype "or" creature_subtype
+
+/* The explanation repeats the printed Phyrexian mana symbol. */
+/* @sem CardSurface::CardSurface{compleated_symbol:$compleated_explanation, abilities:[$bare_compleated, ...$card]} */
+card_text_compleated ::= bare_compleated "(" compleated_explanation ")" NEWLINE card
+
+compleated_explanation ::= compleated_one_color | compleated_two_colors | compleated_each_life
+/* @sem ManaSymbol::@agree($mana_phyrexian, Phyrexian([$note_color])) */
+compleated_one_color ::= mana_phyrexian "can" "be" "paid" "with" note_color "or" "2" "life" "." compleated_life_result
+/* @sem ManaSymbol::@agree($compleated_phyrexian_pair, Phyrexian([$note_color, $note_color_2])) */
+compleated_two_colors ::= compleated_phyrexian_pair "can" "be" "paid" "with" note_color "," note_color "," "or" "2" "life" "." compleated_life_result
+/* @sem ManaSymbol::Phyrexian([$mana_letter, $mana_letter_2]) */
+compleated_phyrexian_pair ::= "{" mana_letter "/" mana_letter "/" "P" "}"
+/* @sem ManaSymbol::@agree($mana_phyrexian, @agree($mana_phyrexian_2, Phyrexian([$note_color]))) */
+compleated_each_life ::= mana_phyrexian "can" "be" "paid" "with" note_color "or" "2" "life" "." "for" "each" mana_phyrexian "paid" "with" "life" "," compleated_enters_with_reduction
+/* @sem () */
+compleated_life_result ::= "if" "life" "was" "paid" "," compleated_enters_with_reduction
+/* @sem () */
+compleated_enters_with_reduction ::= "this" "planeswalker" "enters" "with" "two" "fewer" "loyalty" "counters" "."
+
+/* Amplify repeats its count and the complete subtype set of the creature entering. */
+/* @sem CardSurface::CardSurface{amplify_types:$amplify_type_options, abilities:[Mechanic{mechanic:$mechanic_amplify_name, amount:Expr::@agree($value, $printed_plus_one_counters)}, ...$amplify_following_abilities]} */
+card_text_amplify ::= mechanic_amplify_name value "(" amplify_rule_head printed_plus_one_counters "on" "it" "for" "each" amplify_type_options amplify_rule_belongs ")" amplify_following_abilities?
+/* @sem CardSurface::CardSurface{amplify_types:$amplify_type_options, abilities:[...$abilities, Mechanic{mechanic:$mechanic_amplify_name, amount:Expr::@agree($value, $printed_plus_one_counters)}, ...$amplify_following_abilities]} */
+card_text_amplify_after_abilities ::= abilities NEWLINE mechanic_amplify_name value "(" amplify_rule_head printed_plus_one_counters "on" "it" "for" "each" amplify_type_options amplify_rule_belongs ")" amplify_following_abilities?
+/* @sem $card */
+amplify_following_abilities ::= NEWLINE card
+/* @sem () */
+amplify_rule_head ::= "as" "this" "creature" "enters" "," "put"
+/* @sem () */
+amplify_rule_belongs ::= "card" "you" "reveal" "in" "your" "hand" "."
+amplify_type_options ::= amplify_one_type | amplify_two_types
+/* @sem CreatureType::[@subtype_name($creature_subtype)] */
+amplify_one_type ::= creature_subtype
+/* @sem CreatureType::[@subtype_name($creature_subtype), @subtype_name($creature_subtype_2)] */
+amplify_two_types ::= creature_subtype "and/or" creature_subtype

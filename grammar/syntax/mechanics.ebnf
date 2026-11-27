@@ -34,7 +34,7 @@ reminded_mechanic ::= mechanic_reminded_text
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:$mechanic_reminded_text} */
 labelled_mechanic_reminder ::= ability_label "—" mechanic_reminded_text
 
-mechanic_reminded_text ::= splice_instant_sorcery_reminded | ingest_reminded_text | convoke_reminded_text | delve_reminded_text
+mechanic_reminded_text ::= offering_reminded_text | splice_instant_sorcery_reminded | ingest_reminded_text | convoke_reminded_text | delve_reminded_text
     | deck_rule_reminded_text | triggered_mechanic_reminded_text | standalone_mechanic_reminded_text
     | banding_reminded_text | bushido_reminded_text | affinity_reminded_text
     | valued_mechanic_reminded_text | reconfigure_reminded_text
@@ -1514,3 +1514,14 @@ shared_partner_reminded_text ::= deck_rule_partner_kind "(" shared_partner_words
 splice_instant_sorcery_reminded ::= "splice" "onto" filter_phrase splice_payment "(" splice_instant_sorcery_explanation ")"
 /* @sem ObjectFilter::AnyOf([CardType(Instant), CardType(Sorcery)]) */
 splice_instant_sorcery_explanation ::= "as" "you" "cast" "an" "instant" "or" "sorcery" "spell" "," "you" "may" "reveal" "this" "card" "from" "your" "hand" "and" "pay" "its" "splice" "cost" "." "if" "you" "do" "," "add" "this" "card's" "effects" "to" "that" "spell" "."
+
+/* The spell and its explanation identify the same type of sacrifice. */
+/* @sem Ability::@agree($mechanic_offering, Ability::Offering($offering_explanation)) */
+offering_reminded_text ::= mechanic_offering "(" offering_explanation ")"
+offering_explanation ::= offering_instant_explanation | offering_flash_explanation
+/* @sem $offering_payment_explanation */
+offering_instant_explanation ::= "you" "may" "cast" "this" "spell" "any" "time" "you" "could" "cast" "an" "instant" offering_payment_explanation
+/* @sem $offering_payment_explanation */
+offering_flash_explanation ::= "you" "may" "cast" "this" "spell" "as" "though" "it" "had" "flash" offering_payment_explanation
+/* @sem ObjectFilter::@agree($filter_phrase, $filter_phrase_2) */
+offering_payment_explanation ::= "by" "sacrificing" ("a" | "an") filter_phrase "and" "paying" "the" "difference" "in" "mana" "costs" "between" "this" "and" "the" "sacrificed" filter_phrase "." "mana" "cost" "includes" "color" "."
