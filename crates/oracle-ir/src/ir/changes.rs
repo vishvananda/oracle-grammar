@@ -290,6 +290,14 @@ pub enum RuleChange {
     },
     /// A rule one or two cards print, with nothing to parameterise.
     Unique(UniqueObjectRule),
+    /// The affected object contributes its power multiplied by `factor` to
+    /// this tap cost. Other characteristics are unchanged. `recipient` tests
+    /// the permanent whose activation is paid for.
+    TapPowerMultiplier {
+        cost: TapPowerCost,
+        recipient: ObjectFilter,
+        factor: u32,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

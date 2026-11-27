@@ -602,6 +602,10 @@ pub enum ObjectFilter {
     /// never share a link. This relation includes nontokens; intersect Token when
     /// the words ask for tokens. Created(ResultId) remains a resolution receipt.
     CreatedWith(ObjectRef),
+    /// Battlefield incarnation from the Assimilate action linked to this
+    /// ability (CR 607). Tracks the assimilated permanent through changes of
+    /// controller, type and counters, but a new zone incarnation is unrelated.
+    AssimilatedWith(ObjectRef),
 }
 
 /// Something that happened to an object. See `ObjectFilter::History`.

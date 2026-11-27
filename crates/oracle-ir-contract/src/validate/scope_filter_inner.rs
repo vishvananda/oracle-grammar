@@ -21,6 +21,7 @@ impl<'a> Scope<'a> {
             ObjectFilter::SharesColorWith(object)
             | ObjectFilter::ExiledWith(object)
             | ObjectFilter::CreatedWith(object)
+            | ObjectFilter::AssimilatedWith(object)
             | ObjectFilter::MadeBy(object)
             | ObjectFilter::WasAttachedTo(object) => self.object(object),
             ObjectFilter::DealtExcessBy(result) if self.results.contains_key(&result.0) => Ok(()),
@@ -466,6 +467,14 @@ impl<'a> Scope<'a> {
             RuleChange::GoadedBy(player) => self.player(player),
             RuleChange::CantAttackDefenderIf(condition) => self.condition(condition),
             RuleChange::TapPowerBonus { bonus, .. } => self.expr(bonus),
+            RuleChange::TapPowerMultiplier {
+                recipient, factor, ..
+            } => {
+                if *factor == 0 {
+                    return Err("tap power multiplier must be positive".into());
+                }
+                self.filter(recipient)
+            }
             RuleChange::MayExert(then) => then.iter().try_for_each(|o| self.operand(o)),
             RuleChange::BlockedAsThoughLacking(ability) | RuleChange::CantGainAbility(ability) => {
                 self.operand(ability)

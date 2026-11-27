@@ -3190,3 +3190,20 @@ activated_put_graveyard_source_bottom_after ::= cost_parts "," "↑" cost_put_gr
 
 /* @sem CostPart::Move{selections:[CostObjectSelection{objects:One(Source)}], destination:Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{}}} */
 cost_put_graveyard_source_bottom ::= "put" "this" "card" "from" "your" "graveyard" "on" "the" "bottom" "of" "your" "library"
+
+/* Inspect the pre-move incarnation actually paid for this activation. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_sacrifice_another]}, limits:ActivationLimits{}, announcement:@announcement, body:_{instructions:[...$instructions, If{condition:Compare{left:CountObjects(Matching{objects:CostObjects{payment:Activation, component:[0], view:Performed, phase:Before}, filter:$creature_subtype}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:$clause}, otherwise:_{}}]}} */
+activated_sacrifice_matching_payment_followup ::= cost_sacrifice_another ":" instructions "." "if" "you" "sacrificed" "a" creature_subtype "this" "way" "," clause "."
+
+/* The live reduction changes the current payment. The use count still
+   belongs to this activated ability. */
+/* @sem Ability::Activated{origin:Ordinary,cost:$cost,limits:ActivationLimits{once_each_turn:true,modifiers:[ActivationRule(Cost{modifier:Reduce{reductions:[_{amount:$value}],spill_into_generic:true}})]},announcement:@announcement,body:$program_sentence} */
+activated_variable_reduction_once ::= cost ":" program_sentence "this" "ability" "costs" "{" "X" "}" "less" "to" "activate" "," "where" "X" "is" value "." "activate" "only" "once" "each" "turn" "."
+
+/* The reflexive trigger announces its own target only after the whole
+   optional cost was paid. */
+/* @sem Program::Program{instructions:[Effect{result:@mark,operation:PayCost{player:AbilityController,cost:Cost{parts:[Mana($mana_symbols),$cost_exile_your_graveyard_any]},optional:true}},Effect{result:@next,operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked,announcement:@announcement,body:$program_sentence})}]} */
+program_paid_mana_graveyard_exile_callback ::= "you" "may" "pay" mana_symbols "and" cost_exile_your_graveyard_any "." "when" "you" "do" "," program_sentence
+
+/* @sem CostPart::Move{selections:[_{objects:Zone{scope:Players{zone:Graveyard,players:One(AbilityController)},kind:Card,filter:Any},choose:Exactly(Constant(1))}], destination:Exile{visibility:FaceUp,arrival:ExileArrival{}}} */
+cost_exile_your_graveyard_any ::= "exile" "a" "card" "from" "your" "graveyard"

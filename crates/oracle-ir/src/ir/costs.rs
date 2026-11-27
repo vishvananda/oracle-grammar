@@ -71,6 +71,10 @@ pub enum CastingRule {
 pub enum CastingOrigin {
     Ordinary,
     Flashback,
+    /// Graveyard alternative that also returns a creature you control to
+    /// its owner's hand. The selected permission controls the payment and
+    /// replaces subsequent departure from the stack with exile.
+    BeamMeUp,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

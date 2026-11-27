@@ -4650,13 +4650,18 @@ static_top_and_face_down_visibility ::= "you" "may" "look" "at" top_private_visi
 face_down_visibility ::= "face-down" affected
 
 /* Once-per-turn permissions share a singular spell filter and library location. */
+static_top_once_cast ::= static_top_once_each_turn | static_top_once_your_turn
+
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_once_cast_change]}) */
-static_top_once_cast ::= "once" "each" "turn" "," "you" "may" top_once_cast_change "."
+static_top_once_each_turn ::= "once" "each" "turn" "," "you" "may" top_once_cast_change "."
+
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_once_cast_change]}], otherwise:[]} */
+static_top_once_your_turn ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" top_once_cast_change "."
 
 /* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$top_singular_spell_filter}, terms:_{limit:EachTurn(1), cost:Normal}}) */
 top_once_cast_change ::= "cast" top_singular_spell_filter "from" "the" "top" "of" "your" "library"
 
-top_singular_spell_filter ::= top_singular_power_spell | top_singular_instant_sorcery_spell
+top_singular_spell_filter ::= top_singular_artifact_spell | top_singular_power_spell | top_singular_instant_sorcery_spell
 
 /* @sem ObjectFilter::AllOf([$filter_phrase, Property{property:Power, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}]) */
 top_singular_power_spell ::= "a" filter_phrase "spell" "with" "power" value "or" "less"
@@ -11482,7 +11487,7 @@ leading_quoted_grant ::= preferred_damage_history_grant | grant_ability
 
 /* @prefer always */
 /* @sem Change::GrantAbility(@holder($static_damaged_cannot_regenerate)) */
-preferred_damage_history_grant ::= '"' static_damaged_cannot_regenerate '"' 
+preferred_damage_history_grant ::= '"' static_damaged_cannot_regenerate '"'
 
 /* Damage history belongs to the source named within the granted ability. */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, Condition(Compare{left:EventHistory{event:Damage{source_kind:Permanent, sources:SameObject($object_ref), recipients:Objects(SameObject(Candidate)), kind:Any, grouping:SourceRecipient, subject:Recipient}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})])}), changes:[Rule(Prohibit(Regenerate))]} */
@@ -12918,3 +12923,18 @@ target_ban_abilities_from_opponents_sources ::= "abilities" "from" spell_adjecti
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_possessive)), changes:[SetBasePowerToughness{power:$number_digits, toughness:$number_digits_2}], duration:Indefinite, evaluation:Snapshot} */
 set_source_base_stats_indefinite ::= self_possessive "base" "power" "and" "toughness" "become" number_digits "/" number_digits
+
+/* @sem ObjectFilter::CardType(Artifact) */
+top_singular_artifact_spell ::= "an" "artifact" "spell"
+
+/* Only the power contributed by the affected creature changes. The
+   permanent whose station or crew ability is being paid for must match. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One($self_explicit_ref)), changes:[Rule(TapPowerMultiplier{cost:Crew, recipient:Subtype(Vehicle), factor:3}), Rule(TapPowerMultiplier{cost:Station, recipient:Subtype(Spacecraft), factor:3})]} */
+static_self_station_and_crew_tripled ::= self_explicit_ref "stations" "Spacecraft" "and" "crews" "Vehicles" "as" "though" "his" "power" "were" "tripled" "."
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:$value_distinct_creature_types, toughness:$value_distinct_creature_types}], duration:$duration, evaluation:Snapshot} */
+continuous_singular_defined_creature_type_pump ::= affected "gets" "+" "X" "/" "+" "X" duration "," "where" "X" "is" value_distinct_creature_types
+
+/* Give each affected object both independent abilities. */
+/* @sem Ability::Static{kind:Ordinary,affected:Objects($affected_plural),changes:[GrantKeyword($keyword_value),GrantAbility(@holder($triggered_ability))]} */
+static_keyword_and_quoted_trigger ::= affected_plural "have" keyword_value "and" '"' triggered_ability '"'
