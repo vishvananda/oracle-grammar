@@ -1039,3 +1039,77 @@ fn convoke_reminders_keep_the_caster_and_the_eligible_spells() {
         assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
     }
 }
+
+#[test]
+fn an_unconditional_duplicate_follows_the_sacrifice_of_the_same_entrant() {
+    let text = "Whenever another creature you control enters, if you cast it, sacrifice it. Conjure a duplicate of it onto the battlefield. The duplicate perpetually becomes a Robot artifact in addition to its other types.";
+    let reading = exact_roundtrip(text, &empty_card_characteristics());
+    let body = &reading.abilities[0]["args"]["body"]["instructions"];
+    let sacrifice = &body[0]["args"]["operation"];
+    let conjure = &body[1]["args"]["operation"];
+    assert_eq!(sacrifice["kind"], "Sacrifice");
+    assert_eq!(conjure["kind"], "Conjure");
+    assert_eq!(
+        sacrifice["args"]["objects"],
+        conjure["args"]["card"]["Duplicate"]
+    );
+    assert_eq!(sacrifice["args"]["objects"]["args"]["kind"], "EventSubject");
+}
+
+#[test]
+fn a_stated_creature_type_replaces_the_previous_type_list() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Creature);
+    let text = "{3}{G}: Until end of turn, this creature has base power and toughness 5/3, gains trample, and is a Werewolf.";
+    let reading = exact_roundtrip(text, &context);
+    let operation = &reading.abilities[0]["args"]["body"]["instructions"][0]["args"]["operation"];
+    let change = &operation["args"]["changes"][2];
+    assert_eq!(change["kind"], "CreatureTypes");
+    assert_eq!(change["args"]["mode"], "Set");
+    assert_eq!(change["args"]["types"]["Listed"][0], "Werewolf");
+}
+
+#[test]
+fn a_granted_copy_uses_the_paid_card_even_after_it_is_shuffled() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Instant);
+    let text = "Target creature card in your graveyard perpetually gains \"{1}{B}{B}, Exile this card from your graveyard: Shuffle it into its owner's library. Create a token that's a copy of it, except it's a 4/4 black Zombie in addition to its other types. Activate only as a sorcery.\"";
+    let reading = exact_roundtrip(text, &context);
+    let grant = &reading.abilities[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]
+        ["changes"][0]["args"]["args"]["ability"];
+    let body = &grant["args"]["body"]["instructions"];
+    let shuffle = &body[0]["args"]["operation"];
+    let creation = &body[1]["args"]["operation"];
+    assert_eq!(
+        shuffle["args"]["destination"]["Library"]["position"],
+        "Shuffled"
+    );
+    assert_eq!(creation["kind"], "CreateTokens");
+    let copy = &creation["args"]["tokens"][0]["recipe"]["Copy"];
+    assert_eq!(copy["object"]["args"]["objects"]["kind"], "CostObjects");
+    assert_eq!(copy["object"]["args"]["objects"]["args"]["phase"], "After");
+}
+
+#[test]
+fn a_spellbook_draft_is_exiled_before_the_land_can_copy_it() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Enchantment);
+    context.subtypes.push(SubType::Aura);
+    let text = "Enchant land\nWhen this enchantment enters, draw a card, then draft a card from this enchantment's spellbook and exile it.\n{3}: Enchanted land becomes a copy of the exiled card until end of turn and gains haste. It's still a land.";
+    let reading = exact_roundtrip(text, &context);
+    let engine = super::engine();
+    let parsed = engine.parse_card(NAME, text, &context).unwrap();
+    assert_eq!(parsed.readings.len(), 1);
+    let trigger = &reading.abilities[1]["args"]["body"]["instructions"];
+    let draft = &trigger[1]["args"];
+    let exiled = &trigger[2]["args"]["operation"]["args"]["objects"]["args"];
+    assert_eq!(draft["operation"]["kind"], "DraftFromSpellbook");
+    assert_eq!(exiled["kind"], "Result");
+    assert_eq!(exiled["args"]["result"], draft["result"]);
+
+    let copy = &reading.abilities[2]["args"]["body"]["instructions"][0]["args"]["operation"];
+    let changes = &copy["args"]["changes"];
+    assert_eq!(changes[0]["args"]["exceptions"][0]["args"][0], "Land");
+    assert_eq!(changes[1]["kind"], "GrantKeyword");
+    assert_eq!(changes[1]["args"]["kind"], "Haste");
+}

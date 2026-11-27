@@ -1478,7 +1478,7 @@ paired_sacrifice_population ::= plural "and" "/" "or" plural
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost{parts:[Mana($mana_symbols), Move{selections:[_{objects:One(Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, limits:$limit_sorcery, announcement:@announcement, body:Program{instructions:$graveyard_exile_copy_body}})} */
 graveyard_exile_copy_activation ::= mana_symbols "," "↑" "exile" "this" "card" "from" "your" "graveyard" ":" graveyard_exile_copy_body "." limit_sorcery "."
 
-graveyard_exile_copy_body ::= graveyard_exile_copy_original | graveyard_exile_sized_token
+graveyard_exile_copy_body ::= graveyard_exile_copy_after_shuffle | graveyard_exile_copy_original | graveyard_exile_sized_token
 
 /* @sem CopyException::[SetPowerToughness{power:$value, toughness:$value_2}, Colors{mode:Set, colors:Listed([$mana_color_word])}, AddCreatureTypes($becomes_types)] */
 graveyard_copy_traits ::= "it's" "a" value "/" value mana_color_word becomes_types "in" "addition" "to" "its" "other" "types"
@@ -2128,9 +2128,26 @@ life_bound_at_most ::= "less" "than" "or" "equal" "to"
 
 life_bound_comparison ::= life_bound_at_most | comparison_greater_equal | comparison_greater
 
-/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}, exceptions:$graveyard_copy_traits}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}), zone:Exile}), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+/* Both instructions use the receipt for the actual paid exile. */
+/* @sem Instruction::[$graveyard_paid_card_copy, $graveyard_paid_card_shuffle] */
 /* @prefer always */
-graveyard_exile_copy_original ::= "create" "a" "token" "that's" "a" "copy" "of" "it" "," "except" graveyard_copy_traits "." "shuffle" "the" "exiled" "card" "into" "its" "owner's" "library"
+graveyard_exile_copy_original ::= graveyard_paid_card_copy "." graveyard_paid_card_shuffle
+
+/* After the card becomes hidden, the copy uses its last information in exile. */
+/* @sem Instruction::[$graveyard_paid_card_shuffle, $graveyard_paid_card_copy] */
+graveyard_exile_copy_after_shuffle ::= graveyard_paid_card_shuffle "." graveyard_paid_card_copy
+
+/* @sem Instruction::Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}, exceptions:$graveyard_copy_traits}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}} */
+graveyard_paid_card_copy ::= "create" "a" "token" "that's" "a" "copy" "of" "it" "," "except" graveyard_copy_traits
+
+/* @sem Instruction::Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}), zone:Exile}), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}} */
+graveyard_paid_card_shuffle ::= "shuffle" graveyard_paid_card_shuffle_reference "into" "its" "owner's" "library"
+graveyard_paid_card_shuffle_reference ::= graveyard_paid_card_exiled_noun | graveyard_paid_card_pronoun
+/* @prefer always */
+/* @sem () */
+graveyard_paid_card_exiled_noun ::= "the" "exiled" "card"
+/* @sem () */
+graveyard_paid_card_pronoun ::= "it"
 
 /* The token size measures the actual source card paid as component one. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, property:$creature_stat, information:CurrentOrLastKnown}, ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, property:$creature_stat, information:CurrentOrLastKnown}]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
