@@ -3277,7 +3277,13 @@ instructions_exile_union_random_lesser ::= exile_opponent_nontoken_union "." con
 exile_opponent_nontoken_union ::= "exile" "target" "nontoken" noun "," noun "," "or" noun "an" "opponent" "controls"
 
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:@selection(SelectionStep::_{binding:0, objects:Zone{scope:Players{zone:Library, players:One(ControllerOf(Target{slot:@last_slot, index:0}))}, kind:Card, filter:AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:Less, value:ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}])}, chooser:Chance, count:AsManyAsCan(Constant(1))}), destination:Battlefield{controller:Player(ControllerOf(Target{slot:@last_slot, index:0})), arrival:BattlefieldArrival{tapped:true}}, qualifiers:[]}}] */
-controller_random_lesser_entry ::= "that" "player" "puts" "a" "random" card_filter "card" "with" "lesser" "mana" "value" "from" "their" "library" "onto" "the" "battlefield" "tapped"
+controller_random_lesser_entry ::= lesser_entry_controller "puts" "a" "random" card_filter "card" "with" "lesser" "mana" "value" "from" "their" "library" "onto" "the" "battlefield" "tapped"
+
+lesser_entry_controller ::= lesser_entry_that_player | lesser_entry_its_controller
+/* @sem () */
+lesser_entry_that_player ::= "that" "player"
+/* @sem () */
+lesser_entry_its_controller ::= "its" "controller"
 
 /* Each selected opponent exiles one card from their own library. */
 /* @sem Instruction::[ForEachPlayer{players:$poisoned_opponents, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
@@ -8199,8 +8205,9 @@ partition_grave_count ::= value "into" "your" "graveyard"
 partition_bottom_rest ::= "the" "rest" "on" "the" "bottom" "of" "your" "library" "in" "any" "order"
 
 /* The producer and permission share the exact exile arrival in both directions. */
-/* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any}, terms:_{limit:Total(1), cost:Normal}})], duration:$this_duration, evaluation:LiveObjects}}] */
-clause_top_exile_play_one_trailing ::= exile_top_cards_of_your_library "." "you" "may" "play" "one" "of" "those" "cards" this_duration
+/* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any}, terms:_{limit:Total(1), cost:Normal}})], duration:$top_exile_play_deadline, evaluation:LiveObjects}}] */
+clause_top_exile_play_one_trailing ::= exile_top_cards_of_your_library "." "you" "may" "play" "one" "of" "those" "cards" top_exile_play_deadline
+top_exile_play_deadline ::= this_duration | until_end_of_turn
 
 /* @sem Program::Program{instructions:$clause_top_exile_play_one_trailing} */
 program_top_exile_play_one ::= clause_top_exile_play_one_trailing "."

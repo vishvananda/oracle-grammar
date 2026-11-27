@@ -19203,8 +19203,14 @@ clause_conditional_stack_retarget ::= "choose" "new" "targets" "for" choose_new_
 cast_boon_pump_and_keyword ::= change_pump "and" "gains" keyword_name
 
 /* The same announced creature is the subject of a turn-bounded departure. */
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($copy_chosen_creature)), changes:$singular_pump, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Object{event:LeavesBattlefield, objects:SameObject(Target{slot:@last_slot, index:0})}, start:Immediately, expires:EndOfTurn, body:Program{instructions:$clause_one_time_cast_perpetual_boon}}}] */
-controlled_creature_pump_departure_boon ::= copy_chosen_creature singular_pump duration "." "when" "that" "creature" "leaves" "the" "battlefield" "this" "turn" "," clause_one_time_cast_perpetual_boon
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($copy_chosen_creature)), changes:$singular_pump, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Object{event:LeavesBattlefield, objects:SameObject(Target{slot:@last_slot, index:0})}, start:Immediately, expires:EndOfTurn, body:Program{instructions:$departure_cast_boon}}}] */
+controlled_creature_pump_departure_boon ::= copy_chosen_creature singular_pump duration "." "when" "that" "creature" "leaves" "the" "battlefield" "this" "turn" "," departure_cast_boon
+
+departure_cast_boon ::= clause_one_time_cast_perpetual_boon | clause_next_cast_perpetual_boon
+/* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:$next_cast_boon_event, duration:Indefinite, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:CreatePerpetualEffect{objects:One(EventSubject), changes:$cast_boon_changes}}]}, once:true}}] */
+clause_next_cast_perpetual_boon ::= "you" "get" "a" "boon" "with" '"' "when" next_cast_boon_event "," "it" "perpetually" cast_boon_changes "." '"'
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:$filter_phrase} */
+next_cast_boon_event ::= "you" "cast" "your" "next" filter_phrase "spell"
 
 /* A quoted delayed consequence can precede an independent next-line clause. */
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$controlled_creature_pump_departure_boon, ...$clause]}} */

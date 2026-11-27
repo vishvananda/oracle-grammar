@@ -6790,7 +6790,10 @@ scoped_source_zone_perpetual_permission ::= "whenever" event_you_player_action "
 /* Both branches retain the same current perpetual change; only the graveyard
    branch has a permission to cast that source incarnation from that zone. */
 /* @sem Program::Program{instructions:[If{condition:ObjectMatches{object:Source, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}, then:_{instructions:[Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Source), changes:$singular_pump}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Source), from:Graveyard, action:CastSpell, filter:Any})], duration:EndOfTurn, evaluation:LiveObjects}}]}, otherwise:_{instructions:[Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Source), changes:$singular_pump}}]}}]} */
-source_zone_perpetual_permission_body ::= "it" "perpetually" singular_pump "." "you" "may" "cast" "it" "from" "your" "graveyard" "this" "turn" "."
+source_zone_perpetual_permission_body ::= (perpetual_permission_it | self_named) "perpetually" singular_pump "." "you" "may" "cast" "it" "from" "your" "graveyard" "this" "turn" "."
+
+/* @sem () */
+perpetual_permission_it ::= "it"
 
 /* The source-attacks event supplies the active-player proof needed by the
    delayed program; do not use that program with an arbitrary event. */
@@ -7804,7 +7807,7 @@ graveyard_suspected_opponent_death ::= graveyard_suspected_opponent_subject "die
 graveyard_death_opponent_life ::= "that" "opponent" "loses" number "life" "."
 
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:Filtered{event:$graveyard_suspected_opponent_death, condition:ObjectMatches{object:Source, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}}, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_death_opponent_life})} */
-graveyard_suspected_death_trigger ::= "whenever" graveyard_suspected_opponent_death "while" "this" "card" "is" "in" "your" "graveyard" "," graveyard_death_opponent_life
+graveyard_suspected_death_trigger ::= "whenever" graveyard_suspected_opponent_death "while" (self_card | self_named) "is" "in" "your" "graveyard" "," graveyard_death_opponent_life
 
 /* The repeated scheme action is licensed only by the corresponding motion event. */
 /* @sem Ability::Triggered{event:$event_you_set_qualified_scheme, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$scheme_repeat_payment, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:SetSchemeInMotion{object:Source}}}]}, otherwise:Program{}}]}} */
