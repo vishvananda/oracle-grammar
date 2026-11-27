@@ -2,7 +2,6 @@
 use serde_json::Value;
 
 pub(super) fn required(body: &Value, amount: &Value) -> Result<bool, String> {
-    let shared_definition = super::shared_definition(amount);
     let mut pending = vec![(body, 0_usize)];
     let mut remaining = 131_072_usize;
     while let Some((value, depth)) = pending.pop() {
@@ -22,10 +21,7 @@ pub(super) fn required(body: &Value, amount: &Value) -> Result<bool, String> {
         {
             continue;
         }
-        if super::observed::repeated(value)
-            || shared_definition && super::shared(value)
-            || super::threshold::shared(value) && super::threshold::definition(amount)
-        {
+        if super::requires_capture(value, amount) {
             return Ok(true);
         }
         let count = match value {

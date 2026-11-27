@@ -7,6 +7,7 @@ mod observed;
 #[cfg(test)]
 mod shared_tests;
 mod threshold;
+mod tokens;
 
 /// Two eager X amounts share the definition named by their clause, including
 /// after an unrelated instruction or with unrelated instructions between them.
@@ -21,11 +22,7 @@ pub(crate) fn shared(body: &Value) -> bool {
             .iter()
             .filter(|instruction| {
                 instruction["kind"] == "Effect"
-                    && matches!(
-                        instruction["args"]["operation"]["kind"].as_str(),
-                        Some("DealDamage" | "GainLife" | "LoseLife" | "Draw" | "Mill")
-                    )
-                    && super::is_x(&instruction["args"]["operation"]["args"]["amount"])
+                    && immediate_amount(&instruction["args"]["operation"]).is_some_and(super::is_x)
             })
             .count()
             == 2
@@ -58,6 +55,10 @@ fn aggregate_definition(amount: &Value) -> bool {
 pub(crate) fn shared_definition(amount: &Value) -> bool {
     match amount["kind"].as_str() {
         Some("PartySize" | "TimesMutated" | "CountCounters") => true,
+        Some("Divide") => {
+            shared_definition(&amount["args"]["numerator"])
+                && super::constant(&amount["args"]["denominator"]).is_some_and(|n| n > 0)
+        }
         Some("ObjectProperty") => {
             let args = &amount["args"];
             let object = &args["object"];
@@ -186,7 +187,7 @@ fn unify_at<'p, 'v>(
             .and_then(|items| items.iter().position(|item| x_count(item) > 0))
             != Some(index)
         || !eligible(&abstracted)
-        || shared_only && !shared(&abstracted)
+        || shared_only && !requires_capture(&abstracted, definition)
         || !definition_eligible(&abstracted, definition)
     {
         return Vec::new();
@@ -214,22 +215,13 @@ fn eligible(body: &Value) -> bool {
         return false;
     }
     let operation = &instruction["args"]["operation"];
-    if initial_token(body, operation) {
+    if tokens::initial(body, operation) {
         return true;
     }
     if operation["kind"] == "CreateContinuousEffect" {
         return pump_uses(operation).is_some_and(|uses| x_count(body) == uses);
     }
     let operand = match operation["kind"].as_str() {
-        Some("DealDamage" | "GainLife" | "LoseLife" | "Draw" | "Mill") => {
-            &operation["args"]["amount"]
-        }
-        Some("Scry")
-            if operation["args"]["players"]
-                == json!({"kind":"One","args":{"kind":"AbilityController"}}) =>
-        {
-            &operation["args"]["amount"]
-        }
         Some("PutCounters") => {
             let Some(placements) = operation["args"]["placements"].as_array() else {
                 return false;
@@ -242,9 +234,28 @@ fn eligible(body: &Value) -> bool {
             }
             &placement["amount"]
         }
-        _ => return false,
+        _ => {
+            let Some(amount) = immediate_amount(operation) else {
+                return false;
+            };
+            amount
+        }
     };
     super::is_x(operand) && x_count(body) == 1
+}
+
+fn immediate_amount(operation: &Value) -> Option<&Value> {
+    let args = &operation["args"];
+    match operation["kind"].as_str() {
+        Some("DealDamage" | "GainLife" | "LoseLife" | "Draw" | "Mill") => args.get("amount"),
+        Some("Scry")
+            if args["players"]["kind"] == "One"
+                && args["players"]["args"]["kind"] == "AbilityController" =>
+        {
+            args.get("amount")
+        }
+        _ => None,
+    }
 }
 
 /// This is only a candidate: the binder must prove its resolved property
@@ -271,45 +282,6 @@ fn paid_property_candidate(value: &Value) -> bool {
         && object["args"]["objects"]["args"]["payment"]
             .get("Resolution")
             .is_some()
-}
-
-/// CreatingEffect initial copiable values are sampled before the entire batch
-/// (IR CreateTokens contract). This is distinct from live token ability/CDA X.
-fn initial_token(body: &Value, operation: &Value) -> bool {
-    // The token verb records its produced batch through this exact transparent
-    // binder annotation. It is not an independent holder/scope or operation.
-    let operation = if operation["$sym"] == "created_result" {
-        let Some([operation]) = operation["args"].as_array().map(Vec::as_slice) else {
-            return false;
-        };
-        operation
-    } else {
-        operation
-    };
-    if operation["kind"] != "CreateTokens" || operation["args"]["players"]["kind"] != "One" {
-        return false;
-    }
-    let Some([token]) = operation["args"]["tokens"].as_array().map(Vec::as_slice) else {
-        return false;
-    };
-    if token["words"] != "CreatingEffect" || super::constant(&token["amount"]) != Some(1) {
-        return false;
-    }
-    let definition = &token["recipe"]["Defined"];
-    // Keep independent definitions entirely outside this first batch contract,
-    // including mana-X declarations which are not Expr::AnnouncedX nodes.
-    if !definition["abilities"]
-        .as_array()
-        .is_some_and(Vec::is_empty)
-        || !definition["abilities_of"].is_null()
-    {
-        return false;
-    }
-    let Some([power, toughness]) = definition["power_toughness"].as_array().map(Vec::as_slice)
-    else {
-        return false;
-    };
-    super::is_x(power) && super::is_x(toughness) && x_count(body) == 2
 }
 
 /// Snapshot evaluates both changes before applying the continuous effect. A
@@ -346,8 +318,8 @@ fn pump_uses(operation: &Value) -> Option<usize> {
         .then_some(uses)
 }
 
-/// A separate opt-in retains the ordinary inline @where reading. Each pure
-/// end-of-turn Snapshot pump contains one signed X use and no hidden X slot.
+/// Each pure end-of-turn snapshot pump contains one signed X use. Both
+/// evaluate the one printed definition before the first change.
 fn paired_pumps(body: &Value) -> bool {
     body["instructions"].as_array().is_some_and(|items| {
         items.len() == 2
@@ -376,6 +348,14 @@ fn definition_eligible(body: &Value, amount: &Value) -> bool {
             && body["instructions"]
                 .as_array()
                 .is_some_and(|items| items.len() == 2)
+}
+
+fn requires_capture(body: &Value, amount: &Value) -> bool {
+    observed::repeated(body)
+        || shared(body) && shared_definition(amount)
+        || threshold::shared(body) && threshold::definition(amount)
+        || paired_pumps(body) && aggregate_definition(amount)
+        || tokens::repeated_damage(body, amount)
 }
 
 fn x_count(value: &Value) -> usize {
@@ -721,13 +701,21 @@ mod tests {
         assert_eq!(snapshot_inverse(&body, &amount), 0);
     }
     #[test]
-    fn where_snapshots103_paired_pumps_add_capture_without_eager_inline_retirement() {
+    fn where_snapshots_paired_pumps_use_one_definition() {
         let body = paired_pump_body();
         let definition = json!({"kind":"CountObjects","args":{"kind":"Selected","args":8}});
         assert!(!shared(&body));
         assert!(paired_pumps(&body));
-        let inline = super::super::substituted(body.clone(), &definition);
-        assert_eq!(inline["instructions"].as_array().unwrap().len(), 2);
+        assert!(required(&body, &definition).unwrap());
+        let captured_from_where =
+            super::super::number_condition::define_where(&body, &definition, 5).unwrap();
+        assert_eq!(
+            captured_from_where["instructions"]
+                .as_array()
+                .unwrap()
+                .len(),
+            3
+        );
         let captured = snapshot(&body, &definition, 5).unwrap();
         assert_eq!(captured["instructions"].as_array().unwrap().len(), 3);
         assert_eq!(snapshot_inverse(&body, &definition), 1);
