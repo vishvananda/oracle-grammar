@@ -7,6 +7,8 @@ mod casting;
 mod evidence;
 mod mechanic_notes;
 mod object_notes;
+mod plot;
+mod receipts;
 mod suspend;
 
 static PRINTED_X: LazyLock<Value> = LazyLock::new(|| json!({"kind":"AnnouncedX"}));
@@ -481,6 +483,7 @@ fn visit_mentions<'a>(
         || !measured && mechanic_notes::root_mentions(ability, |topic| visit(topic, None))
         || !measured && object_notes::mentions(ability, |topic| visit(topic, None))
         || !measured && suspend::mentions(ability, |topic| visit(topic, None))
+        || !measured && plot::plots_for_controller(ability) && visit("PlottedByController", None)
         || !measured && evidence::root_mentions(ability, |topic| visit(topic, None))
 }
 
@@ -569,6 +572,7 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "GrantedSuspendOwner"
                     | "GrantedSuspendController"
                     | "SeekWholeLibrary"
+                    | "PlottedByController"
             )
         )
     )
@@ -598,6 +602,12 @@ pub(crate) fn check_bound_claims(
     permanent_source: bool,
 ) -> Result<(), String> {
     for explanation in claims {
+        if let Some(symbol) = explanation.get("$cost_symbol") {
+            if !evidence::cost_symbols(ability).contains(symbol) {
+                return Err("reminder has no matching bound payment symbol".into());
+            }
+            continue;
+        }
         let (topic, expected) = claim(explanation).ok_or("invalid bound reminder claim")?;
         if topic == "PermanentSpellCopy"
             && permanent_source
@@ -634,14 +644,17 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
                 | "GrantedSuspendOwner"
                 | "GrantedSuspendController"
                 | "SeekWholeLibrary"
+                | "PlottedByController"
         )
     );
-    let deferred =
+    let mut deferred =
         (inner["kind"] != "Spell" || needs_bound_spell) && bound_claim(name, explanation);
     let matches = if deferred {
         true
     } else if let Some(candidates) = typed_claims(name, inner) {
-        candidates.iter().any(|candidate| candidate == explanation)
+        let matches = candidates.iter().any(|candidate| candidate == explanation);
+        deferred = !matches && name == "cost_symbol_reminder";
+        matches || deferred
     } else {
         let (topic, amount) = claim(explanation).ok_or("invalid contextual reminder claim")?;
         visit_mentions(inner, amount.is_some(), |found, quantity| {
@@ -674,7 +687,11 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
         if list.len() >= 8 {
             return Err("bound reminder limit".into());
         }
-        list.push(explanation.clone());
+        list.push(if name == "cost_symbol_reminder" {
+            json!({"$cost_symbol":explanation})
+        } else {
+            explanation.clone()
+        });
     }
     Ok(replace_last(value, result))
 }

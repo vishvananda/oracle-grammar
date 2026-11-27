@@ -16,6 +16,14 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         }
         "ChooseValue" if args["kind"] == "CardType" => Some("CardTypes"),
         "Triggered" => counters_on_damage_recipient(args),
+        "TowardPlayer"
+            if matches!(
+                args["action"].as_str(),
+                Some("ControlNextTurn" | "ControlNextCombat")
+            ) && is_controller(&args["actor"]) =>
+        {
+            Some("PlayerControlDecisions")
+        }
         "PlayerRule" if args["AdditionalVote"]["optional"].is_boolean() => {
             Some("AdditionalVoteChoices")
         }

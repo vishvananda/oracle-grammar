@@ -228,6 +228,64 @@ fn mana_explanation_checks_the_activation_cost() {
 }
 
 #[test]
+fn mana_explanation_checks_the_symbol_paid_during_resolution() {
+    let context = empty_card_characteristics();
+    let text = "Whenever you sacrifice a creature, you may pay {U/B}. If you do, draw a card. ({U/B} can be paid with either {U} or {B}.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace(
+        "({U/B} can be paid with either {U}",
+        "({R/B} can be paid with either {R}",
+    );
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn kicker_reminder_agrees_with_the_branch_cost() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Sorcery);
+    let text = "Kicker {2}{W} (You may pay an additional {2}{W} as you cast this spell.)\nChoose target creature with mana value 3 or less. If this spell was kicked, instead choose target creature. Exile the chosen creature, then its controller gains life equal to its mana value.";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("additional {2}{W}", "additional {3}{W}");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn local_reminders_keep_their_position_inside_casting_branches() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Sorcery);
+    let modification = "As an additional cost to cast this spell, sacrifice a creature or sacrifice a modified creature. (Equipment, Auras you control, and counters are modifications.)\nDestroy target creature or planeswalker. If the modified creature was sacrificed, draw a card.";
+    let food = concat!(
+        "Gift a Food (You may promise an opponent a gift as you cast this spell. If you do, ",
+        "they create a Food token before its other effects. It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\n",
+        "Destroy target creature. If the gift wasn't promised, you lose 2 life."
+    );
+    exact_roundtrip(modification, &context);
+    exact_roundtrip(food, &context);
+    let wrong = food.replacen("Gift a Food", "Gift a Treasure", 1);
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn an_indestructible_reminder_stays_with_its_mode() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Instant);
+    let destroy = "• Destroy target tapped creature.";
+    let protect = "• Target creature gains indestructible until end of turn. (Damage and effects that say \"destroy\" don't destroy it.)";
+    for (first, last) in [(protect, destroy), (destroy, protect)] {
+        let text = format!("Choose one —\n{first}\n{last}");
+        assert_eq!(
+            super::engine()
+                .parse_card(NAME, &text, &context)
+                .unwrap()
+                .readings
+                .len(),
+            1
+        );
+        exact_roundtrip(&text, &context);
+    }
+}
+
+#[test]
 fn reminder_checks_both_colors_spent_to_cast_the_spell() {
     let mut context = empty_card_characteristics();
     context.card_types.push(CardType::Sorcery);

@@ -6,7 +6,10 @@ use serde_json::{Value, json};
 pub(crate) fn is_symbol(name: &str) -> bool {
     matches!(
         name,
-        "optional_ability_label" | "optional_ability_reminder" | "unlabelled_instructions"
+        "optional_ability_label"
+            | "optional_ability_reminder"
+            | "optional_cost_reminder"
+            | "unlabelled_instructions"
     )
 }
 
@@ -18,18 +21,22 @@ pub(crate) fn checked_call(
 ) -> Result<Pattern, String> {
     let ability = Ty::Named("Ability".into());
     let arguments = match (name, args) {
-        ("optional_ability_label" | "optional_ability_reminder", [inner, decoration])
-            if *ty == ability =>
-        {
+        (
+            "optional_ability_label" | "optional_ability_reminder" | "optional_cost_reminder",
+            [inner, decoration],
+        ) if *ty == ability => {
             vec![
                 elaborate(inner, &ability, schema)?,
                 elaborate(
                     decoration,
-                    &Ty::Option(Box::new(Ty::Named(if name == "optional_ability_label" {
-                        "String".into()
-                    } else {
-                        "bool".into()
-                    }))),
+                    &Ty::Option(Box::new(Ty::Named(
+                        match name {
+                            "optional_ability_label" => "String",
+                            "optional_cost_reminder" => "Cost",
+                            _ => "bool",
+                        }
+                        .into(),
+                    ))),
                     schema,
                 )?,
             ]
@@ -50,9 +57,10 @@ pub(crate) fn checked_call(
 
 pub(crate) fn fill(name: &str, args: &[Value]) -> Result<Value, String> {
     match (name, args) {
-        ("optional_ability_label" | "optional_ability_reminder", [ability, decoration])
-            if ability["kind"] != "WithPresentation" =>
-        {
+        (
+            "optional_ability_label" | "optional_ability_reminder" | "optional_cost_reminder",
+            [ability, decoration],
+        ) if ability["kind"] != "WithPresentation" => {
             optional_presentation(name, ability, decoration)
         }
         ("unlabelled_instructions", [spell]) => ordinary(spell)
@@ -69,6 +77,11 @@ fn optional_presentation(name: &str, ability: &Value, decoration: &Value) -> Res
     let (label, reminder) = match name {
         "optional_ability_label" if decoration.is_string() => (decoration, false),
         "optional_ability_reminder" if decoration == true => (&Value::Null, true),
+        "optional_cost_reminder"
+            if ability["kind"] == "CostBranch" && ability["args"]["cost"] == *decoration =>
+        {
+            (&Value::Null, true)
+        }
         _ => return Err("invalid optional ability presentation".into()),
     };
     Ok(json!({"kind":"WithPresentation","args":{
@@ -91,7 +104,10 @@ pub(crate) fn unify<'p, 'v>(
     ctx: Option<UnifyCtx<'p>>,
 ) -> Vec<Bindings<'p, 'v>> {
     match (name, args) {
-        ("optional_ability_label" | "optional_ability_reminder", [ability, decoration]) => {
+        (
+            "optional_ability_label" | "optional_ability_reminder" | "optional_cost_reminder",
+            [ability, decoration],
+        ) => {
             let Some((inner, presented)) = underlying(name, value) else {
                 return Vec::new();
             };
@@ -129,6 +145,11 @@ fn underlying<'a>(name: &str, value: &'a Value) -> Option<(&'a Value, &'a Value)
         }
         "optional_ability_reminder" if reminder == true && label.is_null() => {
             Some((ability, reminder))
+        }
+        "optional_cost_reminder"
+            if reminder == true && label.is_null() && ability["kind"] == "CostBranch" =>
+        {
+            Some((ability, &ability["args"]["cost"]))
         }
         _ => None,
     }

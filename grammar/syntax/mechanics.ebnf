@@ -1146,9 +1146,11 @@ gift_card ::= "a" "card"
 gift_fish ::= "a" "tapped" "Fish"
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(GiftedPlayer), tokens:[_{amount:Constant(1), words:Rules, recipe:Defined{name:FromSubtypes, colors:[Blue], card_types:[Creature], subtypes:[Octopus], power_toughness:[Constant(8), Constant(8)]}}], entry:BattlefieldArrival{tapped:false}}}]} */
 gift_octopus ::= "an" "Octopus"
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(GiftedPlayer), tokens:[_{amount:Constant(1), words:Rules, recipe:$gift_named_recipe}], entry:BattlefieldArrival{tapped:false}}}]} */
-gift_named_token ::= "a" gift_named_recipe
-gift_named_recipe ::= tn_food | tn_treasure
+gift_named_token ::= gift_food_token | gift_treasure_token
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(GiftedPlayer), tokens:[_{amount:Constant(1), words:Rules, recipe:$tn_food}], entry:BattlefieldArrival{tapped:false}}}]} */
+gift_food_token ::= "a" tn_food
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(GiftedPlayer), tokens:[_{amount:Constant(1), words:Rules, recipe:$tn_treasure}], entry:BattlefieldArrival{tapped:false}}}]} */
+gift_treasure_token ::= "a" tn_treasure
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(GiftedPlayer), action:KeywordAction::TakeExtraTurn{}}}]} */
 gift_extra_turn ::= "an" "extra" "turn"
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Conjure{actor:One(GiftedPlayer), card:Named('Rhystic Study'), count:Constant(1), destination:Battlefield(BattlefieldArrival{tapped:false})}}]} */
@@ -1159,7 +1161,10 @@ spell_gift ::= gift_header NEWLINE kicker_branch_program
 
 /* The gift program still acts for the promised opponent. These headers
    describe the gift that comes before an instant or sorcery's other effects. */
-gift_spell_reminded_header ::= gift_card_spell_reminded_header | gift_fish_spell_reminded_header
+gift_spell_reminded_header ::= gift_card_spell_reminded_header | gift_fish_spell_reminded_header | gift_food_spell_reminded_header
+
+/* @sem Ability::Gift{gift:[$gift_food_token]} */
+gift_food_spell_reminded_header ::= "gift" gift_food_token "(" gift_explanation_start "they" "create" "a" "Food" "token" gift_explanation_before_effects food_token_rule_words ")"
 
 /* @sem Ability::Gift{gift:[$gift_card]} */
 gift_card_spell_reminded_header ::= "gift" gift_card "(" gift_explanation_start "they" "draw" "a" "card" gift_explanation_before_effects ")"

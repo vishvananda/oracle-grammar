@@ -1,7 +1,10 @@
 //! A granted Suspend reminder uses the exiled card's owner. "Your" requires
 //! a linked arrival from the ability controller's own zone.
 use super::evidence::{step_operation, target_spec};
-use super::object_notes::{filter_proves, is_controller};
+use super::object_notes::filter_proves;
+use super::receipts::{
+    instructions, nonland, own_zone, owned_nonland_hand_exile, producer, subject_query,
+};
 use serde_json::Value;
 
 pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {
@@ -41,11 +44,6 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
         }
     }
     false
-}
-
-fn instructions(program: &Value) -> Option<&[Value]> {
-    let steps = program["instructions"].as_array()?;
-    (steps.len() <= 64).then_some(steps)
 }
 
 fn arrival_with_time(destination: &Value) -> Option<&Value> {
@@ -124,22 +122,6 @@ fn places_time_on(step: &Value, objects: &Value) -> bool {
     })
 }
 
-fn producer<'a>(steps: &'a [Value], result: &Value) -> Option<&'a Value> {
-    steps.iter().find_map(|step| {
-        if step["args"]["result"] == *result {
-            step_operation(step)
-        } else {
-            None
-        }
-    })
-}
-
-fn subject_query(subject: &Value) -> Option<&Value> {
-    let query = &subject["args"];
-    (subject["kind"] == "One" && query["kind"] == "Query" && query["args"]["index"] == 0)
-        .then(|| &query["args"]["objects"])
-}
-
 fn after_result(subject: &Value) -> Option<&Value> {
     let object = if subject["kind"] == "One" && subject["args"]["kind"] == "Result" {
         &subject["args"]
@@ -157,16 +139,6 @@ fn after_result(subject: &Value) -> Option<&Value> {
         && reference["phase"] == "After")
         .then(|| reference.get("result"))
         .flatten()
-}
-
-fn nonland(filter: &Value) -> bool {
-    filter["kind"] == "Not"
-        && filter["args"]["kind"] == "CardType"
-        && filter["args"]["args"] == "Land"
-}
-
-fn own_zone(filter: &Value, zone: &str) -> bool {
-    filter["zone"] == zone && is_controller(&filter["players"])
 }
 
 fn owned_cost_arrival(subject: &Value, frame: &Value) -> bool {
@@ -187,15 +159,7 @@ fn owned_cost_arrival(subject: &Value, frame: &Value) -> bool {
     let Some(index) = part.as_u64().filter(|&n| n < 32) else {
         return false;
     };
-    let movement = &frame["cost"]["parts"][index as usize]["Move"];
-    let Some([selection]) = movement["selections"].as_array().map(Vec::as_slice) else {
-        return false;
-    };
-    let objects = &selection["objects"];
-    movement["destination"]["Exile"].is_object()
-        && objects["kind"] == "Zone"
-        && own_zone(&objects["args"]["scope"]["Players"], "Hand")
-        && filter_proves(&objects["args"]["filter"], &nonland, 0, &mut 256)
+    owned_nonland_hand_exile(&frame["cost"], index as usize)
 }
 
 fn owned_nonland_move(op: &Value, subject: &Value, steps: &[Value], frame: &Value) -> bool {

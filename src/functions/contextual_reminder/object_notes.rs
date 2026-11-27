@@ -45,6 +45,10 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                     creature_tokens_without_haste(tokens) && visit("SummoningSickness")
                         || creates_group_with_infect(tokens) && visit("InfectTokenGroup")
                 }
+                Some("ChangeCombat") => {
+                    op["args"]["change"]["Reselect"]["players_only"] == false
+                        && visit("AttackReselection")
+                }
                 _ => false,
             }
         },
