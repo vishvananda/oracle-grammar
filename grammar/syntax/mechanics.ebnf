@@ -450,22 +450,27 @@ backup_abilities ::= line_backup | line_backup_pair | line_backup_triple | line_
 /* @sem Ability::[Ability::Backup{amount:$number, abilities:$backup_stage_abilities}, ...$backup_stage_abilities] */
 line_backup ::= "backup" NUMBER NEWLINE backup_stage_abilities
 
-/* The reminder's counter count agrees with the keyword's printed amount.
-   The shared stage remains the complete set of following abilities. */
-/* @sem Ability::[WithPresentation{reminder:true, ability:Backup{amount:$backup_reminded_amount, abilities:$backup_stage_abilities}}, ...$backup_stage_abilities] */
-line_backup_reminded ::= "backup" backup_reminded_amount NEWLINE backup_stage_abilities
+/* The reminder's counter count and its singular or plural stage agree with
+   the keyword and the complete set of following abilities. */
+/* @sem Ability::[@contextual_reminder(Ability::Backup{amount:$backup_reminded_amount, abilities:$backup_stage_abilities}, $backup_explanation_end), ...$backup_stage_abilities] */
+line_backup_reminded ::= "backup" backup_reminded_amount backup_explanation_end ")" NEWLINE backup_stage_abilities
 
 backup_reminded_amount ::= backup_reminded_one | backup_reminded_two | backup_reminded_three
 /* @sem i64::1 */
-backup_reminded_one ::= "1" "(" backup_explanation_start "a" "+" "1" "/" "+" "1" "counter" backup_explanation_end ")"
+backup_reminded_one ::= "1" "(" backup_explanation_start "a" "+" "1" "/" "+" "1" "counter"
 /* @sem i64::2 */
-backup_reminded_two ::= "2" "(" backup_explanation_start "two" "+" "1" "/" "+" "1" "counters" backup_explanation_end ")"
+backup_reminded_two ::= "2" "(" backup_explanation_start "two" "+" "1" "/" "+" "1" "counters"
 /* @sem i64::3 */
-backup_reminded_three ::= "3" "(" backup_explanation_start "three" "+" "1" "/" "+" "1" "counters" backup_explanation_end ")"
+backup_reminded_three ::= "3" "(" backup_explanation_start "three" "+" "1" "/" "+" "1" "counters"
 /* @sem () */
 backup_explanation_start ::= "when" "this" "creature" "enters" "," "put"
 /* @sem () */
-backup_explanation_end ::= "on" "target" "creature" "." "if" "that's" "another" "creature" "," "it" "gains" "the" "following" "ability" "until" "end" "of" "turn" "."
+backup_explanation_prefix ::= "on" "target" "creature" "." "if" "that's" "another" "creature" "," "it" "gains" "the" "following"
+backup_explanation_end ::= backup_explanation_single | backup_explanation_many
+/* @sem String::'BackupSingle' */
+backup_explanation_single ::= backup_explanation_prefix "ability" "until" "end" "of" "turn" "."
+/* @sem String::'BackupMany' */
+backup_explanation_many ::= backup_explanation_prefix "abilities" "until" "end" "of" "turn" "."
 
 /* Each printed Backup instance shares the non-Backup abilities below it. */
 /* @sem Ability::[Backup{amount:$number, abilities:$backup_stage_abilities}, Backup{amount:$number_2, abilities:$backup_stage_abilities}, ...$backup_stage_abilities] */
@@ -503,8 +508,11 @@ class_level ::= cost ":" "level" NUMBER NEWLINE stage_abilities
 /* The lines inside a stage, each with its own targets. */
 stage_abilities ::= stage_line | stage_keyword | stage_abilities_more | stage_keyword_more | stage_cast_history_line
 
+stage_line ::= stage_plain_line | stage_modified_line
 /* @sem Ability::[@scope($ability)] */
-stage_line ::= ability
+stage_plain_line ::= ability
+/* @sem Ability::[@scope(Ability::@contextual_reminder($ability, $modified_explanation))] */
+stage_modified_line ::= ability "(" modified_explanation ")"
 
 /* @sem Ability::[@scope($keyword_ability)] */
 stage_keyword ::= keyword_ability
@@ -991,6 +999,8 @@ devour_defined_amount ::= "X" "," "where" "X" "is" devour_count
 devour_count ::= "the" "number" "of" filter_plural "devoured" "this" "way"
 /* @sem Ability::Mechanic{mechanic:Champion, filter:$filter_phrase} */
 mechanic_champion ::= "champion" ("a" | "an") filter_phrase
+/* @sem Ability::WithPresentation{reminder:true, ability:Mechanic{mechanic:Champion, filter:ObjectFilter::@agree($filter_phrase, $filter_phrase_2)}} */
+mechanic_champion_reminded ::= "champion" ("a" | "an") filter_phrase "(" "when" "this" "enters" "," "sacrifice" "it" "unless" "you" "exile" "another" filter_phrase "you" "control" "." "when" "this" "leaves" "the" "battlefield" "," "that" "card" "returns" "to" "the" "battlefield" "." ")"
 
 /* Craft (CR 702.167) names its materials and an optional count as printed. The
    cost is the pinned IR's mana-symbol operand list, as for kicker. */

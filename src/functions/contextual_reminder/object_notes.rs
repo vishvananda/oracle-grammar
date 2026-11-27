@@ -18,26 +18,65 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
     {
         return true;
     }
-    in_resolution(&args["body"], args, 0, &mut 512, &mut |step, frame, _| {
-        let Some(op) = step_operation(step) else {
-            return false;
-        };
-        match op["kind"].as_str() {
-            Some("Attach") => {
-                attaches_equipment(&op["args"]["attachments"], &frame["announcement"])
-                    && visit("EquipmentKeepsController")
+    in_resolution(
+        &args["body"],
+        args,
+        0,
+        &mut 512,
+        &mut |step, frame, previous| {
+            if previous.is_some_and(|previous| seek_arrival(step, previous))
+                && visit("SeekWholeLibrary")
+            {
+                return true;
             }
-            Some("Keyword") => {
-                phases_out_for_controller(&op["args"], frame) && visit("PhaseOutUntilYourTurn")
+            let Some(op) = step_operation(step) else {
+                return false;
+            };
+            match op["kind"].as_str() {
+                Some("Attach") => {
+                    attaches_equipment(&op["args"]["attachments"], &frame["announcement"])
+                        && visit("EquipmentKeepsController")
+                }
+                Some("Keyword") => {
+                    phases_out_for_controller(&op["args"], frame) && visit("PhaseOutUntilYourTurn")
+                }
+                Some("CreateTokens") => {
+                    let tokens = &op["args"]["tokens"];
+                    creature_tokens_without_haste(tokens) && visit("SummoningSickness")
+                        || creates_group_with_infect(tokens) && visit("InfectTokenGroup")
+                }
+                _ => false,
             }
-            Some("CreateTokens") => {
-                let tokens = &op["args"]["tokens"];
-                creature_tokens_without_haste(tokens) && visit("SummoningSickness")
-                    || creates_group_with_infect(tokens) && visit("InfectTokenGroup")
-            }
-            _ => false,
-        }
-    })
+        },
+    )
+}
+
+fn seek_arrival(step: &Value, previous: &Value) -> bool {
+    let Some(choice) = step_operation(previous) else {
+        return false;
+    };
+    let Some(movement) = step_operation(step) else {
+        return false;
+    };
+    let choice_args = &choice["args"];
+    let objects = &choice_args["objects"];
+    let scope = &objects["args"]["scope"]["Players"];
+    let players = &scope["players"];
+    let moved = &movement["args"]["objects"];
+    choice["kind"] == "ChooseObjects"
+        && objects["kind"] == "Zone"
+        && objects["args"]["kind"] == "Card"
+        && scope["zone"] == "Library"
+        && players["kind"] == "One"
+        && players["args"] == choice_args["player"]
+        && choice_args["count"]["AsManyAsCan"]["kind"] == "Constant"
+        && choice_args["count"]["AsManyAsCan"]["args"] == 1
+        && matches!(choice_args["constraints"].as_array().map(Vec::as_slice),
+            Some([constraint]) if constraint == "AtRandom")
+        && movement["kind"] == "Move"
+        && moved["kind"] == "Selected"
+        && moved["args"] == previous["args"]["result"]
+        && movement["args"]["destination"]["OwnersHand"].is_object()
 }
 
 fn epic_announcement(args: &Value) -> Option<&'static str> {
@@ -54,7 +93,7 @@ fn epic_announcement(args: &Value) -> Option<&'static str> {
     })
 }
 
-fn filter_proves(
+pub(super) fn filter_proves(
     filter: &Value,
     leaf: &impl Fn(&Value) -> bool,
     depth: usize,
@@ -100,7 +139,7 @@ fn attaches_equipment(attachments: &Value, announcement: &Value) -> bool {
     )
 }
 
-fn is_controller(players: &Value) -> bool {
+pub(super) fn is_controller(players: &Value) -> bool {
     players["kind"] == "One" && players["args"]["kind"] == "AbilityController"
 }
 

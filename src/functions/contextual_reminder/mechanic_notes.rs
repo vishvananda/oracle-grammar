@@ -1,4 +1,5 @@
 use super::evidence::{effects, unscoped};
+use super::object_notes::{filter_proves, is_controller};
 use serde_json::Value;
 
 pub(super) fn mention(value: &Value) -> Option<&'static str> {
@@ -14,6 +15,7 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
             Some("ReplaceCreatureTypes")
         }
         "ChooseValue" if args["kind"] == "CardType" => Some("CardTypes"),
+        "Triggered" => counters_on_damage_recipient(args),
         "PlayerRule" if args["AdditionalVote"]["optional"].is_boolean() => {
             Some("AdditionalVoteChoices")
         }
@@ -23,6 +25,49 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         {
             Some("CardTypes")
         }
+        _ => None,
+    }
+}
+
+fn counters_on_damage_recipient(trigger: &Value) -> Option<&'static str> {
+    let damage = &trigger["event"]["Damage"];
+    let recipients = &damage["recipients"]["Objects"];
+    if damage["grouping"] != "Recipient"
+        || damage["subject"] != "Recipient"
+        || !recipients.is_object()
+    {
+        return None;
+    }
+    let mut operations = effects(&trigger["body"]);
+    let counter = operations.next()?;
+    let Some([placement]) = counter["args"]["placements"].as_array().map(Vec::as_slice) else {
+        return None;
+    };
+    let objects = &placement["recipients"]["args"];
+    let referent = &objects["args"];
+    let same_recipient = counter["kind"] == "PutCounters"
+        && operations.next().is_none()
+        && placement["recipients"]["kind"] == "Objects"
+        && objects["kind"] == "One"
+        && (referent["kind"] == "EventSubject"
+            || referent["$sym"] == "it"
+            || referent["$sym"] == "member_count_it" && referent["args"][0]["$sym"] == "it"
+            || referent["kind"] == "Source"
+                && recipients["kind"] == "SameObject"
+                && recipients["args"]["kind"] == "Source");
+    if !same_recipient {
+        return None;
+    }
+    let amount = &placement["amount"];
+    if amount["$sym"] == "that_much" {
+        return Some("DamageCountersSurvival");
+    }
+    match amount["kind"].as_str()? {
+        "Constant" if amount["args"] == 1 => Some("DamageCounterSurvival"),
+        "Constant" if amount["args"].as_u64().is_some_and(|n| n > 1) => {
+            Some("DamageCountersSurvival")
+        }
+        "EventAmount" => Some("DamageCountersSurvival"),
         _ => None,
     }
 }
@@ -41,6 +86,15 @@ pub(super) fn root_mentions(ability: &Value, mut visit: impl FnMut(&'static str)
         _ => &Value::Null,
     };
     adventure_creatures(adventure_filter) && visit("HasAdventure")
+        || ability["kind"] == "Backup"
+            && args["abilities"]
+                .as_array()
+                .is_some_and(|abilities| match abilities.len() {
+                    1 => visit("BackupSingle"),
+                    2..=64 => visit("BackupMany"),
+                    _ => false,
+                })
+        || ability["kind"] == "Static" && granted_mechanic_notes(args, &mut visit)
         || ability["kind"] == "Triggered"
             && matches!(
                 event["Player"]["event"].as_str(),
@@ -63,6 +117,52 @@ pub(super) fn root_mentions(ability: &Value, mut visit: impl FnMut(&'static str)
             } else {
                 "AbilityBecomesBlocked"
             })
+}
+
+fn granted_mechanic_notes(args: &Value, visit: &mut impl FnMut(&'static str) -> bool) -> bool {
+    let objects = &args["affected"]["Objects"];
+    if objects["kind"] != "Zone" {
+        return false;
+    }
+    let zone = &objects["args"];
+    let Some(changes) = args["changes"].as_array() else {
+        return false;
+    };
+    changes.iter().take(32).any(|change| {
+        let ability = unscoped(&change["args"]);
+        if change["kind"] != "GrantAbility" || ability["kind"] != "Mechanic" {
+            return false;
+        }
+        let mechanic = &ability["args"];
+        match mechanic["mechanic"].as_str() {
+            Some("Affinity") => {
+                zone["scope"]["Shared"] == "Stack"
+                    && zone["kind"] == "Spell"
+                    && card_type(&mechanic["filter"], "Artifact")
+                    && filter_proves(&zone["filter"], &cast_by_controller, 0, &mut 256)
+                    && visit("GrantedArtifactAffinity")
+            }
+            Some("Scavenge") => {
+                let graveyard = &zone["scope"]["Players"];
+                graveyard["zone"] == "Graveyard"
+                    && is_controller(&graveyard["players"])
+                    && zone["kind"] == "Card"
+                    && card_type(&zone["filter"], "Creature")
+                    && matches!(mechanic["cost"]["parts"].as_array().map(Vec::as_slice),
+                        Some([mana]) if mana["ManaCostOf"]["kind"] == "Source")
+                    && visit("GrantedScavenge")
+            }
+            _ => false,
+        }
+    })
+}
+
+fn card_type(filter: &Value, name: &str) -> bool {
+    filter["kind"] == "CardType" && filter["args"] == name
+}
+
+fn cast_by_controller(filter: &Value) -> bool {
+    filter["kind"] == "Cast" && is_controller(&filter["args"]["by"])
 }
 
 fn source_cycling_trigger(ability: &Value) -> bool {

@@ -153,6 +153,34 @@ fn opponent_damage_clause_shares_its_controllers() {
 }
 
 #[test]
+fn backup_reminder_agrees_with_the_number_of_granted_abilities() {
+    let text = "Backup 1 (When this creature enters, put a +1/+1 counter on target creature. If that's another creature, it gains the following abilities until end of turn.)\nFlying, vigilance";
+    let context = empty_card_characteristics();
+    exact_roundtrip(text, &context);
+    let engine = super::engine();
+    for wrong in [
+        text.replace("following abilities", "following ability"),
+        text.replace("Flying, vigilance", "Flying"),
+    ] {
+        assert!(engine.parse_card(NAME, &wrong, &context).is_err());
+    }
+}
+
+#[test]
+fn granted_suspend_uses_the_exiled_cards_owner() {
+    let action = "Exile target creature and put two time counters on it. If it doesn't have suspend, it gains suspend.";
+    let owner = "At the beginning of its owner's upkeep, they remove a time counter. When the last is removed, they may play it without paying its mana cost. If it's a creature, it has haste.";
+    let controller = "At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost. If it's a creature, it has haste.";
+    let context = empty_card_characteristics();
+    exact_roundtrip(&format!("{action} ({owner})"), &context);
+    assert!(
+        super::engine()
+            .parse_card(NAME, &format!("{action} ({controller})"), &context)
+            .is_err()
+    );
+}
+
+#[test]
 fn native_and_bracketed_loyalty_headings_preserve_the_same_activations() {
     let context = empty_card_characteristics();
     let raw = "+2: Draw a card.\n−1: You gain 2 life.\n0: Scry 1.";

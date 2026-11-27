@@ -7,6 +7,7 @@ mod casting;
 mod evidence;
 mod mechanic_notes;
 mod object_notes;
+mod suspend;
 
 static PRINTED_X: LazyLock<Value> = LazyLock::new(|| json!({"kind":"AnnouncedX"}));
 
@@ -479,6 +480,7 @@ fn visit_mentions<'a>(
         || !measured && ordinary_activation(ability) && visit("InstantActivation", None)
         || !measured && mechanic_notes::root_mentions(ability, |topic| visit(topic, None))
         || !measured && object_notes::mentions(ability, |topic| visit(topic, None))
+        || !measured && suspend::mentions(ability, |topic| visit(topic, None))
         || !measured && evidence::root_mentions(ability, |topic| visit(topic, None))
 }
 
@@ -562,6 +564,11 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "WitherGroup"
                     | "EpicWithoutTargets"
                     | "EpicWithTargets"
+                    | "GrantedArtifactAffinity"
+                    | "GrantedScavenge"
+                    | "GrantedSuspendOwner"
+                    | "GrantedSuspendController"
+                    | "SeekWholeLibrary"
             )
         )
     )
@@ -624,6 +631,9 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
                 | "InfectTokenGroup"
                 | "EpicWithoutTargets"
                 | "EpicWithTargets"
+                | "GrantedSuspendOwner"
+                | "GrantedSuspendController"
+                | "SeekWholeLibrary"
         )
     );
     let deferred =

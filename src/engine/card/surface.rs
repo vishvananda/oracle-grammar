@@ -58,6 +58,7 @@ pub enum AdventureReturnType {
     Creature,
     Artifact,
     Enchantment,
+    Land,
 }
 
 impl AdventureReturnType {
@@ -67,6 +68,7 @@ impl AdventureReturnType {
             (Self::Creature, CardType::Creature)
                 | (Self::Artifact, CardType::Artifact)
                 | (Self::Enchantment, CardType::Enchantment)
+                | (Self::Land, CardType::Land)
         )
     }
 }
