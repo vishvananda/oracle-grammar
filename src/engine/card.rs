@@ -1,5 +1,8 @@
 //! Full-card text binds characteristic notes independently of native abilities.
-use super::{Engine, Refusal, bind_card, canonical_abilities, validate_abilities};
+use super::{
+    Engine, Refusal, bind_card_with_source, canonical_abilities, permanent_spell_source,
+    validate_abilities,
+};
 use crate::model::ir::{Ability, Characteristics, ManaSymbol, Mechanic};
 use crate::model::ir_schema::Schema;
 use crate::model::mtg_types::{CardType, SubType, SuperType};
@@ -227,8 +230,16 @@ impl Engine {
         let mut counters = parser.counters.clone();
         let mut readings = Vec::new();
         let mut failure = None;
+        let permanent_source = permanent_spell_source(&types);
         for value in values {
-            match self.bind_card_notes(name, &value, context, source, &mut counters) {
+            match self.bind_card_notes(
+                name,
+                &value,
+                context,
+                source,
+                &mut counters,
+                permanent_source,
+            ) {
                 Ok(bound) => {
                     for reading in bound {
                         if !readings.contains(&reading) {
@@ -298,10 +309,12 @@ impl Engine {
         context: &Characteristics,
         source: Option<&CardInputContext>,
         counters: &mut Counters,
+        permanent_source: bool,
     ) -> Result<Vec<CardReading>, Refusal> {
         let mut value = value.clone();
         let station_notes = station::materialize(&mut value, source).map_err(Refusal::Binding)?;
-        value["abilities"] = bind_card(&value["abilities"], name).map_err(Refusal::Binding)?;
+        value["abilities"] = bind_card_with_source(&value["abilities"], name, permanent_source)
+            .map_err(Refusal::Binding)?;
         let station_notes = if station_notes.is_empty() {
             station_notes
         } else {

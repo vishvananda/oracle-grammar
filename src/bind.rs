@@ -290,6 +290,15 @@ pub fn bind_held_ability(
     card_name: &str,
     attachment: Attachment,
 ) -> Result<(), String> {
+    bind_held_ability_with_source(ability, card_name, attachment, false)
+}
+
+pub(crate) fn bind_held_ability_with_source(
+    ability: &mut Value,
+    card_name: &str,
+    attachment: Attachment,
+    permanent_source: bool,
+) -> Result<(), String> {
     let reminder_claims = crate::functions::contextual_reminder::take_bound_claims(ability)?;
     let ability = presentation::core_mut(ability);
     crate::functions::copy_subject::prepare(ability)?;
@@ -378,7 +387,11 @@ pub fn bind_held_ability(
     ordered_zones::lower(ability);
     single_receipts::lower(ability);
     spell_focus::check_spell_grants(ability)?;
-    crate::functions::contextual_reminder::check_bound_claims(ability, &reminder_claims)
+    crate::functions::contextual_reminder::check_bound_claims(
+        ability,
+        &reminder_claims,
+        permanent_source,
+    )
 }
 
 fn replace_all(value: &mut Value, old: &Value, new: &Value) {

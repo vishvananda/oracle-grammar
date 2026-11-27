@@ -47,7 +47,7 @@ pub struct ParseMemo {
     rule_bloom: u64,
     at_bloom: u64,
     pub(crate) total_entries: usize,
-    /// Cached per-ability `bind::bind_held_ability(item, card_name, attachment)` results.
+    /// Per-ability binding results keyed by digest and source/attachment context.
     abilities: HashMap<(u128, u8), Vec<AbilityCacheEntry>>,
     ability_count: usize,
     /// Cached post-`bind_surface` validate + canonicalize results (independent of `at`).
@@ -150,11 +150,11 @@ impl ParseMemo {
     pub(crate) fn get_ability(
         &self,
         digest: u128,
-        attachment: u8,
+        context: u8,
         value: &Value,
     ) -> Option<&Result<Rc<Value>, String>> {
         self.abilities
-            .get(&(digest, attachment))?
+            .get(&(digest, context))?
             .iter()
             .find_map(|(k, res)| (k == value).then_some(res))
     }
@@ -162,14 +162,14 @@ impl ParseMemo {
     pub(crate) fn insert_ability(
         &mut self,
         digest: u128,
-        attachment: u8,
+        context: u8,
         value: Value,
         res: Result<Rc<Value>, String>,
     ) {
         if self.ability_count >= MAX_ABILITY_ENTRIES {
             return;
         }
-        let list = self.abilities.entry((digest, attachment)).or_default();
+        let list = self.abilities.entry((digest, context)).or_default();
         if list.len() < 4 && !list.iter().any(|(k, _)| k == &value) {
             list.push((value, res));
             self.ability_count += 1;

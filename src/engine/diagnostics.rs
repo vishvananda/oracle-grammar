@@ -115,8 +115,12 @@ pub(super) fn frontier(tokens: &[Token], names: &Names, at: usize) -> String {
     format!("{before} ^ {after}").replace('\n', " / ")
 }
 
-pub(super) fn bind(value: &Value, name: &str) -> Result<Value, (Stage, String)> {
-    bind_cached(value, name, None, true)
+pub(super) fn bind(
+    value: &Value,
+    name: &str,
+    permanent_source: bool,
+) -> Result<Value, (Stage, String)> {
+    bind_cached(value, name, None, true, permanent_source)
 }
 
 fn bind_cached(
@@ -124,8 +128,9 @@ fn bind_cached(
     name: &str,
     mut memo: Option<&mut ParseMemo>,
     capture: bool,
+    permanent_source: bool,
 ) -> Result<Value, (Stage, String)> {
-    let bound = bind_surface_cached(value, name, memo.as_deref_mut())
+    let bound = bind_surface_cached(value, name, memo.as_deref_mut(), permanent_source)
         .map_err(|why| (Stage::Binding, why))?;
     if !capture && let Some(shared) = memo {
         let bound_digest = crate::heads::value_digest(&bound);
@@ -291,13 +296,14 @@ fn run(
     let mut readings = Vec::new();
     let mut candidate_bytes_left = 64 * 1024;
     let mut failure = None;
+    let permanent_source = super::permanent_spell_source(types);
     for (index, value) in values.iter().enumerate() {
         let active_memo = match (memo.as_deref_mut(), local_bind.as_mut()) {
             (Some(m), _) => Some(m),
             (None, Some(m)) => Some(m),
             (None, None) => None,
         };
-        let bound_raw = bind_cached(value, name, active_memo, capture);
+        let bound_raw = bind_cached(value, name, active_memo, capture, permanent_source);
         let bound = bound_raw.and_then(|bound| {
             if contextual_station
                 && super::card::station::requires_context(&bound)

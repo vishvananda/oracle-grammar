@@ -7055,8 +7055,13 @@ reveal_lands_tapped_remainder ::= reveal_top "." "put" "all" "land" "cards" "fro
 condition_revealed_lands_graveyard ::= "there" "are" count "or" "more" card_word "and" "/" "or" card_word "cards" "in" "your" "graveyard"
 
 /* @prefer always */
-/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$reveal_lands_tapped_remainder, If{condition:$condition_revealed_lands_graveyard, then:Program{instructions:[Effect{result:@next, operation:SetTapped{objects:Transition{result:@back(3), phase:After}, tapped:false}}]}, otherwise:Program{}}]}} */
-spell_revealed_lands_untap ::= reveal_lands_tapped_remainder "." NEWLINE "if" condition_revealed_lands_graveyard "," "untap" "those" "lands" "."
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$reveal_lands_tapped_remainder, $revealed_lands_untap]}} */
+spell_revealed_lands_untap ::= reveal_lands_tapped_remainder "." NEWLINE revealed_lands_untap
+/* @prefer always */
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:Spell{announcement:@announcement, body:Program{instructions:[...$reveal_lands_tapped_remainder, $revealed_lands_untap]}}} */
+spell_revealed_lands_untap_labelled ::= reveal_lands_tapped_remainder "." NEWLINE ability_label "—" revealed_lands_untap
+/* @sem Instruction::If{condition:$condition_revealed_lands_graveyard, then:Program{instructions:[Effect{result:@next, operation:SetTapped{objects:Transition{result:@back(3), phase:After}, tapped:false}}]}, otherwise:Program{}} */
+revealed_lands_untap ::= "if" condition_revealed_lands_graveyard "," "untap" "those" "lands" "."
 
 /* @sem Operation::@search_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}) */
 found_plural_battlefield_those ::= "put" "those" "cards" "onto" "the" "battlefield"

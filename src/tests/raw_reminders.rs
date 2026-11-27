@@ -185,6 +185,18 @@ fn cast_copy_reminder_requires_a_spell_cast_from_the_copy_result() {
 }
 
 #[test]
+fn definite_spell_copy_reminder_requires_a_permanent_source() {
+    let engine = super::engine();
+    let mut context = empty_card_characteristics();
+    let text = "When you cast this spell, copy it. (The copy becomes a token.)";
+    assert!(engine.parse_card(NAME, text, &context).is_err());
+    context.card_types = vec![CardType::Sorcery];
+    assert!(engine.parse_card(NAME, text, &context).is_err());
+    context.card_types = vec![CardType::Artifact];
+    exact_roundtrip(text, &context);
+}
+
+#[test]
 fn transform_reminder_reads_the_current_front_name_from_source() {
     let engine = super::engine();
     let name = "Vault of Catlacan";

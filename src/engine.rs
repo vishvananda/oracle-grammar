@@ -430,25 +430,48 @@ impl Engine {
 }
 
 fn bind_card(value: &Value, name: &str) -> Result<Value, String> {
-    diagnostics::bind(value, name).map_err(|(_, why)| why)
+    bind_card_with_source(value, name, false)
+}
+
+fn bind_card_with_source(
+    value: &Value,
+    name: &str,
+    permanent_source: bool,
+) -> Result<Value, String> {
+    diagnostics::bind(value, name, permanent_source).map_err(|(_, why)| why)
+}
+
+fn permanent_spell_source(types: &[String]) -> bool {
+    types.len() <= 64
+        && !types
+            .iter()
+            .any(|kind| matches!(kind.as_str(), "Instant" | "Sorcery" | "Land"))
+        && types.iter().any(|kind| {
+            matches!(
+                kind.as_str(),
+                "Artifact" | "Battle" | "Creature" | "Enchantment" | "Planeswalker"
+            )
+        })
 }
 
 fn bind_surface(value: &Value, name: &str) -> Result<Value, String> {
-    bind_surface_cached(value, name, None)
+    bind_surface_cached(value, name, None, false)
 }
 
-fn attachment_tag(attachment: bind::Attachment) -> u8 {
-    match attachment {
+fn binding_context_tag(attachment: bind::Attachment, permanent_source: bool) -> u8 {
+    let attachment = match attachment {
         bind::Attachment::None => 0,
         bind::Attachment::Aura => 1,
         bind::Attachment::Equipment => 2,
-    }
+    };
+    (attachment << 1) | u8::from(permanent_source)
 }
 
 fn bind_surface_cached(
     value: &Value,
     name: &str,
     mut memo: Option<&mut crate::parse::ParseMemo>,
+    permanent_source: bool,
 ) -> Result<Value, String> {
     // Zero-clone fast path for ordinary multi-ability cards: check per-ability
     // binding cache on borrowed abilities before allocating a cloned card Value.
@@ -457,11 +480,11 @@ fn bind_surface_cached(
         && bind::linked_card_actions::is_plain(value)?
     {
         let attachment = bind::attachment(value);
-        let att_tag = attachment_tag(attachment);
+        let context_tag = binding_context_tag(attachment, permanent_source);
         let mut bound_rcs: Vec<std::rc::Rc<Value>> = Vec::with_capacity(items.len());
         for item in items {
             let digest = crate::heads::value_digest(item);
-            if let Some(cached) = cache.get_ability(digest, att_tag, item) {
+            if let Some(cached) = cache.get_ability(digest, context_tag, item) {
                 match cached {
                     Ok(done) => bound_rcs.push(std::rc::Rc::clone(done)),
                     Err(why) => return Err(why.clone()),
@@ -469,20 +492,21 @@ fn bind_surface_cached(
                 continue;
             }
             let mut one = item.clone();
-            let res = bind::bind_held_ability(&mut one, name, attachment);
+            let res =
+                bind::bind_held_ability_with_source(&mut one, name, attachment, permanent_source);
             match res {
                 Ok(()) => {
                     let rc = std::rc::Rc::new(one);
                     cache.insert_ability(
                         digest,
-                        att_tag,
+                        context_tag,
                         item.clone(),
                         Ok(std::rc::Rc::clone(&rc)),
                     );
                     bound_rcs.push(rc);
                 }
                 Err(why) => {
-                    cache.insert_ability(digest, att_tag, item.clone(), Err(why.clone()));
+                    cache.insert_ability(digest, context_tag, item.clone(), Err(why.clone()));
                     return Err(why);
                 }
             }
@@ -503,12 +527,12 @@ fn bind_surface_cached(
     };
     let linked_card_sites = bind::linked_card_actions::prepare(&mut bound)?;
     let attachment = bind::attachment(&bound);
-    let att_tag = attachment_tag(attachment);
+    let context_tag = binding_context_tag(attachment, permanent_source);
     if let Value::Array(items) = &mut bound {
         for item in items {
             if let Some(cache) = memo.as_deref_mut() {
                 let digest = crate::heads::value_digest(item);
-                if let Some(cached) = cache.get_ability(digest, att_tag, item) {
+                if let Some(cached) = cache.get_ability(digest, context_tag, item) {
                     match cached {
                         Ok(done) => *item = (**done).clone(),
                         Err(why) => return Err(why.clone()),
@@ -516,15 +540,16 @@ fn bind_surface_cached(
                     continue;
                 }
                 let raw = item.clone();
-                let res = bind::bind_held_ability(item, name, attachment);
+                let res =
+                    bind::bind_held_ability_with_source(item, name, attachment, permanent_source);
                 let stored = res
                     .as_ref()
                     .map(|()| std::rc::Rc::new(item.clone()))
                     .map_err(Clone::clone);
-                cache.insert_ability(digest, att_tag, raw, stored);
+                cache.insert_ability(digest, context_tag, raw, stored);
                 res?;
             } else {
-                bind::bind_held_ability(item, name, attachment)?;
+                bind::bind_held_ability_with_source(item, name, attachment, permanent_source)?;
             }
         }
     }

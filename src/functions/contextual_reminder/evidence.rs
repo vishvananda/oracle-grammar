@@ -455,6 +455,33 @@ fn copy_mentions(op: &Value, frame: &Value, visit: &mut impl FnMut(&'static str)
             && visit("PermanentSpellCopy")
 }
 
+/// The trigger watches this source's cast and copies that exact stack object.
+/// The caller supplies the separate proof that the source is a permanent spell.
+pub(super) fn copies_source_spell(ability: &Value) -> bool {
+    let ability = own_ability(ability);
+    let frame = &ability["args"];
+    if ability["kind"] != "Triggered"
+        || !cast_event(&frame["event"]).is_some_and(|cast| {
+            cast["spells"]["kind"] == "SameObject" && cast["spells"]["args"]["kind"] == "Source"
+        })
+    {
+        return false;
+    }
+    in_resolution(&frame["body"], frame, 0, &mut 128, &mut |step, scope, _| {
+        std::ptr::eq(scope, frame)
+            && step_operation(step).is_some_and(|op| {
+                let copy = &op["args"];
+                op["kind"] == "CopyOnStack"
+                    && matches!(
+                        copy["object"]["kind"].as_str(),
+                        Some("Source" | "EventSubject")
+                    )
+                    && copy["times"]["kind"] == "Constant"
+                    && copy["times"]["args"] == 1
+            })
+    })
+}
+
 fn replicate_grant(change: &Value) -> bool {
     if change["kind"] != "PlayerRule" {
         return false;
@@ -665,7 +692,7 @@ fn exiled_creature_returns(step: &Value, previous: &Value, frame: &Value) -> boo
             && is_creature_filter(&target["filter"], 0, &mut 32);
     }
     let damage = &frame["event"]["Damage"];
-    object["kind"] == "EventSubject"
+    (object["kind"] == "EventSubject" || object["kind"] == "Damage" && object["args"] == "Source")
         && damage["source_kind"] == "Permanent"
         && damage["subject"] == "Source"
         && is_creature_filter(&damage["sources"], 0, &mut 32)

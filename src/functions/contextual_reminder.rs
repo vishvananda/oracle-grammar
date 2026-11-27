@@ -511,9 +511,19 @@ pub(crate) fn take_bound_claims(ability: &mut Value) -> Result<Vec<Value>, Strin
     }
 }
 
-pub(crate) fn check_bound_claims(ability: &Value, claims: &[Value]) -> Result<(), String> {
+pub(crate) fn check_bound_claims(
+    ability: &Value,
+    claims: &[Value],
+    permanent_source: bool,
+) -> Result<(), String> {
     for explanation in claims {
         let (topic, expected) = claim(explanation).ok_or("invalid bound reminder claim")?;
+        if topic == "PermanentSpellCopy"
+            && permanent_source
+            && evidence::copies_source_spell(ability)
+        {
+            continue;
+        }
         if !visit_mentions(ability, expected.is_some(), |kind, operand| {
             kind == topic && operand == expected
         }) {
@@ -626,6 +636,14 @@ fn claims(name: &str, ability: &Value) -> Vec<Value> {
         }
         false
     });
+    // Inverse matching sees the ability before the printer supplies its face
+    // types. Reparse checks the source type before this wording can verify.
+    if name == "contextual_reminder"
+        && evidence::copies_source_spell(ability)
+        && !found.contains(&("PermanentSpellCopy", None))
+    {
+        found.push(("PermanentSpellCopy", None));
+    }
     found
         .into_iter()
         .map(|(kind, amount)| match amount {
