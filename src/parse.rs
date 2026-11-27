@@ -856,7 +856,9 @@ impl<'a> Parser<'a> {
             (Sym::Class(Class::Number), Token::Number(value) | Token::Grouped(value)) => {
                 Some(Some(Value::from(*value)))
             }
-            (Sym::Class(Class::Word), Token::Word(word)) => Some(Some(Value::from(word.clone()))),
+            (Sym::Class(Class::Word), Token::Word(word)) => (!word
+                .starts_with(|c: char| c.is_ascii_digit()))
+            .then(|| Some(Value::from(word.clone()))),
             (Sym::Class(Class::Capitalized), Token::Word(word)) => word
                 .starts_with(char::is_uppercase)
                 .then(|| Some(Value::from(word.clone()))),

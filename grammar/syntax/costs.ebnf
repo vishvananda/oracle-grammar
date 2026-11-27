@@ -73,7 +73,7 @@ cost_reveal_self_hand ::= "reveal" self_explicit_ref "from" "your" "hand"
 cost_exile_self ::= "exile" self_text
 
 /* An ability paid by moving this card out of a zone works only from that zone. */
-activated_from_zone ::= activated_reveal_self_hand_unlimited | activated_reveal_self_hand_limited | activated_suspended_source | activated_exile_self_after_limited | activated_graveyard_quoted_limited | activated_exile_self | activated_exile_self_after | activated_discard_self | activated_discard_self_after | activated_graveyard_return | activated_graveyard_return_limited | activated_discard_self_after_population_limited | activated_discard_self_population_limited | activated_exile_self_limited | activated_discard_self_limited | activated_discard_self_after_limited | activated_exile_self_and_named_limited
+activated_from_zone ::= activated_put_graveyard_source_bottom_after | activated_reveal_self_hand_unlimited | activated_reveal_self_hand_limited | activated_suspended_source | activated_exile_self_after_limited | activated_graveyard_quoted_limited | activated_exile_self | activated_exile_self_after | activated_discard_self | activated_discard_self_after | activated_graveyard_return | activated_graveyard_return_limited | activated_discard_self_after_population_limited | activated_discard_self_population_limited | activated_exile_self_limited | activated_discard_self_limited | activated_discard_self_after_limited | activated_exile_self_and_named_limited
 
 /* Returning this card explicitly from the graveyard scopes the whole
    activation there, including any preceding action and its announced targets. */
@@ -3183,3 +3183,10 @@ activation_exiled_source ::= activation_exiled_this_card | activation_exiled_sel
 activation_exiled_this_card ::= "this" "card"
 /* @sem () */
 activation_exiled_self_name ::= SELF_NAME
+
+/* An explicit graveyard payment restricts the activation to that zone. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, $cost_put_graveyard_source_bottom]}, limits:ActivationLimits{}, announcement:@announcement, body:$program_sentence})} */
+activated_put_graveyard_source_bottom_after ::= cost_parts "," "↑" cost_put_graveyard_source_bottom ":" program_sentence
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:One(Source)}], destination:Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{}}} */
+cost_put_graveyard_source_bottom ::= "put" "this" "card" "from" "your" "graveyard" "on" "the" "bottom" "of" "your" "library"

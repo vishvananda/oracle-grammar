@@ -34,6 +34,25 @@ create_tapped_third ::= "creates" token_groups_tapped
 /* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:$token_groups, entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
 create_attacking_base ::= "create" token_groups "that" "are" "tapped" "and" "attacking"
 
+/* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe} */
+token_group_attacking ::= token_amount "tapped" "and" "attacking" token_recipe
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[$token_group_attacking], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_attacking_before_recipe ::= "create" token_group_attacking
+
+/* The count determines the batch size. The entry attack's defender is
+   independent of the opponents in the history count. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec{amount:$preposed_attacking_quantity, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_attacking_quantity ::= "for" "each" preposed_attacking_quantity "," "create" ("a" | "an") "tapped" "and" "attacking" token_recipe
+
+preposed_attacking_quantity ::= count_each_opponent_attacked_turn | count_each_attacking_creature
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Attacking, $filter_phrase)}) */
+count_each_attacking_creature ::= "attacking" filter_phrase
+
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:@apply(PlayerSet::One(AbilityController), $create_attacking_before_recipe)}, Effect{result:@next, operation:CreateDelayedTrigger{event:$turn_end_combat, start:Immediately, body:_{instructions:[Effect{result:@next, operation:Move{objects:Created(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}]}}}]} */
+program_exile_attacking_token_end_combat ::= create_attacking_before_recipe "." "exile" "that" "token" "at" turn_end_combat "."
+
 /* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:$token_groups, entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
 create_attacking_third ::= "creates" token_groups "that" "are" "tapped" "and" "attacking"
 
@@ -109,7 +128,7 @@ token_groups_tapped_tail ::= token_groups_tapped_last | token_groups_tapped_list
 /* @sem TokenSpec::[$token_group_tapped] */
 token_groups_tapped_last ::= "and" token_group_tapped
 
-token_group ::= token_history_quoted_other | named_legendary_equipment_token | token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal | token_named_equal_vote_total | token_variable_square_product | token_defined_named_graveyard | token_copy_stats_added_type | token_named_equal_its_stat | token_defined_live_graveyard_single | token_defined_live_graveyard_plural | token_named_mana_spent_equal | token_defined_equal_opponent_comparison | token_named_equal_nontoken_entries | token_defined_with_opponent_control_count_h3
+token_group ::= token_legendary_titled | token_history_quoted_other | named_legendary_equipment_token | token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal | token_named_equal_vote_total | token_variable_square_product | token_defined_named_graveyard | token_copy_stats_added_type | token_named_equal_its_stat | token_defined_live_graveyard_single | token_defined_live_graveyard_plural | token_named_mana_spent_equal | token_defined_equal_opponent_comparison | token_named_equal_nontoken_entries | token_defined_with_opponent_control_count_h3
 
 token_copy ::= token_copy_enchanted_stats | token_copy_characteristics_it | token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle | token_copy_random_mana_card | token_copy_characteristics | token_copy_characteristics_target | token_copy_nonlegendary_singular | token_copy_half_creature | token_copy_artifact_unpunctuated | token_copy_explicit_token_exception
 
@@ -2779,3 +2798,12 @@ each_player_except_creates_h3 ::= "each" "player" "except" player_ref "creates" 
 /* Each repetition of the protected creature name must agree with the granted ability. */
 /* @sem Ability::[Mechanic{mechanic:BandsWithOthers, filter:AllOf([CardType(Creature), @agree(ObjectFilter::Name($created_token_name), @agree(ObjectFilter::Name($created_token_name_2), @agree(ObjectFilter::Name($created_token_name_3), @agree(ObjectFilter::Name($created_token_name_4), ObjectFilter::Name($created_token_name_5)))))])}] */
 token_named_bands_reminded ::= '"' "↓" "bands" "with" "other" "creatures" "named" created_token_name "." '"' "(" "any" "creatures" "named" created_token_name "can" "attack" "in" "a" "band" "as" "long" "as" "at" "least" "one" "has" '"' "↓" "bands" "with" "other" "creatures" "named" created_token_name "." '"' "bands" "are" "blocked" "as" "a" "group" "." "if" "at" "least" "two" "creatures" "named" created_token_name "you" "control" "," "one" "of" "which" "has" '"' "↓" "bands" "with" "other" "creatures" "named" created_token_name "," '"' "are" "blocking" "or" "being" "blocked" "by" "the" "same" "creature" "," "you" "divide" "that" "creature's" "combat" "damage" "," "not" "its" "controller" "," "among" "any" "of" "the" "creatures" "it's" "being" "blocked" "by" "or" "is" "blocking" "." ")"
+
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:Explicit($titled_token_name), supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:$token_ability_description}} */
+token_legendary_titled ::= titled_token_name "," "a" "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" token_ability_description
+
+titled_token_name ::= titled_token_porthos | titled_token_murf
+/* @sem String::'Porthos' */
+titled_token_porthos ::= "Porthos"
+/* @sem String::'Murf' */
+titled_token_murf ::= "Murf"

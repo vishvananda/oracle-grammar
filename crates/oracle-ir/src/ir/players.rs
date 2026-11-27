@@ -389,6 +389,14 @@ pub enum PlayerSet {
     DamagedBy(ResultId),
     /// "Those" players: whichever the row around this one names.
     Scoped,
+    /// Distinct opposing players attacked directly by this player in the
+    /// window, based on the relationship when attackers were declared.
+    /// Attacks on permanents do not count, and departed opponents stay in
+    /// the set of players recorded by the history.
+    OpponentsAttackedBy {
+        attacker: PlayerRef,
+        window: super::HistoryWindow,
+    },
 }
 
 /// Something a player did or had done to them. See `Condition::PlayerDid`.

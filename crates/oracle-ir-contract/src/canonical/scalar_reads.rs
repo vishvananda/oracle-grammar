@@ -40,6 +40,7 @@ impl Visit for Pure {
                 matches!(args["moment"].as_str(), Some("ThisSpellCast" | "TurnBegan"))
             }
             ("Expr", "EventHistory") => history(args),
+            ("Expr", "CountPlayers") => args["kind"] == "OpponentsAttackedBy",
             ("ObjectSet", "CostObjects") => {
                 (args["payment"] == "Activation" || args["payment"].get("Resolution").is_some())
                     && args["view"] == "Inputs"
@@ -123,6 +124,7 @@ impl Visit for Pure {
                     | "Intersection"
                     | "Matching"
                     | "Targets"
+                    | "OpponentsAttackedBy"
             ),
             ("Information", _) => *value == "CurrentOrLastKnown",
             _ => kind != "Primitive",

@@ -522,6 +522,10 @@ impl<'a> Scope<'a> {
             PlayerSet::DamagedBy(result) => Err(format!("result {} is unavailable", result.0)),
             PlayerSet::Targets(slot) => self.target(slot, None, TargetKind::Player),
             PlayerSet::All => Ok(()),
+            PlayerSet::OpponentsAttackedBy { attacker, window } => {
+                self.player(attacker)?;
+                self.history_window(window)
+            }
         }
     }
 }

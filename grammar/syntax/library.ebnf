@@ -215,7 +215,7 @@ search_shuffle_top_any_order ::= "," "then" "shuffle" "and" "put" "those" "cards
 /* @sem () */
 found ::= "it" | "them" | "that" "card" | "those" "cards"
 
-found_action ::= found_battlefield_tapped_target_controller | found_battlefield_attached_player | found_reveal | found_exile | found_hand | found_graveyard | found_top | found_battlefield | found_battlefield_tapped
+found_action ::= found_battlefield_counters | found_battlefield_tapped_target_controller | found_battlefield_attached_player | found_reveal | found_exile | found_hand | found_graveyard | found_top | found_battlefield | found_battlefield_tapped
 
 /* @sem Operation::Reveal{objects:Selected(@marked)} */
 found_reveal ::= "reveal" found
@@ -2709,7 +2709,10 @@ constrained_plural_choice ::= search_choice_different_powers | search_choice_sam
 
 /* The selection is restricted to the arrivals of this exact library-exile action. */
 /* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:Move{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_phrase, InSet(Transition{result:@prior, phase:After})])}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
-instructions_exile_top_put_matching ::= exile_top_cards_of_your_library "." "put" "all" filter_phrase "cards" "from" "among" "them" "onto" "the" "battlefield"
+instructions_exile_top_put_matching ::= exile_top_cards_of_your_library "." "put" "all" filter_phrase "cards" exile_top_matching_location "onto" "the" "battlefield"
+
+/* @sem () */
+exile_top_matching_location ::= "from" "among" "them" | "exiled" "this" "way"
 
 /* A revealed slice, two independently selected categories, and their remaining cards.
    Both departures belong to this observation and to the same destination. */
@@ -9789,3 +9792,12 @@ random_library_cast_spending ::= random_library_cast_any_type | random_library_c
 random_library_cast_any_type ::= "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "it"
 /* @sem SpendAs::AnyColor */
 random_library_cast_any_color ::= "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "that" "spell"
+
+/* The counters belong to the selected card's arrival. */
+/* @sem Operation::@search_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{counters:[[$counter_kind, $counter_amount]]}}, qualifiers:[]}) */
+found_battlefield_counters ::= "put" found "onto" "the" "battlefield" "with" counter_amount counter_kind "counters" "on" "it"
+
+/* One reading of X sizes the original observed slice. Moved cards are excluded
+   from its ordered remainder; the remaining cards stay in the same library. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:$value, from:Top}}}, Effect{result:@next, operation:Move{objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$filter_phrase}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true}}, qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Transition{result:@prior, phase:Before}}, zone:Library}, end:Bottom, order:$library_order}}]} */
+program_reveal_counted_put_all_and_rest ::= "reveal" "the" "top" "X" "cards" "of" "your" "library" "," "where" "X" "is" value "." "put" "all" filter_phrase "cards" "revealed" "this" "way" "onto" "the" "battlefield" "tapped" "and" "the" "rest" "on" "the" "bottom" "of" "your" "library" library_order "."
