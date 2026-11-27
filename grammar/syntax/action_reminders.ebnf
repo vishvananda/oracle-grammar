@@ -316,7 +316,7 @@ additional_rule_explanations ::= normal_timing_and_costs_explanation | outlaw_an
     | exert_recipient_explanation | empty_piles_explanation | attack_declaration_cost_explanation
     | escape_grant_explanation | exiled_creature_returns_explanation
     | sticker_vowels_explanation | end_turn_explanation | end_turn_spell_explanation
-    | card_types_explanation | card_types_examples | card_types_before_kindred | permanent_types_explanation
+    | card_types_explanation | card_types_examples | card_types_kindred_before_instant | card_types_before_kindred | permanent_types_explanation
     | casting_help_explanations | targeted_player_group_phaseout_explanation | repeated_flanking_explanation | aura_copy_token_explanation
     | chosen_landwalk_explanation | adventure_history_explanation
     | replaced_creature_types_explanation | also_replaced_creature_types_explanation | lasting_mana_symbols_explanation | its_mana_symbols_explanation
@@ -329,6 +329,8 @@ card_types_explanation ::= "artifact" "," "battle" "," "creature" "," "enchantme
 card_types_examples ::= "artifact" "," "creature" "," "enchantment" "," "land" "," "and" "planeswalker" "are" "card" "types" "."
 /* @sem String::'CardTypes' */
 card_types_before_kindred ::= "artifact" "," "battle" "," "creature" "," "enchantment" "," "instant" "," "land" "," "planeswalker" "," "and" "sorcery" "are" "card" "types" "."
+/* @sem String::'CardTypes' */
+card_types_kindred_before_instant ::= "artifact" "," "battle" "," "creature" "," "enchantment" "," "kindred" "," "instant" "," "land" "," "planeswalker" "," "and" "sorcery" "are" "card" "types" "."
 /* @sem String::'PermanentTypes' */
 permanent_types_explanation ::= "artifact" "," "battle" "," "creature" "," "enchantment" "," "land" "," "and" "planeswalker" "are" "permanent" "types" "."
 /* @sem String::'RepeatedFlanking' */
@@ -643,7 +645,8 @@ reminded_action_ability ::= action_reminder_ability
 labelled_action_reminder ::= ability_label "—" action_reminder_ability
 
 action_reminder_ability ::= reminder_spell | reminder_activated | reminder_activated_limited | reminder_activated_trailing
-    | reminder_triggered | reminder_triggered_if | reminder_triggered_once
+    | reminder_triggered | reminder_triggered_if | reminder_triggered_once | reminder_triggered_natural_twenty
+    | self_enter_explore_twice_reminded | defined_echo_reminded
     | reminder_turn | reminder_turn_if | reminder_spell_modal | reminder_activated_modal
     | reminder_triggered_modal | reminder_turn_modal | reminder_loyalty | reminder_spell_ascend
 
@@ -666,6 +669,9 @@ reminder_loyalty ::= loyalty_heading ":" reminder_program_sentence
 reminder_triggered ::= event_clause "," reminder_program_sentence
 /* @sem Ability::Triggered{event:$event_clause, intervening_if:$condition, limits:_{}, announcement:@announcement, body:$reminder_program_sentence} */
 reminder_triggered_if ::= event_clause "," "if" condition "," reminder_program_sentence
+/* The same event and reminder both specify the natural die face of 20. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$event_natural_twenty, limits:_{}, announcement:@announcement, body:$graveyard_self_program})} */
+reminder_triggered_natural_twenty ::= "when" event_natural_twenty "," graveyard_self_program "(" "a" "natural" "20" "is" "a" "roll" "that" "displays" "20" "on" "the" "die" "." ")"
 /* @sem Ability::Triggered{event:$event_clause, limits:_{per_turn:1}, announcement:@announcement, body:$reminder_program_sentence} */
 reminder_triggered_once ::= event_clause "," reminder_program_sentence "this" "ability" "triggers" "only" "once" "each" "turn" "."
 /* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$reminder_program_sentence} */
@@ -1549,6 +1555,15 @@ goaded_creature_next_turn ::= "a" "goaded" "creature" "attacks" "each" "combat" 
 /* @sem String::'PermanentSpellCopyRule' */
 copies_of_permanent_spells_rules ::= "copies" "of" "permanent" "spells" "become" "tokens" "."
 
+
+/* The exploring subject is the creature that entered. */
+/* @sem Ability::Triggered{event:$event_self_enters, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_entry_explore}, Effect{result:@next, operation:$self_entry_explore}]}} */
+self_enter_explore_twice_reminded ::= "when" event_self_enters "," self_entry_explore "," "then" "it" "explores" "again" "." "(" explore_rules_prefix "this" "creature" explore_rules_suffix "then" "repeat" "this" "process" "." ")"
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Explore{object:@it}} */
+self_entry_explore ::= "it" "explores"
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(One(Source)), changes:[GrantAbility($granted_echo_defined)]}) */
+defined_echo_reminded ::= self_creature "has" granted_echo_defined "." "(" echo_cost_explanation ")"
 
 /* @sem $instructions_explore_twice */
 explore_twice_reminded ::= instructions_explore_twice "." "(" repeated_explore_rules ")"
