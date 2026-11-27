@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub(super) struct CardSurface {
     pub notes: Vec<ManaSymbol>,
     pub assist_limit: Option<ManaSymbol>,
+    pub monocolored_hybrid: Option<MonocoloredHybridNote>,
     pub station: bool,
     pub station_explicit: bool,
     pub station_declaration: Option<StationSource>,
@@ -15,6 +16,26 @@ pub(super) struct CardSurface {
     pub layout_reminder: Option<LayoutReminder>,
     pub transforms_from: Option<String>,
     pub abilities: Vec<Ability>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct MonocoloredHybridNote {
+    pub symbol: ManaSymbol,
+    pub mana_value: u32,
+}
+
+pub(super) fn printed_mana_value(cost: &[ManaSymbol]) -> Result<u32, String> {
+    cost.iter().try_fold(0u32, |sum, symbol| {
+        let value = match symbol {
+            ManaSymbol::Generic(value) => *value,
+            ManaSymbol::MonocoloredHybrid(_) => 2,
+            ManaSymbol::X => 0,
+            _ => 1,
+        };
+        sum.checked_add(value)
+            .ok_or_else(|| "printed mana value overflow".into())
+    })
 }
 
 /// Explanations of rules intrinsic to the source face's layout.

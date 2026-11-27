@@ -19,8 +19,8 @@ pub(crate) mod station;
 mod surface;
 pub use printed_stats::{PrintedPowerToughness, PrintedStat};
 pub use station::{CardInputContext, StationAnimationBox};
-use surface::CardSurface;
 pub use surface::{AdventureReturnType, LayoutReminder};
+use surface::{CardSurface, MonocoloredHybridNote, printed_mana_value};
 
 /// A reference into current characteristics, never a retained mana operand.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -30,6 +30,9 @@ pub enum CardNote {
         slot: usize,
     },
     AssistLimit {
+        slot: usize,
+    },
+    MonocoloredHybrid {
         slot: usize,
     },
     /// The mana granted by all current basic land types, with no copied colors.
@@ -334,29 +337,43 @@ impl Engine {
             + usize::from(surface.layout_reminder.is_some())
             + usize::from(surface.transforms_from.is_some())
             + usize::from(surface.assist_limit.is_some())
+            + usize::from(surface.monocolored_hybrid.is_some())
             > self.limits.depth
         {
             return Err(Refusal::Limit("card note limit".into()));
         }
-        let cost: Vec<Value> = context
-            .mana_cost
-            .as_deref()
-            .unwrap_or_default()
+        let mana_cost = context.mana_cost.as_deref().unwrap_or_default();
+        if let Some(note) = &surface.monocolored_hybrid
+            && (!matches!(note.symbol, ManaSymbol::MonocoloredHybrid(_))
+                || printed_mana_value(mana_cost).map_err(Refusal::Binding)? != note.mana_value)
+        {
+            return Err(Refusal::Binding(
+                "hybrid explanation disagrees with printed mana value".into(),
+            ));
+        }
+        let cost: Vec<Value> = mana_cost
             .iter()
             .map(|symbol| serde_json::to_value(symbol).expect("native mana symbol serializes"))
             .collect();
         let mut choices = vec![station_notes];
+        type NoteFromSlot = fn(usize) -> CardNote;
         let mana_notes = surface
             .notes
             .into_iter()
-            .map(|symbol| (symbol, false))
-            .chain(
-                surface
-                    .assist_limit
-                    .into_iter()
-                    .map(|symbol| (symbol, true)),
-            );
-        for (note, assist) in mana_notes {
+            .map(|symbol| (symbol, (|slot| CardNote::ManaCost { slot }) as NoteFromSlot))
+            .chain(surface.assist_limit.into_iter().map(|symbol| {
+                (
+                    symbol,
+                    (|slot| CardNote::AssistLimit { slot }) as NoteFromSlot,
+                )
+            }))
+            .chain(surface.monocolored_hybrid.into_iter().map(|note| {
+                (
+                    note.symbol,
+                    (|slot| CardNote::MonocoloredHybrid { slot }) as NoteFromSlot,
+                )
+            }));
+        for (note, from_slot) in mana_notes {
             let note = serde_json::to_value(note).map_err(|e| Refusal::Binding(e.to_string()))?;
             let mut slots = Vec::new();
             for (slot, symbol) in cost.iter().enumerate() {
@@ -365,11 +382,7 @@ impl Engine {
                     return Err(Refusal::Limit("card note work limit".into()));
                 }
                 if *symbol == note {
-                    slots.push(if assist {
-                        CardNote::AssistLimit { slot }
-                    } else {
-                        CardNote::ManaCost { slot }
-                    });
+                    slots.push(from_slot(slot));
                 }
             }
             if slots.is_empty() {
@@ -460,6 +473,7 @@ impl Engine {
         }
         let mut notes = Vec::new();
         let mut assist_limit = None;
+        let mut monocolored_hybrid = None;
         let mut land_colors = None;
         let mut layout_reminder = None;
         let mut transforms_from = None;
@@ -481,6 +495,21 @@ impl Engine {
                     }
                 }
                 CardNote::StationPowerToughness { .. } => {}
+                CardNote::MonocoloredHybrid { slot } => {
+                    let cost = context.mana_cost.as_deref().unwrap_or_default();
+                    let Some(symbol @ ManaSymbol::MonocoloredHybrid(_)) = cost.get(*slot) else {
+                        return Err(
+                            "hybrid explanation needs a monocolored hybrid mana-cost slot".into(),
+                        );
+                    };
+                    let note = MonocoloredHybridNote {
+                        symbol: symbol.clone(),
+                        mana_value: printed_mana_value(cost)?,
+                    };
+                    if monocolored_hybrid.replace(note).is_some() {
+                        return Err("duplicate monocolored hybrid reminder".into());
+                    }
+                }
                 CardNote::LandTypes => {
                     if land_colors.is_some() {
                         return Err("duplicate inherent mana note".into());
@@ -506,7 +535,7 @@ impl Engine {
         let land_mana = land_colors.map(|colors| json!({"colors":colors}));
         Ok(Self::native_surfaces(&reading.abilities, written)?
             .into_iter()
-            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
+            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"monocolored_hybrid":monocolored_hybrid,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
             .collect())
     }
     /// A card's surfaces, with the views only a `written` text asks for when it does.

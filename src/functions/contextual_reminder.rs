@@ -4,6 +4,7 @@ use serde_json::{Value, json};
 
 mod casting;
 mod evidence;
+mod mechanic_notes;
 
 pub(crate) fn is_symbol(name: &str) -> bool {
     matches!(
@@ -83,6 +84,8 @@ fn mechanic(value: &Value) -> Option<&'static str> {
         "Persist" => Some("Persist"),
         "Exalted" => Some("Exalted"),
         "Escape" => Some("Escape"),
+        "CumulativeUpkeep" => Some("CumulativeUpkeep"),
+        "Demonstrate" => Some("Demonstrate"),
         _ => None,
     }
 }
@@ -194,7 +197,6 @@ fn marker(value: &Value) -> Option<&'static str> {
             Some("ManifestDread") => Some("ManifestDread"),
             Some("Proliferate") => Some("Proliferate"),
             Some("Forage") => Some("Forage"),
-            Some("PhaseOut") => Some("PhaseOut"),
             Some("Goad") if args["action"]["Goad"]["until"].is_null() => Some("Goad"),
             Some("Exert") => Some("Exert"),
             Some("Airbend") if value["kind"] == "KeywordEach" => Some("AirbendMany"),
@@ -304,6 +306,7 @@ fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
                 "Incubate" => "Incubate",
                 "Adapt" => "Adapt",
                 "Earthbend" => "Earthbend",
+                "Endure" => "Endure",
                 "Bolster" => "Bolster",
                 "CollectEvidence" => "CollectEvidence",
                 "Blight" => "Blight",
@@ -326,6 +329,7 @@ fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
                 "Renown" => "Renown",
                 "Bloodthirst" => "Bloodthirst",
                 "Firebending" => "Firebending",
+                "Impending" => "Impending",
                 _ => return None,
             };
             Some((kind, args.get("amount")?))
@@ -419,13 +423,12 @@ fn visit_mentions<'a>(
                     || topic == "Connive"
                         && evidence::single_connive(value)
                         && visit("ConniveOne", None)
-                    || topic == "PhaseOut"
-                        && evidence::normal_phasing(value)
-                        && visit("PhaseOutNormally", None)
                     || topic == "EndTheTurn"
                         && ability["kind"] == "Spell"
                         && visit("EndTurnFromSpell", None)
             }) || evidence::flashback_at_mana_cost(value) && visit("FlashbackAtManaCost", None)
+                || mechanic_notes::mention(value).is_some_and(|topic| visit(topic, None))
+                || phase_out_reminders(value, |topic| visit(topic, None))
                 || object
                     .get("Mana")
                     .and_then(Value::as_array)
@@ -443,7 +446,21 @@ fn visit_mentions<'a>(
                     })
         })
         || !measured && ordinary_activation(ability) && visit("InstantActivation", None)
+        || !measured && mechanic_notes::root_mentions(ability, |topic| visit(topic, None))
         || !measured && evidence::root_mentions(ability, |topic| visit(topic, None))
+}
+
+fn phase_out_reminders(value: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {
+    let Some(action) = value["args"]["action"].get("PhaseOut") else {
+        return false;
+    };
+    match value["kind"].as_str() {
+        Some("Keyword") => {
+            visit("PhaseOut") || action["until"].is_null() && visit("PhaseOutNormally")
+        }
+        Some("KeywordEach") => action["until"].is_null() && visit("PhaseOutGroupNormally"),
+        _ => false,
+    }
 }
 
 fn last_ability(value: &Value) -> Option<&Value> {

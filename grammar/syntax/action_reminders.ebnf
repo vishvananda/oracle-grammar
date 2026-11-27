@@ -2,11 +2,15 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
-line_contextual_reminder ::= line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder
+line_contextual_reminder ::= line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder | line_phaseout_group_reminder
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
 line_contextual_group ::= remindable_line "(" ability_explanation ")"
 remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_blocks_blocked
     | line_repeat_card_last | line_pair_enters_put | line_spell_paragraphs | line_saga | static_form_grants_goad
+
+/* A single native ability owns the complete phased-out group. */
+/* @sem Vec<Ability>::@contextual_reminder($line_one, $phaseout_each_controller_explanation) */
+line_phaseout_group_reminder ::= line_one "(" phaseout_each_controller_explanation ")"
 
 /* Both sentences describe the same spell-copy trigger. */
 /* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $historic_explanation), $token_copy_spell_rule_context_explanation) */
@@ -56,6 +60,15 @@ measured_explanation ::= monstrosity_explanation | mill_number_explanation | inc
     | surveil_defining_one_explanation | optional_controller_mill_explanation | optional_controller_mill_one_explanation
     | blight_measured_explanation | incubation_defining_explanation | adapt_one_explanation
     | toxic_recipient_one_explanation | toxic_group_one_explanation
+    | impending_explanation | endure_one_explanation | endure_many_explanation
+/* @sem Operand::List([Text(Impending), Number($number_words)]) */
+impending_explanation ::= "if" "you" "cast" "this" "spell" "for" "its" "impending" "cost" "," "it" "enters" "with" number_words "time" "counters" "and" "isn't" "a" "creature" "until" "the" "last" "is" "removed" "." "at" "the" "beginning" "of" "your" "end" "step" "," "remove" "a" "time" "counter" "from" "it" "."
+/* @sem Operand::List([Text(Endure), Number(Constant(1))]) */
+endure_one_explanation ::= "put" "a" "+" "1" "/" "+" "1" "counter" "on" "it" "or" "create" "a" "1" "/" "1" "white" "Spirit" "creature" "token" "."
+/* @sem Operand::List([Text(Endure), Number(@agree($printed_many_plus_one_counters, $endure_spirit_stats))]) */
+endure_many_explanation ::= "put" printed_many_plus_one_counters "on" "it" "or" "create" "a" endure_spirit_stats "white" "Spirit" "creature" "token" "."
+/* @sem Expr::@agree($number_digits, $number_digits_2) */
+endure_spirit_stats ::= number_digits "/" number_digits
 /* @sem Operand::List([Text(Monstrosity), Number($number_words)]) */
 monstrosity_explanation ::= "if" "this" "creature" "isn't" "monstrous" "," "put" number_words "+" "1" "/" "+" "1" "counters" "on" "it" "and" "it" "becomes" "monstrous" "."
 /* @sem Operand::List([Text(Mill), Number(@agree($number_words, $number_words_2))]) */
@@ -160,6 +173,7 @@ collect_evidence_short_explanation ::= "exile" "cards" "with" "total" "mana" "va
 
 ability_explanation ::= stun_explanation | modified_explanation | historic_explanation
     | shield_explanation | venture_explanation | learn_explanation | explore_explanation
+    | explore_that_creature_explanation | explore_the_creature_explanation
     | manifest_dread_explanation | populate_explanation | mill_explanation | goad_explanation
     | exert_explanation | party_explanation | crime_explanation | clash_explanation
     | snow_explanation | colorless_explanation | waterbend_explanation | indefinite_explanation
@@ -182,6 +196,39 @@ additional_rule_explanations ::= ward_cant_counter_explanation | zero_even_expla
     | exert_recipient_explanation | empty_piles_explanation | attack_declaration_cost_explanation
     | escape_grant_explanation | exiled_creature_returns_explanation
     | sticker_vowels_explanation | end_turn_explanation | end_turn_spell_explanation
+    | card_types_explanation | chosen_landwalk_explanation | adventure_history_explanation
+    | replaced_creature_types_explanation | lasting_mana_symbols_explanation | its_mana_symbols_explanation
+    | granted_upkeep_explanation | demonstrate_explanation | demonstrate_targets_explanation
+    | player_shroud_explanation | spell_becomes_blocked_explanation | ability_becomes_blocked_explanation
+
+/* @sem String::'CardTypes' */
+card_types_explanation ::= "artifact" "," "battle" "," "creature" "," "enchantment" "," "instant" "," "kindred" "," "land" "," "planeswalker" "," "and" "sorcery" "are" "card" "types" "."
+/* @sem String::'VariableLandwalk' */
+chosen_landwalk_explanation ::= "it" "can't" "be" "blocked" "as" "long" "as" "defending" "player" "controls" "a" "land" "of" "that" "type" "."
+/* @sem String::'HasAdventure' */
+adventure_history_explanation ::= "it" "doesn't" "need" "to" "have" "gone" "on" "the" "adventure" "first" "."
+/* @sem String::'ReplaceCreatureTypes' */
+replaced_creature_types_explanation ::= "it" "loses" "all" "other" "creature" "types" "."
+/* @sem String::'RetainManaSymbols' */
+lasting_mana_symbols_explanation ::= "mana" "symbols" "on" "that" "permanent" "remain" "unchanged" "."
+/* @sem String::'RetainManaSymbols' */
+its_mana_symbols_explanation ::= "its" "mana" "symbols" "remain" "unchanged" "."
+/* @sem String::'CumulativeUpkeep' */
+granted_upkeep_explanation ::= "at" "the" "beginning" "of" "its" "controller's" "upkeep" "," "that" "player" "puts" "an" "age" "counter" "on" "it" "," "then" "sacrifices" "it" "unless" "they" "pay" "its" "upkeep" "cost" "for" "each" "age" "counter" "on" "it" "."
+/* @sem String::'Demonstrate' */
+demonstrate_explanation ::= demonstrate_token_rules
+/* @sem String::'Demonstrate' */
+demonstrate_targets_explanation ::= demonstrate_token_rules "players" "may" "choose" "new" "targets" "for" "their" "copies" "."
+/* @sem () */
+demonstrate_token_rules ::= "when" "you" "cast" "this" "spell" "," "you" "may" "copy" "it" "." "if" "you" "do" "," "choose" "an" "opponent" "to" "also" "copy" "it" "."
+/* @sem String::'PlayerShroud' */
+player_shroud_explanation ::= "you" "can't" "be" "the" "target" "of" "spells" "or" "abilities" "."
+/* @sem String::'SpellBecomesBlocked' */
+spell_becomes_blocked_explanation ::= "this" "spell" works_on_unblockable
+/* @sem String::'AbilityBecomesBlocked' */
+ability_becomes_blocked_explanation ::= "this" "ability" works_on_unblockable
+/* @sem () */
+works_on_unblockable ::= "works" "on" "creatures" "that" "can't" "be" "blocked" "."
 
 /* @sem String::'StickerVowels' */
 sticker_vowels_explanation ::= "the" "vowels" "are" "A" "," "E" "," "↑" "i" "," "O" "," "U" "," "and" "Y" "."
@@ -308,7 +355,15 @@ venture_explanation ::= "enter" "the" "first" "room" "or" "advance" "to" "the" "
 /* @sem String::'Learn' */
 learn_explanation ::= "you" "may" "reveal" "a" "Lesson" "card" "you" "own" "from" "outside" "the" "game" "and" "put" "it" "into" "your" "hand" "," "or" "discard" "a" "card" "to" "draw" "a" "card" "."
 /* @sem String::'Explore' */
-explore_explanation ::= "reveal" "the" "top" "card" "of" "your" "library" "." "put" "that" "card" "into" "your" "hand" "if" "it's" "a" "land" "." "otherwise" "," "put" "a" "+" "1" "/" "+" "1" "counter" "on" "this" "creature" "," "then" "put" "the" "card" "back" "or" "put" "it" "into" "your" "graveyard" "."
+explore_explanation ::= explore_explanation_head "this" "creature" explore_explanation_tail
+/* @sem String::'Explore' */
+explore_that_creature_explanation ::= explore_explanation_head "that" "creature" explore_explanation_tail
+/* @sem String::'Explore' */
+explore_the_creature_explanation ::= explore_explanation_head "the" "creature" explore_explanation_tail
+/* @sem () */
+explore_explanation_head ::= "reveal" "the" "top" "card" "of" "your" "library" "." "put" "that" "card" "into" "your" "hand" "if" "it's" "a" "land" "." "otherwise" "," "put" "a" "+" "1" "/" "+" "1" "counter" "on"
+/* @sem () */
+explore_explanation_tail ::= "," "then" "put" "the" "card" "back" "or" "put" "it" "into" "your" "graveyard" "."
 /* @sem String::'ManifestDread' */
 manifest_dread_explanation ::= "look" "at" "the" "top" "two" "cards" "of" "your" "library" "." "put" "one" "onto" "the" "battlefield" "face" "down" "as" "a" "2" "/" "2" "creature" "and" "the" "other" "into" "your" "graveyard" "." "turn" "it" "face" "up" "any" "time" "for" "its" "mana" "cost" "if" "it's" "a" "creature" "card" "."
 /* @sem String::'Populate' */
@@ -456,6 +511,15 @@ reminder_open_closed ::= reminder_open "."
 reminder_closed ::= limited_mana_cost_spending_reminded | reminder_open_closed | proliferate_reminded | proliferate_twice_reminded | proliferate_pair_reminded
     | scry_reminded | surveil_reminded | investigate_reminded | named_token_reminded | fight_reminded
     | reminder_if | reminder_optional | reminder_paid | support_reminded
+    | incubate_x_reminded | exile_incubate_x_reminded | vibranium_reminded
+
+/* The explanatory X has the same definition as the written action. */
+/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Incubate{amount:$keyword_defined_x}}}] */
+incubate_x_reminded ::= "incubate" keyword_defined_x "." incubator_x_explanation
+/* @sem $instructions_exile_incubate_count */
+exile_incubate_x_reminded ::= instructions_exile_incubate_count "." incubator_x_explanation
+/* @sem () */
+incubator_x_explanation ::= "(" "create" "an" "Incubator" "token" "with" "X" "+" "1" "/" "+" "1" "counters" "on" "it" "and" '"' "{" "2" "}" ":" "transform" "this" "token" "." '"' "it" "transforms" "into" "a" "0" "/" "0" "Phyrexian" "artifact" "creature" "." ")"
 /* @sem Instruction::[@leading_if(Instruction::If{condition:$condition, then:_{instructions:$reminder_closed}, otherwise:_{}})] */
 reminder_if ::= "if" condition "," reminder_closed
 /* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:$reminder_closed}}] */
@@ -520,6 +584,8 @@ investigate_reminded ::= investigate_once "." "(" "create" "a" "Clue" "token" ".
    The recognized explanation contributes no extra instructions. */
 /* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[$reminded_token_batch], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
 named_token_reminded ::= "create" reminded_token_batch
+/* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:Rules, recipe:$tn_vibranium}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}})}] */
+vibranium_reminded ::= "create" "a" "tapped" tn_vibranium "token" "." "(" "it's" "an" "artifact" "with" "indestructible" "and" '"' "{" "T" "}" ":" "add" "{" "C" "}" "." "this" "mana" "can't" "be" "spent" "to" "cast" "a" "nonartifact" "spell" "." '"' ")"
 reminded_token_batch ::= reminded_token_single | reminded_token_multiple
 /* @sem TokenSpec::TokenSpec{amount:Constant(1), words:Rules, recipe:$reminded_named_token} */
 reminded_token_single ::= "a" reminded_named_token

@@ -197,6 +197,41 @@ fn definite_spell_copy_reminder_requires_a_permanent_source() {
 }
 
 #[test]
+fn monocolored_hybrid_reminder_checks_the_glyph_and_total() {
+    let engine = super::engine();
+    let mut context = empty_card_characteristics();
+    context.mana_cost = Some(vec![
+        ManaSymbol::Generic(3),
+        ManaSymbol::MonocoloredHybrid(ManaColor::Blue),
+    ]);
+    let text = "({2/U} can be paid with any two mana or with {U}. This card's mana value is 5.)\nDraw a card.";
+    let reading = exact_roundtrip(text, &context);
+    assert_eq!(reading.notes, [CardNote::MonocoloredHybrid { slot: 1 }]);
+    for changed in [
+        text.replace("value is 5", "value is 4"),
+        text.replace("with {U}", "with {B}"),
+    ] {
+        assert!(engine.parse_card(NAME, &changed, &context).is_err());
+    }
+    context.mana_cost = Some(vec![
+        ManaSymbol::Generic(4),
+        ManaSymbol::MonocoloredHybrid(ManaColor::Red),
+    ]);
+    let edited = text.replace('U', "R").replace("value is 5", "value is 6");
+    let key = engine
+        .card_key_of(NAME, &reading, &context, &edited, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine
+            .print_card_trail(NAME, &reading, &context, &key)
+            .unwrap()
+            .as_deref(),
+        Some(edited.as_str())
+    );
+}
+
+#[test]
 fn transform_reminder_reads_the_current_front_name_from_source() {
     let engine = super::engine();
     let name = "Vault of Catlacan";

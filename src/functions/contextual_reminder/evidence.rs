@@ -182,7 +182,6 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         Some("Manifest") if args["cloak"] == false => Some("Manifest"),
         Some("Manifest") if args["cloak"] == true => Some("Cloak"),
         Some("ManaSpent") if args["filter"]["snow"] == true => Some("Snow"),
-        Some("PhaseOut") => Some("PhaseOut"),
         Some("Seek") if args["top"].is_null() => Some("SeekWholeLibrary"),
         Some("Stickers") if args["measure"] == "UniqueVowels" => Some("StickerVowels"),
         Some("CreateTokens") => attached_role(args),
@@ -251,10 +250,6 @@ fn attached_role(args: &Value) -> Option<&'static str> {
 pub(super) fn single_connive(value: &Value) -> bool {
     let amount = &value["args"]["action"]["Connive"]["amount"];
     amount.is_null() || (amount["kind"] == "Constant" && amount["args"] == 1)
-}
-
-pub(super) fn normal_phasing(value: &Value) -> bool {
-    value["args"]["action"]["PhaseOut"]["until"].is_null()
 }
 
 fn controller_hexproof(args: &Value) -> bool {
@@ -740,7 +735,7 @@ fn combat_events(event: &Value, depth: usize, remaining: &mut usize) -> bool {
     })
 }
 
-fn effects(program: &Value) -> impl Iterator<Item = &Value> {
+pub(super) fn effects(program: &Value) -> impl Iterator<Item = &Value> {
     program["instructions"]
         .as_array()
         .into_iter()
