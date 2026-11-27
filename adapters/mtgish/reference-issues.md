@@ -262,6 +262,13 @@ different are marked *(different)*. No group is open at this reference.
 
 ## Updated locally
 
+- `U0218` gives Lagoon Breach the existing `OthersThan` controller set, while
+  the target's owner still chooses where to put it in the library.
+- `U0217` uses `GiveControl` for four faces with the same choice of one
+  eligible opponent during resolution (CR 608.2d).
+- `U0216` encodes the third library position on Shattered Ego as `Constant(3)`.
+- `U0215` preserves Put Away's resolution choice to shuffle after choosing a
+  legal graveyard target (CR 601.2c, 608.2d).
 - `U0214` makes Selfless Exorcist determine both the damage source and its
   power from the actual public exile result (CR 400.7j, 608.2h).
 - `U0213` makes Redemptor Dreadnought test for a card still in this source's

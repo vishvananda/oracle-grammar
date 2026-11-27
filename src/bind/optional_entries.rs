@@ -276,10 +276,63 @@ fn each_list(value: &mut Value, apply: &mut dyn FnMut(&mut Vec<Value>) -> bool) 
     changed
 }
 
+// The vowel count names the name sticker that the optional action applies.
+// The dependent action cannot observe a different sticker when declined.
+fn place_sticker_vowels(instructions: &mut Vec<Value>) -> bool {
+    let [offer, reward] = instructions.as_mut_slice() else {
+        return false;
+    };
+    if offer["kind"] != "Optional"
+        || offer["args"]["decider"]["kind"] != "AbilityController"
+        || reward["kind"] != "Effect"
+    {
+        return false;
+    }
+    let Some(body) = offer["args"]["body"]["instructions"].as_array_mut() else {
+        return false;
+    };
+    let [placed] = body.as_slice() else {
+        return false;
+    };
+    let sticker = &placed["args"]["operation"];
+    if placed["kind"] != "Effect"
+        || sticker["kind"] != "PutSticker"
+        || sticker["args"]["name_only"] != true
+        || sticker["args"]["objects"]["kind"] != "One"
+        || sticker["args"]["actor"] != json!({"kind":"One","args":{"kind":"AbilityController"}})
+    {
+        return false;
+    }
+    let operation = &reward["args"]["operation"];
+    let amount = match operation["kind"].as_str() {
+        Some("GainLife") => &operation["args"]["amount"],
+        Some("AddMana") => &operation["args"]["mana"]["Repeat"]["amount"],
+        Some("PutCounters") => {
+            let Some([placement]) = operation["args"]["placements"]
+                .as_array()
+                .map(Vec::as_slice)
+            else {
+                return false;
+            };
+            &placement["amount"]
+        }
+        _ => return false,
+    };
+    if amount["kind"] != "Stickers"
+        || amount["args"]["measure"] != "UniqueVowels"
+        || amount["args"]["objects"] != json!({"kind":"Earlier","args":{"what":"It","by":null}})
+    {
+        return false;
+    }
+    body.push(reward.take());
+    instructions.pop();
+    true
+}
+
 pub(super) fn lower(ability: &mut Value) -> bool {
     let mut next = last_result(ability) + 1;
     each_list(ability, &mut |instructions| {
-        let mut changed = false;
+        let mut changed = place_sticker_vowels(instructions);
         let mut at = 0;
         while at < instructions.len() {
             if let Some((guarded, taken)) = lowered(instructions, at) {

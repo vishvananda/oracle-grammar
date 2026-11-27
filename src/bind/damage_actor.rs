@@ -29,10 +29,39 @@ impl Scope {
         let it = before.object_pronoun(
             matches!(item.path.get(1), Some(Step::Key(key)) if key == "intervening_if"),
         )?;
+        if name == "it"
+            && matches!(it["kind"].as_str(), Some("Source" | "EventSubject"))
+            && own_blocked_damage(root, &item.path)
+        {
+            return Ok(serde_json::json!({"kind":"BlockPair","args":"Attacker"}));
+        }
         Ok(super::card_receipt::nearer_pronoun(
             it, root, &item.path, before, introduced,
         ))
     }
+}
+
+// In the holder's own becomes-blocked pair, the ordinary actor and the
+// captured attacker are the same object. Name that participant for damage.
+fn own_blocked_damage(root: &Value, path: &[Step]) -> bool {
+    let event = &root["args"]["event"]["Pair"];
+    if root["kind"] != "Triggered"
+        || event["event"] != "BecomesBlockedBy"
+        || event["objects"]["kind"] != "SameObject"
+        || event["objects"]["args"]["kind"] != "Source"
+    {
+        return false;
+    }
+    let Some([effect]) = root["args"]["body"]["instructions"]
+        .as_array()
+        .map(Vec::as_slice)
+    else {
+        return false;
+    };
+    let damage = &effect["args"]["operation"];
+    effect["kind"] == "Effect"
+        && damage["kind"] == "DealDamage"
+        && at(root, path).is_some_and(|node| std::ptr::eq(node, &damage["args"]["source"]))
 }
 
 pub(super) fn reference(

@@ -883,6 +883,8 @@ pub enum Operation {
         when: ReflexiveWhen,
         body: Box<Operand>,
     },
+    /// The resolving ability's controller gives these objects to one eligible
+    /// player. A singleton player set already identifies the recipient.
     GiveControl {
         players: PlayerSet,
         objects: ObjectSet,

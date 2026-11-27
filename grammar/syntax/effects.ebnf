@@ -522,9 +522,9 @@ remove_counters_distributed_callback ::= "remove" "all" counter_kind "counters" 
 /* @sem Instruction::Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(CountersRemoved(@marked)), filter:$filter_plural, distribute:CountersRemoved(@marked)}))), kind:$counter_kind, amount:DistributedShare(@share)}]}}]}})} */
 removed_counter_distribution_callback ::= "when" "you" "do" "," "distribute" "that" "many" counter_kind "counters" "among" "any" "number" "of" "target" filter_plural
 
-/* An indefinite opponent is chosen on resolution, before control changes. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{options:[Players(OpponentsOf(AbilityController))], count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[SetController(Chosen)], duration:Indefinite, evaluation:Snapshot}}] */
-clause_opponent_gains_control ::= "an" "opponent" "gains" "control" "of" affected
+/* A standalone transfer uses the same resolving choice as a continuation. */
+/* @sem Instruction::[Effect{result:@next, operation:$opponent_gains_control}] */
+clause_opponent_gains_control ::= opponent_gains_control
 
 /* Current a/an type wording is owned by the exact scalar return continuation. */
 /* @sem Instruction::[Effect{result:@next, operation:$returned_condition_move}, If{condition:$returned_current_test, then:Program{instructions:$conjoined}, otherwise:Program{}}] */
@@ -2737,9 +2737,8 @@ third_sacrifice_or_discard_cost ::= third_sacrifice_choice_cost "or" third_disca
 /* @sem Instruction::[ForEachPlayer{players:$hand_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:PayCost{player:Bound(0), cost:$third_sacrifice_or_discard_cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:@apply(PlayerSet::One(Bound(0)), $verbs_third)}, otherwise:Program{}}]}}] */
 clause_each_unless_that_player_choice ::= hand_plural_players verbs_third "unless" "that" "player" third_sacrifice_or_discard_cost
 
-/* The return choice and its selected-object move form a reusable phrase.
-   Preserve both existing choice-actor readings independently. */
-that_player_return_owner_hand ::= that_player_return_owner_actor | that_player_return_owner_controller
+/* The player returning the permanent chooses it. */
+that_player_return_owner_hand ::= that_player_return_owner_actor
 
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:$that_player, cost:$cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:$that_player_return_owner_hand}, otherwise:Program{}}] */
 clause_that_player_action_unless_pay ::= that_player that_player_return_owner_hand "unless" "they" cost
@@ -2857,9 +2856,6 @@ deal_damage_other_prior_target ::= self_explicit_ref "deals" number "damage" "to
 /* @prefer always */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:@that_player, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, count:AsManyAsCan($counter_amount)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
 that_player_return_owner_actor ::= "returns" counter_amount filter_phrase "to" "its" "owner's" "hand"
-
-/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, count:AsManyAsCan($counter_amount)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
-that_player_return_owner_controller ::= "returns" counter_amount filter_phrase "to" "its" "owner's" "hand"
 
 /* The floor qualifies this reduction, and both numbers remain operands. */
 /* @sem Operation::ReduceSpeed{player:@that_opponent, amount:$value, floor:$value_2} */

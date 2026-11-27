@@ -117984,6 +117984,845 @@
           }
         }
       ]
+    },
+    {
+      "id": "U0215",
+      "kind": "correction",
+      "summary": "Let Put Away decline the shuffle when it resolves.",
+      "evidence": "Put Away chooses up to one graveyard target while being cast (CR 601.2c). Its separate “you may” gives the resolving spell’s controller a choice under CR 608.2d even when a legal target was chosen. https://media.wizards.com/2026/downloads/MagicCompRules%2020261106.txt",
+      "changes": [
+        {
+          "face": "Put Away",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            1
+          ],
+          "from": {
+            "kind": "Effect",
+            "args": {
+              "result": 1,
+              "operation": {
+                "kind": "Move",
+                "args": {
+                  "objects": {
+                    "kind": "Targets",
+                    "args": 1
+                  },
+                  "destination": {
+                    "Library": {
+                      "position": "Shuffled",
+                      "order": "DestinationDefault",
+                      "arrival": {
+                        "counters": [],
+                        "states": []
+                      }
+                    }
+                  },
+                  "qualifiers": []
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "Optional",
+            "args": {
+              "decider": {
+                "kind": "AbilityController"
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 1,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Targets",
+                            "args": 1
+                          },
+                          "destination": {
+                            "Library": {
+                              "position": "Shuffled",
+                              "order": "DestinationDefault",
+                              "arrival": {
+                                "counters": [],
+                                "states": []
+                              }
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0216",
+      "kind": "normalization",
+      "summary": "Use a constant for the written third position.",
+      "evidence": "Shattered Ego explicitly says “third from the top.” Constant(3) is the exact same integral position as Add(Constant(2), Constant(1)) and uses the same ordinal representation as the ordinary library-movement grammar.",
+      "changes": [
+        {
+          "face": "Shattered Ego",
+          "path": [
+            2,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "destination",
+            "Library",
+            "position",
+            "FromTop"
+          ],
+          "from": {
+            "kind": "Add",
+            "args": [
+              {
+                "kind": "Constant",
+                "args": 2
+              },
+              {
+                "kind": "Constant",
+                "args": 1
+              }
+            ]
+          },
+          "to": {
+            "kind": "Constant",
+            "args": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "U0217",
+      "kind": "normalization",
+      "summary": "Use the same resolving choice for each indefinite opponent control transfer.",
+      "evidence": "Each written “an opponent gains control” names one opponent of the ability controller, chosen at resolution under CR 608.2d. The existing GiveControl operation preserves its live eligible population and snapshots one chosen controller onto the stated object. The four obsolete explicit choices had no subsequent reader. https://media.wizards.com/2026/downloads/MagicCompRules%2020261106.txt https://magic.wizards.com/en/news/feature/foundations-release-notes",
+      "changes": [
+        {
+          "face": "Akroan Horse",
+          "path": [
+            1,
+            "args",
+            "body",
+            "instructions"
+          ],
+          "from": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "ChooseValue",
+                  "args": {
+                    "choosers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "kind": "Player",
+                    "terms": {
+                      "options": [
+                        {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ],
+                      "except": [],
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "secret": false,
+                      "unchosen": false,
+                      "random": false,
+                      "ordered": false
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "CreateContinuousEffect",
+                  "args": {
+                    "source": {
+                      "kind": "Source"
+                    },
+                    "affected": {
+                      "Objects": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "EventSubject"
+                        }
+                      }
+                    },
+                    "changes": [
+                      {
+                        "kind": "SetController",
+                        "args": {
+                          "kind": "Chosen"
+                        }
+                      }
+                    ],
+                    "duration": "Indefinite",
+                    "evaluation": "Snapshot"
+                  }
+                }
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "GiveControl",
+                  "args": {
+                    "players": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "EventSubject"
+                      }
+                    },
+                    "until": null
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "face": "Fickle Efreet",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "instructions",
+            1,
+            "args",
+            "then",
+            "instructions"
+          ],
+          "from": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "ChooseValue",
+                  "args": {
+                    "choosers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "kind": "Player",
+                    "terms": {
+                      "options": [
+                        {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ],
+                      "except": [],
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "secret": false,
+                      "unchosen": false,
+                      "random": false,
+                      "ordered": false
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateContinuousEffect",
+                  "args": {
+                    "source": {
+                      "kind": "Source"
+                    },
+                    "affected": {
+                      "Objects": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    },
+                    "changes": [
+                      {
+                        "kind": "SetController",
+                        "args": {
+                          "kind": "Chosen"
+                        }
+                      }
+                    ],
+                    "duration": "Indefinite",
+                    "evaluation": "Snapshot"
+                  }
+                }
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "GiveControl",
+                  "args": {
+                    "players": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "until": null
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "face": "Fickle Efreet",
+          "path": [
+            1,
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "operation",
+            "args",
+            "body",
+            "instructions",
+            0,
+            "args",
+            "instructions",
+            1,
+            "args",
+            "then",
+            "instructions"
+          ],
+          "from": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "ChooseValue",
+                  "args": {
+                    "choosers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "kind": "Player",
+                    "terms": {
+                      "options": [
+                        {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ],
+                      "except": [],
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "secret": false,
+                      "unchosen": false,
+                      "random": false,
+                      "ordered": false
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateContinuousEffect",
+                  "args": {
+                    "source": {
+                      "kind": "Source"
+                    },
+                    "affected": {
+                      "Objects": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    },
+                    "changes": [
+                      {
+                        "kind": "SetController",
+                        "args": {
+                          "kind": "Chosen"
+                        }
+                      }
+                    ],
+                    "duration": "Indefinite",
+                    "evaluation": "Snapshot"
+                  }
+                }
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "GiveControl",
+                  "args": {
+                    "players": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "until": null
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "face": "Rainbow Vale",
+          "path": [
+            0,
+            "args",
+            "body",
+            "instructions",
+            1,
+            "args",
+            "operation",
+            "args",
+            "body",
+            "instructions"
+          ],
+          "from": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "ChooseValue",
+                  "args": {
+                    "choosers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "kind": "Player",
+                    "terms": {
+                      "options": [
+                        {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ],
+                      "except": [],
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "secret": false,
+                      "unchosen": false,
+                      "random": false,
+                      "ordered": false
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateContinuousEffect",
+                  "args": {
+                    "source": {
+                      "kind": "Source"
+                    },
+                    "affected": {
+                      "Objects": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    },
+                    "changes": [
+                      {
+                        "kind": "SetController",
+                        "args": {
+                          "kind": "Chosen"
+                        }
+                      }
+                    ],
+                    "duration": "Indefinite",
+                    "evaluation": "Snapshot"
+                  }
+                }
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "GiveControl",
+                  "args": {
+                    "players": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "until": null
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "face": "Rogue Skycaptain",
+          "path": [
+            1,
+            "args",
+            "body",
+            "instructions",
+            2,
+            "args",
+            "then",
+            "instructions"
+          ],
+          "from": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "RemoveCounters",
+                  "args": {
+                    "removals": [
+                      {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "Named": "WageCounter"
+                        },
+                        "amount": "All",
+                        "selection": null
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 3,
+                "operation": {
+                  "kind": "ChooseValue",
+                  "args": {
+                    "choosers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "kind": "Player",
+                    "terms": {
+                      "options": [
+                        {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ],
+                      "except": [],
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "secret": false,
+                      "unchosen": false,
+                      "random": false,
+                      "ordered": false
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4,
+                "operation": {
+                  "kind": "CreateContinuousEffect",
+                  "args": {
+                    "source": {
+                      "kind": "Source"
+                    },
+                    "affected": {
+                      "Objects": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    },
+                    "changes": [
+                      {
+                        "kind": "SetController",
+                        "args": {
+                          "kind": "Chosen"
+                        }
+                      }
+                    ],
+                    "duration": "Indefinite",
+                    "evaluation": "Snapshot"
+                  }
+                }
+              }
+            }
+          ],
+          "to": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "RemoveCounters",
+                  "args": {
+                    "removals": [
+                      {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "Named": "WageCounter"
+                        },
+                        "amount": "All",
+                        "selection": null
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4,
+                "operation": {
+                  "kind": "GiveControl",
+                  "args": {
+                    "players": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "until": null
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U0218",
+      "kind": "normalization",
+      "summary": "Use the existing other-player set for permanents you do not control.",
+      "evidence": "Lagoon Breach tests that the controller of the targeted permanent is a player other than the spell’s controller. The bound complement of One(AbilityController) is exactly OthersThan(AbilityController). The separate owner remains the player who chooses the library position.",
+      "changes": [
+        {
+          "face": "Lagoon Breach",
+          "path": [
+            0,
+            "args",
+            "announcement",
+            "targets",
+            0,
+            "filter",
+            "args",
+            2,
+            "args"
+          ],
+          "from": {
+            "kind": "Matching",
+            "args": {
+              "binding": 0,
+              "condition": {
+                "kind": "Not",
+                "args": {
+                  "kind": "PlayerIn",
+                  "args": {
+                    "player": {
+                      "kind": "Bound",
+                      "args": 0
+                    },
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "to": {
+            "kind": "OthersThan",
+            "args": {
+              "kind": "AbilityController"
+            }
+          }
+        }
+      ]
     }
   ]
 }

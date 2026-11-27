@@ -850,7 +850,7 @@ graveyard_one_opponent ::= ("from" | "in") ("an" | "one") "opponent's" "graveyar
 graveyard_one_any ::= ("from" | "in") ("a" | "one") "single" "graveyard"
 
 /* Library positions retain their native Expr operand in both directions. */
-put_owners_library_depth ::= put_owners_library_depth_base | put_attached_library_depth_offset
+put_owners_library_depth ::= put_owners_library_depth_base
 
 library_depth_objects ::= affected_without_personal_pronoun | library_depth_her | library_depth_him
 /* @sem ObjectSet::One(@it) */
@@ -3335,7 +3335,7 @@ trigger_turn_look_reveal_conditional ::= "at" turn_event "," program_look_reveal
 /* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:WithSelections{steps:[_{binding:@selection_id(0), chooser:Players(One(AbilityController)), objects:Matching{objects:Transition{result:@prior, phase:After}, filter:AnyOf([$filter_phrase, $filter_phrase_2])}, count:AnyNumber, constraints:[]}], action:Move{objects:Prepared(@selection_id(0)), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}}] */
 instructions_exile_top_any_battlefield ::= exile_top_cards_of_your_library "." "you" "may" "put" "any" "number" "of" filter_phrase "and" "/" "or" filter_phrase "cards" "from" "among" "them" "onto" "the" "battlefield"
 
-library_choice_owner_object ::= library_choice_owner_of | library_choice_target_owner | library_choice_owner_bound_target
+library_choice_owner_object ::= library_choice_owner_of | library_choice_target_owner
 
 /* @sem ObjectRef::$object_ref */
 library_choice_owner_of ::= "the" "owner" "of" object_ref
@@ -6604,21 +6604,6 @@ cast_searched_exile_free ::= "cast" "that" "card" "without" "paying" "its" "mana
 put_owners_library_depth_base ::= "put" library_depth_objects "into" library_depth_owner "library" library_depth "from" "the" "top" /* @prefer always */
 
 /* The attached permanent retains the number of cards above it as an offset. */
-/* @sem Operation::Move{objects:One($attached_ref), destination:Library{position:FromTop($library_depth_offset), order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]} */
-put_attached_library_depth_offset ::= "put" attached_ref "into" "its" "owner's" "library" library_depth_offset "from" "the" "top"
-
-/* Ordinal positions can also retain the count of cards above the inserted card. */
-library_depth_offset ::= library_offset_second | library_offset_third | library_offset_fourth
-
-/* @sem Expr::Add(Constant(1), Constant(1)) */
-library_offset_second ::= "second"
-
-/* @sem Expr::Add(Constant(2), Constant(1)) */
-library_offset_third ::= "third"
-
-/* @sem Expr::Add(Constant(3), Constant(1)) */
-library_offset_fourth ::= "fourth"
-
 /* The observation and the selected cards share the same receipt. */
 /* @sem Instruction::[Effect{result:@mark, operation:$look_at_top_x_cards}, ...$defined_look_selection] */
 /* @prefer always */
@@ -7323,11 +7308,6 @@ library_piles_opponent_cast ::= first_library_pile "," "then" second_library_pil
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$library_piles_opponent_cast}} */
 spell_library_piles_opponent_cast ::= library_piles_opponent_cast "."
-
-/* The owner is the owner of the selected permanent; the negative controller
-   predicate retains its bound player independently of that owner. */
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($filter_plain, ObjectFilter::ControlledBy(Matching{binding:0, condition:Not(PlayerIn{player:Bound(0), players:One(AbilityController)})}))}), index:0} */
-library_choice_owner_bound_target ::= "the" "owner" "of" "target" filter_plain "you" "don't" "control"
 
 /* Restrict the paired subject to the same nonland population as this seek.
    Keeping the producer in the enclosing instruction proves the hand receipt. */

@@ -338,6 +338,9 @@ pub(crate) fn bind_held_ability_with_source(
     if cancels_before_choice(ability) {
         return Err("a declined replacement keeps its event".into());
     }
+    if guards::misplaced_domain_controller(ability) {
+        return Err("the second controller clause belongs to the counted lands".into());
+    }
     if single_holder_affected(ability) {
         return Err("a single holder's pump names that holder".into());
     }

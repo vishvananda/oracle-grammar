@@ -119,6 +119,56 @@ fn mentions(value: &Value, wanted: &Value) -> bool {
         }
 }
 
+/// A repeated controller clause in a toughness/domain comparison belongs to
+/// the counted lands, after the first clause already restricted the creatures.
+pub(super) fn misplaced_domain_controller(ability: &Value) -> bool {
+    let Some([instruction]) = ability["args"]["body"]["instructions"]
+        .as_array()
+        .map(Vec::as_slice)
+    else {
+        return false;
+    };
+    let operation = &instruction["args"]["operation"];
+    let Some([placement]) = operation["args"]["placements"]
+        .as_array()
+        .map(Vec::as_slice)
+    else {
+        return false;
+    };
+    let recipients = &placement["recipients"];
+    let zone = &recipients["args"];
+    let filter = &zone["args"]["filter"];
+    if instruction["kind"] != "Effect"
+        || operation["kind"] != "PutCounters"
+        || recipients["kind"] != "Objects"
+        || zone["kind"] != "Zone"
+        || zone["args"]["scope"]["Shared"] != "Battlefield"
+        || zone["args"]["kind"] != "Permanent"
+        || filter["kind"] != "AllOf"
+    {
+        return false;
+    }
+    let Some(conjuncts) = filter["args"].as_array() else {
+        return false;
+    };
+    let controller =
+        json!({"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}});
+    conjuncts.len() == 4
+        && conjuncts.iter().filter(|term| **term == controller).count() == 2
+        && conjuncts.iter().any(|term| term["kind"] == "CardType" && term["args"] == "Creature")
+        && conjuncts.iter().any(|term| {
+            let args = &term["args"];
+            let test = &args["test"];
+            let count = &test["args"]["value"];
+            term["kind"] == "Property" && args["property"] == "Toughness"
+                && test["kind"] == "Compare" && test["args"]["comparison"] == "Less"
+                && count["kind"] == "CountDistinct" && count["args"]["property"] == "BasicLandTypes"
+                && count["args"]["objects"] == json!({"kind":"Zone","args":{
+                    "scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":{"kind":"CardType","args":"Land"}
+                }})
+        })
+}
+
 /// A creature cannot be required to block itself (CR 509.1a), so the object
 /// a block requirement names is never the object the requirement affects.
 pub(super) fn blocks_itself(value: &Value) -> bool {

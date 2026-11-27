@@ -36,6 +36,7 @@ pub(super) fn resolve(scope: &Scope, filter: &Value) -> Result<Value, String> {
                     && parts.contains(&json!({"kind":"CreatedWith","args":{"kind":"Source"}}))
             });
         if qualified::created_matches(scope, result, &domain)
+            || named_controlled_token(scope, result, &domain)
             || linked_batch && qualified::created_matches(scope, result, &json!({"kind":"Any"}))
         {
             changed["args"][index] = json!({"kind":"Not","args":{
@@ -44,6 +45,21 @@ pub(super) fn resolve(scope: &Scope, filter: &Value) -> Result<Value, String> {
         }
     }
     Ok(changed)
+}
+
+// In "other [type] tokens you control", the current batch supplies the
+// contrast. The controller test remains on every actual exile candidate.
+fn named_controlled_token(scope: &Scope, result: u64, filter: &Value) -> bool {
+    let Some(parts) = filter["args"]
+        .as_array()
+        .filter(|_| filter["kind"] == "AllOf")
+    else {
+        return false;
+    };
+    parts.len() == 3
+        && parts.contains(&json!({"kind":"Token"}))
+        && parts.contains(&json!({"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}}))
+        && parts.iter().any(|part| part["kind"] == "Subtype" && qualified::created_matches(scope, result, part))
 }
 
 pub(crate) fn unify<'p, 'v>(

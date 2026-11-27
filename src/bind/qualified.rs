@@ -143,15 +143,25 @@ pub(super) fn created(
             serde_json::from_value(definition["card_types"].clone()).map_err(|e| e.to_string())?;
         entry.subtypes =
             serde_json::from_value(definition["subtypes"].clone()).map_err(|e| e.to_string())?;
-    } else if let Some(object) = operation["args"]["tokens"][0]["recipe"].pointer("/Copy/object")
-        && let Some(source) = scope
+    } else if let Some(copy) = operation["args"]["tokens"][0]["recipe"].get("Copy") {
+        if let Some(source) = scope
             .references
             .iter()
             .rev()
-            .find(|entry| entry.reference == *object)
-    {
-        entry.types = source.types.clone();
-        entry.subtypes = source.subtypes.clone();
+            .find(|entry| entry.reference == copy["object"])
+        {
+            entry.types = source.types.clone();
+            entry.subtypes = source.subtypes.clone();
+        }
+        // The single additive exception describes each newly created copy,
+        // even when the printed information of the copied card is unknown.
+        if let Some([change]) = copy["exceptions"].as_array().map(Vec::as_slice)
+            && change["kind"] == "AddCreatureTypes"
+        {
+            let added: Vec<SubType> =
+                serde_json::from_value(change["args"].clone()).map_err(|e| e.to_string())?;
+            entry.subtypes.extend(added);
+        }
     }
     push(scope, entry)
 }

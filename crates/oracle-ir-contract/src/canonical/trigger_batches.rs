@@ -143,7 +143,24 @@ fn disjoint_event_union(value: &Value) -> Option<Value> {
     None
 }
 
-pub(super) fn capped_occurrence(value: &mut Value) {
+fn first_counters_on_source(value: &mut Value) {
+    let events = &mut value["args"]["event"];
+    let first = &events["FirstEachTurn"];
+    let batch = &first["Batch"];
+    let counters = &batch["event"]["Counters"];
+    if batch["per"] == "Subject"
+        && batch["count"].is_null()
+        && batch["including"].is_null()
+        && counters["change"] == "Put"
+        && counters["objects"] == json!({"kind":"SameObject","args":{"kind":"Source"}})
+    {
+        let event = events["FirstEachTurn"].take();
+        *events = json!({"FirstForObjectEachTurn":event});
+    }
+}
+
+pub(super) fn normalize_occurrence(value: &mut Value) {
+    first_counters_on_source(value);
     if let Some(event) = disjoint_event_union(value)
         && matches!(event_independent(value), Ok(true))
     {

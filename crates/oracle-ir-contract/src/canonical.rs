@@ -519,7 +519,7 @@ impl Walker {
                 && value["kind"] == "Triggered"
                 && let Some((_, fields)) = self.schema.variant("Ability", "Triggered")
             {
-                trigger_batches::capped_occurrence(value);
+                trigger_batches::normalize_occurrence(value);
                 entry::header(&mut value["args"], fields, self.schema);
             }
             self.scopes.push(Ids {
