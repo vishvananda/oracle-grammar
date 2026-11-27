@@ -308,7 +308,7 @@ mod tests {
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|v| semantic_abilities(v).unwrap())
+                .map(|v| semantic_abilities(&crate::test_support::fixture_abilities(v)).unwrap())
                 .collect();
             let mut actual: Vec<_> = engine
                 .parse(name, case["text"].as_str().unwrap())

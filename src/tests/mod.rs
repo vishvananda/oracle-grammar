@@ -121,17 +121,19 @@ fn complete_cards_include_native_or_independently_reviewed_corrected_ir() {
         );
         if let Some(forbidden) = case.get("forbidden") {
             assert!(
-                !actual
-                    .readings
-                    .contains(&canonical_abilities(forbidden).unwrap()),
+                !actual.readings.contains(
+                    &canonical_abilities(&crate::test_support::fixture_abilities(forbidden))
+                        .unwrap()
+                ),
                 "{name}: the former wrong recipient must not remain an alternative"
             );
         }
         for forbidden in case["forbidden_readings"].as_array().into_iter().flatten() {
             assert!(
-                !actual
-                    .readings
-                    .contains(&canonical_abilities(forbidden).unwrap()),
+                !actual.readings.contains(
+                    &canonical_abilities(&crate::test_support::fixture_abilities(forbidden))
+                        .unwrap()
+                ),
                 "{name}: a return must retain the actual exiled-card receipt"
             );
         }

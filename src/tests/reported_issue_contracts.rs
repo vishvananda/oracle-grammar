@@ -33,7 +33,8 @@ fn reading_case(case: &Value) -> Value {
     let parsed = engine()
         .parse_card(name, case["text"].as_str().unwrap(), &context)
         .unwrap();
-    let expected = semantic_abilities(&case["expected"]).unwrap();
+    let expected =
+        semantic_abilities(&crate::test_support::fixture_abilities(&case["expected"])).unwrap();
     assert_eq!(
         parsed.readings.len(),
         case["readings"].as_u64().unwrap_or(1) as usize,
