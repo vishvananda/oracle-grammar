@@ -280,7 +280,9 @@ deal_damage_divided_any_objects ::= damage_source_ref "deals" number "damage" "d
 
 /* Preserve ordinary Source and explicit activation-payment source forms as
    separate native readings. The guard checks this ability's complete own cost. */
-damage_source_ref ::= object_ref | sacrificed_holder_damage_source
+damage_source_ref ::= object_ref | sacrificed_holder_damage_source | sorcery_damage_source
+/* @sem ObjectRef::@self */
+sorcery_damage_source ::= "this" "sorcery"
 
 /* @sem ObjectRef::@sacrificed_damage_source($object_ref) */
 sacrificed_holder_damage_source ::= object_ref
@@ -302,7 +304,12 @@ graveyard_return_target ::= target_player | target_opponent
 graveyard_return_one ::= "a" | "an" | "one" | "1"
 
 /* @sem Operation::@drafted_result(Operation::DraftFromSpellbook{actor:One(AbilityController), spellbook:@card_name, times:$card_count}) */
-draft_source_spellbook ::= "draft" card_count "from" self_named "'s" "spellbook"
+draft_source_spellbook ::= "draft" card_count "from" draft_source_spellbook_possessive "spellbook"
+draft_source_spellbook_possessive ::= draft_named_spellbook_possessive | draft_creature_spellbook_possessive
+/* @sem () */
+draft_named_spellbook_possessive ::= self_named "'s"
+/* @sem () */
+draft_creature_spellbook_possessive ::= "this" "creature's"
 
 /* @sem Operation::@drafted_result(Operation::DraftFromSpellbook{actor:$players_singular, spellbook:@card_name, times:$card_count}) */
 draft_source_spellbook_third ::= players_singular "drafts" card_count "from" self_named "'s" "spellbook"
@@ -2696,7 +2703,7 @@ sacrifice_choice_plural_base ::= "sacrifice" number_words filter_plural "of" "th
 /* @sem Instruction::[If{condition:$instead_front_condition, then:Program{instructions:$instead_front_replacement}, otherwise:Program{instructions:$instead_draw_action}}] */
 instead_front_action ::= instead_draw_action "." "if" instead_front_condition "," "instead" instead_front_replacement
 
-instead_front_condition ::= condition | condition_spell_intensity_equal
+instead_front_condition ::= condition | condition_spell_intensity_equal | condition_named_spell_intensity_equal
 
 /* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::TakeExtraTurn{}}}] */
 instead_front_replacement ::= "take" "an" "extra" "turn" "after" "this" "one"

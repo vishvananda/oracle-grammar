@@ -4475,8 +4475,14 @@ conjure_event_controller_named ::= "its" "controller" "conjures" card_count "nam
 conjure_tapped_arrival ::= "onto" "the" "battlefield" "tapped"
 
 /* The measured creature is the performed arrival of this exact exile payment. */
-/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$conjure_exile_creature_cost, optional:false}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Random(Filter(AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:Add([$value, Aggregate{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, property:ManaValue, aggregation:Sum}])}}]))), count:$counter_amount, destination:Battlefield(BattlefieldArrival{tapped:false, counters:[], states:[]})}}]}, otherwise:Program{}}] */
-instructions_exile_creature_conjure ::= conjure_exile_creature_cost "." "if" "you" "do" "," "conjure" counter_amount "random" filter_phrase "card" "with" "mana" "value" "X" "onto" "the" "battlefield" "," "where" "X" "is" value "plus" "the" "exiled" "creature's" "mana" "value"
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$conjure_exile_creature_cost, optional:false}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Random(Filter(AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:Add([$value, Aggregate{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, property:ManaValue, aggregation:Sum}])}}]))), count:$conjure_random_count, destination:Battlefield(BattlefieldArrival{tapped:false, counters:[], states:[]})}}]}, otherwise:Program{}}] */
+instructions_exile_creature_conjure ::= conjure_exile_creature_cost "." "if" "you" "do" "," conjure_random_count "random" filter_phrase "card" "with" "mana" "value" "X" "onto" "the" "battlefield" "," "where" "X" "is" value "plus" "the" "exiled" "creature's" "mana" "value"
+
+conjure_random_count ::= conjure_random_ordinary_count | conjure_random_duplicate_count
+/* @sem $counter_amount */
+conjure_random_ordinary_count ::= "conjure" counter_amount
+/* @sem Expr::Constant(1) */
+conjure_random_duplicate_count ::= "conjure" "a" "duplicate" "of" "a"
 
 /* @sem Cost::Cost{parts:[Move{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Source)), AllOf([CardType(Creature), ControlledBy(One(AbilityController))])])}, choose:Exactly(Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]} */
 conjure_exile_creature_cost ::= "exile" "another" "creature" "you" "control"
@@ -6817,7 +6823,7 @@ number_loop_start ::= number_digits
 number_loop_action ::= random_mana_value_conjure
 
 /* @sem Operation::Conjure{actor:One(AbilityController), card:Random(Filter(AllOf([$conjure_card_type, Property{property:ManaValue, test:Compare{comparison:Equal, value:Game(EachValue)}}]))), count:Constant(1), destination:Battlefield{}} */
-random_mana_value_conjure ::= "conjure" "a" "random" conjure_card_type "card" "with" "that" "mana" "value" "onto" "the" "battlefield"
+random_mana_value_conjure ::= "conjure" ("a" "duplicate" "of")? "a" "random" conjure_card_type "card" "with" "that" "mana" "value" "onto" "the" "battlefield"
 
 conjure_card_type ::= noun_creature | noun_artifact | noun_enchantment | noun_land | noun_planeswalker | noun_battle
 
@@ -15686,8 +15692,14 @@ return_own_card ::= "this" "card"
 conjured_duplicate_singular_followup ::= "the" "duplicate" "perpetually" duplicate_card_perpetual_changes "if" "it" "has" "mana" "value" value "or" "less" "," "you" "may" "put" "it" "onto" "the" "battlefield"
 
 /* Both consumers refer to the marked hand arrival of the conjure operation. */
-/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:InSet(Transition{result:@marked, phase:After})}), changes:[GrantAbility(Casting(SpendAsThoughAnyType))]}}, If{condition:Compare{left:ObjectProperty{object:$object_ref, property:SpellX, information:CurrentOrLastKnown}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}, then:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:InSet(Transition{result:@marked, phase:After})}), count:AsManyAsCan($value_2)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]}, otherwise:_{}}] */
-conjured_duplicate_plural_followup ::= "those" "cards" "perpetually" "gain" '"' "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" object_ref "." '"' "if" "X" "is" value "or" "more" "," "you" "may" "put" value "of" "them" "from" "your" "hand" "onto" "the" "battlefield"
+/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:InSet(Transition{result:@marked, phase:After})}), changes:[GrantAbility(Casting(SpendAsThoughAnyType))]}}, If{condition:Compare{left:ObjectProperty{object:$conjured_duplicate_spending_subject, property:SpellX, information:CurrentOrLastKnown}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}, then:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:InSet(Transition{result:@marked, phase:After})}), count:AsManyAsCan($value_2)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]}, otherwise:_{}}] */
+conjured_duplicate_plural_followup ::= "those" "cards" "perpetually" "gain" conjured_duplicate_spending_subject "if" "X" "is" value "or" "more" "," "you" "may" "put" value "of" "them" "from" "your" "hand" "onto" "the" "battlefield"
+
+conjured_duplicate_spending_subject ::= conjured_duplicate_spending_quoted | conjured_duplicate_spending_prismatic
+/* @sem $object_ref */
+conjured_duplicate_spending_quoted ::= '"' "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" object_ref "." '"'
+/* @sem ObjectRef::Source */
+conjured_duplicate_spending_prismatic ::= "prismatic" "."
 
 /* These singular changes compose independently of the source of the card. */
 /* @sem Change::[Pump{power:$signed, toughness:$signed_2}, GrantKeyword($keyword_name), CreatureTypes{mode:Add, types:Listed([@subtype_name($creature_subtype)])}] */
