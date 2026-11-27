@@ -828,3 +828,39 @@ fn saga_reminder_prints_the_current_final_chapter() {
             .contains(&reading)
     );
 }
+
+#[test]
+fn meld_reminder_requires_the_other_printed_component() {
+    let text = "Draw a card.\n(Melds with Graf Rats.)";
+    let mut record = raw("front", "Synthetic meld component", text);
+    record["layout"] = json!("meld");
+    record["all_parts"] = json!([
+        {"component":"meld_part","name":"Synthetic meld component"},
+        {"component":"meld_result","name":"Synthetic result"},
+        {"component":"meld_part","name":"Graf Rats"}
+    ]);
+    let mut faces = scryfall(&[record]).unwrap();
+    let face = &mut faces[0];
+    let engine = crate::test_support::engine();
+    let row = outcome(engine, face);
+    assert_eq!(row["status"], "unique", "{row}");
+    let reading = CardReading {
+        abilities: row["readings"][0]["card"]["abilities"].clone(),
+        notes: vec![CardNote::MeldWith("Graf Rats".into())],
+    };
+    let context = &face.context.as_ref().unwrap().0;
+    let trail = engine
+        .card_key_of(&face.name, &reading, context, text, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine
+            .print_card_trail(&face.name, &reading, context, &trail)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+
+    face.source["all_parts"][2]["name"] = json!("Different partner");
+    assert_eq!(outcome(engine, face)["stage"], "source_context");
+}

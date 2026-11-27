@@ -34,7 +34,7 @@ reminded_mechanic ::= mechanic_reminded_text
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:$mechanic_reminded_text} */
 labelled_mechanic_reminder ::= ability_label "—" mechanic_reminded_text
 
-mechanic_reminded_text ::= casualty_x_reminded_text | offering_reminded_text | splice_instant_sorcery_reminded | ingest_reminded_text | convoke_reminded_text | delve_reminded_text
+mechanic_reminded_text ::= improvise_artifact_payment_reminded | casualty_x_reminded_text | offering_reminded_text | splice_instant_sorcery_reminded | ingest_reminded_text | convoke_reminded_text | delve_reminded_text
     | deck_rule_reminded_text | triggered_mechanic_reminded_text | standalone_mechanic_reminded_text
     | banding_reminded_text | aura_swap_reminded_text | bushido_reminded_text | affinity_reminded_text | historic_affinity_reminded_text
     | valued_mechanic_reminded_text | reconfigure_reminded_text
@@ -1462,7 +1462,7 @@ stage_cast_history_inner ::= triggered_cast_spell_history_damage
 /* Tiered spell with a shared death-return trigger and tier-specific base power and toughness. */
 /* @prefer always */
 /* @sem Ability::Tiered{modes:[_{cost:_{parts:[Mana($mana_symbols)]}, ability:@scope(Ability::Spell{body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$filter_phrase}), index:0})), changes:[GrantAbility(@scope(Ability::Triggered{event:ZoneChange{objects:SameObject(Source), from:Battlefield, to:Graveyard}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:Move{objects:One($event_return_object), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}]}, announcement:@announcement})), SetBasePowerToughness{power:$number_digits, toughness:$number_digits_2}], duration:$duration, evaluation:Snapshot}}]}, announcement:@announcement})}, _{cost:_{parts:[Mana($mana_symbols_2)]}, ability:@scope(Ability::Spell{body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$filter_phrase}), index:0})), changes:[GrantAbility(@scope(Ability::Triggered{event:ZoneChange{objects:SameObject(Source), from:Battlefield, to:Graveyard}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:Move{objects:One($event_return_object), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}]}, announcement:@announcement})), SetBasePowerToughness{power:$number_digits_3, toughness:$number_digits_4}], duration:$duration, evaluation:Snapshot}}]}, announcement:@announcement})}, _{cost:_{parts:[Mana($mana_symbols_3)]}, ability:@scope(Ability::Spell{body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$filter_phrase}), index:0})), changes:[GrantAbility(@scope(Ability::Triggered{event:ZoneChange{objects:SameObject(Source), from:Battlefield, to:Graveyard}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:Move{objects:One($event_return_object), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}]}, announcement:@announcement})), SetBasePowerToughness{power:$number_digits_5, toughness:$number_digits_6}], duration:$duration, evaluation:Snapshot}}]}, announcement:@announcement})}]} */
-tiered_shared_death_return_pt ::= "tiered" NEWLINE duration "," "target" filter_phrase "gains" '"' "when" "this" "creature" "dies" "," "return" event_return_object "to" "the" "battlefield" "tapped" "under" "its" "owner's" "control" '"' "and" "has" "the" "chosen" "base" "power" "and" "toughness" "." NEWLINE "•" tier_pt_name_1 "—" mana_symbols "—" number_digits "/" number_digits "." NEWLINE "•" tier_pt_name_2 "—" mana_symbols "—" number_digits "/" number_digits "." NEWLINE "•" tier_pt_name_3 "—" mana_symbols "—" number_digits "/" number_digits "."
+tiered_shared_death_return_pt ::= tiered_additional_cost_heading NEWLINE duration "," "target" filter_phrase "gains" '"' "when" "this" "creature" "dies" "," "return" event_return_object "to" "the" "battlefield" "tapped" "under" "its" "owner's" "control" '"' "and" "has" "the" "chosen" "base" "power" "and" "toughness" "." NEWLINE "•" tier_pt_name_1 "—" mana_symbols "—" number_digits "/" number_digits "." NEWLINE "•" tier_pt_name_2 "—" mana_symbols "—" number_digits "/" number_digits "." NEWLINE "•" tier_pt_name_3 "—" mana_symbols "—" number_digits "/" number_digits "."
 
 /* @sem () */
 tier_pt_name_1 ::= "Galian" "Beast"
@@ -1617,3 +1617,12 @@ craft_implicit_four_types_reminded ::= "craft" "with" craft_four_material_types 
 
 /* @sem Operand::List([$craft_type_item, $craft_type_item_2, ...$craft_type_options_last_pair]) */
 craft_four_material_types ::= craft_type_item "," craft_type_item "," craft_type_options_last_pair
+
+/* @sem $bare_improvise */
+improvise_artifact_payment_reminded ::= bare_improvise "(" "each" "artifact" "you" "tap" "after" "you're" "done" "activating" "mana" "abilities" "pays" "for" "{" "1" "}" "." ")"
+
+tiered_additional_cost_heading ::= tiered_bare_cost_heading | tiered_reminded_cost_heading
+/* @sem () */
+tiered_bare_cost_heading ::= "tiered"
+/* @sem () */
+tiered_reminded_cost_heading ::= "tiered" "(" "choose" "one" "additional" "cost" "." ")"

@@ -21,8 +21,8 @@ pub use printed_stats::{PrintedPowerToughness, PrintedStat};
 pub use station::{CardInputContext, StationAnimationBox};
 pub use surface::{AdventureReturnType, LayoutReminder};
 use surface::{
-    CardSurface, MonocoloredHybridNote, check_compleated, copy_token_note_types,
-    creature_note_types, printed_mana_value,
+    CardSurface, MonocoloredHybridNote, check_compleated, check_no_mana_cost,
+    copy_token_note_types, creature_note_types, printed_mana_value,
 };
 
 /// A reference into current characteristics, never a retained mana operand.
@@ -43,11 +43,13 @@ pub enum CardNote {
     },
     /// The mana granted by all current basic land types, with no copied colors.
     LandTypes,
+    NoManaCost,
     Prowl,
     Amplify,
     CopyTokenTypes,
     LayoutReminder(LayoutReminder),
     TransformsFrom,
+    MeldWith(String),
     StationPowerToughness {
         ability: usize,
         stage: usize,
@@ -358,7 +360,9 @@ impl Engine {
             + usize::from(surface.land_mana.is_some())
             + usize::from(surface.layout_reminder.is_some())
             + usize::from(surface.transforms_from.is_some())
+            + usize::from(surface.meld_with.is_some())
             + usize::from(surface.assist_limit.is_some())
+            + usize::from(surface.no_mana_cost)
             + usize::from(surface.monocolored_hybrid.is_some())
             + usize::from(surface.compleated_symbol.is_some())
             + usize::from(surface.prowl_types.is_some())
@@ -465,6 +469,12 @@ impl Engine {
                 notes.push(note.clone());
             }
         }
+        if surface.no_mana_cost {
+            check_no_mana_cost(context).map_err(Refusal::Binding)?;
+            for notes in &mut choices {
+                notes.push(CardNote::NoManaCost);
+            }
+        }
         if let Some(header) = &surface.land_mana {
             let colors = &header.colors;
             counters.steps = counters.steps.saturating_add(
@@ -507,6 +517,14 @@ impl Engine {
                 notes.push(CardNote::TransformsFrom);
             }
         }
+        if let Some(partner) = surface.meld_with {
+            if partner.is_empty() || partner.len() > 4096 {
+                return Err(Refusal::Binding("invalid meld partner name".into()));
+            }
+            for notes in &mut choices {
+                notes.push(CardNote::MeldWith(partner.clone()));
+            }
+        }
         let abilities =
             serde_json::to_value(surface.abilities).map_err(|e| Refusal::Binding(e.to_string()))?;
         Ok(choices
@@ -531,10 +549,12 @@ impl Engine {
         }
         let mut notes = Vec::new();
         let mut assist_limit = None;
+        let mut no_mana_cost = false;
         let mut monocolored_hybrid = None;
         let mut land_colors = None;
         let mut layout_reminder = None;
         let mut transforms_from = None;
+        let mut meld_with = None;
         let mut prowl = None;
         let mut amplify = None;
         let mut copy_token = None;
@@ -584,6 +604,12 @@ impl Engine {
                         return Err("duplicate monocolored hybrid reminder".into());
                     }
                 }
+                CardNote::NoManaCost => {
+                    check_no_mana_cost(context)?;
+                    if std::mem::replace(&mut no_mana_cost, true) {
+                        return Err("duplicate no-mana-cost reminder".into());
+                    }
+                }
                 CardNote::LandTypes => {
                     if land_colors.is_some() {
                         return Err("duplicate inherent mana note".into());
@@ -609,6 +635,14 @@ impl Engine {
                         return Err("duplicate layout reminder".into());
                     }
                 }
+                CardNote::MeldWith(partner) => {
+                    if partner.is_empty() || partner.len() > 4096 {
+                        return Err("invalid meld partner name".into());
+                    }
+                    if meld_with.replace(partner).is_some() {
+                        return Err("duplicate meld reminder".into());
+                    }
+                }
                 CardNote::TransformsFrom => {
                     let front = transform_front
                         .filter(|name| !name.is_empty() && name.len() <= 4096)
@@ -622,7 +656,7 @@ impl Engine {
         let land_mana = land_colors.map(|colors| json!({"colors":colors}));
         Ok(Self::native_surfaces(&reading.abilities, written)?
             .into_iter()
-            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"monocolored_hybrid":monocolored_hybrid,"compleated_symbol":compleated,"prowl_types":prowl,"amplify_types":amplify,"copy_token_types":copy_token,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
+            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"no_mana_cost":no_mana_cost,"monocolored_hybrid":monocolored_hybrid,"compleated_symbol":compleated,"prowl_types":prowl,"amplify_types":amplify,"copy_token_types":copy_token,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"meld_with":meld_with,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
             .collect())
     }
     /// A card's surfaces, with the views only a `written` text asks for when it does.

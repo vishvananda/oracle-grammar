@@ -67,6 +67,30 @@ fn cards(
     Ok(out)
 }
 
+fn meld_partner(face: &SourceFace) -> Option<&str> {
+    if face.identity["layout"] != "meld" {
+        return None;
+    }
+    let parts = face.source["all_parts"].as_array()?;
+    if parts.len() > 64 {
+        return None;
+    }
+    let mut names = parts
+        .iter()
+        .filter(|part| part["component"] == "meld_part")
+        .map(|part| part["name"].as_str());
+    let first = names.next()??;
+    let second = names.next()??;
+    if names.next().is_some() || first == second {
+        return None;
+    }
+    match face.name.as_str() {
+        name if name == first => Some(second),
+        name if name == second => Some(first),
+        _ => None,
+    }
+}
+
 /// Exhaustive native results, including all distinct supported interpretations.
 /// Any resource-limit result discards partial success for this occurrence.
 pub fn outcome(engine: &Engine, face: &SourceFace) -> Value {
@@ -114,6 +138,7 @@ pub fn outcome(engine: &Engine, face: &SourceFace) -> Value {
                     CardNote::LayoutReminder(LayoutReminder::OngoingScheme) => {
                         face.identity["layout"] == "scheme"
                     }
+                    CardNote::MeldWith(partner) => meld_partner(face) == Some(partner.as_str()),
                     _ => true,
                 };
                 if !matches {

@@ -1113,3 +1113,21 @@ fn a_spellbook_draft_is_exiled_before_the_land_can_copy_it() {
     assert_eq!(changes[1]["kind"], "GrantKeyword");
     assert_eq!(changes[1]["args"]["kind"], "Haste");
 }
+
+#[test]
+fn a_missing_mana_cost_reminder_requires_an_unpayable_printed_cost() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Instant);
+    let text = "(Nonexistent mana costs can't be paid.)\nDraw a card.";
+    let reading = exact_roundtrip(text, &context);
+    assert_eq!(reading.notes, [CardNote::NoManaCost]);
+
+    context.mana_cost = Some(vec![ManaSymbol::Generic(0)]);
+    let engine = super::engine();
+    assert!(engine.parse_card(NAME, text, &context).is_err());
+    assert!(
+        engine
+            .print_card_keyed(NAME, &reading, &context, &[])
+            .is_err()
+    );
+}

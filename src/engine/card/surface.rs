@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 pub(super) struct CardSurface {
     pub notes: Vec<ManaSymbol>,
     pub assist_limit: Option<ManaSymbol>,
+    #[serde(default)]
+    pub no_mana_cost: bool,
     pub monocolored_hybrid: Option<MonocoloredHybridNote>,
     pub compleated_symbol: Option<ManaSymbol>,
     pub prowl_types: Option<Vec<CreatureType>>,
@@ -19,6 +21,7 @@ pub(super) struct CardSurface {
     pub land_mana: Option<LandMana>,
     pub layout_reminder: Option<LayoutReminder>,
     pub transforms_from: Option<String>,
+    pub meld_with: Option<String>,
     pub abilities: Vec<Ability>,
 }
 
@@ -138,6 +141,17 @@ pub(super) fn check_compleated(
         || !matches!(symbol, ManaSymbol::Phyrexian(_))
     {
         return Err("Compleated reminder needs a planeswalker and a Phyrexian mana symbol".into());
+    }
+    Ok(())
+}
+
+pub(super) fn check_no_mana_cost(context: &Characteristics) -> Result<(), String> {
+    if context
+        .mana_cost
+        .as_ref()
+        .is_some_and(|cost| !cost.is_empty())
+    {
+        return Err("a no-mana-cost reminder requires an absent mana cost".into());
     }
     Ok(())
 }
