@@ -34,7 +34,7 @@ reminded_mechanic ::= mechanic_reminded_text
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:$mechanic_reminded_text} */
 labelled_mechanic_reminder ::= ability_label "—" mechanic_reminded_text
 
-mechanic_reminded_text ::= improvise_artifact_payment_reminded | casualty_x_reminded_text | offering_reminded_text | splice_instant_sorcery_reminded | ingest_reminded_text | convoke_reminded_text | delve_reminded_text
+mechanic_reminded_text ::= modular_sunburst_reminded_text | mobilize_defined_reminded_text | recover_rounded_life_reminded_text | improvise_artifact_payment_reminded | casualty_x_reminded_text | offering_reminded_text | splice_instant_sorcery_reminded | ingest_reminded_text | convoke_reminded_text | delve_reminded_text
     | deck_rule_reminded_text | triggered_mechanic_reminded_text | standalone_mechanic_reminded_text
     | banding_reminded_text | aura_swap_reminded_text | bushido_reminded_text | affinity_reminded_text | historic_affinity_reminded_text
     | valued_mechanic_reminded_text | reconfigure_reminded_text | reconfigure_alternatives_reminded_text
@@ -1033,7 +1033,7 @@ devour_count ::= "the" "number" "of" filter_plural "devoured" "this" "way"
 /* @sem Ability::Mechanic{mechanic:Champion, filter:$filter_phrase} */
 mechanic_champion ::= "champion" ("a" | "an") filter_phrase
 /* @sem Ability::WithPresentation{reminder:true, ability:Mechanic{mechanic:Champion, filter:ObjectFilter::@agree($filter_phrase, $filter_phrase_2)}} */
-mechanic_champion_reminded ::= "champion" ("a" | "an") filter_phrase "(" "when" "this" "enters" "," "sacrifice" "it" "unless" "you" "exile" "another" filter_phrase "you" "control" "." "when" "this" "leaves" "the" "battlefield" "," "that" "card" "returns" "to" "the" "battlefield" "." ")"
+mechanic_champion_this_permanent_reminded ::= "champion" ("a" | "an") filter_phrase "(" "when" "this" "enters" "," "sacrifice" "it" "unless" "you" "exile" "another" filter_phrase "you" "control" "." "when" "this" "leaves" "the" "battlefield" "," "that" "card" "returns" "to" "the" "battlefield" "." ")"
 
 /* Craft (CR 702.167) names its materials and an optional count as printed. The
    cost is the pinned IR's mana-symbol operand list, as for kicker. */
@@ -1697,3 +1697,31 @@ line_gift_additional_cost_reminded ::= gift_spell_reminded_header NEWLINE castin
 
 /* @sem Ability::Mechanic{mechanic:$mechanic_beam_name, cost:Cost::@agree($keyword_payment, $keyword_payment_2)} */
 beam_paid_return_reminded_text ::= mechanic_beam_name keyword_payment "(" "you" "may" "cast" "this" "card" "from" "your" "graveyard" "for" keyword_payment "if" "you" "also" "return" "a" "creature" "you" "control" "to" "its" "owner's" "hand" "." "then" "exile" "this" "spell" "." ")"
+
+
+mechanic_champion_reminded ::= mechanic_champion_this_permanent_reminded | mechanic_champion_this_creature_reminded
+/* @sem Ability::WithPresentation{reminder:true, ability:Mechanic{mechanic:Champion, filter:ObjectFilter::@agree($filter_phrase, $filter_phrase_2)}} */
+mechanic_champion_this_creature_reminded ::= "champion" ("a" | "an") filter_phrase "(" "when" self_creature "enters" "," "sacrifice" "it" "unless" "you" "exile" "another" filter_phrase "you" "control" "." "when" self_creature "leaves" "the" "battlefield" "," "that" "card" "returns" "to" "the" "battlefield" "." ")"
+
+/* It is the source's own spent colors that determine its starting counters. */
+/* @sem $mechanic_modular_sunburst */
+modular_sunburst_reminded_text ::= mechanic_modular_sunburst "(" "this" "creature" "enters" "with" "a" "+" "1" "/" "+" "1" "counter" "on" "it" "for" "each" "color" "of" "mana" "spent" "to" "cast" "it" "." modular_death_transfer_words ")"
+/* @sem () */
+modular_death_transfer_words ::= "when" "it" "dies" "," "you" "may" "put" "its" "+" "1" "/" "+" "1" "counters" "on" "target" "artifact" "creature" "."
+
+/* The number of tokens comes from the definition on the attacking source. */
+/* @sem Ability::Mechanic{mechanic:$mechanic_mobilize_name, amount:$defined_x_amount} */
+mobilize_defined_reminded_text ::= mechanic_mobilize_name defined_x_amount "(" "whenever" self_creature "attacks" "," mobilize_variable_warriors ")"
+/* @sem () */
+mobilize_variable_warriors ::= "create" "X" "tapped" "and" "attacking" "1" "/" "1" "red" "Warrior" "creature" "tokens" "." "sacrifice" "them" "at" "the" "beginning" "of" "the" "next" "end" "step" "."
+
+/* Both occurrences of the life cost use the same amount and rounding. */
+/* @sem Ability::Mechanic{mechanic:$mechanic_recover_name, cost:Cost::@agree($keyword_payment, $recover_explained_life_cost)} */
+recover_rounded_life_reminded_text ::= mechanic_recover_name keyword_payment "(" "when" "another" "creature" "is" "put" "into" "your" "graveyard" "from" "the" "battlefield" "," "you" "may" recover_explained_life_cost "." "if" "you" "do" "," "return" "this" "card" "from" "your" "graveyard" "to" "your" "hand" "." "otherwise" "," "exile" "this" "card" "." ")"
+/* @sem Cost::Cost{parts:[$cost_life_half]} */
+recover_explained_life_cost ::= cost_life_half
+
+
+/* Two instances produce separate entry triggers and linked exiled cards. */
+/* @sem Ability::[Mechanic{mechanic:Hideaway, amount:Expr::@agree($number_digits, $number_words)}, WithPresentation{reminder:true, ability:Mechanic{mechanic:Hideaway, amount:Expr::@agree($number_digits_2, $number_words)}}] */
+hideaway_doubled_reminded ::= "hideaway" number_digits "," "hideaway" number_digits "(" "when" self_creature "enters" "," "look" "at" "the" "top" number_words "cards" "of" "your" "library" "," "exile" "one" "face" "down" "," "then" "put" "the" "rest" "on" "the" "bottom" "in" "a" "random" "order" "." "then" "do" "it" "again" "." ")"
