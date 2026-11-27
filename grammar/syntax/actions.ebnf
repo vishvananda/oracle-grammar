@@ -9243,7 +9243,13 @@ graveyard_cast_tax_singular_objects ::= target_tax_single
 /* The three private zones receive the same perpetual change, referring to the
    previously mentioned spell rather than a new target. */
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone(_{scope:Players{zone:Graveyard, players:One(ControllerOf(@named_object))}, kind:Card, filter:SharesNameWith(@named_object)}), changes:[$same_name_perpetual_grant]}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone(_{scope:Players{zone:Hand, players:One(ControllerOf(@named_object))}, kind:Card, filter:SharesNameWith(@named_object)}), changes:[$same_name_perpetual_grant]}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone(_{scope:Players{zone:Library, players:One(ControllerOf(@named_object))}, kind:Card, filter:SharesNameWith(@named_object)}), changes:[$same_name_perpetual_grant]}}] */
-instructions_same_name_perpetual ::= "each" "card" "in" "its" "controller's" "graveyard" "," "hand" "," "and" "library" "with" "the" "same" "name" "as" "that" "spell" "perpetually" "gain" '"' same_name_perpetual_grant '"'
+instructions_same_name_perpetual ::= "each" "card" "in" "its" "controller's" "graveyard" "," "hand" "," "and" "library" "with" "the" "same" "name" "as" "that" "spell" "perpetually" same_name_perpetual_gain '"' same_name_perpetual_grant '"'
+
+same_name_perpetual_gain ::= same_name_perpetual_gain_agreement | same_name_perpetual_gains_agreement
+/* @sem () */
+same_name_perpetual_gain_agreement ::= "gain"
+/* @sem () */
+same_name_perpetual_gains_agreement ::= "gains"
 
 /* @sem Change::GrantAbility(Casting(AdditionalCost{cost:_{parts:[Mana($mana_symbols)]}, repetition:Once})) */
 same_name_perpetual_grant ::= "this" "spell" "costs" mana_symbols "more" "to" "cast" "."
@@ -12924,7 +12930,7 @@ instructions_random_missing_color ::= it_ordinary_pronoun "becomes" "a" "random"
 random_singular_card_selection ::= objects_random_library_mana_ceiling | objects_random_library_one | objects_random_library_chosen | objects_random_graveyard_one | objects_random_graveyard_any
 
 /* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[Perpetual([SetBasePowerToughness{power:$number, toughness:$number_2}, GrantAbility(Keyword($keyword_value))])]}} */
-battlefield_perpetual_stats_keyword ::= "onto" "the" "battlefield" "under" "your" "control" "." "it" "perpetually" "has" "base" "power" "and" "toughness" number "/" number "and" "gains" keyword_value
+battlefield_perpetual_stats_keyword ::= "onto" "the" "battlefield" "under" "your" "control" "." "it" "perpetually" "has" "base" "power" "and" "toughness" number "/" number "and" "perpetually"? "gains" keyword_value
 
 /* @sem Operation::Move{objects:$random_singular_card_selection, destination:$battlefield_perpetual_stats_keyword, qualifiers:[]} */
 put_random_singular_perpetual_battlefield ::= "put" random_singular_card_selection battlefield_perpetual_stats_keyword
@@ -21061,7 +21067,7 @@ boon_times ::= boon_two_times | boon_three_times | boon_twelve_times
 boon_sacrifice_event ::= "whenever" "you" "sacrifice" "one" "or" "more" "permanents"
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$clause_bounded_boon, ...$instructions]}} */
-spell_boon_then_instructions ::= clause_bounded_boon NEWLINE instructions "."
+spell_boon_then_instructions ::= clause_bounded_boon NEWLINE? instructions "."
 
 /* Random exile supplies the arrival receipt used by the scoped casting continuation. */
 /* @sem Instruction::[ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any}), count:AsManyAsCan($card_count), constraints:[AtRandom]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
@@ -22456,7 +22462,7 @@ clause_conjure_spellbook_choice_entry ::= "conjure" count_plural "cards" "of" "y
 /* Preserve two-paragraph layout for the paired conditional spellbook conjure branches. */
 /* @prefer always */
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:$conjure_each_named_spellbook_battlefield}]}, otherwise:Program{}}, If{condition:$condition_2, then:Program{instructions:$clause_conjure_spellbook_choice_entry}, otherwise:Program{}}]}} */
-spell_if_distinct_conjure_paragraphs ::= "if" condition "," conjure_each_named_spellbook_battlefield "." NEWLINE "if" condition "," clause_conjure_spellbook_choice_entry "."
+spell_if_distinct_conjure_paragraphs ::= "if" condition "," conjure_each_named_spellbook_battlefield "." NEWLINE? "if" condition "," clause_conjure_spellbook_choice_entry "."
 
 /* Random selection and its exile share the selection receipt, followed by copying
    and casting linked exiled cards without exposing the tail to WithSelections(Chance). */
