@@ -21,7 +21,8 @@ pub use printed_stats::{PrintedPowerToughness, PrintedStat};
 pub use station::{CardInputContext, StationAnimationBox};
 pub use surface::{AdventureReturnType, LayoutReminder};
 use surface::{
-    CardSurface, MonocoloredHybridNote, check_compleated, creature_note_types, printed_mana_value,
+    CardSurface, MonocoloredHybridNote, check_compleated, copy_token_note_types,
+    creature_note_types, printed_mana_value,
 };
 
 /// A reference into current characteristics, never a retained mana operand.
@@ -44,6 +45,7 @@ pub enum CardNote {
     LandTypes,
     Prowl,
     Amplify,
+    CopyTokenTypes,
     LayoutReminder(LayoutReminder),
     TransformsFrom,
     StationPowerToughness {
@@ -172,6 +174,18 @@ impl CardReading {
             abilities: canonical_abilities(&self.abilities)?,
             notes: self.notes.clone(),
         })
+    }
+}
+
+fn subtype_reminder_types(
+    context: &Characteristics,
+    note: &CardNote,
+) -> Result<Vec<Value>, String> {
+    match note {
+        CardNote::CopyTokenTypes => copy_token_note_types(context),
+        CardNote::Amplify => creature_note_types(context, false),
+        CardNote::Prowl => creature_note_types(context, true),
+        _ => Err("expected a creature subtype reminder".into()),
     }
 }
 
@@ -348,6 +362,7 @@ impl Engine {
             + usize::from(surface.compleated_symbol.is_some())
             + usize::from(surface.prowl_types.is_some())
             + usize::from(surface.amplify_types.is_some())
+            + usize::from(surface.copy_token_types.is_some())
             > self.limits.depth
         {
             return Err(Refusal::Limit("card note limit".into()));
@@ -426,13 +441,13 @@ impl Engine {
             }
             choices = next;
         }
-        for (written, note, kindred_allowed) in [
-            (surface.prowl_types, CardNote::Prowl, true),
-            (surface.amplify_types, CardNote::Amplify, false),
+        for (written, note) in [
+            (surface.prowl_types, CardNote::Prowl),
+            (surface.amplify_types, CardNote::Amplify),
+            (surface.copy_token_types, CardNote::CopyTokenTypes),
         ] {
             let Some(written) = written else { continue };
-            let expected =
-                creature_note_types(context, kindred_allowed).map_err(Refusal::Binding)?;
+            let expected = subtype_reminder_types(context, &note).map_err(Refusal::Binding)?;
             let written = serde_json::to_value(written)
                 .map_err(|error| Refusal::Binding(error.to_string()))?;
             let written = written
@@ -521,6 +536,7 @@ impl Engine {
         let mut transforms_from = None;
         let mut prowl = None;
         let mut amplify = None;
+        let mut copy_token = None;
         let mut compleated = None;
         for note in &reading.notes {
             match note {
@@ -573,11 +589,14 @@ impl Engine {
                     }
                     land_colors = Some(land_mana::colors(context)?);
                 }
-                CardNote::Prowl | CardNote::Amplify => {
-                    let is_prowl = matches!(note, CardNote::Prowl);
-                    let types = if is_prowl { &mut prowl } else { &mut amplify };
-                    if types
-                        .replace(creature_note_types(context, is_prowl)?)
+                CardNote::Prowl | CardNote::Amplify | CardNote::CopyTokenTypes => {
+                    let slot = match note {
+                        CardNote::Prowl => &mut prowl,
+                        CardNote::Amplify => &mut amplify,
+                        _ => &mut copy_token,
+                    };
+                    if slot
+                        .replace(subtype_reminder_types(context, note)?)
                         .is_some()
                     {
                         return Err("duplicate subtype reminder".into());
@@ -602,7 +621,7 @@ impl Engine {
         let land_mana = land_colors.map(|colors| json!({"colors":colors}));
         Ok(Self::native_surfaces(&reading.abilities, written)?
             .into_iter()
-            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"monocolored_hybrid":monocolored_hybrid,"compleated_symbol":compleated,"prowl_types":prowl,"amplify_types":amplify,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
+            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"monocolored_hybrid":monocolored_hybrid,"compleated_symbol":compleated,"prowl_types":prowl,"amplify_types":amplify,"copy_token_types":copy_token,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
             .collect())
     }
     /// A card's surfaces, with the views only a `written` text asks for when it does.

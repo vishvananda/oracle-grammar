@@ -119,6 +119,33 @@ pub(super) fn equip_payment_claim(ability: &Value) -> Option<Value> {
     Some(json!({"kind":"Cost","args":cost}))
 }
 
+pub(super) fn unearth_grant_claim(ability: &Value) -> Option<Value> {
+    let ability = own_ability(ability);
+    let args = &ability["args"];
+    let objects = &args["affected"]["Objects"];
+    if ability["kind"] != "Static"
+        || objects["kind"] != "Zone"
+        || objects["args"]["kind"] != "Card"
+        || !super::receipts::own_zone(&objects["args"]["scope"]["Players"], "Graveyard")
+    {
+        return None;
+    }
+    let [change] = args["changes"].as_array()?.as_slice() else {
+        return None;
+    };
+    let granted = &change["args"];
+    let granted = if granted["$sym"] == "holder" {
+        granted["args"].get(0)?
+    } else {
+        unscoped(granted)
+    };
+    (change["kind"] == "GrantAbility"
+        && granted["kind"] == "Mechanic"
+        && granted["args"]["mechanic"] == "Unearth"
+        && granted["args"]["cost"].is_object())
+    .then(|| json!({"kind":"Cost","args":granted["args"]["cost"]}))
+}
+
 pub(super) fn ward_grant_claims(ability: &Value) -> Vec<Value> {
     let ability = own_ability(ability);
     let affected = &ability["args"]["affected"]["Objects"];

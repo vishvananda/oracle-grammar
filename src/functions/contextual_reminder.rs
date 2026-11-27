@@ -26,6 +26,7 @@ pub(crate) fn is_symbol(name: &str) -> bool {
             | "awaken_reminder"
             | "ward_grant_reminder"
             | "equip_payment_reminder"
+            | "unearth_grant_reminder"
             | "spent_pair_reminder"
             | "single_token_description"
             | "plural_token_description"
@@ -880,6 +881,7 @@ fn typed_claims(name: &str, ability: &Value) -> Option<Vec<Value>> {
         "awaken_reminder" => evidence::awaken_claim(ability).into_iter().collect(),
         "ward_grant_reminder" => evidence::ward_grant_claims(ability),
         "equip_payment_reminder" => evidence::equip_payment_claim(ability).into_iter().collect(),
+        "unearth_grant_reminder" => evidence::unearth_grant_claim(ability).into_iter().collect(),
         "spent_pair_reminder" => casting::spent_pair_claims(ability),
         "single_token_description" | "plural_token_description" => {
             token_notes::print_descriptions(ability, name == "plural_token_description")

@@ -854,3 +854,51 @@ fn first_cascade_reminder_preserves_the_origin_of_the_first_spell() {
     let wrong = text.replacen("from exile each turn", "each turn", 1);
     assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
 }
+
+#[test]
+fn graveyard_copy_reminders_agree_on_cost_and_source_creature_types() {
+    let engine = super::engine();
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Creature);
+    context.subtypes = vec![SubType::Human, SubType::Cleric];
+    let embalm = "Vigilance\nEmbalm {3}{W} ({3}{W}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a white Zombie Human Cleric with no mana cost. Embalm only as a sorcery.)";
+    let eternalize = "Eternalize {4}{B} ({4}{B}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a 4/4 black Zombie Human Cleric with no mana cost. Eternalize only as a sorcery.)";
+    let mut reading = exact_roundtrip(embalm, &context);
+    assert_eq!(reading.notes, [CardNote::CopyTokenTypes]);
+    exact_roundtrip(eternalize, &context);
+    for wrong in [
+        embalm.replacen("({3}{W}", "({2}{W}", 1),
+        embalm.replace("Human Cleric", "Human Wizard"),
+        embalm.replace("Zombie Human Cleric", "Human Cleric"),
+        eternalize.replace("4/4 black", "3/4 black"),
+    ] {
+        assert!(
+            engine.parse_card(NAME, &wrong, &context).is_err(),
+            "{wrong}"
+        );
+    }
+
+    reading.abilities[1]["args"]["cost"]["parts"][0]["Mana"][0]["Generic"] = serde_json::json!(2);
+    context.subtypes = vec![SubType::Cat];
+    let edited = embalm.replace("{3}", "{2}").replace("Human Cleric", "Cat");
+    let key = engine
+        .card_key_of(NAME, &reading, &context, &edited, true)
+        .unwrap()
+        .expect("edited cost and creature types must print");
+    assert_eq!(
+        engine
+            .print_card_trail(NAME, &reading, &context, &key)
+            .unwrap()
+            .as_deref(),
+        Some(edited.as_str())
+    );
+}
+
+#[test]
+fn an_unearth_reminder_repeats_the_cost_of_the_granted_ability() {
+    let context = empty_card_characteristics();
+    let text = "Each creature card in your graveyard has unearth {2}{B}. ({2}{B}: Return the card to the battlefield. The creature gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replacen("({2}{B}", "({1}{B}", 1);
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}

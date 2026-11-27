@@ -25,6 +25,7 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
             || own_graveyard_cards(&args["affected"]["Objects"])
                 && grants_mechanic(&args["changes"], "JumpStart")
                 && visit("JumpStartFromYourGraveyard")
+            || replacement_notes(&args["changes"], &mut visit)
             || lifelink_notes(args, args, &mut visit))
     {
         return true;
@@ -86,6 +87,8 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                         || lifelink_notes(&op["args"], frame, &mut visit)
                         || keeps_abilities_when_animated(&op["args"])
                             && visit("AnimationKeepsAbilities")
+                        || op["args"]["affected"]["Objects"].is_object()
+                            && replacement_notes(&op["args"]["changes"], &mut visit)
                 }
                 Some("ReflexiveTrigger") => {
                     effects(&op["args"]["body"]).take(16).any(|op_inside| {
@@ -96,6 +99,48 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
             }
         },
     )
+}
+
+fn replacement_notes(changes: &Value, visit: &mut impl FnMut(&'static str) -> bool) -> bool {
+    let Some(changes) = changes.as_array().filter(|items| items.len() <= 32) else {
+        return false;
+    };
+    let replaces_card_types = changes.iter().any(|change| {
+        change["kind"] == "SetCardTypes"
+            && change["args"]
+                .as_array()
+                .is_some_and(|types| !types.is_empty())
+    });
+    if replaces_card_types && visit("ReplaceCardTypes") {
+        return true;
+    }
+    if !changes.iter().any(|change| {
+        change["kind"] == "CreatureTypes"
+            && change["args"]["mode"] == "Set"
+            && change["args"]["types"]["Listed"]
+                .as_array()
+                .is_some_and(|types| !types.is_empty())
+    }) {
+        return false;
+    }
+    let mut colors = changes.iter().filter(|change| change["kind"] == "Colors");
+    let color = match (colors.next(), colors.next()) {
+        (Some(change), None) if change["args"]["mode"] == "Set" => {
+            change["args"]["colors"].as_array()
+        }
+        _ => None,
+    };
+    let renames = changes.iter().any(|change| {
+        change["kind"] == "SetName" && change["args"].as_str().is_some_and(|name| !name.is_empty())
+    });
+    color.is_some_and(Vec::is_empty) && visit("RemoveColorsReplaceCreatureTypes")
+        || renames && visit("ReplaceNamesAndCreatureTypes")
+        || replaces_card_types && visit("ReplaceCardAndCreatureTypes")
+        || color.is_some_and(|colors| !colors.is_empty())
+            && (visit("ReplaceColorsAndCreatureTypes")
+                || replaces_card_types
+                    && (visit("ReplaceColorsAndTypes")
+                        || renames && visit("ReplaceColorsTypesAndNames")))
 }
 
 fn keeps_abilities_when_animated(args: &Value) -> bool {

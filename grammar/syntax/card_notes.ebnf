@@ -1,5 +1,5 @@
 /* Card-characteristic explanations are separate from the card's abilities. */
-card_text ::= card_text_compleated | card_text_amplify | card_text_amplify_after_abilities | card_station_before_three_titled | card_station_raw | card_station_raw_before | card_station_plain | card_station_before | card_station_explicit | card_text_land | card_text_land_only | card_text_land_cost | card_text_cost_land | card_text_land_cost_only | card_text_cost_land_only | card_text_noted | card_text_notes_only | card_text_monocolored_hybrid | card_text_prowl | card_text_prowl_after_abilities | card_text_plain | card_text_adventure_reminder | card_text_land_adventure_reminder | card_text_room_reminder | card_text_siege_reminder | card_text_ongoing_scheme_reminder | card_text_omen_reminder | card_text_face_up_conspiracy | card_text_legendary_sorcery | card_text_assist | card_text_transforms_from
+card_text ::= card_text_embalm_reminder | card_text_eternalize_reminder | card_text_compleated | card_text_amplify | card_text_amplify_after_abilities | card_station_before_three_titled | card_station_raw | card_station_raw_before | card_station_plain | card_station_before | card_station_explicit | card_text_land | card_text_land_only | card_text_land_cost | card_text_cost_land | card_text_land_cost_only | card_text_cost_land_only | card_text_noted | card_text_notes_only | card_text_monocolored_hybrid | card_text_prowl | card_text_prowl_after_abilities | card_text_plain | card_text_adventure_reminder | card_text_land_adventure_reminder | card_text_room_reminder | card_text_siege_reminder | card_text_ongoing_scheme_reminder | card_text_omen_reminder | card_text_omen_also_shuffle | card_text_face_up_conspiracy | card_text_legendary_sorcery | card_text_assist | card_text_transforms_from
 
 /* @sem CardSurface::CardSurface{notes:$cost_notes, abilities:$card} */
 card_text_noted ::= cost_notes NEWLINE card
@@ -246,3 +246,28 @@ amplify_type_options ::= amplify_one_type | amplify_two_types
 amplify_one_type ::= creature_subtype
 /* @sem CreatureType::[@subtype_name($creature_subtype), @subtype_name($creature_subtype_2)] */
 amplify_two_types ::= creature_subtype "and/or" creature_subtype
+
+/* @sem CardSurface::CardSurface{abilities:$card, layout_reminder:LayoutReminder::Omen} */
+card_text_omen_also_shuffle ::= card "(" "also" "shuffle" "this" "card" "." ")"
+
+/* The printed cost and the copy's source-derived subtypes must both agree. */
+/* @sem CardSurface::CardSurface{copy_token_types:$copy_reminder_creature_types, abilities:[...$copy_reminder_prefix, Mechanic{mechanic:$mechanic_embalm_name, cost:Cost::@agree($keyword_payment, $graveyard_copy_reminder_cost)}, ...$copy_reminder_suffix]} */
+card_text_embalm_reminder ::= copy_reminder_prefix? mechanic_embalm_name keyword_payment "(" graveyard_copy_reminder_cost graveyard_copy_reminder_token "white" copy_reminder_creature_types "with" "no" "mana" "cost" "." "embalm" "only" "as" "a" "sorcery" "." ")" copy_reminder_suffix?
+
+/* @sem CardSurface::CardSurface{copy_token_types:$copy_reminder_creature_types, abilities:[...$copy_reminder_prefix, Mechanic{mechanic:$mechanic_eternalize_name, cost:Cost::@agree($keyword_payment, $graveyard_copy_reminder_cost)}, ...$copy_reminder_suffix]} */
+card_text_eternalize_reminder ::= copy_reminder_prefix? mechanic_eternalize_name keyword_payment "(" graveyard_copy_reminder_cost graveyard_copy_reminder_token "4" "/" "4" "black" copy_reminder_creature_types "with" "no" "mana" "cost" "." "eternalize" "only" "as" "a" "sorcery" "." ")" copy_reminder_suffix?
+
+/* @sem $abilities */
+copy_reminder_prefix ::= abilities NEWLINE
+/* @sem $card */
+copy_reminder_suffix ::= NEWLINE card
+/* @sem $cost */
+graveyard_copy_reminder_cost ::= cost "," "↑" "exile" "this" "card" "from" "your" "graveyard" ":"
+/* @sem () */
+graveyard_copy_reminder_token ::= "create" "a" "token" "that's" "a" "copy" "of" "it" "," "except" "it's" "a"
+
+copy_reminder_creature_types ::= copy_reminder_one_type | copy_reminder_more_types
+/* @sem CreatureType::[@subtype_name($creature_subtype)] */
+copy_reminder_one_type ::= creature_subtype
+/* @sem CreatureType::[@subtype_name($creature_subtype), ...$copy_reminder_creature_types] */
+copy_reminder_more_types ::= creature_subtype copy_reminder_creature_types

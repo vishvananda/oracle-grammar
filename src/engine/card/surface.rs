@@ -12,6 +12,7 @@ pub(super) struct CardSurface {
     pub compleated_symbol: Option<ManaSymbol>,
     pub prowl_types: Option<Vec<CreatureType>>,
     pub amplify_types: Option<Vec<CreatureType>>,
+    pub copy_token_types: Option<Vec<CreatureType>>,
     pub station: bool,
     pub station_explicit: bool,
     pub station_declaration: Option<StationSource>,
@@ -107,6 +108,21 @@ pub(super) fn creature_note_types(
     }
     if kinds.is_empty() || kinds.len() > 16 {
         return Err("subtype reminder needs a bounded nonempty creature type list".into());
+    }
+    Ok(kinds)
+}
+
+/// Embalm and Eternalize add Zombie to the copy's printed creature types.
+pub(super) fn copy_token_note_types(
+    context: &Characteristics,
+) -> Result<Vec<serde_json::Value>, String> {
+    let mut kinds = creature_note_types(context, false)?;
+    let zombie = serde_json::to_value(CreatureType::Zombie).map_err(|error| error.to_string())?;
+    if !kinds.contains(&zombie) {
+        if kinds.len() == 16 {
+            return Err("copy reminder exceeds the creature type list limit".into());
+        }
+        kinds.insert(0, zombie);
     }
     Ok(kinds)
 }

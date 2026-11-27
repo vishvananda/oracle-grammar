@@ -2,7 +2,7 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
-line_contextual_reminder ::= line_contextual_group | line_paid_permanent_copy_note | line_combat_notes | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder | line_phaseout_group_reminder | line_behold_choice_explained | line_behold_flash_explained | line_behold_exile_explained | line_milling_mana_note | line_token_description_reminder | line_two_contextual_claims | line_measured_then_contextual_claims | line_contextual_then_measured_claims | line_two_measured_claims
+line_contextual_reminder ::= line_contextual_group | line_paid_permanent_copy_note | line_combat_notes | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_unearth_grant_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder | line_role_fight_reminder | line_phaseout_group_reminder | line_behold_choice_explained | line_behold_flash_explained | line_behold_exile_explained | line_milling_mana_note | line_token_description_reminder | line_two_contextual_claims | line_measured_then_contextual_claims | line_contextual_then_measured_claims | line_two_measured_claims
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
 line_contextual_group ::= remindable_line "(" ability_explanation ")"
 remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_blocks_blocked
@@ -258,7 +258,8 @@ ability_explanation ::= token_summoning_sickness_explanation | haste_they_attack
     | exalted_each_instance_explanation | training_creature_you_control_explanation | dethrone_whenever_it_attacks_explanation | retrace_with_keyword_explanation
     | improvise_those_spells_payment_explanation | double_strike_this_creature_explanation | indestructible_this_creature_explanation | riot_they_enter_explanation
     | harmonize_power_explanation | harmonize_granted_power_explanation | venture_definition_explanation | storm_permanent_copies_explanation | storm_targeted_permanent_copies_explanation
-    | cascade_qualified_explanations | escape_graveyard_this_turn_explanation | conspire_that_spell_explanation
+    | granted_and_contextual_explanations | cascade_qualified_explanations | escape_graveyard_this_turn_explanation | conspire_that_spell_explanation
+    | replacement_characteristic_explanations
     | gravestorm_explanation | cascade_grant_explanation | rebound_grant_explanation | undying_grant_explanation
     | enchant_land_explanation | bloodthirst_x_explanation | your_damage_life_loss_explanation
     | animation_keeps_abilities_explanation | controlled_group_phases_out_explanation
@@ -822,7 +823,6 @@ reminder_modes_multiple ::= reminder_mode NEWLINE reminder_modes
 /* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Proliferate{}}}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Proliferate{}}}] */
 proliferate_pair ::= "proliferate" "," "then" "proliferate" "again"
 
-
 /* North Star's reminder restates the payment scope without granting another action. */
 /* @sem Instruction::[Effect{result:@next, operation:$temporary_one_spell_spending}] */
 limited_mana_cost_spending_reminded ::= temporary_one_spell_spending "." "(" "additional" "costs" "are" "still" "paid" "normally" "." ")"
@@ -1246,7 +1246,6 @@ controlled_group_phases_out_explanation ::= "treat" "them" "and" "anything" "att
 /* @sem String::'ManifestDreadTargetController' */
 manifest_dread_target_controller_explanation ::= "that" "player" "looks" "at" "the" "top" "two" "cards" "of" "their" "library" "," "then" "puts" "one" "onto" "the" "battlefield" "face" "down" "as" "a" "2" "/" "2" "creature" "and" "the" "other" "into" "their" "graveyard" "." "if" "it's" "a" "creature" "card" "," "it" "can" "be" "turned" "face" "up" "any" "time" "for" "its" "mana" "cost" "."
 
-
 /* @sem String::'FullManaCost' */
 full_mana_cost_explanation ::= "mana" "cost" "includes" "color" "."
 
@@ -1364,3 +1363,73 @@ conspire_that_spell_explanation ::= "as" "you" "cast" "that" "spell" "," "you" "
 
 /* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Amass{amount:@agree($number_digits, $amass_orcs_note_amount), creature_type:Orc}}}] */
 amass_orcs_reminded ::= "amass" "Orcs" number_digits "." "(" amass_orcs_note_amount ")"
+
+granted_and_contextual_explanations ::= phaseout_group_attached_controller | phaseout_group_defined_controller | phaseout_group_before_your_untap | phaseout_if_phased
+    | shroud_artifact_definition | infect_any_creature_rules | he_loses_creature_types | when_it_undies
+    | when_this_creature_undies | gravestorm_may_retarget | battle_cry_each_instance | player_hexproof_includes_aura_spells
+
+/* @sem String::'Shroud' */
+shroud_artifact_definition ::= "an" "artifact" "with" "shroud" "can't" "be" "the" "target" "of" "spells" "or" "abilities" "."
+
+/* @sem String::'Infect' */
+infect_any_creature_rules ::= "creatures" "with" "infect" "deal" "damage" "to" "creatures" "in" "the" "form" "of" "-" "1" "/" "-" "1" "counters" "and" "to" "players" "in" "the" "form" "of" "poison" "counters" "."
+
+/* @sem String::'ReplaceCreatureTypes' */
+he_loses_creature_types ::= "he" "loses" "all" "other" "creature" "types" "."
+
+/* @sem String::'Undying' */
+when_it_undies ::= "when" "it" "dies" "," "if" "it" "had" "no" "+" "1" "/" "+" "1" "counters" "on" "it" "," "return" "it" "to" "the" "battlefield" "under" "its" "owner's" "control" "with" "a" "+" "1" "/" "+" "1" "counter" "on" "it" "."
+
+/* @sem String::'Undying' */
+when_this_creature_undies ::= "when" "this" "creature" "dies" "," "if" "it" "had" "no" "+" "1" "/" "+" "1" "counters" "on" "it" "," "return" "it" "to" "the" "battlefield" "under" "its" "owner's" "control" "with" "a" "+" "1" "/" "+" "1" "counter" "on" "it" "."
+
+/* @sem String::'Gravestorm' */
+gravestorm_may_retarget ::= "when" "you" "cast" "this" "spell" "," "copy" "it" "for" "each" "permanent" "put" "into" "a" "graveyard" "this" "turn" "." "you" "may" "choose" "new" "targets" "for" "the" "copies" "."
+
+/* @sem String::'BattleCry' */
+battle_cry_each_instance ::= "whenever" "this" "creature" "attacks" "," "each" "other" "attacking" "creature" "gets" "+" "1" "/" "+" "0" "until" "end" "of" "turn" "." "each" "instance" "of" "battle" "cry" "triggers" "separately" "."
+
+/* @sem String::'PlayerHexproof' */
+player_hexproof_includes_aura_spells ::= "you" "can't" "be" "the" "target" "of" "spells" "or" "abilities" "your" "opponents" "control" "," "including" "Aura" "spells" "."
+
+/* @sem String::'PhaseOutGroupNormally' */
+phaseout_group_attached_controller ::= "treat" "them" "and" "anything" "attached" "to" "them" "as" "though" "they" "don't" "exist" "until" "their" "controller's" "next" "turn" "."
+/* @sem String::'PhaseOutGroupNormally' */
+phaseout_group_defined_controller ::= "treat" "phased-out" "creatures" "and" "anything" "attached" "to" "them" "as" "though" "they" "don't" "exist" "until" "their" "controller's" "next" "turn" "."
+/* @sem String::'ControlledGroupPhasesOut' */
+phaseout_group_before_your_untap ::= "while" "they're" "phased" "out" "," "they're" "treated" "as" "though" "they" "don't" "exist" "." "they" "phase" "in" "before" "you" "untap" "during" "your" "untap" "step" "."
+/* @sem String::'PhaseOutNormally' */
+phaseout_if_phased ::= "if" "it" "phases" "out" "," "treat" "it" "and" "anything" "attached" "to" "it" "as" "though" "they" "don't" "exist" "until" "its" "controller's" "next" "turn" "."
+
+/* The printed activation belongs to the granted card's graveyard ability. */
+/* @sem Vec<Ability>::@unearth_grant_reminder($remindable_line, $unearth_grant_explanation) */
+line_unearth_grant_reminder ::= remindable_line "(" unearth_grant_explanation ")"
+unearth_grant_explanation ::= unearth_return_card_explanation | unearth_return_from_your_graveyard | unearth_pay_its_mana_cost
+
+/* @sem Operand::Cost($cost) */
+unearth_return_card_explanation ::= cost ":" "return" "the" "card" "to" "the" "battlefield" "." "the" "creature" "gains" "haste" "." unearth_delayed_exile_words
+/* @sem Operand::Cost($cost) */
+unearth_return_from_your_graveyard ::= cost ":" "return" "the" "card" "from" "your" "graveyard" "to" "the" "battlefield" "." "it" "gains" "haste" "." unearth_delayed_exile_words
+/* @sem Operand::Cost(Cost{parts:[ManaCostOf(Source)]}) */
+unearth_pay_its_mana_cost ::= "pay" "the" "card's" "mana" "cost" ":" "return" "it" "to" "the" "battlefield" "." "the" "creature" "gains" "haste" "." unearth_delayed_exile_words
+/* @sem () */
+unearth_delayed_exile_words ::= "exile" "it" "at" "the" "beginning" "of" "the" "next" "end" "step" "or" "if" "it" "would" "leave" "the" "battlefield" "." "unearth" "only" "as" "a" "sorcery" "."
+
+replacement_characteristic_explanations ::= replace_card_types_explanation
+    | remove_colors_replace_creature_types_explanation | replace_names_and_creature_types_explanation
+    | replace_card_and_creature_types_explanation | replace_colors_and_creature_types_explanation
+    | replace_colors_and_types_explanation | replace_colors_types_and_names_explanation
+/* @sem String::'ReplaceCardTypes' */
+replace_card_types_explanation ::= "it" "loses" "all" "other" "card" "types" "."
+/* @sem String::'RemoveColorsReplaceCreatureTypes' */
+remove_colors_replace_creature_types_explanation ::= "it" "loses" "all" "colors" "and" "all" "other" "creature" "types" "."
+/* @sem String::'ReplaceNamesAndCreatureTypes' */
+replace_names_and_creature_types_explanation ::= "it" "loses" "all" "other" "creature" "types" "and" "names" "."
+/* @sem String::'ReplaceCardAndCreatureTypes' */
+replace_card_and_creature_types_explanation ::= "it" "loses" "all" "other" "card" "types" "and" "creature" "types" "."
+/* @sem String::'ReplaceColorsAndCreatureTypes' */
+replace_colors_and_creature_types_explanation ::= "it" "loses" "its" "other" "colors" "and" "creature" "types" "."
+/* @sem String::'ReplaceColorsAndTypes' */
+replace_colors_and_types_explanation ::= "it" "loses" "all" "other" "colors" "," "card" "types" "," "and" "creature" "types" "."
+/* @sem String::'ReplaceColorsTypesAndNames' */
+replace_colors_types_and_names_explanation ::= "it" "loses" "all" "other" "colors" "," "card" "types" "," "creature" "types" "," "and" "names" "."
