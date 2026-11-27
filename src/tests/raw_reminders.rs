@@ -87,6 +87,48 @@ fn reminder_checks_both_colors_spent_to_cast_the_spell() {
 }
 
 #[test]
+fn mana_reminder_preserves_two_separate_spell_conditions() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Instant);
+    let bare = "If {B} was spent to cast this spell, you may have target creature get -3/-3 until end of turn. If {G} was spent to cast this spell, you may have target creature get +3/+3 until end of turn.";
+    let text = format!("{bare} (Do both if {{B}}{{G}} was spent.)");
+    let reading = exact_roundtrip(&text, &context);
+    let abilities = exact_roundtrip(bare, &context).abilities;
+    assert_eq!(reading.abilities[0]["args"]["ability"], abilities[0]);
+    let wrong = text.replace("{B}{G}", "{U}{G}");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn ripple_reminder_uses_the_current_reveal_count() {
+    let context = empty_card_characteristics();
+    let text = "Ripple 4 (When you cast this spell, you may reveal the top four cards of your library. You may cast spells with the same name as this spell from among those cards without paying their mana costs. Put the rest on the bottom of your library.)";
+    exact_roundtrip(text, &context);
+    exact_roundtrip(&text.replace('4', "3").replace("four", "three"), &context);
+    let wrong = text.replace("four", "five");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn bands_reminder_checks_the_quoted_legendary_creature_filter() {
+    let context = empty_card_characteristics();
+    let text = concat!(
+        "White legendary creatures you control have \"bands with other legendary creatures.\" ",
+        "(Any legendary creatures can attack in a band as long as at least one has \"bands with other legendary creatures.\" ",
+        "Bands are blocked as a group. If at least two legendary creatures you control, one of which has \"bands with other legendary creatures,\" ",
+        "are blocking or being blocked by the same creature, you divide that creature's combat damage, ",
+        "not its controller, among any of the creatures it's being blocked by or is blocking.)"
+    );
+    exact_roundtrip(text, &context);
+    let wrong = text.replacen(
+        "bands with other legendary creatures",
+        "bands with other creatures",
+        1,
+    );
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
 fn mayhem_reminder_repeats_the_printed_cost() {
     let context = empty_card_characteristics();
     let text = "Mayhem {1}{R} (You may cast this card from your graveyard for {1}{R} if you discarded it this turn. Timing rules still apply.)";

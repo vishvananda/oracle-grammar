@@ -183,6 +183,22 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         Some("Manifest") if args["cloak"] == true => Some("Cloak"),
         Some("ManaSpent") if args["filter"]["snow"] == true => Some("Snow"),
         Some("PhaseOut") => Some("PhaseOut"),
+        Some("Seek") if args["top"].is_null() => Some("SeekWholeLibrary"),
+        Some("SeparatePiles" | "Piles") => Some("EmptyPiles"),
+        Some("GameEffect")
+            if args["effect"]["kind"] == "Term"
+                && args["effect"]["args"]["family"] == "GameEffect"
+                && args["effect"]["args"]["form"]
+                    == "DefendingPlayersChooseCreaturesToDefendAttackersAtRandom" =>
+        {
+            Some("EmptyPiles")
+        }
+        Some("Rule")
+            if args["CombatCost"]["action"].get("Attack").is_some()
+                && args["CombatCost"]["payer"]["kind"] == "DeclaringPlayer" =>
+        {
+            Some("AttackDeclarationCost")
+        }
         Some("Rule") if args["GoadedBy"]["kind"] == "AbilityController" => Some("Goad"),
         Some("Casting") if flashback_permission(value).is_some() => Some("Flashback"),
         Some("ChooseValue") if args["kind"] == "Parity" => Some("Parity"),
@@ -198,6 +214,15 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         _ if value["Named"] == "PoisonCounter" => Some("PoisonCounter"),
         _ => None,
     }
+}
+
+pub(super) fn single_connive(value: &Value) -> bool {
+    let amount = &value["args"]["action"]["Connive"]["amount"];
+    amount.is_null() || (amount["kind"] == "Constant" && amount["args"] == 1)
+}
+
+pub(super) fn normal_phasing(value: &Value) -> bool {
+    value["args"]["action"]["PhaseOut"]["until"].is_null()
 }
 
 fn controller_hexproof(args: &Value) -> bool {

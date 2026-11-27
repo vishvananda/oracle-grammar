@@ -2,7 +2,7 @@
    carries one presentation flag; explanation words create no extra program. */
 /* A shared game rule can be explained after several effects. The native
    operand remains part of the immediately preceding ability. */
-line_contextual_reminder ::= line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder
+line_contextual_reminder ::= line_contextual_group | line_measured_reminder | line_explicit_self_regeneration_reminder | line_cost_symbol_reminder | line_ward_grant_reminder | line_equip_payment_reminder | line_historic_copy_reminder | line_spent_pair_reminder | line_hexproof_indestructible_reminder
 /* @sem Vec<Ability>::@contextual_reminder($remindable_line, $ability_explanation) */
 line_contextual_group ::= remindable_line "(" ability_explanation ")"
 remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_blocks_blocked
@@ -11,6 +11,9 @@ remindable_line ::= line_one | line_prototype | line_named_flash_if | line_pair_
 /* Both sentences describe the same spell-copy trigger. */
 /* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $historic_explanation), $token_copy_spell_rule_context_explanation) */
 line_historic_copy_reminder ::= remindable_line "(" historic_explanation token_copy_spell_rule_context_explanation ")"
+
+/* @sem Vec<Ability>::@contextual_reminder(@contextual_reminder($remindable_line, $grant_hexproof_explanation), $grant_indestructible_explanation) */
+line_hexproof_indestructible_reminder ::= remindable_line "(" grant_hexproof_explanation grant_indestructible_explanation ")"
 
 /* @sem Vec<Ability>::@ward_grant_reminder($remindable_line, $ward_grant_explanation) */
 line_ward_grant_reminder ::= remindable_line "(" ward_grant_explanation ")"
@@ -47,6 +50,7 @@ measured_explanation ::= monstrosity_explanation | mill_number_explanation | inc
     | firebending_granted_explanation | monstrosity_x_explanation | collect_evidence_short_explanation
     | surveil_defining_one_explanation | optional_controller_mill_explanation | optional_controller_mill_one_explanation
     | blight_measured_explanation | incubation_defining_explanation | adapt_one_explanation
+    | toxic_recipient_one_explanation | toxic_group_one_explanation
 /* @sem Operand::List([Text(Monstrosity), Number($number_words)]) */
 monstrosity_explanation ::= "if" "this" "creature" "isn't" "monstrous" "," "put" number_words "+" "1" "/" "+" "1" "counters" "on" "it" "and" "it" "becomes" "monstrous" "."
 /* @sem Operand::List([Text(Mill), Number(@agree($number_words, $number_words_2))]) */
@@ -61,6 +65,10 @@ incubation_explanation_amount ::= "create" "an" "Incubator" "token" "with" print
 discover_explanation ::= "exile" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "exile" "a" "nonland" "card" "with" "mana" "value" number_digits "or" "less" "." discover_explanation_resolution
 /* @sem Operand::List([Text(Toxic), Number($number_words)]) */
 toxic_number_explanation ::= "players" "dealt" "combat" "damage" "by" "this" "creature" "also" "get" number_words "poison" "counters" "."
+/* @sem Operand::List([Text(Toxic), Number(Constant(1))]) */
+toxic_recipient_one_explanation ::= "players" "dealt" "combat" "damage" "by" "it" "also" "get" "a" "poison" "counter" "."
+/* @sem Operand::List([Text(Toxic), Number(Constant(1))]) */
+toxic_group_one_explanation ::= "players" "dealt" "combat" "damage" "by" "them" "also" "get" "a" "poison" "counter" "."
 /* @sem Operand::List([Text(Scry), Number($scry_look_explanation)]) */
 scry_context_amount ::= scry_look_explanation
 /* @sem Operand::List([Text(Surveil), Number($surveil_look_explanation)]) */
@@ -166,6 +174,14 @@ additional_rule_explanations ::= ward_cant_counter_explanation | zero_even_expla
     | discover_value_explanation | cloak_explanation | detain_explanation | persist_current_explanation | exalted_count_explanation
     | flash_permission_it_explanation | regeneration_it_explanation | regeneration_creature_explanation
     | banding_controller_explanation | banding_player_explanation | legendary_bands_explanation
+    | exert_recipient_explanation | empty_piles_explanation | attack_declaration_cost_explanation
+
+/* @sem String::'Exert' */
+exert_recipient_explanation ::= "it" "won't" "untap" "during" "your" "next" "untap" "step" "."
+/* @sem String::'EmptyPiles' */
+empty_piles_explanation ::= "piles" "can" "be" "empty" "."
+/* @sem String::'AttackDeclarationCost' */
+attack_declaration_cost_explanation ::= "this" "cost" "is" "paid" "as" "attackers" "are" "declared" "."
 
 /* @sem String::'PlayerHexproof' */
 player_hexproof_explanation ::= "you" "can't" "be" "the" "target" "of" "spells" "or" "abilities" "your" "opponents" "control" "."

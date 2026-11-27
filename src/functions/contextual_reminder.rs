@@ -221,7 +221,7 @@ fn marker(value: &Value) -> Option<&'static str> {
             Some("SpliceArcane")
         }
         Some("Prototype") => Some("Prototype"),
-        Some("Mechanic") => mechanic(&args["mechanic"]),
+        Some("Mechanic") => mechanic(&args["mechanic"]).or_else(|| evidence::mention(value)),
         Some("Fight") => Some("Fight"),
         Some("Companion") => Some("Companion"),
         Some("Enchant")
@@ -409,6 +409,12 @@ fn visit_mentions<'a>(
                 visit(topic, None)
                     || matches!(topic, "AirbendOne" | "AirbendMany") && visit("AirbendRule", None)
                     || topic == "RegenerateSource" && visit("RegenerationShield", None)
+                    || topic == "Connive"
+                        && evidence::single_connive(value)
+                        && visit("ConniveOne", None)
+                    || topic == "PhaseOut"
+                        && evidence::normal_phasing(value)
+                        && visit("PhaseOutNormally", None)
             }) || evidence::flashback_at_mana_cost(value) && visit("FlashbackAtManaCost", None)
                 || object
                     .get("Mana")

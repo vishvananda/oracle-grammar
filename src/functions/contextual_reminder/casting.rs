@@ -25,6 +25,16 @@ pub(super) fn spent_pair_claims(ability: &Value) -> Vec<Value> {
 }
 
 fn spent_color(instruction: &Value) -> Option<&str> {
+    // These placement markers preserve an If's scope and are consumed by binding.
+    let instruction = match instruction["$sym"].as_str() {
+        Some("leading_if" | "resolution") => {
+            let [inner] = instruction["args"].as_array()?.as_slice() else {
+                return None;
+            };
+            inner
+        }
+        _ => instruction,
+    };
     if instruction["kind"] != "If" {
         return None;
     }
