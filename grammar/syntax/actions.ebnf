@@ -2506,7 +2506,7 @@ incorporated_black_grant ::= "incorporates" "{" "1" "}" "{" "B" "}" "and" "gains
 
 /* Each opponent's failed sacrifice is determined from that opponent's own receipt. */
 /* @sem Instruction::[Effect{result:@next, operation:Sacrifice{players:OpponentsOf(AbilityController), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Discard{players:Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Not(Compare{left:CountObjects(Matching{objects:MovedBy{result:@prior, phase:Before, player:Bound(0)}, filter:Any}), test:Compare{comparison:Greater, value:Constant(0)}})}]), amount:Constant(1), random:false}}] */
-instructions_opponents_sacrifice_cant_discard ::= "each" "opponent" "sacrifices" "a" filter_phrase "of" "their" "choice" "." "each" "opponent" "who" "can't" "discards" "a" "card"
+instructions_opponents_sacrifice_cant_discard ::= "each" "opponent" "sacrifices" "a" filter_phrase ("of" "their" "choice")? "." "each" "opponent" "who" "can't" "discards" "a" "card"
 
 /* A resolving payment can combine mana with a graveyard exile cost. */
 /* @sem Cost::Cost{parts:[Mana($mana_symbols), $cost_exile_cards_graveyard]} */
@@ -4089,7 +4089,7 @@ clause_first_willing_sacrifice ::= "any" "player" "may" willing_sacrifice_cost "
 willing_sacrifice_cost ::= willing_sacrifice_one | willing_sacrifice_one_an | willing_sacrifice_many
 
 /* @sem Cost::Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))}]} */
-willing_sacrifice_one ::= "sacrifice" "a" filter_phrase "of" "their" "choice"
+willing_sacrifice_one ::= "sacrifice" "a" filter_phrase ("of" "their" "choice")?
 
 /* @sem Cost::Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))}]} */
 willing_sacrifice_one_an ::= "sacrifice" "an" filter_phrase "of" "their" "choice"
@@ -10922,7 +10922,12 @@ instructions_sacrifice_receipt_mana ::= sacrifice_variable_population "," "then"
 /* The cloak consumes the single conjured arrival; its grant applies to the
    resulting permanent while that same permanent remains face down. */
 /* @sem Instruction::[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Random(Filter(AllOf([$noun, Property{property:ManaValue, test:Compare{comparison:Equal, value:BoundValue(0)}}]))), count:Constant(1), destination:Hand{counters:[], states:[]}}}, Effect{result:@next, operation:Manifest{actor:One(AbilityController), source:Cards(One(Result{result:@prior, phase:After, index:0})), cloak:true, entry:_{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@prior, phase:After, index:0})), changes:[GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([$mana_hybrid])]}, limits:_{once:false, once_each_turn:false, sorcery:false, modifiers:[]}, announcement:_{targets:[]}, body:_{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:TurnFaceUp{object:Source}}}]}}))], duration:WhileMatches{object:Result{result:@prior, phase:After, index:0}, filter:State(FaceDown)}, evaluation:Snapshot}}] */
-conjure_x_cloak_grant ::= "conjure" "a" "random" noun "card" "with" "mana" "value" "X" "into" "your" "hand" "." "cloak" "it" "." "it" "gains" '"' mana_hybrid ":" "turn" "this" "creature" "face" "up" '"' "for" "as" "long" "as" "it" "remains" "face" "down"
+conjure_x_cloak_grant ::= random_catalog_conjure_words "random" noun "card" "with" "mana" "value" "X" "into" "your" "hand" "." "cloak" "it" "." "it" "gains" '"' mana_hybrid ":" "turn" "this" "creature" "face" "up" '"' "for" "as" "long" "as" "it" "remains" "face" "down"
+random_catalog_conjure_words ::= random_catalog_direct_words | random_catalog_duplicate_words
+/* @sem () */
+random_catalog_direct_words ::= "conjure" "a"
+/* @sem () */
+random_catalog_duplicate_words ::= "conjure" "a" "duplicate" "of" "a"
 
 /* The payment's chosen X binds both the threshold and the conjured card. */
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:_{parts:[ManaWithX{mana:[X]}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:_{instructions:[If{condition:Compare{left:BoundValue(0), test:Compare{comparison:GreaterOrEqual, value:$number_digits}}, then:_{instructions:$conjure_x_cloak_grant}, otherwise:_{instructions:[]}}]}, otherwise:_{instructions:[]}}]} */

@@ -3743,8 +3743,13 @@ turn_graveyard_artifact_tapped ::= "you" "may" "cast" "an" "artifact" "spell" "f
 /* @sem Operand::Term{family:SpellEffect, form:EntersTapped} */
 cast_artifact_entry_effect ::= "if" "you" "cast" "a" "spell" "this" "way" "," "that" "artifact" "enters" "tapped" "."
 
-/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([Not(Subtype(Aura)), $filter_phrase, AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])])}), from:Graveyard, action:CastSpell, filter:AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])}, terms:_{limit:EachTurn(1), cost:Normal, effects:[List([$cast_perpetual_creature_effect])]}}) */
-turn_graveyard_permanent_perpetual ::= "you" "may" "cast" "a" "permanent" "spell" "from" "among" "non-Aura" "," filter_phrase "cards" "in" "your" "graveyard" "." cast_perpetual_creature_effect
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([Not(Subtype(Aura)), $graveyard_perpetual_cast_filter, AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])])}), from:Graveyard, action:CastSpell, filter:AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])}, terms:_{limit:EachTurn(1), cost:Normal, effects:[List([$cast_perpetual_creature_effect])]}}) */
+turn_graveyard_permanent_perpetual ::= "you" "may" "cast" "a" graveyard_perpetual_cast_filter "." cast_perpetual_creature_effect
+graveyard_perpetual_cast_filter ::= graveyard_cast_among_cards | graveyard_cast_permanent_spell
+/* @sem $filter_phrase */
+graveyard_cast_among_cards ::= "permanent" "spell" "from" "among" "non-Aura" "," filter_phrase "cards" "in" "your" "graveyard"
+/* @sem $non_creature */
+graveyard_cast_permanent_spell ::= non_creature "," "non-Aura" "permanent" "spell" "from" "your" "graveyard"
 
 /* @sem Operand::Term{family:SpellEffect, form:CastWithPerpetualEffect, operands:[Term{family:PerpetualEffect, form:SetPT, operands:[Term{family:PT, form:PT, operands:[Integer($number), Integer($number_2)]}]}, Term{family:PerpetualEffect, form:AddCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)}]}, Term{family:PerpetualEffect, form:AddCardtype, operands:[Vocabulary{family:CardType, form:Creature}]}]} */
 cast_perpetual_creature_effect ::= "if" "you" "do" "," "it" "perpetually" "becomes" "a" NUMBER "/" NUMBER creature_subtype "creature" "in" "addition" "to" "its" "other" "types" "."
