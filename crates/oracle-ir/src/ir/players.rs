@@ -216,6 +216,14 @@ pub enum PlayerRule {
         component: ManaPaymentComponent,
         uses: u32,
     },
+    /// A single play permission drawing from several origins. A use limit
+    /// wraps this permission once and is shared across all origins.
+    PlayPermissionFromZones {
+        cards: ObjectSet,
+        origins: Vec<EventZone>,
+        action: CardPlayAction,
+        filter: ObjectFilter,
+    },
 }
 
 /// The closed list of player rules specific to one or two cards.

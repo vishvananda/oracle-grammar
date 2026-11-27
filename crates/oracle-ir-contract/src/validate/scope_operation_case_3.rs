@@ -387,6 +387,28 @@ impl<'a> Scope<'a> {
                 self.objects(cards)?;
                 self.count(count)
             }
+            Operation::CastMatching {
+                actor,
+                cards,
+                count,
+                filter,
+                cost,
+            } => {
+                self.players(actor)?;
+                self.objects(cards)?;
+                self.count(count)?;
+                self.filter(filter)?;
+                self.play_cost(cost)
+            }
+            Operation::RemoveMarkedDamage { objects } => self.objects(objects),
+            Operation::CreateTriggerRule {
+                abilities,
+                duration,
+                ..
+            } => {
+                self.filter(abilities)?;
+                self.duration(duration)
+            }
             Operation::PlayWith {
                 actor,
                 cards,

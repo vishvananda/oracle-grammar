@@ -190,6 +190,29 @@ impl<'a> Scope<'a> {
                 self.require_zone(cards, from.clone())?;
                 self.filter(filter)
             }
+            PlayerRule::PlayPermissionFromZones {
+                cards,
+                origins,
+                filter,
+                ..
+            } => {
+                if origins.len() < 2
+                    || origins.iter().enumerate().any(|(index, zone)| {
+                        matches!(zone, EventZone::Stack | EventZone::Battlefield)
+                            || origins[..index].contains(zone)
+                    })
+                {
+                    return Err("play permission needs distinct card origins".into());
+                }
+                self.objects(cards)?;
+                if self
+                    .known_zones(cards)
+                    .is_some_and(|zones| zones.iter().any(|zone| !origins.contains(zone)))
+                {
+                    return Err("play permission card set falls outside its origins".into());
+                }
+                self.filter(filter)
+            }
             PlayerRule::PlayPermissionWith { permission, terms } => {
                 self.player_rule(permission)?;
                 if let Some(players) = &terms.during {

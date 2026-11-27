@@ -270,6 +270,7 @@ impl<'a> Scope<'a> {
                             Operation::ReorderLibrary { .. }
                             | Operation::Destroy { .. }
                             | Operation::Move { .. }
+                            | Operation::CastMatching { .. }
                             | Operation::Counter { .. }
                             | Operation::SetTapped { .. }
                             | Operation::Discard { .. }

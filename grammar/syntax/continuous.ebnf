@@ -12938,3 +12938,15 @@ continuous_singular_defined_creature_type_pump ::= affected "gets" "+" "X" "/" "
 /* Give each affected object both independent abilities. */
 /* @sem Ability::Static{kind:Ordinary,affected:Objects($affected_plural),changes:[GrantKeyword($keyword_value),GrantAbility(@holder($triggered_ability))]} */
 static_keyword_and_quoted_trigger ::= affected_plural "have" keyword_value "and" '"' triggered_ability '"'
+
+/* The target is fixed when announced. The modifier ends when its source
+   stops being tapped, and never copies an already stacked trigger. */
+/* @sem Instruction::[Effect{result:@next,operation:CreateTriggerRule{abilities:AbilityOf(SameObject($retrigger_other_controlled_target)),rule:TriggersAgain,duration:WhileMatches{object:$self_explicit_ref,filter:Tapped}}}] */
+instructions_temporary_ability_retrigger ::= "choose" retrigger_other_controlled_target "." "for" "as" "long" "as" self_explicit_ref "remains" "tapped" "," "if" "a" "triggered" "ability" "of" "that" "creature" "triggers" "," "that" "ability" "triggers" "an" "additional" "time"
+
+/* Playing from either origin uses the same once-per-turn allowance. */
+/* @sem Ability::Static{kind:Ordinary,affected:Players(One(AbilityController)),changes:[PlayerRule(PlayPermissionWith{permission:PlayPermissionFromZones{cards:Union([OutsideTheGame(AllOf([OwnedBy(One(Affected)),$permanent_card_word])),Zone{scope:Players{zone:Graveyard,players:One(Affected)},kind:Card,filter:$permanent_card_word}]),origins:[Outside,Graveyard],action:Either,filter:Any},terms:_{limit:EachTurn(1),during:One(AbilityController),cost:Normal}})]} */
+static_play_owned_permanent_from_outside_or_graveyard ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "play" "a" permanent_card_word "card" "you" "own" "from" "outside" "the" "game" "or" "from" "your" "graveyard" "."
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot,kind:Object(_{kind:Permanent,zones:[Battlefield]}),count:Exactly(Constant(1)),filter:AllOf([Not(SameObject(Source)),CardType(Creature),ControlledBy(One(AbilityController))])}),index:0} */
+retrigger_other_controlled_target ::= "another" "target" "creature" "you" "control"

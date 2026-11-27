@@ -2828,3 +2828,37 @@ spell_create_then_protect_color_choice ::= create_base "," "then" affected "gain
    counters this player put on it or whether the counters remain there. */
 /* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield),kind:Permanent,filter:AllOf([$filter_phrase,ControlledBy(One(AbilityController)),Condition(Compare{left:EventHistory{event:Counters{change:Put,objects:SameObject(Candidate),by:One(AbilityController)},window:ThisTurn,measure:Occurrences},test:NumberTest::Compare{comparison:GreaterOrEqual,value:Constant(1)}})])}) */
 count_each_you_put_counter_on_this_turn ::= filter_phrase "you" "control" "that" "you've" "put" "a" "counter" "on" "this" "turn"
+
+/* Evaluate the alternative amount before token creation and after the
+   counter placement. This is one creation batch whichever amount is used. */
+/* @sem Instruction::[Effect{result:@next,operation:$put_counters_direct},Effect{result:@next,operation:CreateTokens{players:One(AbilityController),tokens:[TokenSpec{amount:Conditional{condition:$condition,then:$number,otherwise:Constant(1)},words:CreatingEffect,recipe:$token_recipe}],entry:BattlefieldArrival{}}}] */
+instructions_put_counter_create_variable_batch ::= put_counters_direct "." "create" "a" token_recipe "." "if" condition "," "create" number "of" "those" "tokens" "instead"
+
+/* Determine target slots independently for the two announced casting branches. */
+/* @sem Ability::@optional_cost_reminder(Ability::CostBranch{keyword:Kicker,cost:$kicker_branch_header,unpaid:@scope(Ability::Spell{announcement:@announcement,body:_{instructions:[Effect{result:@next,operation:@apply(PlayerSet::One(AbilityController),$create_base)}]}}),paid:@scope(Ability::Spell{announcement:@announcement,body:_{instructions:[Effect{result:@next,operation:$copy_each_target_player_creature}]}})},$kicker_branch_note) */
+spell_kicker_copy_opponent_population ::= kicker_branch_header kicker_branch_note? NEWLINE create_base "." "if" "this" "spell" "was" "kicked" "," "instead" copy_each_target_player_creature "."
+
+/* @sem Operation::CreateTokens{players:One(AbilityController),tokens:[TokenSpec{amount:Constant(1),words:CreatingEffect,recipe:CopyEach{objects:Zone{scope:Shared(Battlefield),kind:Permanent,filter:AllOf([$filter_phrase,ControlledBy(One($target_opponent))])},exceptions:$copy_exceptions_plain}}],entry:BattlefieldArrival{}} */
+copy_each_target_player_creature ::= "for" "each" filter_phrase target_opponent "controls" "," "create" "a" "token" "that's" "a" "copy" "of" "that" "creature" "," "except" copy_exceptions_plain
+
+/* Copies are created from the legal announced targets in one batch. The
+   subsequent grant and delayed exile both refer to the actual tokens made. */
+/* @sem Ability::WithPresentation{reminder:true,ability:Spell{announcement:@announcement,body:_{instructions:[Effect{result:@mark,operation:CreateTokens{players:One(AbilityController),tokens:[TokenSpec{amount:Constant(1),words:CreatingEffect,recipe:CopyEach{objects:$chosen_x_copy_targets,exceptions:[AddAbilities([Keyword(Changeling)])]}}],entry:BattlefieldArrival{}}},Effect{result:@next,operation:CreateContinuousEffect{source:Source,affected:Objects(Created(@marked)),changes:$grants,duration:Indefinite,evaluation:Snapshot}},Effect{result:@next,operation:CreateDelayedTrigger{event:$delayed_move_any_end,start:Immediately,body:_{instructions:[Effect{result:@next,operation:Move{objects:Created(@marked),destination:Exile{visibility:FaceUp,arrival:ExileArrival{}},qualifiers:[]}}]}}}]}}} */
+spell_chosen_targets_create_copy_cleanup ::= "choose" chosen_x_copy_targets "." "for" "each" "of" "them" "," "create" "a" "token" "that's" "a" "copy" "of" "that" "creature" "," "except" "it" "has" "changeling" "." "those" "tokens" "gain" grants "." "exile" "those" "tokens" "at" delayed_move_any_end "." "(" "they're" "every" "creature" "type" "." ")"
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot,kind:Object(_{kind:Permanent,zones:[Battlefield]}),count:Exactly(AnnouncedX),filter:AllOf([CardType(Creature),ControlledBy(OpponentsOf(AbilityController))])})) */
+chosen_x_copy_targets ::= "X" "target" "creatures" "your" "opponents" "control"
+
+/* The named Equipment has two separate abilities and attaches only from this
+   creation receipt. Its pump follows the host currently equipped by it. */
+/* @sem Instruction::[Effect{result:@mark,operation:CreateTokens{players:One(AbilityController),tokens:[TokenSpec{amount:Constant(1),words:CreatingEffect,recipe:$named_equipment_token_pump}],entry:BattlefieldArrival{}}},Effect{result:@next,operation:Attach{attachments:Created(@marked),host:$self_explicit_ref}}] */
+instructions_create_named_equipment_attach ::= "create" "a" named_equipment_token_pump "." "attach" "it" "to" self_explicit_ref
+
+/* @sem TokenRecipe::Defined{name:Explicit($named_equipment_token_name),colors:$token_colors,card_types:$token_types,subtypes:$token_subtypes,abilities:[@holder($equipment_token_quote_pump),$keyword_equip]} */
+named_equipment_token_pump ::= token_colors token_subtypes token_types "token" "named" named_equipment_token_name "with" '"' equipment_token_quote_pump '"' "and" keyword_equip
+
+/* @sem String::'Neuroflux Heirloom' */
+named_equipment_token_name ::= "Neuroflux" "Heirloom"
+
+/* @sem Ability::Static{kind:Ordinary,affected:Objects(One(AttachedTo(Source))),changes:[Pump{power:$signed,toughness:$signed_2}]} */
+equipment_token_quote_pump ::= "equipped" "creature" "gets" signed "/" signed

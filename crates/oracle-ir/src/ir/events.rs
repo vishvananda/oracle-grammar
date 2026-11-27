@@ -891,6 +891,8 @@ pub enum TurnPoint {
     EndStepBegins,
     CleanupStepBegins,
     DeclareAttackersStepBegins,
+    /// The start of a turn explicitly added by an extra-turn effect.
+    ExtraTurnBegins,
 }
 
 #[derive(
