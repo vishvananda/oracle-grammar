@@ -120,6 +120,11 @@ pub(super) fn unbound_searched_card_test(ability: &Value) -> bool {
 // A one-card hand selection is the complete input of the following duplicate.
 // The bound receipt preserves its identity even after a later choice.
 pub(super) fn conjure_selected_hand_card(ability: &mut Value) {
+    let ability = if ability["kind"] == "Scoped" {
+        &mut ability["args"]["ability"]
+    } else {
+        ability
+    };
     if !matches!(
         ability["kind"].as_str(),
         Some("Activated" | "Spell" | "Triggered")
@@ -151,4 +156,96 @@ pub(super) fn conjure_selected_hand_card(ability: &mut Value) {
         let id = choose["args"]["result"].clone();
         args["body"]["instructions"][1]["args"]["operation"]["args"]["card"]["Duplicate"] = json!({"kind":"One","args":{"kind":"Result","args":{"result":id,"phase":"After","index":0}}});
     }
+}
+
+// The color choice is evaluated only within the threshold branch. A
+// following grant from that color stays in the same branch.
+pub(super) fn protection_from_conditional_choice(ability: &mut Value) {
+    if ability["kind"] != "Spell" {
+        return;
+    }
+    let Some(instructions) = ability["args"]["body"]["instructions"].as_array_mut() else {
+        return;
+    };
+    let [pump, branch, grant] = instructions.as_slice() else {
+        return;
+    };
+    let prefix = &pump["args"]["operation"];
+    let body = &branch["args"]["then"]["instructions"];
+    let [choose] = body.as_array().map(Vec::as_slice).unwrap_or(&[]) else {
+        return;
+    };
+    let offer = &choose["args"]["operation"];
+    let protection = &grant["args"]["operation"];
+    let choice = json!({"kind":"GrantKeyword","args":{"kind":"Protection","args":{
+        "Objects":{"kind":"Any","filter":{"kind":"Chosen","args":"Color"}}
+    }}});
+    if pump["kind"] != "Effect"
+        || prefix["kind"] != "CreateContinuousEffect"
+        || branch["kind"] != "If"
+        || branch["args"]["otherwise"]["instructions"] != json!([])
+        || choose["kind"] != "Effect"
+        || offer["kind"] != "ChooseValue"
+        || offer["args"]["kind"] != "Color"
+        || offer["args"]["choosers"] != json!({"kind":"One","args":{"kind":"AbilityController"}})
+        || grant["kind"] != "Effect"
+        || protection["kind"] != "CreateContinuousEffect"
+        || protection["args"]["affected"] != prefix["args"]["affected"]
+        || protection["args"]["duration"] != "EndOfTurn"
+        || protection["args"]["changes"] != json!([choice])
+    {
+        return;
+    }
+    let granted = instructions.pop().expect("three instructions");
+    instructions[1]["args"]["then"]["instructions"]
+        .as_array_mut()
+        .expect("one color choice")
+        .push(granted);
+}
+
+// Each selection belongs to an independently announced controller. The
+// exchange acts on the two selected sets, including when either set is empty.
+pub(super) fn exchange_selected_sets(ability: &mut Value) {
+    if ability["kind"] != "Spell" {
+        return;
+    }
+    let args = &mut ability["args"];
+    let Some([first, second, swap]) = args["body"]["instructions"].as_array().map(Vec::as_slice)
+    else {
+        return;
+    };
+    let first_choice = &first["args"]["operation"];
+    let second_choice = &second["args"]["operation"];
+    let exchange = &swap["args"]["operation"];
+    let exchange_args = &exchange["args"];
+    let first_set = json!({"kind":"Selected","args":first["args"]["result"]});
+    let second_set = json!({"kind":"Selected","args":second["args"]["result"]});
+    let player = &exchange_args["second"]["args"];
+    let counted = json!({"kind":"InZone","args":{"objects":first_set,"zone":"Battlefield"}});
+    if first["kind"] != "Effect"
+        || second["kind"] != "Effect"
+        || swap["kind"] != "Effect"
+        || first_choice["kind"] != "ChooseObjects"
+        || second_choice["kind"] != "ChooseObjects"
+        || first_choice["args"]["player"] != second_choice["args"]["player"]
+        || first_choice["args"]["count"]["UpTo"]["kind"] != "AmongPlayers"
+        || second_choice["args"]["count"]["AsManyAsCan"]
+            != json!({"kind":"CountObjects","args":counted})
+        || exchange["kind"] != "Exchange"
+        || exchange_args["kind"] != "Control"
+        || !exchange_args["until"].is_null()
+        || exchange_args["first"] != json!({"kind":"Objects","args":second_set})
+        || exchange_args["second"]["kind"] != "Player"
+        || player["kind"] != "Target"
+        || !second_choice["args"]["objects"]["args"]["filter"]["args"]
+            .as_array()
+            .is_some_and(|parts| {
+                parts.contains(&json!({"kind":"ControlledBy","args":{"kind":"One","args":player}}))
+            })
+    {
+        return;
+    }
+    let exchange = &mut args["body"]["instructions"][2]["args"]["operation"]["args"];
+    exchange["first"] = json!({"kind":"Objects","args":first_set});
+    exchange["second"] = json!({"kind":"Objects","args":second_set});
 }

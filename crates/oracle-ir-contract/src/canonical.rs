@@ -677,6 +677,7 @@ impl Walker {
                 }
                 ("Ability", "Static") if !self.keep_order => {
                     casting_grants::normalize(value, self.tracing);
+                    target_stats::exclude_fixed_holder(value, self.tracing);
                 }
                 ("Operation", "CreateBoon") if !self.keep_order => {
                     events::boon_entry_switch(value, self.tracing);

@@ -59,7 +59,7 @@ pub(super) fn normalize(value: &mut Value, tracing: bool) {
     let cast = json!({"kind":"Cast","args":{"by":controller,"from":null}});
     let spells = match rule["spells"]["kind"].as_str() {
         Some("Any") => cast,
-        Some("Subtype") => {
+        Some("Subtype" | "AnyOf") if simple_cast_population(&rule["spells"], term) => {
             let mut predicates = [cast, rule["spells"].clone()];
             predicates.sort_by_cached_key(|filter| super::trace::key(filter, tracing));
             json!({"kind":"AllOf","args":predicates})
@@ -74,4 +74,16 @@ pub(super) fn normalize(value: &mut Value, tracing: bool) {
             "mechanic":term["form"],"amount":null,"cost":cost,"filter":filter
         }}}]
     }});
+}
+
+// The Instant/Sorcery union is a single population of proposed spells with
+// their own replicate costs. More general spell forests keep their domain.
+fn simple_cast_population(filter: &Value, term: &Value) -> bool {
+    filter["kind"] == "Subtype"
+        || term["form"] == "Replicate"
+            && filter["args"].as_array().is_some_and(|types| {
+                types.len() == 2
+                    && types.contains(&json!({"kind":"CardType","args":"Instant"}))
+                    && types.contains(&json!({"kind":"CardType","args":"Sorcery"}))
+            })
 }

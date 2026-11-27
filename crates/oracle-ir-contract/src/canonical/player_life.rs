@@ -233,3 +233,84 @@ pub(super) fn flatten(items: &mut [Value], path: &str, uses: &Uses, tracing: boo
     }
     changed
 }
+
+// A declined target-player payment still identifies its asked player. In the
+// negative branch the loser's bare pronoun cannot come from a performer.
+pub(super) fn declined_target(items: &mut [Value], tracing: bool) -> bool {
+    let [offer, branch] = items else { return false };
+    let payment = &offer["args"]["operation"];
+    let player = &payment["args"]["player"];
+    let test = &branch["args"]["condition"];
+    let choice = &test["args"];
+    let loss = &branch["args"]["then"]["instructions"][0]["args"]["operation"];
+    if offer["kind"] != "Effect"
+        || payment["kind"] != "PayCost"
+        || payment["args"]["optional"] != true
+        || player["kind"] != "Target"
+        || branch["kind"] != "If"
+        || test["kind"] != "Not"
+        || choice["kind"] != "PaymentChosen"
+        || !super::trace::same(&choice["args"], &offer["args"]["result"], tracing)
+        || branch["args"]["then"]["instructions"][0]["kind"] != "Effect"
+        || loss["kind"] != "LoseLife"
+        || loss["args"]["players"] != json!({"kind":"One","args":{"kind":"Acting"}})
+        || loss["args"]["amount"]["kind"] != "Constant"
+        || lossless::<Instruction>(branch, tracing).is_none()
+    {
+        return false;
+    }
+    let player = player.clone();
+    branch["args"]["then"]["instructions"][0]["args"]["operation"]["args"]["players"]["args"] =
+        player;
+    true
+}
+
+// In a one-player iteration the counted lands belong to the same player who
+// receives the damage. Preserve the iteration's actual binding in the count.
+pub(super) fn counted_damage_recipient(value: &mut Value, tracing: bool) -> bool {
+    let args = &value["args"];
+    let program = &args["body"];
+    let Some([effect]) = program["instructions"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let operation = &effect["args"]["operation"];
+    let operands = &operation["args"];
+    let recipient = &operands["recipients"];
+    let bound = &recipient["args"]["args"];
+    let amount = &operands["amount"];
+    let lands = &amount["args"];
+    let zone = &lands["args"];
+    let filter = &zone["filter"];
+    let Some(parts) = filter["args"].as_array() else {
+        return false;
+    };
+    let controller = json!({"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"Acting"}}});
+    if value["kind"] != "ForEachPlayer"
+        || args["players"] != json!({"kind":"All"})
+        || !args["starting_with"].is_null()
+        || args["in_chosen_direction"] != false
+        || effect["kind"] != "Effect"
+        || operation["kind"] != "DealDamage"
+        || recipient["kind"] != "Players"
+        || recipient["args"]["kind"] != "One"
+        || bound["kind"] != "Bound"
+        || !super::trace::same(&bound["args"], &args["binding"], tracing)
+        || amount["kind"] != "CountObjects"
+        || lands["kind"] != "Zone"
+        || zone["scope"]["Shared"] != "Battlefield"
+        || zone["kind"] != "Permanent"
+        || filter["kind"] != "AllOf"
+        || parts.len() != 2
+        || !parts.contains(&json!({"kind":"CardType","args":"Land"}))
+        || lossless::<Instruction>(value, tracing).is_none()
+    {
+        return false;
+    }
+    let Some(index) = parts.iter().position(|filter| *filter == controller) else {
+        return false;
+    };
+    let bound = bound.clone();
+    value["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["amount"]["args"]["args"]
+        ["filter"]["args"][index]["args"]["args"] = bound;
+    true
+}

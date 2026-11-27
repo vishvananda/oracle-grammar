@@ -26,6 +26,7 @@ mod events;
 pub(crate) mod exile_followups;
 mod exile_returns;
 pub(crate) mod exiled_card;
+mod explicit_attachment;
 mod fight_counterpart;
 mod filters;
 pub(crate) mod group_contrast;
@@ -313,6 +314,12 @@ pub(crate) fn bind_held_ability_with_source(
     member_focus::prepare(ability)?;
     move_after::prepare(ability)?;
     condition_placement(ability)?;
+    if explicit_attachment::uncaptured_damage_source(ability, attachment) {
+        return Err("the counter belongs to the captured enchanted damage source".into());
+    }
+    if optional_entered_card::detached_followup(ability) {
+        return Err("the followup must use the same optional entrant".into());
+    }
     if direct_receipts::unbound_searched_card_test(ability) {
         return Err("the condition tests the card moved by the preceding search".into());
     }
@@ -339,6 +346,11 @@ pub(crate) fn bind_held_ability_with_source(
     direct_receipts::returned_target_pump(ability);
     direct_receipts::exile_own_tapped_source(ability);
     direct_receipts::conjure_selected_hand_card(ability);
+    direct_receipts::protection_from_conditional_choice(ability);
+    direct_receipts::exchange_selected_sets(ability);
+    if explicit_attachment::global_host(ability, attachment) {
+        return Err("the singular enchanted permanent belongs to this Aura".into());
+    }
     paid_self_exile::lower(ability, paid_self_exile)?;
     if has_cost_as_action(ability) {
         return Err("a payment with a cost of its own is that cost".into());

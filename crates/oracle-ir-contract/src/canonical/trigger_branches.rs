@@ -107,28 +107,32 @@ fn departure_zones(left: &Value, right: &Value) -> Option<(&'static str, &'stati
 /// EventDestination already selects only the first public incarnation and
 /// becomes empty if it leaves that zone. A return of that object has the same
 /// source, recipient, and order when its own arrival zone is implicit.
-fn library_return(ability: &mut Value, zone: &str) -> bool {
-    let Some([optional]) = ability["args"]["body"]["instructions"]
+fn departure_return(ability: &mut Value, zone: &str) -> bool {
+    let Some([instruction]) = ability["args"]["body"]["instructions"]
         .as_array_mut()
         .map(Vec::as_mut_slice)
     else {
         return false;
     };
-    if optional["kind"] != "Optional" {
-        return false;
-    }
-    let Some([effect]) = optional["args"]["body"]["instructions"]
-        .as_array_mut()
-        .map(Vec::as_mut_slice)
-    else {
-        return false;
+    let optional = instruction["kind"] == "Optional";
+    let effect = if optional {
+        let Some([effect]) = instruction["args"]["body"]["instructions"]
+            .as_array_mut()
+            .map(Vec::as_mut_slice)
+        else {
+            return false;
+        };
+        effect
+    } else {
+        instruction
     };
     if effect["kind"] != "Effect" {
         return false;
     }
     let operation = &mut effect["args"]["operation"];
+    let destination = if optional { "Library" } else { "OwnersHand" };
     if operation["kind"] != "Move"
-        || operation["args"]["destination"].get("Library").is_none()
+        || operation["args"]["destination"].get(destination).is_none()
         || operation["args"]["qualifiers"] != json!([])
     {
         return false;
@@ -155,8 +159,8 @@ fn merge_departure_returns(a: &mut Value, b: &mut Value, tracing: bool) -> bool 
     };
     let mut left = a.clone();
     let mut right = b.clone();
-    if !library_return(&mut left, first)
-        || !library_return(&mut right, second)
+    if !departure_return(&mut left, first)
+        || !departure_return(&mut right, second)
         || !same_but_event(&left, &right, tracing)
     {
         return false;

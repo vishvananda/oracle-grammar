@@ -123,3 +123,45 @@ pub(super) fn normalize(operation: &mut Value, tracing: bool) {
 pub(super) fn print(operation: &mut Value) -> bool {
     rewrite(operation, true, false)
 }
+
+// The counted other permanents exclude the fixed holder of a self static.
+pub(super) fn exclude_fixed_holder(value: &mut Value, tracing: bool) {
+    let args = &value["args"];
+    let Some([change]) = args["changes"].as_array().map(Vec::as_slice) else {
+        return;
+    };
+    let power = &change["args"]["power"];
+    let toughness = &change["args"]["toughness"];
+    let set = &power["args"];
+    let filter = &set["args"]["filter"];
+    let Some([zero, repeat]) = toughness["args"].as_array().map(Vec::as_slice) else {
+        return;
+    };
+    if args["kind"] != "Ordinary"
+        || args["affected"] != json!({"Objects":{"kind":"One","args":{"kind":"Source"}}})
+        || change["kind"] != "Pump"
+        || power["kind"] != "CountObjects"
+        || set["kind"] != "Zone"
+        || set["args"]["scope"]["Shared"] != "Battlefield"
+        || set["args"]["kind"] != "Permanent"
+        || filter["kind"] != "AllOf"
+        || toughness["kind"] != "Multiply"
+        || *zero != json!({"kind":"Constant","args":0})
+        || !trace::same(repeat, power, tracing)
+        || lossless::<crate::ir::Ability>(value, tracing).is_none()
+    {
+        return;
+    }
+    let old = json!({"kind":"Not","args":{"kind":"SameObject","args":{"kind":"Affected"}}});
+    let Some(index) = filter["args"]
+        .as_array()
+        .and_then(|parts| parts.iter().position(|part| *part == old))
+    else {
+        return;
+    };
+    let stats = &mut value["args"]["changes"][0]["args"];
+    stats["power"]["args"]["args"]["filter"]["args"][index]["args"]["args"] =
+        json!({"kind":"Source"});
+    stats["toughness"]["args"][1]["args"]["args"]["filter"]["args"][index]["args"]["args"] =
+        json!({"kind":"Source"});
+}

@@ -9,6 +9,16 @@ pub(super) fn slots(operation: &Value) -> Option<&'static [&'static str]> {
     let args = &operation["args"];
     match operation["kind"].as_str()? {
         "DealDamage" => Some(&["/args/amount"]),
+        "LookAt"
+            if args["player"]["kind"] == "AbilityController"
+                && args["objects"]["kind"] == "Take"
+                && args["objects"]["args"]["from"] == "Top"
+                && args["objects"]["args"]["objects"]["kind"] == "Zone"
+                && args["objects"]["args"]["objects"]["args"]["scope"]["Players"]
+                    == json!({"zone":"Library","players":{"kind":"One","args":{"kind":"AbilityController"}}}) =>
+        {
+            Some(&["/args/objects/args/count"])
+        }
         "Draw" | "GainLife" | "LoseLife" | "Mill" | "Scry" | "Surveil"
             if args["players"]["kind"] == "One"
                 || matches!(operation["kind"].as_str(), Some("LoseLife" | "Mill"))

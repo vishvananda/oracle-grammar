@@ -41,10 +41,16 @@ pub(super) fn resolution_surface(ability: &mut Value) {
 pub(super) fn condition_placement(value: &mut Value) -> Result<(), String> {
     fn walk(value: &mut Value, literal: bool) -> Result<(), String> {
         super::loop_card_focus::mark(value);
+        if super::optional_entered_card::detached_temporary_event(value) {
+            return Err("the new trigger supplies the creature receiving the grant".into());
+        }
         if opens_with_if(value, literal) {
             return Err("an `if` right after a trigger is its intervening condition".into());
         }
         if symbol_name(value) == Some("resolution") {
+            if super::postposed_focus::missing_member_scope(value) {
+                return Err("each affected member checks its own name condition".into());
+            }
             super::postposed_focus::mark(value);
         }
         if matches!(symbol_name(value), Some("resolution" | "leading_if")) {

@@ -393,6 +393,157 @@ pub(super) fn reference(
         .map(|r| receipt_object(r.result)["args"].take()))
 }
 
+fn paid_then(branch: &Value) -> Option<&[Value]> {
+    let args = &branch["args"];
+    if branch["kind"] != "If"
+        || args["condition"]["kind"] != "PaymentChosen"
+        || args["otherwise"]["instructions"] != json!([])
+    {
+        return None;
+    }
+    args["then"]["instructions"].as_array().map(Vec::as_slice)
+}
+
+fn attaches_to_recent_entrant(objects: &Value) -> bool {
+    let objects = transparent(objects);
+    let objects = if symbol_name(objects) == Some("return_grant_set") {
+        &objects["args"][0]
+    } else {
+        objects
+    };
+    let mut reference = if objects["kind"] == "One" {
+        &objects["args"]
+    } else {
+        objects
+    };
+    if symbol_name(reference) == Some("qualified_members") {
+        reference = &reference["args"][0];
+    }
+    let reference = transparent(reference);
+    matches!(
+        symbol_name(reference),
+        Some("it" | "created_reference_single" | "counter_reference_single")
+    ) || symbol_name(reference) == Some("qualified_object")
+        && reference["args"] == json!(["Permanent",{"kind":"CardType","args":"Creature"}])
+}
+
+// A terminal keyword grant or delayed sacrifice of the entrant still uses
+// the card offered in the immediately preceding optional entry or payment.
+pub(super) fn detached_followup(ability: &Value) -> bool {
+    let Some([payment, checked, continuation]) = ability["args"]["body"]["instructions"]
+        .as_array()
+        .map(Vec::as_slice)
+    else {
+        return false;
+    };
+    let (Some(paid), Some(remaining)) = (operation(payment), operation(continuation)) else {
+        return false;
+    };
+    let Some([inside]) = paid_then(checked) else {
+        return false;
+    };
+    if paid["kind"] != "PayCost" || paid["args"]["optional"] != true {
+        return false;
+    }
+    if optional(inside) && grant(remaining) {
+        let Some([choice, placed]) = inside["args"]["body"]["instructions"]
+            .as_array()
+            .map(Vec::as_slice)
+        else {
+            return false;
+        };
+        let (Some(choice), Some(placed)) = (operation(choice), operation(placed)) else {
+            return false;
+        };
+        return choice["kind"] == "ChooseObjects"
+            && choice["args"]["objects"]["args"]["scope"]["Players"]["zone"] == "Hand"
+            && placed["kind"] == "Move"
+            && entry(placed)
+            && placed["args"]["destination"]["Battlefield"]["arrival"]["tapped"] == true
+            && attaches_to_recent_entrant(&remaining["args"]["affected"]["Objects"]);
+    }
+    let Some(inside) = operation(inside) else {
+        return false;
+    };
+    let Some([part]) = paid["args"]["cost"]["parts"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let move_into = &part["Move"];
+    let Some([selection]) = move_into["selections"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    if !grant(inside)
+        || !attaches_to_recent_entrant(&inside["args"]["affected"]["Objects"])
+        || selection["objects"]["args"]["scope"]["Players"]["zone"] != "Hand"
+        || !positive(&selection["objects"]["args"]["filter"], "Creature")
+        || selection["choose"] != json!({"Exactly":{"kind":"Constant","args":1}})
+        || move_into["destination"].get("Battlefield").is_none()
+        || remaining["kind"] != "CreateDelayedTrigger"
+        || remaining["args"]["event"]
+            != json!({"Turn":{"point":"EndStepBegins","players":{"kind":"All"}}})
+    {
+        return false;
+    }
+    let Some([sacrifice, check]) = remaining["args"]["body"]["instructions"]
+        .as_array()
+        .map(Vec::as_slice)
+    else {
+        return false;
+    };
+    let Some(sacrifice) = operation(sacrifice) else {
+        return false;
+    };
+    let Some([returned]) = paid_then(check) else {
+        return false;
+    };
+    let expected_return = operation(returned).is_some_and(|returned| {
+        returned["kind"] == "Move" && returned["args"]["destination"].get("Battlefield").is_some()
+    });
+    sacrifice["kind"] == "PayCost"
+        && sacrifice["args"]["cost"]["parts"].as_array().is_some_and(|parts| {
+            matches!(parts.as_slice(), [part] if attaches_to_recent_entrant(&part["Sacrifice"]["objects"]))
+        })
+        && expected_return
+}
+
+// A keyword grant using the same bare pronoun as a future attack
+// trigger's sole counter placement must execute in that event frame.
+pub(super) fn detached_temporary_event(program: &Value) -> bool {
+    let Some([creating, granting]) = program["instructions"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let mut create = &creating["args"]["operation"];
+    if symbol_name(create) == Some("scope") {
+        create = &create["args"][0];
+    }
+    let Some(granted) = operation(granting) else {
+        return false;
+    };
+    let args = &create["args"];
+    if creating["kind"] != "Effect"
+        || create["kind"] != "CreateTrigger"
+        || args["event"]["Object"]["event"] != "AttacksAlone"
+        || args["duration"] != "EndOfTurn"
+        || !args["intervening_if"].is_null()
+        || !grant(granted)
+        || !attaches_to_recent_entrant(&granted["args"]["affected"]["Objects"])
+    {
+        return false;
+    }
+    let Some([place]) = args["body"]["instructions"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let Some(place) = operation(place) else {
+        return false;
+    };
+    place["kind"] == "PutCounters"
+        && place["args"]["placements"].as_array().is_some_and(|parts| {
+            matches!(parts.as_slice(), [part]
+                if part["recipients"]["kind"] == "Objects"
+                && attaches_to_recent_entrant(&part["recipients"]["args"]))
+        })
+}
+
 #[cfg(test)]
 #[path = "optional_entered_card_tests.rs"]
 mod tests;

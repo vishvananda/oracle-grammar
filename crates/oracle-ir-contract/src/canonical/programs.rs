@@ -87,6 +87,9 @@ impl Visit for Normalize {
             self.changed |= super::observed_top::program(value, self.tracing)?;
             if !self.keep_order {
                 self.changed |= super::single_choices::program(value, self.tracing);
+                if let Some(items) = value.get_mut("instructions").and_then(Value::as_array_mut) {
+                    self.changed |= super::player_life::declined_target(items, self.tracing);
+                }
             }
         }
         if !self.keep_order
@@ -94,6 +97,12 @@ impl Visit for Normalize {
             && value["kind"] == "If"
         {
             self.changed |= super::keywords::guarded_unsuspect(value, self.tracing);
+        }
+        if !self.keep_order
+            && matches!(ty, Ty::Named(name) if name == "Instruction")
+            && value["kind"] == "ForEachPlayer"
+        {
+            self.changed |= super::player_life::counted_damage_recipient(value, self.tracing);
         }
         if !self.keep_order && matches!(ty, Ty::Named(name) if name == "ManaProduction") {
             self.changed |= super::fixed_mana::bundle(value, self.tracing);

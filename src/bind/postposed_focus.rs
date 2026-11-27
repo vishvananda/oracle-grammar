@@ -40,3 +40,38 @@ fn consequent_reference(then: &Value) -> Option<&Value> {
     (objects["kind"] == "One" && symbol_name(reference) == Some("qualified_object"))
         .then_some(reference)
 }
+
+// A distributive creature subject tests the name condition for each of its
+// members. The same clause cannot become an overall test of the source.
+pub(super) fn missing_member_scope(marker: &Value) -> bool {
+    let branch = &marker["args"][0];
+    let args = &branch["args"];
+    let condition = &args["condition"];
+    let filter = &condition["args"]["filter"];
+    let Some([effect]) = args["then"]["instructions"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let operation = &effect["args"]["operation"];
+    let output = &operation["args"];
+    let subjects = &output["affected"]["Objects"];
+    let object = &condition["args"]["object"];
+    branch["kind"] == "If"
+        && args["otherwise"]["instructions"]
+            .as_array()
+            .is_some_and(Vec::is_empty)
+        && condition["kind"] == "ObjectMatches"
+        && symbol_name(object) == Some("member_count_it")
+        && symbol_name(&object["args"][0]) == Some("it")
+        && filter["kind"] == "AnyOf"
+        && matches!(filter["args"].as_array().map(Vec::as_slice), Some([another, any])
+            if another["kind"] == "SharesNameWithAnother" && any["kind"] == "SharesNameWithAny")
+        && effect["kind"] == "Effect"
+        && operation["kind"] == "CreateContinuousEffect"
+        && output["duration"] == "EndOfTurn"
+        && output["evaluation"] == "Snapshot"
+        && output["changes"].as_array().is_some_and(
+            |changes| matches!(changes.as_slice(), [change] if change["kind"] == "Pump"),
+        )
+        && symbol_name(subjects) == Some("distributive_pump_subject")
+        && subjects["args"][0]["kind"] == "Zone"
+}
