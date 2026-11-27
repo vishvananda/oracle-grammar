@@ -90,7 +90,35 @@ pub(crate) fn define_where(body: &Value, amount: &Value, at: usize) -> Result<Va
     if super::value_snapshot::required(body, amount)? {
         return super::value_snapshot::snapshot(&written, amount, at).map(definition);
     }
-    Ok(definition(super::substituted(written, amount)))
+    let substituted = super::substituted(written, amount);
+    if unresolved_direct_payment(&substituted) {
+        return Err("a where-definition must supply the resolution-time X payment".into());
+    }
+    Ok(definition(substituted))
+}
+
+// The printed definition governs any direct payment in this same program.
+// A cost that has a price already, or owns a separate scope, retains it.
+fn unresolved_direct_payment(program: &Value) -> bool {
+    let instructions = program["instructions"]
+        .as_array()
+        .or_else(|| program.as_array());
+    instructions.is_some_and(|items| {
+        items.iter().any(|item| {
+            let operation = &item["args"]["operation"];
+            item["kind"] == "Effect"
+                && operation["kind"] == "PayCost"
+                && operation["args"]["cost"]["parts"]
+                    .as_array()
+                    .is_some_and(|parts| {
+                        parts.iter().any(|part| {
+                            part["Mana"]
+                                .as_array()
+                                .is_some_and(|symbols| symbols.iter().any(|symbol| symbol == "X"))
+                        })
+                    })
+        })
+    })
 }
 
 pub(crate) fn definition(mut value: Value) -> Value {

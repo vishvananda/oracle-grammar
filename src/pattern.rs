@@ -607,22 +607,18 @@ impl Pattern {
                     ("integer_interval", [lower, upper]) => {
                         return crate::functions::integer_interval::build(lower, upper);
                     }
-                    ("and_sequence", [head, tail]) => {
-                        return crate::functions::optional_scope::sequence(head, tail);
-                    }
-                    ("then_sequence" | "optional_then", [head, tail]) => {
-                        return crate::functions::optional_scope::then_sequence(
-                            head,
-                            tail,
-                            name == "optional_then",
-                        );
+                    ("and_sequence" | "then_sequence" | "optional_then", [head, tail]) => {
+                        return crate::functions::optional_scope::join(name, head, tail);
                     }
                     (
                         "single_reflexive_base" | "offered_action" | "independent_top_continuation",
                         [actions],
                     ) => return crate::functions::optional_scope::action_guard(name, actions),
-                    ("optional_action_program", [program]) => {
-                        return crate::functions::optional_scope::action_program(program);
+                    (
+                        "blocker_exception" | "postposed_choice" | "optional_action_program",
+                        [operand],
+                    ) => {
+                        return crate::functions::checked_operand(name, operand);
                     }
                     ("optional_program", [program]) => {
                         return crate::functions::optional_scope::program(program);
@@ -1143,6 +1139,9 @@ fn transparent_symbol(name: &str) -> bool {
         name,
         "look_inline"
             | "implicit_control_change"
+            | "independent_sentence"
+            | "blocker_exception"
+            | "postposed_choice"
             | "indefinite_opponent_controller"
             | "linked_return_literal"
             | "literal_damage_itself_objects"

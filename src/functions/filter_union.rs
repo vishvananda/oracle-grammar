@@ -63,3 +63,21 @@ pub(crate) fn unify<'p, 'v>(
     }
     solutions
 }
+
+// A creature subtype followed by "and/or creatures with <keyword>" names two
+// alternatives. The keyword qualifies the second head. Applying it to the
+// union would make the written subtype superfluous among legal combatants.
+pub(crate) fn blocker_exception(filter: &Value) -> Result<Value, String> {
+    if filter["kind"] == "AllOf"
+        && let Some([union, keyword]) = filter["args"].as_array().map(Vec::as_slice)
+        && union["kind"] == "AnyOf"
+        && keyword["kind"] == "HasKeyword"
+        && let Some([subtype, creature]) = union["args"].as_array().map(Vec::as_slice)
+        && subtype["kind"] == "Subtype"
+        && creature["kind"] == "CardType"
+        && creature["args"] == "Creature"
+    {
+        return Err("the keyword qualifies the second blocker population".into());
+    }
+    Ok(filter.clone())
+}

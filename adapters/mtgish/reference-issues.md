@@ -262,6 +262,10 @@ different are marked *(different)*. No group is open at this reference.
 
 ## Updated locally
 
+- `U0220` gives Barrage of Boulders and Demoralize the live blocking
+  prohibition through end of turn (CR 611.2a, 611.2c).
+- `U0219` preserves the explicit free-cast choice on Aetherflux Conduit,
+  Power Without Equal and Yahenni's Expertise (CR 608.2d, 608.2g).
 - `U0218` gives Lagoon Breach the existing `OthersThan` controller set, while
   the target's owner still chooses where to put it in the library.
 - `U0217` uses `GiveControl` for four faces with the same choice of one

@@ -222,6 +222,7 @@ pub(super) fn collect(
         Some(
             "exile_followup"
                 | "implicit_control_change"
+                | "independent_sentence"
                 | "return_grant_set"
                 | "move_after_current_type"
                 | "move_after_actor"

@@ -20,17 +20,8 @@ pub(crate) fn checked_call(
     if name == "unordered" {
         return unordered_call(args, ty, schema);
     }
-    if name == "other_filter" {
-        if args.len() != 1 || *ty != Ty::Named("ObjectFilter".into()) {
-            return Err("@other_filter needs and produces one ObjectFilter".into());
-        }
-        return Ok(Some(Pattern::Symbol(
-            name.into(),
-            vec![elaborate(&args[0], ty, schema)?],
-        )));
-    }
-    if name == "damage_relative_object" {
-        return damage_relative_call(args, ty).map(Some);
+    if let Some(pattern) = guarded_operand_call(name, args, ty, schema)? {
+        return Ok(Some(pattern));
     }
     if let Some(pattern) = specialized_call(name, args, ty, schema)? {
         return Ok(Some(pattern));
@@ -529,6 +520,24 @@ fn reference_call(
     ))
 }
 
+fn guarded_operand_call(
+    name: &str,
+    args: &[Syntax],
+    ty: &Ty,
+    schema: &Schema,
+) -> Result<Option<Pattern>, String> {
+    match name {
+        "other_filter" | "blocker_exception" => {
+            typed_annotation_call(name, args, ty, schema, "ObjectFilter").map(Some)
+        }
+        "postposed_choice" => {
+            typed_annotation_call(name, args, ty, schema, "Instruction").map(Some)
+        }
+        "damage_relative_object" => damage_relative_call(args, ty).map(Some),
+        _ => Ok(None),
+    }
+}
+
 fn cost_marker(
     name: &str,
     args: &[Syntax],
@@ -815,7 +824,7 @@ fn specialized_call(
             )))
         }
         "indefinite_opponent_controller" => controller_annotation_call(args, ty, schema).map(Some),
-        "implicit_control_change" => {
+        "implicit_control_change" | "independent_sentence" => {
             typed_annotation_call(name, args, ty, schema, "Operation").map(Some)
         }
         "event_free_once" => event_free_once_call(args, ty, schema).map(Some),

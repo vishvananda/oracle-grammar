@@ -594,6 +594,50 @@ fn drawn_compound_completion(value: &Value) -> bool {
         && trigger["args"]["operation"]["args"]["condition"].is_null()
 }
 
+// One optional announced graveyard target is the only object available to pay
+// this move. Choosing no target cannot satisfy its following "if you do".
+pub(super) fn optional_target_payment(ability: &mut Value) {
+    if ability["kind"] != "Triggered" {
+        return;
+    }
+    let args = &mut ability["args"];
+    let Some([payment, branch]) = args["body"]["instructions"].as_array().map(Vec::as_slice) else {
+        return;
+    };
+    let operation = &payment["args"]["operation"];
+    if payment["kind"] != "Effect"
+        || operation["kind"] != "PayCost"
+        || operation["args"]["optional"] != false
+        || branch["kind"] != "If"
+        || branch["args"]["condition"]["kind"] != "PaymentChosen"
+        || branch["args"]["condition"]["args"] != payment["args"]["result"]
+        || branch["args"]["otherwise"]["instructions"] != json!([])
+    {
+        return;
+    }
+    let Some([part]) = operation["args"]["cost"]["parts"]
+        .as_array()
+        .map(Vec::as_slice)
+    else {
+        return;
+    };
+    let Some([selection]) = part["Move"]["selections"].as_array().map(Vec::as_slice) else {
+        return;
+    };
+    let objects = &selection["objects"];
+    let target = &args["announcement"]["targets"][0];
+    if selection["choose"].is_null()
+        && objects["kind"] == "Targets"
+        && objects["args"] == target["slot"]
+        && target["kind"] == json!({"Object":{"kind":"Card","zones":["Graveyard"]}})
+        && target["count"] == json!({"UpTo":{"kind":"Constant","args":1}})
+        && part["Move"]["destination"]["Exile"]["visibility"] == "FaceUp"
+    {
+        args["body"]["instructions"][0]["args"]["operation"]["args"]["cost"]["parts"][0]["Move"]
+            ["selections"][0]["choose"] = json!({"Exactly":{"kind":"Constant","args":1}});
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -581,6 +581,16 @@ pub(crate) fn unify_continuous<'p, 'v>(
     }
 }
 
+/// Forward checks for operands whose lexical contracts constrain their scope.
+pub(crate) fn checked_operand(name: &str, operand: &Value) -> Result<Value, String> {
+    match name {
+        "blocker_exception" => filter_union::blocker_exception(operand),
+        "postposed_choice" => conditional::postposed_choice(operand),
+        "optional_action_program" => optional_scope::action_program(operand),
+        _ => Err(format!("unknown guarded operand {name}")),
+    }
+}
+
 #[cfg(test)]
 mod conjure_count_inverse_tests {
     use super::*;

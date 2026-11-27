@@ -74,6 +74,7 @@ pub(super) fn strip(value: &mut Value) {
         Some(
             "member_count_it"
                 | "implicit_control_change"
+                | "independent_sentence"
                 | "literal_damage_itself"
                 | "literal_damage_itself_objects"
                 | "indefinite_opponent_controller"

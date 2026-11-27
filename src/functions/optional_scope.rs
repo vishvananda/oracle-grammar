@@ -127,6 +127,14 @@ pub(crate) fn sequence(head: &Value, tail: &Value) -> Result<Value, String> {
     Ok(Value::Array(head.iter().chain(tail).cloned().collect()))
 }
 
+pub(crate) fn join(name: &str, head: &Value, tail: &Value) -> Result<Value, String> {
+    match name {
+        "and_sequence" => sequence(head, tail),
+        "then_sequence" | "optional_then" => then_sequence(head, tail, name == "optional_then"),
+        _ => Err(format!("unknown action join {name}")),
+    }
+}
+
 // These joins also participate in inverse partition search. Keep both
 // directions within the same finite action and serialized-byte budget.
 const THEN_ACTIONS: usize = 64;
@@ -415,6 +423,42 @@ fn checked_payment(items: &[Value]) -> bool {
     })
 }
 
+// A history count and a fronted duration establish separate instructions.
+// Only the marked second action can satisfy either of these direct shapes.
+fn independent_followup(items: &[Value]) -> bool {
+    let [first, second] = items else { return false };
+    let initial = &first["args"]["operation"];
+    let marked = &second["args"]["operation"];
+    let next = &marked["args"][0];
+    if first["kind"] != "Effect"
+        || second["kind"] != "Effect"
+        || marked["$sym"] != "independent_sentence"
+    {
+        return false;
+    }
+    if next["kind"] == "PutCounters" {
+        return initial["kind"] == "Discard" && initial["args"]["players"] == controller();
+    }
+    let args = &next["args"];
+    let mut objects = &args["affected"]["Objects"];
+    if objects["$sym"] == "distributive_pump_subject" {
+        objects = &objects["args"][0];
+    }
+    let zone = &objects["args"];
+    let filter = &zone["filter"];
+    initial["kind"] == "PutCounters"
+        && next["kind"] == "CreateContinuousEffect"
+        && args["duration"] == "EndOfTurn"
+        && args["evaluation"] == "Snapshot"
+        && args["changes"].as_array().is_some_and(|changes|
+            matches!(changes.as_slice(), [change] if change["kind"] == "SetBasePowerToughness"))
+        && objects["kind"] == "Zone"
+        && zone["scope"]["Shared"] == "Battlefield"
+        && filter["kind"] == "AllOf"
+        && filter["args"].as_array().is_some_and(|parts|
+            parts.contains(&json!({"kind":"Modified"})))
+}
+
 /// A bare optional prefix cannot absorb the later card-selection sentence.
 /// Explicit success clauses and one-sentence look/then-select grammar own that
 /// scope. Groups remain transparent; nested conditional programs remain local.
@@ -438,6 +482,9 @@ fn check_sequence(items: &[Value], offer: Offer) -> Result<(), String> {
     });
     if look_selection {
         return Err("optional look/selection uses an explicit shared-scope clause".into());
+    }
+    if matches!(offer, Offer::Action) && independent_followup(items) {
+        return Err("the following sentence has its own scope".into());
     }
     if matches!(offer, Offer::Action) && checked_payment(items) {
         return Err("an optional payment uses its declared payment clause".into());

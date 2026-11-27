@@ -331,6 +331,7 @@ pub(crate) fn bind_held_ability_with_source(
     target_contrast::lower(ability)?;
     group_contrast::lower(ability);
     payments::bind(ability)?;
+    guards::optional_target_payment(ability);
     paid_self_exile::lower(ability, paid_self_exile)?;
     if has_cost_as_action(ability) {
         return Err("a payment with a cost of its own is that cost".into());

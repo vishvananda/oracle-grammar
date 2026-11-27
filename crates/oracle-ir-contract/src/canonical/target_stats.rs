@@ -1,4 +1,4 @@
-//! A snapshot's one announced target is also its affected-object property owner.
+//! A snapshot's single object is also its affected-object property owner.
 use super::{trace, walk::lossless};
 use crate::ir::Operation;
 use serde_json::{Value, json};
@@ -12,7 +12,10 @@ fn snapshot(operation: &Value) -> Option<(&Value, &[Value])> {
         || args["evaluation"] != "Snapshot"
         || args["duration"] != "EndOfTurn"
         || objects["kind"] != "One"
-        || objects["args"]["kind"] != "Target"
+        || !matches!(
+            objects["args"]["kind"].as_str(),
+            Some("Target" | "EventSubject")
+        )
     {
         return None;
     }
@@ -29,12 +32,46 @@ fn scalar_owner(expr: &Value) -> Option<&Value> {
     let args = &expr["args"];
     (expr["kind"] == "ObjectProperty"
         && args["information"] == "CurrentOrLastKnown"
-        && matches!(args["property"].as_str(), Some("Power" | "ManaValue")))
+        && matches!(
+            args["property"].as_str(),
+            Some("Power" | "Toughness" | "ManaValue")
+        ))
     .then_some(&args["object"])
 }
 
+/// Signed reductions of a single stat use the same snapshot as a direct stat.
+fn property_node(expr: &Value) -> Option<&Value> {
+    if scalar_owner(expr).is_some() {
+        return Some(expr);
+    }
+    let [sign, difference] = expr["args"].as_array()?.as_slice() else {
+        return None;
+    };
+    if expr["kind"] != "Multiply"
+        || *sign != json!({"kind":"Constant","args":-1})
+        || difference["kind"] != "Subtract"
+    {
+        return None;
+    }
+    let [property, offset] = difference["args"].as_array()?.as_slice() else {
+        return None;
+    };
+    (offset["kind"] == "Constant" && scalar_owner(property).is_some()).then_some(property)
+}
+
 fn matches_owner(expr: &Value, owner: &Value, tracing: bool) -> bool {
-    scalar_owner(expr).is_some_and(|read| trace::same(read, owner, tracing))
+    property_node(expr)
+        .and_then(scalar_owner)
+        .is_some_and(|read| trace::same(read, owner, tracing))
+}
+
+fn replace_owner(expr: &mut Value, owner: &Value) {
+    let property = if expr["kind"] == "ObjectProperty" {
+        expr
+    } else {
+        &mut expr["args"][1]["args"][0]
+    };
+    property["args"]["object"] = owner.clone();
 }
 
 fn changes_owner(changes: &[Value], owner: &Value, tracing: bool) -> bool {
@@ -72,7 +109,7 @@ fn rewrite(operation: &mut Value, affected: bool, tracing: bool) -> bool {
         for stat in STATS {
             let expr = &mut change["args"][stat];
             if matches_owner(expr, &from, tracing) {
-                expr["args"]["object"] = to.clone();
+                replace_owner(expr, &to);
             }
         }
     }

@@ -89,6 +89,12 @@ impl Visit for Normalize {
                 self.changed |= super::single_choices::program(value, self.tracing);
             }
         }
+        if !self.keep_order
+            && matches!(ty, Ty::Named(name) if name == "Instruction")
+            && value["kind"] == "If"
+        {
+            self.changed |= super::keywords::guarded_unsuspect(value, self.tracing);
+        }
         if !self.keep_order && matches!(ty, Ty::Named(name) if name == "ManaProduction") {
             self.changed |= super::fixed_mana::bundle(value, self.tracing);
         }

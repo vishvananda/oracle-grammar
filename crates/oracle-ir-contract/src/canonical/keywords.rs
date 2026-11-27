@@ -213,3 +213,30 @@ pub(super) fn turn_linked_face_up(value: &mut Value) {
         "actor":args["actor"],"action":"TurnFaceUp","objects":{"kind":"One","args":object}
     }});
 }
+
+/// A test of the same status is redundant when its sole action removes it.
+/// Other tests, actions, and branches retain their timing and subjects.
+pub(super) fn guarded_unsuspect(value: &mut Value, tracing: bool) -> bool {
+    let args = &value["args"];
+    let test = &args["condition"];
+    let Some([effect]) = args["then"]["instructions"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let operation = &effect["args"]["operation"];
+    let objects = &operation["args"]["objects"];
+    if value["kind"] != "If"
+        || test["kind"] != "ObjectMatches"
+        || test["args"]["filter"] != json!({"kind":"State","args":"Suspected"})
+        || args["otherwise"]["instructions"] != json!([])
+        || effect["kind"] != "Effect"
+        || operation["kind"] != "KeywordEach"
+        || operation["args"]["action"] != "Unsuspect"
+        || objects["kind"] != "One"
+        || !super::trace::same(&test["args"]["object"], &objects["args"], tracing)
+        || super::walk::lossless::<crate::ir::Instruction>(value, tracing).is_none()
+    {
+        return false;
+    }
+    *value = value["args"]["then"]["instructions"][0].take();
+    true
+}
