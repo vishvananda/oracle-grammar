@@ -129,3 +129,31 @@ pub(super) fn equal_or_ordered_stats(value: &mut Value, tracing: bool) {
     };
     *value = json!(ObjectFilter::State(state));
 }
+
+/// Both clauses test the same event object with a pure stat comparison.
+pub(super) fn event_subject_disjunction(value: &mut Value, tracing: bool) {
+    let Some([left, right]) = value["args"].as_array().map(Vec::as_slice) else {
+        return;
+    };
+    let subject = json!({"kind":"EventSubject"});
+    let is_stat_match = |clause: &Value| {
+        let filter = &clause["args"]["filter"];
+        matches!(
+            filter["args"]["property"].as_str(),
+            Some("Power" | "Toughness")
+        ) && filter["kind"] == "Property"
+            && filter["args"]["test"]["kind"] == "Compare"
+            && *clause == json!({"kind":"ObjectMatches","args":{"object":subject,"filter":filter}})
+    };
+    if !is_stat_match(left) || !is_stat_match(right) {
+        return;
+    }
+    let mut alternatives = [
+        left["args"]["filter"].clone(),
+        right["args"]["filter"].clone(),
+    ];
+    alternatives.sort_by_cached_key(|filter| trace::key(filter, tracing));
+    *value = json!({"kind":"ObjectMatches","args":{
+        "object":subject,"filter":{"kind":"AnyOf","args":alternatives}
+    }});
+}

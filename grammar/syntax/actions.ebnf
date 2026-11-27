@@ -24947,9 +24947,15 @@ untap_optional_target_set_h3 ::= return_single_optional | untap_up_to_many_targe
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(@plural_amount($number)), filter:$filter_plural})) */
 untap_up_to_many_targets_h3 ::= "up" "to" number "target" filter_plural
 
-/* Untap two separately announced optional target groups (preserves InSet reading for Kiora & Nissa). */
-/* @sem Operation::SetTapped{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([InSet($untap_optional_target_set_h3), InSet($untap_optional_target_set_h3_2)])}, tapped:false} */
-untap_two_target_groups_h3 ::= "untap" untap_optional_target_set_h3 "and" untap_optional_target_set_h3
+/* A plural group uses set membership. Two singleton groups use the shared
+   direct-target production that also prints their original wording. */
+untap_two_target_groups_h3 ::= untap_first_plural_group | untap_second_plural_group
+
+/* @sem Operation::SetTapped{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([InSet($untap_up_to_many_targets_h3), InSet($untap_optional_target_set_h3)])}, tapped:false} */
+untap_first_plural_group ::= "untap" untap_up_to_many_targets_h3 "and" untap_optional_target_set_h3
+
+/* @sem Operation::SetTapped{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([InSet($return_single_optional), InSet($untap_up_to_many_targets_h3)])}, tapped:false} */
+untap_second_plural_group ::= "untap" return_single_optional "and" untap_up_to_many_targets_h3
 
 /* Flicker a target permanent and test the type of the card exiled by that exact move. */
 /* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One($target_object), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Transition{result:@marked, phase:After}, zone:Exile}, destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_phrase}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:$instructions}, otherwise:Program{}}] */

@@ -474,7 +474,7 @@ rule_cant_attack_player_again ::= "can't" "attack" "a" "player" object_ref "has"
 /* Its controller, as the declaring player, pays to attack or block with it. */
 /* @sem Change::[Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:_{parts:[Mana($mana_symbols)]}})] */
 rule_attack_unless_paid ::= "can't" "attack" "unless" "its" "controller" "pays" mana_symbols
-/* @sem Change::[Rule(CombatCost{action:Block(Any), payer:DeclaringPlayer, cost:_{parts:[Mana($mana_symbols)]}}), Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:_{parts:[Mana($mana_symbols)]}})] */
+/* @sem Change::[Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:_{parts:[Mana($mana_symbols)]}}), Rule(CombatCost{action:Block(Any), payer:DeclaringPlayer, cost:_{parts:[Mana($mana_symbols)]}})] */
 rule_attack_block_unless_paid ::= "can't" "attack" "or" "block" "unless" "its" "controller" "pays" mana_symbols
 /* @sem Change::[Change::Rule(Prohibit(Block(Not($filter_plural))))] */
 rule_block_only ::= "can" "block" "only" filter_plural
@@ -4517,7 +4517,7 @@ paired_combat_player_rules ::= player_prohibit_typed_spells "or" player_prohibit
 /* @sem Change::[Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:$combat_payment}), Rule(CombatCost{action:Block(Any), payer:DeclaringPlayer, cost:$combat_payment})] */
 combat_attack_block_you ::= "can't" "attack" "or" "block" "unless" "you" combat_payment
 
-/* @sem Change::[Rule(CombatCost{action:Block(Any), payer:DeclaringPlayer, cost:$combat_payment_pays}), Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:$combat_payment_pays})] */
+/* @sem Change::[Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:$combat_payment_pays}), Rule(CombatCost{action:Block(Any), payer:DeclaringPlayer, cost:$combat_payment_pays})] */
 combat_attack_block_controller ::= "can't" "attack" "or" "block" "unless" "its" "controller" combat_payment_pays
 
 combat_payment ::= plot_mana_payment | combat_payment_repeated | combat_payment_counters
@@ -11668,12 +11668,8 @@ target_pump_type_followup ::= target_singular_temporary_pump "." target_type_con
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$target_pump_type_followup}} */
 spell_target_pump_type_followup ::= target_pump_type_followup "."
 
-/* An attack-then-block payment retains one shared cost in both rules. */
-/* @sem Change::[Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:$combat_payment_pays}), Rule(CombatCost{action:Block(Any), payer:DeclaringPlayer, cost:$combat_payment_pays})] */
-quoted_combat_attack_block_controller ::= "can't" "attack" "or" "block" "unless" "its" "controller" combat_payment_pays
-
-/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$quoted_combat_attack_block_controller}) */
-quoted_combat_payment_static ::= affected quoted_combat_attack_block_controller "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$combat_attack_block_controller}) */
+quoted_combat_payment_static ::= affected combat_attack_block_controller "."
 
 /* The affected object is the Aura's host, whose controller makes the choice. */
 /* @sem ObjectSet::One(AttachedTo(Source)) */

@@ -174,3 +174,21 @@ fn split_paragraph(
     }
     [first, second]
 }
+
+fn unpresented(value: &Value) -> &Value {
+    if value["kind"] == "WithPresentation" {
+        &value["args"]["ability"]
+    } else {
+        value
+    }
+}
+
+/// Ascend on a resolving spell belongs to that spell's instruction sequence.
+pub(super) fn split_ascend(items: &[Value]) -> bool {
+    items.windows(2).any(|pair| {
+        let left = unpresented(&pair[0]);
+        left["kind"] == "Mechanic"
+            && left["args"]["mechanic"] == "Ascend"
+            && ordinary_instructions(&pair[1]).is_some()
+    })
+}

@@ -8675,9 +8675,15 @@ triggered_enlists_operation_h3 ::= "whenever" event_enlists_filtered "," operati
 /* @sem EventSpec::ZoneChange{objects:Not($filter_simple), to:Battlefield} */
 event_permanent_other_than_enters_h3 ::= "a" "permanent" "other" "than" "a" filter_simple "enters"
 
-/* Optional turn-step triggered program without touching event_clause. */
-/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Optional{decider:AbilityController, body:@optional_action_program($program)}]}} */
-triggered_turn_optional_h3 ::= "at" turn_event "," "you" "may" program "."
+/* A turn-step choice scopes the clauses that depend on the chosen action. */
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Optional{decider:AbilityController, body:@optional_action_program(Program{instructions:$optional_turn_dependent})}]}} */
+triggered_turn_optional_h3 ::= "at" turn_event "," "you" "may" optional_turn_dependent "."
+
+optional_turn_dependent ::= flip_coin_win_or_lose | clash_if_you_win | clause_library_reorder | optional_turn_move_then_delayed
+
+/* Retain the immediate move's dependent effect and delayed result. */
+/* @sem Instruction::[Effect{result:@next,operation:$move_battlefield}, Effect{result:@next,operation:$continuous_snapshot_plain}, ...$clause_delayed_end_step_after] */
+optional_turn_move_then_delayed ::= move_battlefield "." continuous_snapshot_plain "." clause_delayed_end_step_after
 
 /* Combine self-entry with a second independently phrased event clause. */
 /* @sem EventSpec::@either_event($event_self_enters, $event_clause) */

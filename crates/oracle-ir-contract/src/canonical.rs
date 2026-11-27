@@ -438,6 +438,10 @@ impl Walker {
                         if !self.keep_order {
                             trigger_branches::merge(items, self.schema, self.tracing);
                         }
+                    } else if !self.keep_order
+                        && matches!(&**inner, Ty::Named(name) if name == "Change")
+                    {
+                        combat_pairs::order_shared_cost(items);
                     }
                 }
             }
@@ -647,8 +651,12 @@ impl Walker {
                 }
                 if let Some(only) = single(content) {
                     *value = only;
-                } else if name == "ObjectFilter" && variant == "AnyOf" && !self.keep_order {
-                    filters::merge_same_property_any_of(value, self.tracing);
+                } else if variant == "AnyOf" && !self.keep_order {
+                    match name {
+                        "ObjectFilter" => filters::merge_same_property_any_of(value, self.tracing),
+                        "Condition" => filters::event_subject_disjunction(value, self.tracing),
+                        _ => (),
+                    }
                 }
                 return;
             }

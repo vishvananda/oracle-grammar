@@ -476,6 +476,13 @@ fn bind_surface_cached(
     mut memo: Option<&mut crate::parse::ParseMemo>,
     permanent_source: bool,
 ) -> Result<Value, String> {
+    if !permanent_source
+        && value
+            .as_array()
+            .is_some_and(|items| spell_paragraphs::split_ascend(items))
+    {
+        return Err("ascend belongs to the ordinary spell's resolving instructions".into());
+    }
     // Zero-clone fast path for ordinary multi-ability cards: check per-ability
     // binding cache on borrowed abilities before allocating a cloned card Value.
     if let (Value::Array(items), Some(cache)) = (value, memo.as_deref_mut())

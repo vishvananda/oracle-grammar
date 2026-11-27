@@ -167,3 +167,28 @@ pub(super) fn comparable(
     }
     Some((left, right))
 }
+
+/// Attack and block rules check their shared cost at separate declarations.
+pub(super) fn order_shared_cost(items: &mut [Value]) {
+    let [blocking, attacking] = items else {
+        return;
+    };
+    let block = &blocking["args"]["CombatCost"];
+    let attack = &attacking["args"]["CombatCost"];
+    let payer = json!({"kind":"DeclaringPlayer"});
+    let cost = &block["cost"];
+    if cost.is_object()
+        && block["action"] == json!({"Block":{"kind":"Any"}})
+        && attack["action"] == json!({"Attack":"Any"})
+        && [(&*blocking, block), (&*attacking, attack)]
+            .iter()
+            .all(|(change, payload)| {
+                *change
+                    == &json!({"kind":"Rule","args":{"CombatCost":{
+                        "action":payload["action"], "payer":payer, "cost":cost
+                    }}})
+            })
+    {
+        items.swap(0, 1);
+    }
+}
