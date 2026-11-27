@@ -462,7 +462,7 @@ event_many_enter ::= "one" "or" "more" filter_plural "enter" battlefield_entry_z
 /* @sem EventSpec::@either_event(EventSpec::Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:$spell_filter}, EventSpec::Spell{event:Copy, players:One(PlayerRef::AbilityController), spells:$spell_filter}) */
 event_cast_or_copy ::= "you" "cast" "or" "copy" spell_filter
 
-spell_filter ::= counted_spell_with_hybrid_cost | spell_unshared_library_creature_type | spell_targets_recipient_or_permanent | spell_targets_controlled | spell_linked_name | spell_shared_color_or_mana_value | spell_any | spell_your_commander | spell_filtered | spell_modified | spell_targets | spell_targets_only_self | spell_targets_only_single | spell_any_targets_only_self | spell_any_targets_only_single | spell_described | spell_postqualified | spell_color_disjunction | spell_targets_permanent | spell_targeting_a_permanent | spell_targeting_an_permanent | spell_unshared_battlefield_color | spell_filter_two_subtypes
+spell_filter ::= spell_unshared_library_creature_type | spell_targets_recipient_or_permanent | spell_targets_controlled | spell_linked_name | spell_shared_color_or_mana_value | spell_any | spell_your_commander | spell_filtered | spell_modified | spell_targets | spell_targets_only_self | spell_targets_only_single | spell_any_targets_only_self | spell_any_targets_only_single | spell_described | spell_postqualified | spell_color_disjunction | spell_targets_permanent | spell_targeting_a_permanent | spell_targeting_an_permanent | spell_unshared_battlefield_color | spell_filter_two_subtypes
 
 /* "Your commander" is the commander you own (CR 903.3), whoever casts it. */
 /* @sem @and(ObjectFilter::State(Commander), ObjectFilter::OwnedBy(One(PlayerRef::AbilityController))) */
@@ -7566,13 +7566,6 @@ triggered_entry_death_creature_comparison ::= entry_death_other_creature_clause 
 /* The trailing origin qualifies both alternatives, retaining their independent filters. */
 /* @sem EventSpec::@either_event(EventSpec::Player{event:PlaysLandNotFromHand, players:$land_play_you, objects:$played_land_filter}, EventSpec::Spell{event:Cast, players:$land_play_you, spells:@and($land_spell_cast_filter, ObjectFilter::Not(ObjectFilter::Cast{from:Players{zone:Hand, players:All}}))}) */
 event_filtered_land_or_spell_outside_hand ::= land_play_you played_land_filter "or" "cast" land_spell_cast_filter "from" "anywhere" "other" "than" "your" "hand"
-
-/* Compose the color-count spell description with its hybrid-cost qualifier. */
-/* @sem @and($counted_color_spell, $spell_with_hybrid_cost) */
-counted_spell_with_hybrid_cost ::= counted_color_spell spell_with_hybrid_cost
-
-/* @sem ObjectFilter::Property{property:ColorCount, test:NumberTest::Compare{comparison:Greater, value:$counter_amount}} */
-counted_color_spell ::= counter_amount "spell"
 
 /* Two independently triggered abilities share one event-independent sentence. */
 /* @sem Ability::[Triggered{event:$event_self_enters, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$exile_library_tops}]}}, Triggered{event:$event_player_loses_game, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$exile_library_tops}]}}] */
