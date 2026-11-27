@@ -532,6 +532,19 @@ fn copy_mentions(op: &Value, frame: &Value, visit: &mut impl FnMut(&'static str)
     }
     let copy = &op["args"];
     let object = &copy["object"];
+    let target = target_spec(object, &frame["announcement"]);
+    if let Some(target) = target
+        && target["kind"]["Object"]["kind"] == "Ability"
+        && super::object_notes::filter_proves(
+            &target["filter"],
+            &|leaf| leaf["kind"] == "OnStack" && leaf["args"] == "Triggered",
+            0,
+            &mut 256,
+        )
+        && visit("CopyTriggeredAbility")
+    {
+        return true;
+    }
     let event = &frame["event"];
     if object["kind"] == "EventStackObject" && event.get("SpellOrActivation").is_some() {
         return visit("PermanentSpellCopyRule");
@@ -541,7 +554,7 @@ fn copy_mentions(op: &Value, frame: &Value, visit: &mut impl FnMut(&'static str)
             return false;
         };
         &cast["spells"]
-    } else if let Some(target) = target_spec(object, &frame["announcement"])
+    } else if let Some(target) = target
         && target["kind"]["Object"]["kind"] == "Spell"
     {
         &target["filter"]

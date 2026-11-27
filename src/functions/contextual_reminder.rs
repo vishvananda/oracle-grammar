@@ -693,6 +693,7 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "GroupTokenProwess"
                     | "TargetPlayerGroupPhasesOut"
                     | "AuraSpellCopyRule"
+                    | "CopyTriggeredAbility"
                     | "CardTypes"
             )
         )

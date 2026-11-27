@@ -86,6 +86,7 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         "ChooseValue" if args["kind"] == "CardType" => Some("CardTypes"),
         "Shares" if args["property"] == "CardTypes" => Some("CardTypes"),
         "CountDistinct" if args["property"] == "PermanentTypes" => Some("PermanentTypes"),
+        "AddMana" if permits_morph_cost(&args["restriction"]) => Some("MorphCost"),
         "Triggered" => counters_on_damage_recipient(args),
         "Keyword"
             if args["action"]["ManifestDread"].is_object()
@@ -134,6 +135,15 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         }
         _ => None,
     }
+}
+
+fn permits_morph_cost(restriction: &Value) -> bool {
+    restriction["Purpose"] == "MorphCost"
+        || restriction["Either"].as_array().is_some_and(|uses| {
+            uses.iter()
+                .take(32)
+                .any(|usage| usage["Purpose"] == "MorphCost")
+        })
 }
 
 fn keyword_counter_reminder(operation: &Value) -> Option<&'static str> {
