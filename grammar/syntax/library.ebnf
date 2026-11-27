@@ -3618,7 +3618,7 @@ dig_look_keep_exile ::= look_top "." "you" "may" "put" "one" "of" "those" "cards
 /* @sem Vec<Instruction>::[Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:$exile_cleanup_count, from:Top}, destination:Exile{visibility:FaceUp, arrival:_{}}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Shared(Exile), kind:Card, filter:InSet(Transition{result:@prior, phase:After})}), from:Exile, action:Either, filter:Any})], duration:EndOfTurn, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, intervening_if:Compare{left:CountObjects(Zone(_{scope:Shared(Exile), kind:Card, filter:InSet(Transition{result:@back(3), phase:After})})), test:Compare{comparison:Greater, value:Constant(0)}}, body:_{instructions:[Effect{result:@next, operation:Move{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:InSet(Transition{result:@back(4), phase:After})}), destination:Library{position:$exile_cleanup_position, order:DestinationDefault, arrival:_{}}}}]}}}] */
 instructions_exile_top_play_cleanup ::= "exile" "the" "top" exile_cleanup_count "." "you" "may" "play" "those" "cards" "this" "turn" "." "at" "the" "beginning" "of" "the" "next" "end" "step" "," "if" "any" "of" "those" "cards" "remain" "exiled" "," "put" "them" "on" "the" exile_cleanup_position "of" "your" "library" "in" "any" "order"
 
-exile_cleanup_count ::= exile_cleanup_visited | exile_cleanup_life | exile_cleanup_fixed
+exile_cleanup_count ::= exile_cleanup_visited | exile_cleanup_visited_including_this | exile_cleanup_life | exile_cleanup_fixed
 
 /* @sem Expr::PlayerNumber{player:AbilityController, number:AttractionsVisitedThisTurn} */
 exile_cleanup_visited ::= "X" "cards" "of" "your" "library" "," "where" "X" "is" "the" "number" "of" "Attractions" "you've" "visited" "this" "turn"
@@ -4729,8 +4729,8 @@ instructions_then_bound_reveal_entries ::= "then" bound_players_reveal_entries
 bound_reveal_plural_number ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n11 | n12 | n13 | n14 | n15 | n20 | n30 | number_hundred
 
 /* Keep the random selection, exile and permission in one receipt contract. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Library, players:One(EventSubject)}, kind:Card, filter:$adjective_nontype}, count:AsManyAsCan(Constant(1)), constraints:[AtRandom]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:AnyType, condition:$attacked_type_pair_condition}})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}]} */
-program_random_library_conditional_cast ::= "exile" "a" adjective_nontype "card" "from" "their" "library" "at" "random" "." "during" "any" "turn" attacked_type_pair_condition "," "you" "may" "cast" "that" "card" "and" "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "it" "."
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Library, players:One(EventSubject)}, kind:Card, filter:$adjective_nontype}, count:AsManyAsCan(Constant(1)), constraints:[AtRandom]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:$random_library_cast_spending, condition:$attacked_type_pair_condition}})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}]} */
+program_random_library_conditional_cast ::= "exile" "a" adjective_nontype "card" "from" "their" "library" "at" "random" "." "during" "any" "turn" attacked_type_pair_condition "," "you" "may" "cast" "that" "card" "and" random_library_cast_spending "."
 
 /* The singular top-library exile supplies both the conditional change and
    the permission. Keeping the whole sequence together proves the receipt. */
@@ -9778,3 +9778,16 @@ dig_conditional_reveal_battlefield_spell ::= dig_conditional_reveal_battlefield_
 
 /* @sem $dig_conditional_reveal_cast_paragraph */
 dig_conditional_reveal_cast_spell ::= dig_conditional_reveal_cast_paragraph "."
+
+
+/* The current visit is already counted when the visit ability resolves. */
+/* @sem $exile_cleanup_visited */
+exile_cleanup_visited_including_this ::= exile_cleanup_visited "(" "↓" "including" "this" "one" ")"
+
+
+/* Color-only spending and any-type spending have different permissions. */
+random_library_cast_spending ::= random_library_cast_any_type | random_library_cast_any_color
+/* @sem SpendAs::AnyType */
+random_library_cast_any_type ::= "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "it"
+/* @sem SpendAs::AnyColor */
+random_library_cast_any_color ::= "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "that" "spell"

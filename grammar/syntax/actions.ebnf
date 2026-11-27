@@ -21407,7 +21407,7 @@ clause_each_player_gains_neighbor_control ::= "each" "player" "gains" "control" 
 instructions_optional_hand_choice_perpetual ::= "you" "may" "choose" "a" filter_phrase "card" "in" "your" "hand" "." "if" "you" "do" "," "it" "perpetually" hand_choice_perpetual_grant "otherwise" "," conjoined
 
 /* @sem Change::[GrantAbility(Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject(Source)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Constant(1)})}}]}}))] */
-hand_choice_perpetual_grant ::= "gains" '"' "this" "creature" "enters" "with" "an" "additional" counter_kind "counter" "on" "it" "." '"'
+hand_choice_perpetual_grant ::= "gains" '"' "this" "creature" "enters" hand_entry_zone? "with" "an" "additional" counter_kind "counter" "on" "it" "." '"'
 
 /* The mill and its returned cards share one receipt; the destination remains each card owner’s hand. */
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:Mill{players:One($target_player), amount:$mill_return_count}}, Effect{result:@next, operation:Move{objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$subtype}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]} */
@@ -24977,3 +24977,13 @@ return_card_threshold_destination_spell ::= return_card_threshold_destination_pa
 /* The duplicate instruction has no performed-payment condition. */
 /* @sem Instruction::[Effect{result:@next, operation:$sacrifice_objects}, ...$conjure_duplicate_perpetual_type] */
 sacrifice_then_conjure_duplicate ::= sacrifice_objects "." conjure_duplicate_perpetual_type
+
+/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0}), changes:[GrantAbility(Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$equipped_combat_player_or_planeswalker, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$named_delayed_graveyard_self_tapped}]}})})]}}] */
+named_perpetual_death_granted_trigger ::= "it" "perpetually" "gains" '"' equipped_combat_player_or_planeswalker "," named_delayed_graveyard_self_tapped "." '"'
+
+/* @sem Operation::Move{objects:One(Source), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]} */
+named_delayed_graveyard_self_tapped ::= "return" "this" "card" "from" "your" "graveyard" "to" "battlefield" "tapped"
+
+
+/* @sem () */
+hand_entry_zone ::= "the" "battlefield"

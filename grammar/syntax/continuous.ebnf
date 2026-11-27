@@ -765,7 +765,7 @@ static_defining_power ::= self_possessive "power" "is" "equal" "to" value "."
 static_defining_toughness ::= self_possessive "toughness" "is" "equal" "to" value "."
 
 /* @sem Ability::@defining_static(Ability::Static{kind:Ordinary, affected:Objects(One($self_explicit_ref)), changes:[Change::CreatureTypes{mode:Set, types:All}]}) */
-static_defining_every_type ::= self_explicit_ref "is" "every" "creature" "type" "."
+static_defining_every_type ::= self_explicit_ref "is" "every" "creature" "type" "." | self_explicit_ref "is" "every" "creature" "type" "(" "↓" "even" "if" "this" "card" "isn't" "on" "the" "battlefield" ")" "."
 
 static_definition ::= static_defining_both | static_defining_power | static_defining_toughness | static_defining_every_type
 /* @sem Ability::Conditional{condition:$static_turn_window, then:[$static_definition]} */
@@ -4189,8 +4189,8 @@ static_first_cast_counted_cost ::= first_cast_filter_player "costs" colored_coun
 /* @sem ObjectFilter::NthCast{ordinal:Constant(1), spells:$spell_instant_or_sorcery, by:One(AbilityController), scope:Turn} */
 first_cast_filter_player ::= "the" "first" spell_instant_or_sorcery "spell" "you" "cast" "each" "turn"
 
-/* @sem SpellCostModifier::Reduce{reductions:[_{color:$counted_reduction_color, amount:$controlled_counter_count}], spill_into_generic:true} */
-colored_counted_reduction ::= counted_reduction_color "less" "to" "cast" "for" "each" controlled_counter_count
+/* @sem SpellCostModifier::Reduce{reductions:[_{color:$counted_reduction_spelling, amount:$controlled_counter_count}], spill_into_generic:true} */
+colored_counted_reduction ::= counted_reduction_spelling "less" "to" "cast" "for" "each" controlled_counter_count
 
 /* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(AbilityController)), Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})])}) */
 controlled_counter_count ::= filter_phrase "you" "control" "with" "a" counter_kind "counter" "on" "it"
@@ -7744,7 +7744,7 @@ instead_artifact_animation ::= "until" "end" "of" "turn" "," object_one change_b
 /* Replace color words on a controlled enchantment and grant it upkeep.
    Both the target color and upkeep cost remain independent operands. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:ColorWord, terms:_{count:Exactly(Constant(2)), options:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$adjective_color, CardType(Enchantment), ControlledBy(One(AbilityController)), Not(HasKeywordFamily(CumulativeUpkeep))])}), index:0})), changes:[ReplaceWord{from:Vocabulary{family:ColorWord, form:TheFirstChosenColorWord}, to:Vocabulary{family:ColorWord, form:TheSecondChosenColorWord}}, GrantAbility(Mechanic{mechanic:CumulativeUpkeep, cost:_{parts:[Mana($mana_symbols)]}})], duration:Indefinite, evaluation:Snapshot}}] */
-color_word_upkeep_program ::= "change" "the" "text" "of" "target" adjective_color "enchantment" "you" "control" "that" "doesn't" "have" "cumulative" "upkeep" "by" "replacing" "all" "instances" "of" "one" "color" "word" "with" "another" "." "that" "enchantment" "gains" '"' "cumulative" "upkeep" mana_symbols "." '"'
+color_word_upkeep_program ::= "change" "the" "text" "of" "target" adjective_color "enchantment" "you" "control" "that" "doesn't" "have" "cumulative" "upkeep" "by" "replacing" "all" "instances" "of" "one" "color" "word" "with" "another" "." granted_upkeep_followup "enchantment" "gains" '"' "cumulative" "upkeep" mana_symbols "." '"' cumulative_upkeep_controller_note?
 
 /* One selected ability moves between distinct targets for the stated duration. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, Chosen(Ability)])}), index:0})), changes:[LosesAbility(Term{family:CheckHasable, form:TheChosenAbility})], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([Not(SameObject(Target{slot:0, index:0})), $noun_2])}), index:0})), changes:[ChosenAbility], duration:$duration, evaluation:Snapshot}}] */
@@ -12884,3 +12884,23 @@ attached_copy_retains_land_and_gains ::= enchanted_other_ref "becomes" "a" "copy
 /* The two subtype choices belong to the same other controlled creature. */
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf(@unordered([CardType(Creature), AnyOf(@unordered([$creature_subtype, $creature_subtype_2])), ControlledBy(One(AbilityController)), Not(SameObject(Source))]))} */
 affected_each_other_controlled_either_kind ::= "each" "other" "creature" "you" "control" "that's" "a" creature_subtype "or" creature_subtype
+
+
+
+counted_reduction_spelling ::= counted_reduction_color | counted_reduction_generic_fallback
+/* @sem $counted_reduction_color */
+counted_reduction_generic_fallback ::= counted_reduction_color "(" "↓" "or" "{" "1" "}" ")"
+
+
+/* Both explanations belong to the same continuous change and its grant. */
+/* @sem () */
+granted_upkeep_word_example ::= "(" "for" "example" "," "you" "may" "change" '"' "↓" "black" "creatures" "can't" "attack" '"' "to" '"' "↓" "blue" "creatures" "can't" "attack" "." '"' ")"
+/* @sem () */
+cumulative_upkeep_controller_note ::= "(" "at" "the" "beginning" "of" "its" "controller's" "upkeep" "," "that" "player" "puts" "an" "age" "counter" "on" "it" "," "then" "sacrifices" "it" "unless" "they" "pay" "its" "upkeep" "cost" "for" "each" "age" "counter" "on" "it" "." ")"
+
+
+granted_upkeep_followup ::= granted_upkeep_bare_followup | granted_upkeep_example_followup
+/* @sem () */
+granted_upkeep_bare_followup ::= "that"
+/* @sem () */
+granted_upkeep_example_followup ::= granted_upkeep_word_example "That"
