@@ -459,7 +459,7 @@ tier_word ::= WORD
 
 /* Backup owns every following ability in this card body. It is reached from
    abilities, not line, so a trailing line cannot escape the granted set. */
-backup_abilities ::= line_backup | line_backup_pair | line_backup_triple | line_backup_reminded
+backup_abilities ::= line_backup | line_backup_pair | line_backup_triple | line_backup_triple_reminded | line_backup_reminded
 /* @sem Ability::[Ability::Backup{amount:$number, abilities:$backup_stage_abilities}, ...$backup_stage_abilities] */
 line_backup ::= "backup" NUMBER NEWLINE backup_stage_abilities
 
@@ -490,6 +490,10 @@ backup_explanation_many ::= backup_explanation_prefix "abilities" "until" "end" 
 line_backup_pair ::= "backup" NUMBER "," "backup" NUMBER NEWLINE backup_stage_abilities
 /* @sem Ability::[Backup{amount:$number, abilities:$backup_stage_abilities}, Backup{amount:$number_2, abilities:$backup_stage_abilities}, Backup{amount:$number_3, abilities:$backup_stage_abilities}, ...$backup_stage_abilities] */
 line_backup_triple ::= "backup" NUMBER "," "backup" NUMBER "," "backup" NUMBER NEWLINE backup_stage_abilities
+
+/* Each Backup trigger grants the same following abilities independently. */
+/* @sem Ability::[Backup{amount:$number, abilities:$backup_stage_abilities}, Backup{amount:$number_2, abilities:$backup_stage_abilities}, @contextual_reminder(Backup{amount:$backup_reminded_amount, abilities:$backup_stage_abilities}, $backup_explanation_many), ...$backup_stage_abilities] */
+line_backup_triple_reminded ::= "backup" NUMBER "," "backup" NUMBER "," "backup" backup_reminded_amount backup_explanation_many "each" "backup" "ability" "triggers" "separately" "." ")" NEWLINE backup_stage_abilities
 
 /* A Class: each level after the first has a cost and its lines. */
 /* @sem Ability::[$class_ability] */

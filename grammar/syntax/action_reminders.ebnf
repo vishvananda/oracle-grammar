@@ -104,7 +104,7 @@ line_measured_reminder ::= remindable_line "(" measured_explanation ")"
 measured_explanation ::= monstrosity_explanation | monstrosity_one_explanation | mill_number_explanation | incubation_explanation | discover_explanation | toxic_number_explanation
     | scry_context_amount | surveil_context_amount | surveil_defining_amount | mill_controller_explanation
     | adapt_context_amount | renown_one_explanation | renown_number_explanation | bloodthirst_one_explanation | bloodthirst_number_explanation | bloodthirst_granted_number_explanation
-    | earthbend_measured_explanation | bolster_measured_explanation | amass_zombies_measured_explanation | amass_orcs_measured_explanation | connive_x_explanation
+    | earthbend_measured_explanation | earthbend_definition_explanation | earthbend_x_definition_explanation | bolster_measured_explanation | amass_zombies_measured_explanation | amass_orcs_measured_explanation | connive_x_explanation
     | bolster_definition_explanation | amass_orcs_definition_explanation | amass_zombies_definition_explanation
     | expend_four_measured_explanation | mill_them_measured_explanation | mill_them_one_explanation | mill_any_actor_measured_explanation
     | mill_each_player_one_explanation
@@ -193,8 +193,14 @@ written_x_plus_one_counters ::= "X" "+" "1" "/" "+" "1" "counters"
 /* @sem Operand::List([Text(Connive), Number(@agree($number_x, $number_x_2))]) */
 connive_x_explanation ::= "draw" number_x "cards" "," "then" "discard" number_x "cards" "." "put" "a" "+" "1" "/" "+" "1" "counter" "on" "that" "creature" "for" "each" "nonland" "card" "discarded" "this" "way" "."
 
-/* @sem Operand::List([Text(Earthbend), Number($measured_plus_one_counters)]) */
-earthbend_measured_explanation ::= "target" "land" "you" "control" "becomes" "a" "0" "/" "0" "creature" "with" "haste" "that's" "still" "a" "land" "." "put" measured_plus_one_counters "on" "it" "." "when" "it" "dies" "or" "is" "exiled" "," "return" "it" "to" "the" "battlefield" "tapped" "."
+/* @sem Operand::List([Text(Earthbend), Number(@agree($number_digits, $earthbend_note_counters))]) */
+earthbend_definition_explanation ::= "to" "earthbend" number_digits "," earthbend_note_counters
+/* @sem Operand::List([Text(Earthbend), Number(@agree($number_x, $earthbend_note_counters))]) */
+earthbend_x_definition_explanation ::= "to" "earthbend" number_x "," earthbend_note_counters
+/* @sem Operand::List([Text(Earthbend), Number($earthbend_note_counters)]) */
+earthbend_measured_explanation ::= earthbend_note_counters
+/* @sem $measured_plus_one_counters */
+earthbend_note_counters ::= "target" "land" "you" "control" "becomes" "a" "0" "/" "0" "creature" "with" "haste" "that's" "still" "a" "land" "." "put" measured_plus_one_counters "on" "it" "." "when" "it" "dies" "or" "is" "exiled" "," "return" "it" "to" "the" "battlefield" "tapped" "."
 
 /* @sem Operand::List([Text(Bolster), Number($bolster_note_amount)]) */
 bolster_measured_explanation ::= bolster_note_amount
@@ -259,7 +265,7 @@ ability_explanation ::= token_summoning_sickness_explanation | haste_they_attack
     | double_strike_creature_hyphenated_explanation | exerted_permanent_untap_rule_explanation | split_second_any_spell_on_stack_explanation | split_second_spells_and_abilities_explanation
     | conspire_the_spell_explanation | intimidate_each_of_those_creatures_explanation | shield_counter_damage_or_destroy_explanation | sunburst_third_person_explanation
     | toxic_that_creature_one_explanation | haste_as_soon_as_controlled_explanation | shadow_plural_definition_explanation | decayed_this_creature_explanation
-    | riot_additional_counter_explanation | proliferate_definition_head_explanation | storm_when_you_cast_it_explanation | storm_when_you_cast_that_spell_explanation
+    | riot_additional_counter_explanation | proliferate_you_definition_explanation | proliferate_definition_head_explanation | storm_when_you_cast_it_explanation | storm_when_you_cast_that_spell_explanation
     | exalted_each_instance_explanation | training_creature_you_control_explanation | dethrone_whenever_it_attacks_explanation | retrace_with_keyword_explanation
     | improvise_those_spells_payment_explanation | double_strike_this_creature_explanation | indestructible_this_creature_explanation | riot_they_enter_explanation
     | harmonize_power_explanation | harmonize_granted_power_explanation | venture_definition_explanation | storm_permanent_copies_explanation | storm_targeted_permanent_copies_explanation
@@ -280,13 +286,13 @@ ability_explanation ::= token_summoning_sickness_explanation | haste_they_attack
     | stun_explanation | stun_recipient_explanation | populate_definition_explanation | regeneration_the_creature_explanation | modified_explanation | historic_explanation
     | shield_explanation | venture_explanation | learn_explanation | explore_explanation
     | explore_that_creature_explanation | explore_the_creature_explanation | explore_definition_explanation
-    | manifest_dread_explanation | manifest_dread_definition_explanation | populate_explanation | mill_explanation | goad_explanation
-    | exert_explanation | party_explanation | crime_explanation | clash_explanation
+    | manifest_dread_explanation | manifest_dread_sequenced_definition_explanation | manifest_dread_definition_explanation | populate_explanation | mill_explanation | goad_explanation
+    | exert_explanation | party_explanation | crime_actor_explanation | crime_explanation | clash_explanation
     | snow_explanation | colorless_explanation | waterbend_explanation | exhaust_once_explanation | indefinite_explanation
     | splice_explanation | overload_explanation | bargain_explanation | prototype_explanation
     | nonmana_ability_explanation | nonmana_copy_explanation | grant_keyword_explanation | additional_rule_explanations
     | context_explanations | token_context_explanations | role_explanation
-    | combat_keyword_explanation | payment_permission_explanation | phaseout_attached_explanation | colorless_clue_explanation
+    | fight_creatures_explanation | food_token_rules_explanation | combat_keyword_explanation | payment_permission_explanation | phaseout_attached_explanation | colorless_clue_explanation
     | phaseout_your_turn_explanation | attachment_keeps_control_explanation | summoning_sickness_explanation
     | additional_vote_choices_explanation | clash_finished_explanation | cycling_before_draw_explanation
     | granted_artifact_affinity_explanation | granted_scavenge_explanation
@@ -561,7 +567,13 @@ explore_explanation_head ::= "reveal" "the" "top" "card" "of" "your" "library" "
 /* @sem () */
 explore_explanation_tail ::= "," "then" "put" "the" "card" "back" "or" "put" "it" "into" "your" "graveyard" "."
 /* @sem String::'ManifestDread' */
-manifest_dread_explanation ::= "look" "at" "the" "top" "two" "cards" "of" "your" "library" "." "put" "one" "onto" "the" "battlefield" "face" "down" "as" "a" "2" "/" "2" "creature" "and" "the" "other" "into" "your" "graveyard" "." "turn" "it" "face" "up" "any" "time" "for" "its" "mana" "cost" "if" "it's" "a" "creature" "card" "."
+manifest_dread_explanation ::= manifest_dread_look_words "." manifest_dread_put_words
+/* @sem String::'ManifestDread' */
+manifest_dread_sequenced_definition_explanation ::= "to" "manifest" "dread" "," manifest_dread_look_words "," "then" manifest_dread_put_words
+/* @sem () */
+manifest_dread_look_words ::= "look" "at" "the" "top" "two" "cards" "of" "your" "library"
+/* @sem () */
+manifest_dread_put_words ::= "put" "one" "onto" "the" "battlefield" "face" "down" "as" "a" "2" "/" "2" "creature" "and" "the" "other" "into" "your" "graveyard" "." "turn" "it" "face" "up" "any" "time" "for" "its" "mana" "cost" "if" "it's" "a" "creature" "card" "."
 /* @sem $manifest_dread_explanation */
 manifest_dread_definition_explanation ::= "to" "manifest" "dread" "," manifest_dread_explanation
 /* @sem String::'Populate' */
@@ -596,6 +608,8 @@ goad_reminder_creatures ::= "the" "goaded" "creatures"
 exert_explanation ::= "an" "exerted" "creature" "won't" "untap" "during" "your" "next" "untap" "step" "."
 /* @sem String::'Party' */
 party_explanation ::= "your" "party" "consists" "of" "up" "to" "one" "each" "of" "Cleric" "," "Rogue" "," "Warrior" "," "and" "Wizard" "."
+/* @sem String::'Crime' */
+crime_actor_explanation ::= "they" "commit" "a" "crime" "if" "they" "target" "an" "opponent" "," "anything" "an" "opponent" "controls" "," "and/or" "cards" "in" "an" "opponent's" "graveyard" "."
 /* @sem String::'Crime' */
 crime_explanation ::= "targeting" "opponents" "," "anything" "they" "control" "," "and/or" "cards" "in" "their" "graveyards" "is" "a" "crime" "."
 /* @sem String::'Clash' */
@@ -791,7 +805,9 @@ blight_each_reminder_amount ::= "they" "each" "put" "a" "-" "1" "/" "-" "1" "cou
 /* @sem $proliferate_pair */
 proliferate_pair_reminded ::= proliferate_pair "." "(" proliferate_explanation "." ("then" "do" "it" "again" ".")? ")"
 /* @sem () */
-proliferate_explanation ::= ("to" "proliferate" ",")? "choose" "any" "number" "of" "permanents" "and/or" "players" "," "then" "give" "each" "another" "counter" "of" "each" "kind" "already" "there"
+proliferate_explanation ::= ("to" "proliferate" ",")? proliferate_instruction_words
+/* @sem () */
+proliferate_instruction_words ::= "choose" "any" "number" "of" "permanents" "and/or" "players" "," "then" "give" "each" "another" "counter" "of" "each" "kind" "already" "there"
 
 /* The numeral and the reminder's written count must agree in both directions. */
 /* @sem Instruction::[Effect{result:@next, operation:Scry{players:One(AbilityController), amount:@agree($number, $scry_look_explanation)}}] */
@@ -852,8 +868,18 @@ reminded_food_tokens ::= tn_food "tokens" "." "(" "they're" "artifacts" "with" f
 reminded_clue_tokens ::= tn_clue "tokens" "." "(" "they're" "artifacts" "with" clue_reminder_cost ")"
 /* @sem () */
 treasure_reminder_cost ::= '"' "{" "T" "}" "," "↑" "sacrifice" "this" ("token" | "artifact") ":" "add" "one" "mana" "of" "any" "color" "." '"'
+/* @sem String::'FoodToken' */
+food_token_rules_explanation ::= "a" "Food" "token" "is" "an" "artifact" "with" food_token_reminder_cost
 /* @sem () */
-food_reminder_cost ::= '"' "{" "2" "}" "," "{" "T" "}" "," "↑" "sacrifice" "this" ("token" | "artifact") ":" "you" "gain" "3" "life" "." '"'
+food_token_reminder_cost ::= food_reminder_cost_start "token" food_reminder_cost_end
+/* @sem () */
+food_artifact_reminder_cost ::= food_reminder_cost_start "artifact" food_reminder_cost_end
+/* @sem () */
+food_reminder_cost ::= food_token_reminder_cost | food_artifact_reminder_cost
+/* @sem () */
+food_reminder_cost_start ::= '"' "{" "2" "}" "," "{" "T" "}" "," "↑" "sacrifice" "this"
+/* @sem () */
+food_reminder_cost_end ::= ":" "you" "gain" "3" "life" "." '"'
 /* @sem () */
 clue_reminder_cost ::= '"' "{" "2" "}" "," "↑" "sacrifice" "this" ("token" | "artifact") ":" "draw" "a" "card" "." '"'
 
@@ -1245,7 +1271,9 @@ decayed_this_creature_explanation ::= "this" "creature" "can't" "block" "." "whe
 riot_additional_counter_explanation ::= "this" "creature" "enters" "with" "your" "choice" "of" "an" "additional" "+" "1" "/" "+" "1" "counter" "or" "haste" "."
 
 /* @sem String::'Proliferate' */
-proliferate_definition_head_explanation ::= "to" "proliferate" "," "choose" "any" "number" "of" "permanents" "and/or" "players" "," "then" "give" "each" "another" "counter" "of" "each" "kind" "already" "there" "."
+proliferate_definition_head_explanation ::= "to" "proliferate" "," proliferate_instruction_words "."
+/* @sem String::'Proliferate' */
+proliferate_you_definition_explanation ::= "to" "proliferate" "," "you" proliferate_instruction_words "."
 
 /* @sem String::'Storm' */
 storm_when_you_cast_it_explanation ::= "when" "you" "cast" "it" "," "copy" "it" "for" "each" "spell" "cast" "before" "it" "this" "turn" "." "you" "may" "choose" "new" "targets" "for" "the" "copies" "."
