@@ -341,15 +341,19 @@ fn event_referents(event: &Value, scope: &mut Scope, surfaced: bool) {
             true,
         ));
     }
-    if let Some(filter) = pair_other_filter(event)
-        && let Some(reference) = scope.others.last()
-    {
-        scope.references.push(super::qualified::event(
-            reference.clone(),
-            filter,
-            false,
-            false,
-        ));
+    let paired = if event["Pair"]["event"] == "Crews" {
+        // The other participant is the vehicle. The creature that paid the
+        // crew cost can itself have the Vehicle subtype.
+        Some((json!({"kind":"EventOther"}), &event["Pair"]["others"]))
+    } else {
+        pair_other_filter(event)
+            .zip(scope.others.last().cloned())
+            .map(|(filter, reference)| (reference, filter))
+    };
+    if let Some((reference, filter)) = paired {
+        scope
+            .references
+            .push(super::qualified::event(reference, filter, false, false));
     }
 }
 

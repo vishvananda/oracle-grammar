@@ -54,7 +54,7 @@ fn target_contrast_ten_reviewed_retirements_change_only_the_proved_reference() {
     }
 }
 #[test]
-fn target_contrast_preserves_all_three_spell_union_forms_and_five_pump_move_roles() {
+fn target_contrast_binds_shared_spell_recipients_and_preserves_pump_move_roles() {
     for c in data()["protected"].as_array().unwrap() {
         exact_set(
             c["name"].as_str().unwrap(),

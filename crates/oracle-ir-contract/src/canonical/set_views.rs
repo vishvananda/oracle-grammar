@@ -184,7 +184,16 @@ pub fn print_views(ability: &Value) -> Result<Vec<Value>, String> {
         0,
         &mut sites,
     )?;
-    if sites.variants.is_empty() {
+    verified_views(original, &sites.variants)
+}
+
+/// Try bounded operand projections. A variant makes it to the printer only
+/// when normalization of the complete ability proves the same meaning.
+pub(super) fn verified_views(
+    original: Value,
+    variants: &[(String, Value)],
+) -> Result<Vec<Value>, String> {
+    if variants.is_empty() {
         return Ok(Vec::new());
     }
     let compare = |value: Value| -> Result<Value, String> {
@@ -193,15 +202,15 @@ pub fn print_views(ability: &Value) -> Result<Vec<Value>, String> {
         Ok(group)
     };
     let expected = compare(original.clone())?;
-    let all = (1 << sites.variants.len()) - 1;
+    let all = (1 << variants.len()) - 1;
     let mut views = Vec::new();
     for mask in std::iter::once(all).chain(1..all) {
         let mut view = original.clone();
-        for (at, (path, objects)) in sites.variants.iter().enumerate() {
+        for (at, (path, objects)) in variants.iter().enumerate() {
             if mask & (1 << at) != 0 {
                 *view
                     .pointer_mut(path)
-                    .ok_or("population print view lost its operand")? = objects.clone();
+                    .ok_or("print view lost its operand")? = objects.clone();
             }
         }
         if compare(view.clone())? == expected {

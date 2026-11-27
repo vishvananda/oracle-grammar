@@ -3,6 +3,9 @@
 use super::{Step, at_path, events::Frame, symbol_name};
 use serde_json::{Value, json};
 
+mod hand_knowledge;
+pub(super) use hand_knowledge::validate as validate_hidden_returns;
+
 pub(super) struct Introductions<'a> {
     pub(super) slots: &'a [(Vec<Step>, usize)],
     pub(super) base: usize,
@@ -65,6 +68,9 @@ pub(super) fn reference(
             | "defined_named_object"
     ) {
         return Ok(reference);
+    }
+    if let Some(state) = hand_knowledge::reference(root, path, name, introductions, &reference)? {
+        return Ok(state);
     }
     // A created trigger/replacement keeps its ability holder, even when its
     // creator's matched object departed. Its new event cannot bind that old role.

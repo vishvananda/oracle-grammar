@@ -11,6 +11,8 @@ struct Needed {
     hand_reveal: bool,
     hand_choice: bool,
     native_payment: bool,
+    pump_untap: bool,
+    optional_receipt: bool,
 }
 #[derive(Default)]
 struct Normalize {
@@ -18,9 +20,13 @@ struct Normalize {
     owners: Vec<Needed>,
     tracing: bool,
     keep_order: bool,
+    costs: usize,
 }
 impl Visit for Normalize {
     fn enter(&mut self, value: &Value, ty: &Ty) {
+        if matches!(ty, Ty::Named(name) if name == "Cost") {
+            self.costs += 1;
+        }
         if matches!(ty, Ty::Named(name) if name == "Ability") {
             self.owners.push(Needed {
                 source_components: if self.keep_order {
@@ -39,6 +45,12 @@ impl Visit for Normalize {
                 matches!(ty, Ty::Named(name) if name == "Operation") && value["kind"] == "Reveal";
             needed.hand_choice |= matches!(ty, Ty::Named(name) if name == "Operation")
                 && value["kind"] == "ChooseObjects";
+            needed.optional_receipt |= !self.keep_order
+                && matches!(ty, Ty::Named(name) if name == "Instruction")
+                && super::optional_receipts::may_need(value);
+            needed.pump_untap |= !self.keep_order
+                && matches!(ty, Ty::Named(name) if name == "Operation")
+                && super::pump_untap::may_need(value);
             needed.native_payment |= !self.keep_order
                 && matches!(ty, Ty::Named(name) if name == "CostPart")
                 && super::resolution_payments::may_need(value);
@@ -52,6 +64,15 @@ impl Visit for Normalize {
         _: &str,
         walker: &mut Walker<'_>,
     ) -> Result<(), String> {
+        if matches!(ty, Ty::Named(name) if name == "Cost") {
+            self.costs -= 1;
+        }
+        if !self.keep_order
+            && self.costs == 0
+            && matches!(ty, Ty::Named(name) if name == "Operation")
+        {
+            self.changed |= super::fractional_sacrifice::normalize(value, self.tracing);
+        }
         if !self.keep_order
             && matches!(ty, Ty::Named(name) if name == "ObjectRef")
             && let Some(owner) = self.owners.last()
@@ -75,7 +96,13 @@ impl Visit for Normalize {
             return Ok(());
         };
         let hands = needed.hand_reveal && needed.hand_choice;
-        if !needed.snapshots && !needed.mana && !hands && !needed.native_payment {
+        if !needed.snapshots
+            && !needed.mana
+            && !hands
+            && !needed.native_payment
+            && !needed.optional_receipt
+            && !needed.pump_untap
+        {
             return Ok(());
         }
         let mut uses = Uses::default();
@@ -117,6 +144,12 @@ impl Visit for Normalize {
                 }
                 if needed.mana {
                     self.changed |= super::fixed_mana::flatten(items, path, &uses, self.tracing);
+                }
+                if needed.optional_receipt {
+                    self.changed |= super::optional_receipts::program(items, &uses, self.tracing);
+                }
+                if needed.pump_untap {
+                    self.changed |= super::pump_untap::program(items, &uses, self.tracing);
                 }
                 if needed.native_payment {
                     self.changed |= super::resolution_payments::program(items, &uses, self.tracing);

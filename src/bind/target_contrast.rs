@@ -444,6 +444,44 @@ fn owning_spell(root: &Value, path: &[Step]) -> bool {
     }
     false
 }
+// In a spell's explicitly coordinated damage population, a relative name or
+// characteristic test can identify the exact target contrasted by "other".
+// The bound predicate must refer to that target in the same population arm.
+fn sharing_target(value: &Value, target: &Value, depth: usize, budget: &Cell<usize>) -> bool {
+    if depth > 32 || !spend(budget) {
+        return false;
+    }
+    match value["kind"].as_str() {
+        Some("Shares") => value["args"]["with"] == *target,
+        Some("SharesNameWith") => value["args"] == *target,
+        Some("AllOf") => value["args"].as_array().is_some_and(|items| {
+            items
+                .iter()
+                .any(|item| sharing_target(item, target, depth + 1, budget))
+        }),
+        _ => false,
+    }
+}
+
+fn matching_population(
+    root: &Value,
+    path: &[Step],
+    depth: usize,
+    target: &Value,
+    budget: &Cell<usize>,
+) -> bool {
+    (depth..path.len())
+        .rev()
+        .find_map(|at_depth| {
+            let objects = at(root, &path[..at_depth])?;
+            (objects["kind"] == "Zone"
+                && objects["args"]["scope"]["Shared"] == "Battlefield"
+                && objects["args"]["kind"] == "Permanent")
+                .then_some(&objects["args"]["filter"])
+        })
+        .is_some_and(|filter| sharing_target(filter, target, 0, budget))
+}
+
 fn anchor(root: &Value, path: &[Step], domain: &Value, budget: &Cell<usize>) -> Option<Value> {
     if !spend(budget) {
         return None;
@@ -457,7 +495,7 @@ fn anchor(root: &Value, path: &[Step], domain: &Value, budget: &Cell<usize>) -> 
             if let Some(t) = target(&op["args"]["source"], owner, domain, budget) {
                 return Some(t);
             }
-            if owning_spell(root, path) || op["args"]["recipients"]["kind"] != "Union" {
+            if op["args"]["recipients"]["kind"] != "Union" {
                 return None;
             }
             let a = op["args"]["recipients"]["args"].as_array()?;
@@ -470,6 +508,13 @@ fn anchor(root: &Value, path: &[Step], domain: &Value, budget: &Cell<usize>) -> 
             let [t] = ts.as_slice() else {
                 return None;
             };
+            if owning_spell(root, path)
+                && (root["kind"] != "Spell"
+                    || root.pointer("/args/body/instructions/0/args/operation") != Some(op)
+                    || !matching_population(root, path, base, t, budget))
+            {
+                return None;
+            }
             return Some(t.clone());
         }
         "Sacrifice" if field(path, base, "objects") => previous_target(root, &p, "Sacrifice")?,
@@ -710,11 +755,9 @@ mod tests {
             if c["name"] != "Brightflame" {
                 continue;
             }
-            for frame in c["expected_all"].as_array().unwrap() {
+            if let Some(frame) = c.get("obsolete_source") {
                 let spell = frame[0].clone();
-                let Some(site) = source_site(&spell, &mut Vec::new()) else {
-                    continue;
-                };
+                let site = source_site(&spell, &mut Vec::new()).expect("source contrast control");
                 assert!(serde_json::from_value::<crate::model::ir::Ability>(spell.clone()).is_ok());
                 let op = operation_path(&spell, &site).unwrap();
                 let path = relative_path(&spell, &op, &site).unwrap();

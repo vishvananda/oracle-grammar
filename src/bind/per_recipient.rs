@@ -10,6 +10,9 @@ pub(super) fn reference(
     scope: &super::Scope,
     prior_targets: &super::references::Contexts,
 ) -> Result<Value, String> {
+    if let Some(payer) = super::payments::controller_draw(root, path) {
+        return Ok(payer);
+    }
     player(root, path, introduced, scope.target_base)?
         .map(|player| json!(player))
         .or_else(|| prior_targets.before(path, scope).player())

@@ -149,7 +149,12 @@ impl Engine {
 
             let written_events = canonical::trigger_batches::print_views(item)?;
             let written_populations = canonical::object_population_print_views(item)?;
-            for view in written_events.into_iter().chain(written_populations) {
+            let written_optional_receipts = canonical::optional_receipt_print_views(item)?;
+            for view in written_events
+                .into_iter()
+                .chain(written_populations)
+                .chain(written_optional_receipts)
+            {
                 for form in bind::unbind_ability(&view)
                     .into_iter()
                     .chain(std::iter::once(view))

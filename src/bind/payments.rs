@@ -40,6 +40,67 @@ pub(super) fn marker(
     Ok(true)
 }
 
+/// In the positive branch, a direct draw by the player who paid uses the
+/// recorded performer. A controller query could name a different player by
+/// then. An independently named recipient is bound by the ordinary rules.
+pub(super) fn controller_draw(root: &Value, path: &[Step]) -> Option<Value> {
+    fn key(step: &Step, expected: &str) -> bool {
+        matches!(step, Step::Key(key) if key == expected)
+    }
+    let prefix = path.len().checked_sub(10)?;
+    let [Step::Index(branch), a, b, c, Step::Index(0), d, e, f, g, h] = &path[prefix..] else {
+        return None;
+    };
+    if path.len() > 128
+        || ![a, b, c, d, e, f, g, h]
+            .into_iter()
+            .zip([
+                "args",
+                "then",
+                "instructions",
+                "args",
+                "operation",
+                "args",
+                "players",
+                "args",
+            ])
+            .all(|(step, expected)| key(step, expected))
+    {
+        return None;
+    }
+    let mut node = root;
+    for step in &path[..prefix] {
+        node = match step {
+            Step::Key(key) => node.get(key)?,
+            Step::Index(index) => node.get(index)?,
+        };
+    }
+    let payment = node.get(branch.checked_sub(1)?)?;
+    let branch = node.get(*branch)?;
+    let pay = &payment["args"]["operation"];
+    let payer = &pay["args"]["player"];
+    let draw = &branch["args"]["then"]["instructions"][0]["args"]["operation"];
+    let id = payment["args"]["result"].as_u64()?;
+    let damage_controller = matches!(
+        payer["args"]["kind"].as_str(),
+        Some("EventSubject" | "Damage")
+    ) || super::symbol_name(&payer["args"])
+        == Some("damage_relative_object");
+    if payment["kind"] != "Effect"
+        || pay["kind"] != "PayCost"
+        || pay["args"]["optional"] != true
+        || payer["kind"] != "ControllerOf"
+        || !damage_controller
+        || branch["kind"] != "If"
+        || branch["args"]["condition"] != json!({"kind":"PaymentChosen","args":id})
+        || draw["kind"] != "Draw"
+        || draw["args"]["players"]["kind"] != "One"
+    {
+        return None;
+    }
+    Some(json!({"kind":"Performer","args":id}))
+}
+
 /// Only the grammar's native variable resolution costs introduce this binding.
 pub(super) fn bind(value: &mut Value) -> Result<(), String> {
     transform(value, false)

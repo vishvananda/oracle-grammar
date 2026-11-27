@@ -16,6 +16,7 @@ mod entry;
 mod events;
 mod filters;
 mod fixed_mana;
+mod fractional_sacrifice;
 mod immediate_values;
 #[cfg(test)]
 mod immediate_values_tests;
@@ -30,10 +31,12 @@ mod mode_results;
 mod movement;
 mod observed_hands;
 pub mod observed_top;
+mod optional_receipts;
 mod paid_source;
 #[cfg(test)]
 mod paid_source_tests;
 mod programs;
+mod pump_untap;
 pub mod resolution_payments;
 #[cfg(test)]
 mod result_scopes;
@@ -58,6 +61,7 @@ mod walk;
 pub use fixed_mana::literal as literal_mana;
 pub use immediate_views::print_views as immediate_parameter_print_views;
 use movement::groups as movement_groups;
+pub use optional_receipts::print_views as optional_receipt_print_views;
 pub use set_views::print_views as object_population_print_views;
 pub use trace::MappedCard;
 pub use visibility::branch_sites as branch_receipt_sites;
@@ -640,6 +644,9 @@ impl Walker {
                 return;
             }
             match (name, variant.as_str()) {
+                ("Keyword", "HexproofFrom") if !self.keep_order => {
+                    keywords::hexproof_object_qualities(value, self.tracing);
+                }
                 ("Operation", "Keyword" | "KeywordEach") => keywords::suspect(
                     value,
                     self.scopes.last().map(|scope| &scope.optional_targets),

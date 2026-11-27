@@ -80,3 +80,56 @@ pub(super) fn conditional_flash(value: &mut Value) {
     let condition = value["args"]["condition"].take();
     *value = json!({"kind":"FlashIf","args":condition});
 }
+
+/// A coordinated list of unqualified card types names the same source
+/// restrictions as each of its alternatives. Keep the list representation
+/// so other lists, such as "hexproof from each color" (CR 702.11g), retain
+/// their independently declared qualities.
+pub(super) fn hexproof_object_qualities(value: &mut Value, tracing: bool) {
+    let card_type = |filter: &Value| {
+        filter["kind"] == "CardType"
+            && filter["args"].is_string()
+            && filter.as_object().is_some_and(|fields| fields.len() == 2)
+    };
+    let unqualified = |objects: &Value| {
+        objects["kind"] == "Any" && objects.as_object().is_some_and(|fields| fields.len() == 2)
+    };
+    let mut filters = if let Some(qualities) = value["args"]["Each"].as_array() {
+        if !(2..=64).contains(&qualities.len())
+            || !qualities.iter().all(|quality| {
+                quality.as_object().is_some_and(|fields| fields.len() == 1)
+                    && unqualified(&quality["Objects"])
+                    && card_type(&quality["Objects"]["filter"])
+            })
+        {
+            return;
+        }
+        qualities
+            .iter()
+            .map(|quality| quality["Objects"]["filter"].clone())
+            .collect::<Vec<_>>()
+    } else {
+        let source = &value["args"]["Objects"];
+        let filter = &source["filter"];
+        let Some(filters) = filter["args"]
+            .as_array()
+            .filter(|filters| (2..=64).contains(&filters.len()))
+        else {
+            return;
+        };
+        if !unqualified(source) || filter["kind"] != "AnyOf" || !filters.iter().all(card_type) {
+            return;
+        }
+        filters.clone()
+    };
+    filters.sort_by_cached_key(|part| super::trace::key(part, tracing));
+    if filters
+        .windows(2)
+        .any(|pair| super::trace::same(&pair[0], &pair[1], tracing))
+    {
+        return;
+    }
+    value["args"] = json!({"Each": filters.into_iter().map(|part| {
+        json!({"Objects":{"kind":"Any","filter":part}})
+    }).collect::<Vec<_>>()});
+}

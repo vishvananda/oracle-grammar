@@ -371,6 +371,7 @@ pub(crate) fn bind_held_ability_with_source(
     variables::bind(ability)?;
     crate::functions::number_condition::resolve(ability)?;
     exile_followups::lower(ability)?;
+    transitions::validate_hidden_returns(ability)?;
     return_grants::lower(ability)?;
     returned_conditionals::lower(ability, &mut scope)?;
     selections::bind(ability)?;

@@ -31,14 +31,26 @@ pub(crate) fn lexical(objects: &Value, at: usize) -> Value {
             Some("current_named_object" | "self" | "it" | "current_it")
         ) || ordinary_it)
     {
-        json!({"$sym":MARKER,"args":[objects],"at":at})
+        let same_antecedent = ordinary_it
+            || matches!(
+                super::symbol_name(reference),
+                Some("current_named_object" | "it" | "current_it")
+            );
+        json!({"$sym":MARKER,"args":[objects],"at":at,"same_antecedent":same_antecedent})
     } else {
         objects.clone()
     }
 }
 
+#[derive(Clone, Copy)]
+enum RecentExile {
+    Move,
+    RandomChoice,
+}
+
 #[derive(Clone, Default)]
 struct Context {
+    recent: Option<RecentExile>,
     moves: BTreeSet<u32>,
     scalar_moves: BTreeSet<u32>,
     action_moves: BTreeSet<(u32, u32)>,
@@ -50,6 +62,7 @@ struct Context {
 
 impl Context {
     fn record(&mut self, effect: &Value) -> Result<(), String> {
+        self.recent = None;
         if effect["kind"] != "Effect" {
             return Ok(());
         }
@@ -60,7 +73,9 @@ impl Context {
             return Ok(());
         };
         let value = &effect["args"]["operation"];
-        if !matches!(value["kind"].as_str(), Some("Move" | "Counter" | "PayCost")) {
+        let random_choice = value["kind"] == "ChooseObjects" && single_random_exiled_card(value);
+        if !random_choice && !matches!(value["kind"].as_str(), Some("Move" | "Counter" | "PayCost"))
+        {
             return Ok(());
         }
         crate::functions::branch_bounds(value)?;
@@ -72,11 +87,17 @@ impl Context {
         }
         match operation {
             Operation::Move {
-                objects: ObjectSet::One(_),
+                objects: ObjectSet::One(input),
                 destination: MovementDestination::Exile { .. },
                 ..
+            } => {
+                self.moves.insert(result);
+                if matches!(input, ObjectRef::Target { slot, index: 0 } if self.single_targets.contains(&slot.0))
+                {
+                    self.recent = Some(RecentExile::Move);
+                }
             }
-            | Operation::Counter {
+            Operation::Counter {
                 objects: ObjectSet::One(_),
                 destination: MovementDestination::Exile { .. },
                 destination_when: None,
@@ -90,6 +111,11 @@ impl Context {
                 ..
             } if self.single_targets.contains(&slot.0) => {
                 self.moves.insert(result);
+                self.recent = Some(RecentExile::Move);
+            }
+            Operation::ChooseObjects { .. } if random_choice => {
+                self.scalar_moves.insert(result);
+                self.recent = Some(RecentExile::RandomChoice);
             }
             Operation::PayCost { cost, .. } => {
                 for mut part in &cost.parts {
@@ -273,6 +299,40 @@ fn has_marker(value: &Value) -> bool {
     false
 }
 
+fn single_random_exiled_card(operation: &Value) -> bool {
+    let args = &operation["args"];
+    args["objects"]["kind"] == "Zone"
+        && args["objects"]["args"]["scope"] == json!({"Shared":"Exile"})
+        && args["objects"]["args"]["kind"] == "Card"
+        && args["count"] == json!({"AsManyAsCan":{"kind":"Constant","args":1}})
+        && args["constraints"] == json!(["AtRandom"])
+        && args["player"]["kind"] == "AbilityController"
+}
+
+/// A bare card pronoun follows an unambiguous immediately preceding exile or
+/// exile choice. The remembered result can contain only the actual arrivals
+/// or the one card chosen. An explicit holder or unrelated move stays separate.
+fn lost_receipt(operation: &Value, context: &Context) -> bool {
+    let mut objects = &operation["args"]["objects"];
+    if super::symbol_name(objects) == Some("zone_members") {
+        objects = &objects["args"][0];
+    }
+    if operation["kind"] != "Move"
+        || operation["args"]["qualifiers"] != json!([])
+        || super::symbol_name(objects) != Some(MARKER)
+        || objects["same_antecedent"] != true
+        || objects["args"][0] != json!({"kind":"One","args":{"kind":"Source"}})
+    {
+        return false;
+    }
+    let destination = &operation["args"]["destination"];
+    match context.recent {
+        Some(RecentExile::Move) => destination["Battlefield"]["controller"] == "Owner",
+        Some(RecentExile::RandomChoice) => destination.get("OwnersHand").is_some(),
+        _ => false,
+    }
+}
+
 fn visit(
     value: &mut Value,
     context: &Context,
@@ -283,6 +343,9 @@ fn visit(
         return Err("exile followup work/depth limit".into());
     }
     *work -= 1;
+    if lost_receipt(value, context) {
+        return Err("the return pronoun needs the preceding exile or choice receipt".into());
+    }
     if super::symbol_name(value) == Some(MARKER) {
         let mut objects = value["args"]
             .get_mut(0)
@@ -324,6 +387,7 @@ fn visit(
     }
     if let Some(instructions) = value.get_mut("instructions").and_then(Value::as_array_mut) {
         let mut local = context.clone();
+        local.recent = None;
         for instruction in instructions {
             visit(instruction, &local, depth + 1, work)?;
             local.record(instruction)?;
