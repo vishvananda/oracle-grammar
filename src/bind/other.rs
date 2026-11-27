@@ -212,6 +212,55 @@ fn paid_return(
         .then_some(earlier)
 }
 
+// For a matching arrival, "other" contrasts with that entering object.
+// Outside an entering event, this threshold still excludes the ability holder.
+fn entering_control_count(root: &Value, path: &[Step], domain: &Value) -> bool {
+    let [Step::Key(args), Step::Key(condition), ..] = path else {
+        return false;
+    };
+    if args != "args"
+        || condition != "intervening_if"
+        || root["kind"] != "Triggered"
+        || !matches!(domain["kind"].as_str(), Some("Subtype" | "CardType"))
+    {
+        return false;
+    }
+    let mut event = &root["args"]["event"];
+    while let Some(inner) = super::events::inner(event) {
+        event = inner;
+    }
+    let arrival = &event["ZoneChange"];
+    let controlled =
+        json!({"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}});
+    let objects = if arrival["to"] == "Battlefield" {
+        &arrival["objects"]
+    } else {
+        let player_event = &event["Player"];
+        if player_event["event"] != "EntersUnderControl"
+            || !(player_event["players"]["kind"] == "All"
+                || player_event["players"] == controlled["args"])
+        {
+            return false;
+        }
+        &player_event["objects"]
+    };
+    implies(objects, domain) && implies(objects, &controlled)
+}
+
+pub(super) fn control_count(root: &mut Value, path: &[Step], marker: &str) -> Result<bool, String> {
+    if marker != "control_other_count" {
+        return Ok(false);
+    }
+    let domain = at_path(root, path).ok_or("counted other path")?["args"][0].clone();
+    let reference = if entering_control_count(root, path, &domain) {
+        json!({"kind":"EventSubject"})
+    } else {
+        json!({"kind":"Source"})
+    };
+    *at_path(root, path).ok_or("counted other path")? = reference;
+    Ok(true)
+}
+
 pub(super) fn resolve_marker(
     marker: &str,
     root: &Value,

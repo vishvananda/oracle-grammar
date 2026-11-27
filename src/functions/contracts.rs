@@ -475,6 +475,7 @@ fn reference_marker(name: &str) -> bool {
             | "activation_exiled_card"
             | "other_reference"
             | "another_target_reference"
+            | "control_other_count"
             | "exiled_card_reference"
             | "card_receipt"
             | "revealed_card_receipt"
@@ -506,7 +507,10 @@ fn reference_call(
             Err(format!("@{name} takes no arguments"))
         };
     }
-    let argument = if matches!(name, "other_reference" | "another_target_reference") {
+    let argument = if matches!(
+        name,
+        "other_reference" | "another_target_reference" | "control_other_count"
+    ) {
         "ObjectFilter"
     } else {
         "ObjectRef"

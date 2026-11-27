@@ -109,6 +109,7 @@ pub(super) fn refers_to(name: &str, value: &Value) -> bool {
                 && value["args"]["phase"] == "After"
                 && value["args"]["result"].is_u64()
         }
+        "control_other_count" => !introducing && matches!(kind, "Source" | "EventSubject"),
         "other_reference" | "another_target_reference" => {
             !introducing
                 && matches!(

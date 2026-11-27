@@ -299,7 +299,10 @@ pub(super) fn collect(
                 });
                 // This argument is a noun-domain annotation, not a second
                 // occurrence of the actual filter's contextual references.
-                if matches!(symbol, Some("other_reference" | "another_target_reference")) {
+                if matches!(
+                    symbol,
+                    Some("other_reference" | "another_target_reference" | "control_other_count")
+                ) {
                     return;
                 }
                 if matches!(

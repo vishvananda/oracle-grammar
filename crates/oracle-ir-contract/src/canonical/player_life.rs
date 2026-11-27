@@ -159,6 +159,57 @@ fn optional_hand_entry(outer: &Value, uses: &Uses, tracing: bool) -> Option<Valu
     Some(direct)
 }
 
+/// DrawUpTo already lets its bound player pick zero. The option introduces no
+/// other action, decision-maker, or conditional receipt.
+fn redundant_optional_draw(outer: &Value, uses: &Uses, tracing: bool) -> Option<Value> {
+    if outer["kind"] != "ForEachPlayer" || outer["args"]["players"]["kind"] != "OthersThan" {
+        return None;
+    }
+    let Instruction::ForEachPlayer {
+        players: PlayerSet::OthersThan(_),
+        binding,
+        body,
+        ..
+    } = lossless::<Instruction>(outer, tracing)?
+    else {
+        return None;
+    };
+    let [
+        Instruction::Optional {
+            decider: PlayerRef::Bound(decider),
+            body,
+        },
+    ] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let [
+        Instruction::Effect {
+            result,
+            operation:
+                Operation::DrawUpTo {
+                    players: PlayerSet::One(PlayerRef::Bound(drawer)),
+                    ..
+                },
+            ..
+        },
+    ] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let result = u64::from(result.0);
+    if decider.0 != binding.0
+        || drawer.0 != binding.0
+        || uses.definitions.get(&result) != Some(&1)
+        || uses.total.get(&result) != Some(&1)
+    {
+        return None;
+    }
+    let mut direct = outer.clone();
+    direct["args"]["body"] = direct["args"]["body"]["instructions"][0]["args"]["body"].take();
+    Some(direct)
+}
+
 pub(super) fn flatten(items: &mut [Value], path: &str, uses: &Uses, tracing: bool) -> bool {
     let mut changed = false;
     for (index, item) in items.iter_mut().enumerate() {
@@ -174,6 +225,9 @@ pub(super) fn flatten(items: &mut [Value], path: &str, uses: &Uses, tracing: boo
             changed = true;
         } else if let Some(offer) = optional_hand_entry(item, uses, tracing) {
             *item = offer;
+            changed = true;
+        } else if let Some(draw) = redundant_optional_draw(item, uses, tracing) {
+            *item = draw;
             changed = true;
         }
     }

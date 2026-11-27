@@ -66,6 +66,7 @@ mod objects;
 mod observed;
 mod observed_hands;
 mod other;
+mod other_player;
 mod owner_return;
 mod paid_self_exile;
 pub(crate) mod payments;
@@ -607,11 +608,7 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                     scope.players.push(player.clone());
                     player
                 }
-                // Besides the player who acted when the event has one, else besides you.
-                "other_party" if scope.player() == Some(json!({"kind": "EventSubject"})) => {
-                    json!({"kind": "EventSubject"})
-                }
-                "other_party" => json!({"kind": "AbilityController"}),
+                "other_party" => other_player::resolve(root, &item.path, scope),
                 "self" if scope.leaving => json!({"kind": "EventSubject"}),
                 "named_source" => holder::named_source(scope, acted)?,
                 "self" => holder::source(scope, acted),
@@ -684,6 +681,7 @@ fn bind_marker(
         || reflexive_receipts::marker(root, scope, path, name, introduced)?
         || member_focus::marker(root, path, name)?
         || other::counterpart_marker(root, scope, path, name)?
+        || other::control_count(root, path, name)?
         || pump_counts::marker(root, path, name)?
         || value_snapshot::marker(root, scope, path, name)?
         || drafted::marker(root, scope, path, name)?
