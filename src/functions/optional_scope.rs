@@ -39,6 +39,22 @@ fn controller_draw(instruction: &Value) -> bool {
         && instruction["args"]["operation"]["args"]["players"] == controller()
 }
 
+fn untap_and_remove_from_combat(body: &[Value], tail: &[Value]) -> bool {
+    let ([untap], Some(remove)) = (body, tail.first()) else {
+        return false;
+    };
+    let untap_operation = &untap["args"]["operation"];
+    let remove_operation = &remove["args"]["operation"];
+    untap["kind"] == "Effect"
+        && untap_operation["kind"] == "SetTapped"
+        && untap_operation["args"]["tapped"] == false
+        && remove["kind"] == "Effect"
+        && remove_operation["kind"] == "Keyword"
+        && remove_operation["args"]["action"]
+            .get("RemoveFromCombat")
+            .is_some()
+}
+
 fn compound(mut actions: &[Value]) -> bool {
     while let [only] = actions {
         if only["kind"] != "Group" {
@@ -56,14 +72,16 @@ fn compound(mut actions: &[Value]) -> bool {
 /// whole option, so `and` cannot end the option before a payment it checks.
 fn split_optional(head: &[Value], tail: &[Value]) -> bool {
     let [head] = head else { return false };
-    let optional = head["kind"] == "Optional"
-        && head["args"]["decider"] == json!({"kind":"AbilityController"});
-    let discard = head["args"]["body"]["instructions"]
-        .as_array()
-        .is_some_and(|body| matches!(body.as_slice(), [discard] if hand_discard(discard)));
-    optional
-        && (discard && tail.first().is_some_and(controller_draw)
-            || checked_payment(&tail[..tail.len().min(2)]))
+    if head["kind"] != "Optional" || head["args"]["decider"] != json!({"kind":"AbilityController"})
+    {
+        return false;
+    }
+    let body = head["args"]["body"]["instructions"].as_array();
+    let discard =
+        body.is_some_and(|body| matches!(body.as_slice(), [discard] if hand_discard(discard)));
+    discard && tail.first().is_some_and(controller_draw)
+        || body.is_some_and(|body| untap_and_remove_from_combat(body, tail))
+        || checked_payment(&tail[..tail.len().min(2)])
 }
 
 /// `Then if it has no counters on it, sacrifice it and you gain 4 life`: a condition
@@ -345,6 +363,13 @@ fn checked_payment(items: &[Value]) -> bool {
 /// Explicit success clauses and one-sentence look/then-select grammar own that
 /// scope. Groups remain transparent; nested conditional programs remain local.
 fn check_sequence(items: &[Value], offer: Offer) -> Result<(), String> {
+    if matches!(offer, Offer::Action)
+        && items.split_first().is_some_and(|(head, tail)| {
+            untap_and_remove_from_combat(std::slice::from_ref(head), tail)
+        })
+    {
+        return Err("optional untap and combat removal use their single-clause form".into());
+    }
     let look_selection = items.windows(2).any(|pair| {
         let mut operation = &pair[0]["args"]["operation"];
         if operation["$sym"] == "look_inline" {

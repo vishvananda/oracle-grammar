@@ -206,6 +206,33 @@ fn modal_suspect_actions_keep_optional_and_mandatory_target_scopes() {
 }
 
 #[test]
+fn combat_removal_shares_the_choice_only_in_the_same_clause() {
+    let prefix = "Whenever a creature you control becomes blocked, you may untap it";
+    let joined = compositional(&format!("{prefix} and remove it from combat."));
+    let separate = compositional(&format!("{prefix}. Remove it from combat."));
+    let joined = &joined[0]["args"]["body"]["instructions"];
+    let separate = &separate[0]["args"]["body"]["instructions"];
+    assert_eq!(joined.as_array().unwrap().len(), 1);
+    assert_eq!(separate.as_array().unwrap().len(), 2);
+    for (instructions, optional_count) in [(joined, 2), (separate, 1)] {
+        assert_eq!(instructions[0]["kind"], "Optional");
+        let actions = &instructions[0]["args"]["body"]["instructions"];
+        assert_eq!(actions.as_array().unwrap().len(), optional_count);
+        assert_eq!(actions[0]["args"]["operation"]["kind"], "SetTapped");
+        let remove = if optional_count == 2 {
+            &actions[1]
+        } else {
+            &instructions[1]
+        };
+        assert!(
+            remove["args"]["operation"]["args"]["action"]
+                .get("RemoveFromCombat")
+                .is_some()
+        );
+    }
+}
+
+#[test]
 fn suspecting_a_created_token_uses_the_batch_without_aliasing_its_first_member() {
     let reading = compositional("Create a 2/1 black Skeleton creature token. Suspect it.");
     let produced = reading[0]["args"]["body"]["instructions"][0]["args"]["result"].clone();
