@@ -198,7 +198,7 @@ fn schema_192_migrates_unchanged_but_rejects_future_receipt_variants() {
     let mapped = migrate::mapped_read_json(&legacy).unwrap();
     assert_eq!(mapped.source_version, 192);
     assert!(mapped.map.introduced.is_empty());
-    assert_eq!(mapped.card.schema_version, 193);
+    assert_eq!(mapped.card.schema_version, crate::ir::SCHEMA_VERSION);
     card.faces[0].abilities =
         vec![serde_json::from_value(spell(json!([shield(), delayed(7)]))).unwrap()];
     let error = migrate::read_json(&serde_json::to_string(&card).unwrap()).unwrap_err();
@@ -229,4 +229,26 @@ fn new_receipts_survive_both_codecs_and_count_as_observed_result_uses() {
         serde_json::from_value(count(constrained(json!("Battlefield"), json!("Graveyard"))))
             .unwrap();
     assert!(crate::result_reads::ResultReads::instructions(&[instruction], &ResultId(7)).objects);
+}
+
+#[test]
+fn schema_193_preserves_existing_abilities_and_binding_sites() {
+    let packet: Value =
+        serde_json::from_str(include_str!("../fixtures/extraction-190.json")).unwrap();
+    let card = migrate::read_json(&packet["records"][0]["card"].to_string()).unwrap();
+    let mut legacy = serde_json::to_value(&card).unwrap();
+    legacy["schema_version"] = json!(193);
+    for face in legacy["faces"].as_array_mut().unwrap() {
+        face["schema_version"] = json!(193);
+    }
+    let mapped = migrate::mapped_read_json(&legacy.to_string()).unwrap();
+    assert_eq!(mapped.source_version, 193);
+    assert_eq!(
+        serde_json::to_value(mapped.card).unwrap(),
+        serde_json::to_value(card).unwrap()
+    );
+    assert!(mapped.map.introduced.is_empty());
+    for (site, origins) in mapped.map.sites {
+        assert_eq!(origins, vec![site]);
+    }
 }

@@ -2,7 +2,18 @@
 use crate::model::ir::{Characteristics, ManaColor};
 use crate::model::mtg_types::{CardType, SubType};
 
-pub(super) fn colors(context: &Characteristics) -> Result<Vec<ManaColor>, String> {
+pub(super) fn colors(
+    context: &Characteristics,
+    creature_rules: bool,
+) -> Result<Vec<ManaColor>, String> {
+    if creature_rules
+        && !context
+            .card_types
+            .iter()
+            .any(|kind| matches!(kind, CardType::Creature))
+    {
+        return Err("land creature reminder needs a printed Creature type".into());
+    }
     if !context
         .card_types
         .iter()

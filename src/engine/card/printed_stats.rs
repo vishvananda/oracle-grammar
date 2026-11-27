@@ -55,6 +55,17 @@ pub enum PrintedPowerToughness {
 }
 
 impl PrintedPowerToughness {
+    pub(super) fn fixed_toughness(&self) -> Option<i32> {
+        match self {
+            Self::Known { toughness, .. }
+            | Self::Variable {
+                toughness: PrintedStat::Fixed(toughness),
+                ..
+            } => Some(*toughness),
+            _ => None,
+        }
+    }
+
     pub fn values(&self) -> Option<(i32, i32)> {
         match *self {
             Self::Known { power, toughness } => Some((power, toughness)),

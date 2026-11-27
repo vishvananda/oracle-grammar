@@ -21,8 +21,9 @@ pub use printed_stats::{PrintedPowerToughness, PrintedStat};
 pub use station::{CardInputContext, StationAnimationBox};
 pub use surface::{AdventureReturnType, LayoutReminder};
 use surface::{
-    CardSurface, MonocoloredHybridNote, check_compleated, check_no_mana_cost,
-    copy_token_note_types, creature_note_types, printed_mana_value,
+    CardSurface, CountedPowerExample, LandMana, MonocoloredHybridNote, check_compleated,
+    check_no_mana_cost, check_retained_artifact_type, copy_token_note_types, creature_note_types,
+    example_toughness, fixed_identity_color, printed_mana_value,
 };
 
 /// A reference into current characteristics, never a retained mana operand.
@@ -43,7 +44,14 @@ pub enum CardNote {
     },
     /// The mana granted by all current basic land types, with no copied colors.
     LandTypes,
+    LandCreatureRules,
+    RetainsArtifactType,
     NoManaCost,
+    TransmuteManaValue,
+    DeckIdentityColor,
+    CountedPowerExample {
+        count: u32,
+    },
     Prowl,
     Amplify,
     CopyTokenTypes,
@@ -311,6 +319,7 @@ impl Engine {
             context.subtypes.len(),
             context.supertypes.len(),
             context.card_types.len(),
+            context.color_indicator.len(),
         ]
         .iter()
         .any(|n| *n > self.limits.tokens)
@@ -356,22 +365,12 @@ impl Engine {
                 .check_definition(context, &surface.abilities)
                 .map_err(Refusal::Binding)?;
         }
-        if surface.notes.len()
-            + usize::from(surface.land_mana.is_some())
-            + usize::from(surface.layout_reminder.is_some())
-            + usize::from(surface.transforms_from.is_some())
-            + usize::from(surface.meld_with.is_some())
-            + usize::from(surface.assist_limit.is_some())
-            + usize::from(surface.no_mana_cost)
-            + usize::from(surface.monocolored_hybrid.is_some())
-            + usize::from(surface.compleated_symbol.is_some())
-            + usize::from(surface.prowl_types.is_some())
-            + usize::from(surface.amplify_types.is_some())
-            + usize::from(surface.copy_token_types.is_some())
-            > self.limits.depth
-        {
+        if surface.note_count() > self.limits.depth {
             return Err(Refusal::Limit("card note limit".into()));
         }
+        let characteristic_notes = surface
+            .characteristic_notes(context, source)
+            .map_err(Refusal::Binding)?;
         let mana_cost = context.mana_cost.as_deref().unwrap_or_default();
         if let Some(note) = &surface.monocolored_hybrid
             && (!matches!(note.symbol, ManaSymbol::MonocoloredHybrid(_))
@@ -469,6 +468,9 @@ impl Engine {
                 notes.push(note.clone());
             }
         }
+        for notes in &mut choices {
+            notes.extend(characteristic_notes.iter().cloned());
+        }
         if surface.no_mana_cost {
             check_no_mana_cost(context).map_err(Refusal::Binding)?;
             for notes in &mut choices {
@@ -483,14 +485,25 @@ impl Engine {
             if counters.steps > self.limits.steps {
                 return Err(Refusal::Limit("land mana note work limit".into()));
             }
-            let expected = land_mana::colors(context).map_err(Refusal::Binding)?;
+            let expected =
+                land_mana::colors(context, header.creature_rules).map_err(Refusal::Binding)?;
             if *colors != expected {
                 return Err(Refusal::Binding(
                     "mana header disagrees with the current basic land types".into(),
                 ));
             }
             for notes in &mut choices {
-                notes.push(CardNote::LandTypes);
+                notes.push(if header.creature_rules {
+                    CardNote::LandCreatureRules
+                } else {
+                    CardNote::LandTypes
+                });
+            }
+        }
+        if surface.retains_artifact_type {
+            check_retained_artifact_type(context).map_err(Refusal::Binding)?;
+            for notes in &mut choices {
+                notes.push(CardNote::RetainsArtifactType);
             }
         }
         if let Some(reminder) = surface.layout_reminder {
@@ -541,6 +554,7 @@ impl Engine {
         reading: &CardReading,
         context: &Characteristics,
         transform_front: Option<&str>,
+        printed_toughness: Option<i32>,
         written: bool,
     ) -> Result<Vec<Value>, String> {
         self.card_context(context)?;
@@ -551,7 +565,11 @@ impl Engine {
         let mut assist_limit = None;
         let mut no_mana_cost = false;
         let mut monocolored_hybrid = None;
-        let mut land_colors = None;
+        let mut transmute_mana_value = None;
+        let mut deck_identity_color = None;
+        let mut counted_power_example = None;
+        let mut land_mana = None;
+        let mut retains_artifact_type = false;
         let mut layout_reminder = None;
         let mut transforms_from = None;
         let mut meld_with = None;
@@ -604,17 +622,53 @@ impl Engine {
                         return Err("duplicate monocolored hybrid reminder".into());
                     }
                 }
+                CardNote::DeckIdentityColor => {
+                    if deck_identity_color
+                        .replace(fixed_identity_color(context)?)
+                        .is_some()
+                    {
+                        return Err("duplicate deck identity reminder".into());
+                    }
+                }
+                CardNote::CountedPowerExample { count } => {
+                    let example = CountedPowerExample {
+                        count: crate::model::ir::Expr::Constant(i64::from(*count)),
+                        toughness: example_toughness(printed_toughness)?,
+                    };
+                    if counted_power_example.replace(example).is_some() {
+                        return Err("duplicate power example".into());
+                    }
+                }
+                CardNote::TransmuteManaValue => {
+                    let cost = context.mana_cost.as_deref().unwrap_or_default();
+                    if transmute_mana_value
+                        .replace(printed_mana_value(cost)?)
+                        .is_some()
+                    {
+                        return Err("duplicate Transmute mana value reminder".into());
+                    }
+                }
                 CardNote::NoManaCost => {
                     check_no_mana_cost(context)?;
                     if std::mem::replace(&mut no_mana_cost, true) {
                         return Err("duplicate no-mana-cost reminder".into());
                     }
                 }
-                CardNote::LandTypes => {
-                    if land_colors.is_some() {
+                CardNote::LandTypes | CardNote::LandCreatureRules => {
+                    if land_mana.is_some() {
                         return Err("duplicate inherent mana note".into());
                     }
-                    land_colors = Some(land_mana::colors(context)?);
+                    let creature_rules = matches!(note, CardNote::LandCreatureRules);
+                    land_mana = Some(LandMana {
+                        colors: land_mana::colors(context, creature_rules)?,
+                        creature_rules,
+                    });
+                }
+                CardNote::RetainsArtifactType => {
+                    check_retained_artifact_type(context)?;
+                    if std::mem::replace(&mut retains_artifact_type, true) {
+                        return Err("duplicate artifact type reminder".into());
+                    }
                 }
                 CardNote::Prowl | CardNote::Amplify | CardNote::CopyTokenTypes => {
                     let slot = match note {
@@ -653,10 +707,9 @@ impl Engine {
                 }
             }
         }
-        let land_mana = land_colors.map(|colors| json!({"colors":colors}));
         Ok(Self::native_surfaces(&reading.abilities, written)?
             .into_iter()
-            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"no_mana_cost":no_mana_cost,"monocolored_hybrid":monocolored_hybrid,"compleated_symbol":compleated,"prowl_types":prowl,"amplify_types":amplify,"copy_token_types":copy_token,"land_mana":land_mana,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"meld_with":meld_with,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
+            .map(|abilities| json!({"notes":notes,"assist_limit":assist_limit,"no_mana_cost":no_mana_cost,"monocolored_hybrid":monocolored_hybrid,"transmute_mana_value":transmute_mana_value,"deck_identity_color":deck_identity_color,"counted_power_example":counted_power_example,"compleated_symbol":compleated,"prowl_types":prowl,"amplify_types":amplify,"copy_token_types":copy_token,"land_mana":land_mana,"retains_artifact_type":retains_artifact_type,"layout_reminder":layout_reminder,"transforms_from":transforms_from,"meld_with":meld_with,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
             .collect())
     }
     /// A card's surfaces, with the views only a `written` text asks for when it does.
@@ -666,7 +719,13 @@ impl Engine {
         context: &Characteristics,
         written: bool,
     ) -> Result<Vec<Value>, String> {
-        let surfaces = self.card_surfaces_inner(reading, context, None, written)?;
+        let surfaces = self.card_surfaces_inner(
+            reading,
+            context,
+            None,
+            context.power_toughness.map(|(_, toughness)| toughness),
+            written,
+        )?;
         station::checked_surfaces(reading, None, surfaces)
     }
     fn card_surfaces_with_source(
@@ -682,6 +741,7 @@ impl Engine {
                 reading,
                 &context.characteristics,
                 context.transform_front.as_deref(),
+                context.printed_power_toughness.fixed_toughness(),
                 written,
             )?,
         )

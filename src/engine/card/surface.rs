@@ -1,5 +1,6 @@
 //! A typed grammar carrier: native rules and native symbols, before note binding.
-use crate::model::ir::{Ability, Characteristics, ManaColor, ManaSymbol};
+use super::{CardInputContext, CardNote};
+use crate::model::ir::{Ability, Characteristics, Expr, ManaColor, ManaSymbol};
 use crate::model::mtg_types::{CardType, CreatureType};
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +12,9 @@ pub(super) struct CardSurface {
     #[serde(default)]
     pub no_mana_cost: bool,
     pub monocolored_hybrid: Option<MonocoloredHybridNote>,
+    pub transmute_mana_value: Option<u32>,
+    pub deck_identity_color: Option<ManaColor>,
+    pub counted_power_example: Option<CountedPowerExample>,
     pub compleated_symbol: Option<ManaSymbol>,
     pub prowl_types: Option<Vec<CreatureType>>,
     pub amplify_types: Option<Vec<CreatureType>>,
@@ -19,6 +23,8 @@ pub(super) struct CardSurface {
     pub station_explicit: bool,
     pub station_declaration: Option<StationSource>,
     pub land_mana: Option<LandMana>,
+    #[serde(default)]
+    pub retains_artifact_type: bool,
     pub layout_reminder: Option<LayoutReminder>,
     pub transforms_from: Option<String>,
     pub meld_with: Option<String>,
@@ -82,6 +88,8 @@ impl AdventureReturnType {
 #[serde(deny_unknown_fields)]
 pub(super) struct LandMana {
     pub colors: Vec<ManaColor>,
+    #[serde(default)]
+    pub creature_rules: bool,
 }
 
 /// A source reminder declares the striation that contains the printed box.
@@ -154,4 +162,117 @@ pub(super) fn check_no_mana_cost(context: &Characteristics) -> Result<(), String
         return Err("a no-mana-cost reminder requires an absent mana cost".into());
     }
     Ok(())
+}
+
+pub(super) fn check_retained_artifact_type(context: &Characteristics) -> Result<(), String> {
+    if !context
+        .card_types
+        .iter()
+        .any(|kind| matches!(kind, CardType::Artifact))
+    {
+        return Err("retained artifact reminder needs a printed Artifact type".into());
+    }
+    Ok(())
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CountedPowerExample {
+    pub count: Expr,
+    pub toughness: u32,
+}
+
+impl CardSurface {
+    pub(super) fn note_count(&self) -> usize {
+        self.notes.len()
+            + usize::from(self.land_mana.is_some())
+            + usize::from(self.retains_artifact_type)
+            + usize::from(self.layout_reminder.is_some())
+            + usize::from(self.transforms_from.is_some())
+            + usize::from(self.meld_with.is_some())
+            + usize::from(self.assist_limit.is_some())
+            + usize::from(self.no_mana_cost)
+            + usize::from(self.monocolored_hybrid.is_some())
+            + usize::from(self.transmute_mana_value.is_some())
+            + usize::from(self.deck_identity_color.is_some())
+            + usize::from(self.counted_power_example.is_some())
+            + usize::from(self.compleated_symbol.is_some())
+            + usize::from(self.prowl_types.is_some())
+            + usize::from(self.amplify_types.is_some())
+            + usize::from(self.copy_token_types.is_some())
+    }
+
+    pub(super) fn characteristic_notes(
+        &self,
+        context: &Characteristics,
+        source: Option<&CardInputContext>,
+    ) -> Result<Vec<CardNote>, String> {
+        let mut notes = Vec::new();
+        if let Some(written) = &self.deck_identity_color {
+            if fixed_identity_color(context)? != *written {
+                return Err("deck identity reminder disagrees with the printed color".into());
+            }
+            notes.push(CardNote::DeckIdentityColor);
+        }
+        if let Some(example) = &self.counted_power_example {
+            let toughness = match source {
+                Some(source) => source.printed_power_toughness.fixed_toughness(),
+                None => context.power_toughness.map(|(_, toughness)| toughness),
+            };
+            if example_toughness(toughness)? != example.toughness {
+                return Err("power example disagrees with the printed toughness".into());
+            }
+            let Expr::Constant(count) = example.count else {
+                return Err("power example requires a stated count".into());
+            };
+            let count = u32::try_from(count).map_err(|_| "power example count is outside u32")?;
+            notes.push(CardNote::CountedPowerExample { count });
+        }
+        if let Some(written) = self.transmute_mana_value {
+            let cost = context.mana_cost.as_deref().unwrap_or_default();
+            if printed_mana_value(cost)? != written {
+                return Err("Transmute reminder disagrees with the current mana value".into());
+            }
+            notes.push(CardNote::TransmuteManaValue);
+        }
+        Ok(notes)
+    }
+}
+
+pub(super) fn fixed_identity_color(context: &Characteristics) -> Result<ManaColor, String> {
+    let mana_colors = context.mana_cost.iter().flatten().flat_map(|symbol| {
+        let (first, second): (&[_], &[_]) = match symbol {
+            ManaSymbol::Color(color) | ManaSymbol::MonocoloredHybrid(color) => {
+                (std::slice::from_ref(color), &[])
+            }
+            ManaSymbol::Hybrid(first, second) => {
+                (std::slice::from_ref(first), std::slice::from_ref(second))
+            }
+            ManaSymbol::Phyrexian(colors) => (colors, &[]),
+            ManaSymbol::Generic(_) | ManaSymbol::Snow | ManaSymbol::X => (&[], &[]),
+        };
+        first.iter().chain(second)
+    });
+    let mut wanted = None;
+    for color in context.color_indicator.iter().chain(mana_colors) {
+        match color {
+            ManaColor::Colorless => continue,
+            ManaColor::Chosen => return Err("deck identity reminder needs a fixed color".into()),
+            _ => {
+                if wanted.is_some_and(|existing| existing != color) {
+                    return Err("deck identity reminder requires one printed color".into());
+                }
+                wanted = Some(color);
+            }
+        }
+    }
+    wanted
+        .cloned()
+        .ok_or_else(|| "deck identity reminder needs a printed color".into())
+}
+
+pub(super) fn example_toughness(value: Option<i32>) -> Result<u32, String> {
+    value
+        .and_then(|value| u32::try_from(value).ok())
+        .ok_or_else(|| "power example needs a fixed printed toughness".into())
 }

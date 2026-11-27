@@ -1131,3 +1131,95 @@ fn a_missing_mana_cost_reminder_requires_an_unpayable_printed_cost() {
             .is_err()
     );
 }
+
+#[test]
+fn a_land_creature_note_checks_both_type_and_intrinsic_mana() {
+    let mut context = empty_card_characteristics();
+    context
+        .card_types
+        .extend([CardType::Land, CardType::Creature]);
+    context.subtypes.push(SubType::Forest);
+    let text = "(This land isn't a spell, it's affected by summoning sickness, and it has \"{T}: Add {G}.\")";
+    let reading = exact_roundtrip(text, &context);
+    assert_eq!(reading.notes, [CardNote::LandCreatureRules]);
+
+    let engine = super::engine();
+    assert!(
+        engine
+            .parse_card(NAME, &text.replace("{G}", "{R}"), &context)
+            .is_err()
+    );
+    context
+        .card_types
+        .retain(|kind| !matches!(kind, CardType::Creature));
+    assert!(engine.parse_card(NAME, text, &context).is_err());
+    assert!(
+        engine
+            .print_card_keyed(NAME, &reading, &context, &[])
+            .is_err()
+    );
+}
+
+#[test]
+fn a_retained_artifact_note_checks_the_source_type() {
+    let mut context = empty_card_characteristics();
+    context
+        .card_types
+        .extend([CardType::Artifact, CardType::Creature]);
+    let text = "As this creature enters, choose a color.\nThis creature is the chosen color. (It's still an artifact.)";
+    let reading = exact_roundtrip(text, &context);
+    assert_eq!(reading.notes, [CardNote::RetainsArtifactType]);
+
+    let engine = super::engine();
+    context
+        .card_types
+        .retain(|kind| !matches!(kind, CardType::Artifact));
+    assert!(engine.parse_card(NAME, text, &context).is_err());
+    assert!(
+        engine
+            .print_card_keyed(NAME, &reading, &context, &[])
+            .is_err()
+    );
+}
+
+#[test]
+fn transmute_mana_value_reminder_uses_the_current_printed_value() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Land);
+    let text = "This land enters tapped.\nTransmute {1}{U}{U} ({1}{U}{U}, Discard this card: Search your library for a card with mana value 0, reveal it, put it into your hand, then shuffle. Transmute only as a sorcery.)";
+    let reading = exact_roundtrip(text, &context);
+    assert_eq!(reading.notes, [CardNote::TransmuteManaValue]);
+    context.mana_cost = Some(vec![ManaSymbol::Generic(1)]);
+
+    let engine = super::engine();
+    assert!(engine.parse_card(NAME, text, &context).is_err());
+    let printed = engine
+        .print_card_keyed(NAME, &reading, &context, &[])
+        .unwrap()
+        .unwrap();
+    assert!(printed.contains("mana value 1"));
+    let reparsed = engine.parse_card(NAME, &printed, &context).unwrap();
+    assert!(reparsed.readings.contains(&reading));
+}
+
+#[test]
+fn replacement_shuffle_identifies_the_written_library_player() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Creature);
+    let controller = "If this creature would die, shuffle it into your library instead.";
+    let owner = "If this creature would die, shuffle it into its owner's library instead.";
+    let controller_reading = exact_roundtrip(controller, &context);
+    let owner_reading = exact_roundtrip(owner, &context);
+    let change = |reading: &crate::engine::CardReading| {
+        reading.abilities[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]
+            ["change"].clone()
+    };
+    assert_eq!(
+        change(&controller_reading)["SetShuffledLibraryDestination"]["kind"],
+        "AbilityController"
+    );
+    assert_eq!(
+        change(&owner_reading)["SetDestination"],
+        "OwnersLibraryShuffled"
+    );
+}

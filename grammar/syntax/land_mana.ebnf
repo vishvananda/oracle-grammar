@@ -15,8 +15,10 @@ card_text_cost_land_only ::= cost_notes NEWLINE land_mana_header
 
 /* A color option set has one meaning; the reversible operation returns every
    printed order, with at most five colors and 120 inverse bindings. */
+land_mana_header ::= land_mana_basic_header | land_mana_creature_header
+
 /* @sem LandMana::LandMana{colors:@mana_options($land_mana_colors)} */
-land_mana_header ::= "(" "{T}" ":" "add" land_mana_colors "." ")"
+land_mana_basic_header ::= "(" "{T}" ":" "add" land_mana_colors "." ")"
 land_mana_colors ::= land_mana_one | land_mana_pair | land_mana_list
 /* @sem ManaColor::[$mana_color] */
 land_mana_one ::= mana_color
@@ -32,3 +34,8 @@ land_mana_last ::= "or" mana_color
    The replacement's entering object supplies its controller, not an outer holder. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:_{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}]}, otherwise:_{}}]}}) */
 entry_optional_payment ::= "as" self_ref "enters" "," "you" "may" payment "." "if" "you" "don't" "," "it" "enters" "tapped" "."
+
+
+/* The source face must be both a land and a creature and have these intrinsic mana types. */
+/* @sem LandMana::LandMana{colors:@mana_options($land_mana_colors), creature_rules:true} */
+land_mana_creature_header ::= "(" "this" "land" "isn't" "a" "spell" "," "it's" "affected" "by" "summoning" "sickness" "," "and" "it" "has" '"' "{" "T" "}" ":" "add" land_mana_colors "." '"' ")"

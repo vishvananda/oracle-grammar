@@ -258,6 +258,10 @@ pub enum EventChange {
     /// This must be the replacement's complete single-effect body, so no earlier
     /// action or conditional branch can change its applicability or eligibility.
     ReplaceManaChoices(Vec<ManaReplacementOption>),
+    /// Redirect the pending movement by shuffling the object into the stated
+    /// player's library. The owner's private-zone rule still routes the object,
+    /// independently of which player's library the instruction shuffles.
+    SetShuffledLibraryDestination(PlayerRef),
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.

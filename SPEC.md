@@ -272,8 +272,12 @@ history event records the actor; entering under a player's control records the
 controller. Reference preparation uses the owned frozen-schema migration before
 current-epoch amendments, with both parent and face headers upgraded explicitly.
 The immutable source reference and its extraction provenance retain epoch 190;
-the owned model and native outputs use schema 193. Frozen reference migrations
+the owned model and native outputs use schema 194. Frozen reference migrations
 and evidence-backed amendments supply the current comparison contract.
+
+`SetShuffledLibraryDestination` names the player whose library the replacement
+explicitly shuffles. The private-zone ownership rule independently routes the
+moving object. The owner-directed destination keeps its existing wire shape.
 
 Mana replacement choices retain their complete production, eligible concrete
 mana types, full quantity and choosing player in `ReplaceManaChoices`. Plain

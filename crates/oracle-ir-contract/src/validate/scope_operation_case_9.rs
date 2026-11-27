@@ -28,6 +28,12 @@ impl<'a> Scope<'a> {
                         self.count(&Count::Exactly(amount.clone()))
                     }
                     EventChange::SetController(player) => self.player(player),
+                    EventChange::SetShuffledLibraryDestination(player) => {
+                        if !self.event.moved {
+                            return Err("library redirection requires a pending zone change".into());
+                        }
+                        self.player(player)
+                    }
                     EventChange::ExchangeDieResult {
                         decider,
                         object,
