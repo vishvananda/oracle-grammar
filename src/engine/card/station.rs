@@ -328,30 +328,53 @@ pub(super) fn checked_surfaces(
     }
     if context.is_some_and(|c| c.station_present) {
         let mut contextual = surfaces.clone();
-        for surface in &mut contextual {
+        let reminded = reading.abilities.as_array().is_some_and(|abilities| {
+            abilities.iter().any(|ability| {
+                ability["kind"] == "WithPresentation"
+                    && ability["args"]["reminder"] == true
+                    && ability["args"]["ability"]["args"]["mechanic"] == "Station"
+            })
+        });
+        contextual.retain_mut(|surface| {
             surface["station"] = json!(true);
-            let reminded = reading.abilities.as_array().is_some_and(|abilities| {
-                abilities.iter().any(|a| {
-                    a["kind"] == "WithPresentation"
-                        && a["args"]["reminder"] == true
-                        && a["args"]["ability"]["args"]["mechanic"] == "Station"
-                })
-            });
             if reminded {
                 surface["station_declaration"] = json!({"minimum":context.and_then(|c|c.station_animation.as_ref()).map(|b|b.minimum)});
             }
-            for note in &reading.notes {
-                if let CardNote::StationPowerToughness { ability, stage } = *note {
-                    surface["abilities"][ability]["args"]["stages"][stage]["power_toughness"] =
-                        Value::Null;
-                    surface["abilities"][ability]["args"]["stages"][stage]["animates"] =
-                        json!(false);
-                }
-            }
-        }
+            reading.notes.iter().all(|note| {
+                let CardNote::StationPowerToughness { ability, stage } = *note else {
+                    return true;
+                };
+                let written_row = &reading.abilities[ability]["args"]["stages"][stage];
+                omit_station_box(surface, written_row).is_some()
+            })
+        });
         surfaces.extend(contextual);
     }
     Ok(surfaces)
+}
+
+// Written print views can split a previous program across paragraphs. Match
+// the animation row by its typed box, even when its ability index changes.
+fn omit_station_box(surface: &mut Value, written_row: &Value) -> Option<()> {
+    let mut matching = surface
+        .get_mut("abilities")?
+        .as_array_mut()?
+        .iter_mut()
+        .filter(|ability| station_stage(ability))
+        .filter_map(|ability| ability.get_mut("args")?.get_mut("stages")?.as_array_mut())
+        .flatten()
+        .filter(|row| {
+            row["minimum"] == written_row["minimum"]
+                && row["animates"] == true
+                && row["power_toughness"] == written_row["power_toughness"]
+        });
+    let row = matching.next()?;
+    if matching.next().is_some() {
+        return None;
+    }
+    row["power_toughness"] = Value::Null;
+    row["animates"] = json!(false);
+    Some(())
 }
 
 pub(crate) fn requires_context(value: &Value) -> bool {
