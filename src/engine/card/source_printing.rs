@@ -65,12 +65,12 @@ impl Engine {
             return Err("card text byte limit".into());
         }
         reading.canonical()?;
-        self.card_context(&context.characteristics)?;
+        let types = self.card_context(&context.characteristics)?;
         let (root, surfaces) = (
             self.card_root()?,
             self.card_surfaces_with_source(reading, context, true)?,
         );
-        self.surface_key(root, surfaces, name, text, ordered)
+        self.surface_key_types(root, surfaces, (name, &types), text, ordered)
     }
 
     pub fn print_card_trail_with_source(
@@ -84,12 +84,12 @@ impl Engine {
             return Err("card name byte limit".into());
         }
         let wanted = reading.canonical()?;
-        self.card_context(&context.characteristics)?;
+        let types = self.card_context(&context.characteristics)?;
 
-        for text in self.replayed_surfaces(
+        for text in self.replayed_surfaces_types(
             self.card_root()?,
             self.card_surfaces_with_source(reading, context, true)?,
-            name,
+            (name, &types),
             trail,
         )? {
             if self.reads_as_card_with_source(name, &text, &wanted, context) {

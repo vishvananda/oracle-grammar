@@ -18,7 +18,7 @@ reminded_face_cost ::= face_cost_reminded_text
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:$face_cost_reminded_text} */
 labelled_face_cost_reminder ::= ability_label "—" face_cost_reminded_text
 
-face_cost_reminded_text ::= morph_reminded_text | megamorph_reminded_text | disguise_reminded_text | foretell_reminded_text | foretell_it_reminded_text | flashback_reminded_text
+face_cost_reminded_text ::= flashback_behold_group_reminded_text | morph_she_reminded_text | self_excluding_flashback_reminded_text | bestow_evidence_reminded_text | morph_reminded_text | megamorph_reminded_text | disguise_reminded_text | foretell_reminded_text | foretell_it_reminded_text | flashback_reminded_text
 
 /* @sem $keyword_morph */
 morph_reminded_text ::= keyword_morph "(" face_down_cast "." "turn" "it" "face" "up" "any" "time" "for" "its" "morph" "cost" "." ")"
@@ -38,3 +38,23 @@ face_down_cast ::= "you" "may" "cast" "this" "card" "face" "down" "as" "a" "2" "
 foretell_it_reminded_text ::= keyword_foretell "(" foretell_it_explanation ")"
 /* @sem () */
 foretell_it_explanation ::= "during" "your" "turn" "," "you" "may" "pay" "{" "2" "}" "and" "exile" "it" "from" "your" "hand" "face" "down" "." "cast" "it" "on" "a" "later" "turn" "for" "its" "foretell" "cost" "."
+
+
+/* @sem $keyword_morph */
+morph_she_reminded_text ::= keyword_morph "(" face_down_cast "." "turn" "her" "face" "up" "any" "time" "for" "her" "morph" "cost" "." ")"
+
+/* By the time a spell's flashback cost is paid, that spell is on the stack. */
+/* @sem $keyword_flashback */
+self_excluding_flashback_reminded_text ::= keyword_flashback "(" "you" "may" "cast" "this" "card" "from" "your" "graveyard" "for" "its" "flashback" "cost" "," "then" "exile" "it" "." "you" "can't" "exile" SELF_NAME "to" "pay" "for" "its" "own" "flashback" "cost" "." ")"
+
+/* The mana and minimum exiled value must agree with the actual alternate cost. */
+/* @sem Ability::Mechanic{mechanic:Bestow, cost:Cost::@agree($keyword_payment, $bestow_evidence_note_payment)} */
+bestow_evidence_reminded_text ::= "bestow" keyword_payment "(" "to" "pay" "this" "bestow" "cost" "," bestow_evidence_note_payment "." ")"
+/* @sem Cost::Cost{parts:[Mana($mana_symbols), Keyword{action:CollectEvidence, amount:$number_digits}]} */
+bestow_evidence_note_payment ::= "pay" mana_symbols "and" "exile" "cards" "with" "total" "mana" "value" number_digits "or" "greater" "from" "your" "graveyard"
+
+/* The explanatory subtype, its battlefield choice and its reveal all match the printed cost. */
+/* @sem Ability::Casting(Permission{origin:Flashback, player:OwnerOf(Source), from:Players{zone:Graveyard, players:One(OwnerOf(Source))}, require:AnyOf([CardType(Instant), CardType(Sorcery)]), cost:Cost{parts:[Mana($mana_symbols), Behold{count:$value, what:$flashback_behold_group_agreement}]}, leave_stack:Exile}) */
+flashback_behold_group_reminded_text ::= "flashback" "―" mana_symbols "," "↑" "behold" value flashback_behold_group_agreement
+/* @sem Operand::Term{family:CardsInHand, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name(ObjectFilter::@agree($subtype_plural, @agree($creature_subtype, @agree($creature_subtype_2, $creature_subtype_3))))}]} */
+flashback_behold_group_agreement ::= subtype_plural "." "(" "you" "may" "cast" "this" "card" "from" "your" "graveyard" "for" "its" "flashback" "cost" "." "then" "exile" "it" "." "to" "behold" ("a" | "an") creature_subtype "," "choose" ("a" | "an") creature_subtype "you" "control" "or" "reveal" ("a" | "an") creature_subtype "card" "from" "your" "hand" "." ")"

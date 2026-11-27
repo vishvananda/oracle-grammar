@@ -163,6 +163,41 @@ fn variable_stats_require_a_matching_source_definition() {
 }
 
 #[test]
+fn source_print_keys_preserve_legendary_short_names() {
+    let mut record = raw(
+        "legendary",
+        "Anaxor Ember Speaker",
+        "When Anaxor enters, draw a card.",
+    );
+    record["type_line"] = json!("Legendary Creature — Human Wizard");
+    record["power"] = json!("2");
+    record["toughness"] = json!("3");
+    let faces = scryfall(&[record]).unwrap();
+    let face = &faces[0];
+    let engine = crate::test_support::engine();
+    let row = outcome(engine, face);
+    assert_eq!(row["status"], "unique", "{row}");
+    let context: crate::engine::CardInputContext =
+        serde_json::from_value(row["context"].clone()).unwrap();
+    let reading = CardReading {
+        abilities: row["readings"][0]["card"]["abilities"].clone(),
+        notes: vec![],
+    };
+    let text = "When Anaxor enters, draw a card.";
+    let trail = engine
+        .card_key_of_with_source("Anaxor Ember Speaker", &reading, &context, text, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine
+            .print_card_trail_with_source("Anaxor Ember Speaker", &reading, &context, &trail)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+}
+
+#[test]
 fn printed_cost_explanations_roundtrip_with_matching_mana() {
     let engine = crate::test_support::engine();
     for (symbol, explanation) in [

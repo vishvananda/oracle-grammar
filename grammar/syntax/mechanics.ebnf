@@ -37,11 +37,11 @@ labelled_mechanic_reminder ::= ability_label "—" mechanic_reminded_text
 mechanic_reminded_text ::= improvise_artifact_payment_reminded | casualty_x_reminded_text | offering_reminded_text | splice_instant_sorcery_reminded | ingest_reminded_text | convoke_reminded_text | delve_reminded_text
     | deck_rule_reminded_text | triggered_mechanic_reminded_text | standalone_mechanic_reminded_text
     | banding_reminded_text | aura_swap_reminded_text | bushido_reminded_text | affinity_reminded_text | historic_affinity_reminded_text
-    | valued_mechanic_reminded_text | reconfigure_reminded_text
+    | valued_mechanic_reminded_text | reconfigure_reminded_text | reconfigure_alternatives_reminded_text
     | kicker_mechanic_reminded_text | typed_cost_mechanic_reminded_text | numeric_mechanic_reminded_text | firebending_number_reminded_text | firebending_defined_reminded_text
     | hidden_agenda_reminded_text | double_agenda_reminded_text | undaunted_reminded_text | conspire_short_reminded_text
     | reinforce_reminded_text | devour_reminded_text | double_team_reminded_text | banding_blocking_reminded_text
-    | provoke_reminded_text | mayhem_cost_reminded_text | hideaway_reminded_text | ripple_reminded_text
+    | provoke_reminded_text | mayhem_cost_reminded_text | mayhem_without_timing_reminded_text | basic_mayhem_land_reminded_text | hideaway_reminded_text | ripple_reminded_text
     | web_slinging_reminded_text
 
 /* @sem $mechanic_ingest */
@@ -183,7 +183,7 @@ undaunted_reminded_text ::= bare_undaunted "(" "this" "spell" "costs" "{" "1" "}
 conspire_short_reminded_text ::= bare_conspire "(" "as" "you" "cast" "this" "spell" "," "you" "may" "tap" "two" "untapped" "creatures" "you" "control" "that" "share" "a" "color" "with" "it" "." "when" "you" "do" "," "copy" "it" "." ")"
 
 /* Repeated payments denote the same native mechanic cost. */
-typed_cost_mechanic_reminded_text ::= fortify_cost_reminded_text | offspring_cost_reminded_text | squad_cost_reminded_text | encore_cost_reminded_text | transmute_cost_reminded_text | scavenge_cost_reminded_text | outlast_cost_reminded_text | more_than_meets_the_eye_cost_reminded_text | sneak_cost_reminded_text | sneak_enters_he_cost_reminded_text | sneak_enters_she_cost_reminded_text | squad_implicit_cost_reminded_text | disturb_cost_reminded_text
+typed_cost_mechanic_reminded_text ::= beam_paid_return_reminded_text | artifact_emerge_reminded_text | fortify_detached_reminded_text | transfigure_reminded_text | commander_ninjutsu_reminded_text | sneak_enters_it_cost_reminded_text | fortify_cost_reminded_text | offspring_cost_reminded_text | squad_cost_reminded_text | encore_cost_reminded_text | transmute_cost_reminded_text | scavenge_cost_reminded_text | outlast_cost_reminded_text | more_than_meets_the_eye_cost_reminded_text | sneak_cost_reminded_text | sneak_enters_he_cost_reminded_text | sneak_enters_she_cost_reminded_text | squad_implicit_cost_reminded_text | disturb_cost_reminded_text
 
 /* @sem Ability::Mechanic{mechanic:$mechanic_offspring_name, cost:Cost::@agree($keyword_payment, $keyword_payment_2)} */
 offspring_cost_reminded_text ::= mechanic_offspring_name keyword_payment "(" "you" "may" "pay" "an" "additional" keyword_payment "as" "you" "cast" "this" "spell" "." "if" "you" "do" "," "when" "this" "creature" "enters" "," "create" "a" "1" "/" "1" "token" "copy" "of" "it" "." ")"
@@ -227,8 +227,8 @@ disturb_cost_reminded_text ::= mechanic_disturb_name keyword_payment "(" "you" "
 
 /* An independent kicker retains its payment even if the ability following it
    uses a specialised kicker-triggered clause. */
-/* @sem Ability::Mechanic{mechanic:Kicker, cost:$kicker_branch_reminded_header} */
-kicker_mechanic_reminded_text ::= kicker_branch_reminded_header
+/* @sem Ability::Mechanic{mechanic:Kicker, cost:$kicker_branch_explained_payment} */
+kicker_mechanic_reminded_text ::= kicker_branch_explained_payment
 
 /* The explanation checks the quantity in the header. */
 numeric_mechanic_reminded_text ::= vanishing_aura_number_reminded_text | graft_land_one_reminded_text | vanishing_reminded_text | fading_creature_number_reminded_text | fading_enchantment_number_reminded_text | fading_artifact_number_reminded_text | vanishing_creature_number_reminded_text | vanishing_enchantment_number_reminded_text | casualty_with_target_number_reminded_text | casualty_no_target_number_reminded_text | afflict_number_reminded_text | tribute_number_reminded_text | annihilator_number_reminded_text | mobilize_number_reminded_text | afterlife_number_reminded_text | afterlife_permanent_number_reminded_text | fabricate_number_reminded_text | modular_singular_number_reminded_text | graft_singular_number_reminded_text
@@ -1194,7 +1194,7 @@ spell_gift ::= gift_header NEWLINE kicker_branch_program
 
 /* The gift program still acts for the promised opponent. These headers
    describe the gift that comes before an instant or sorcery's other effects. */
-gift_spell_reminded_header ::= gift_card_spell_reminded_header | gift_fish_spell_reminded_header | gift_food_spell_reminded_header
+gift_spell_reminded_header ::= gift_card_spell_reminded_header | gift_fish_spell_reminded_header | gift_food_spell_reminded_header | gift_treasure_spell_reminded_header | gift_turn_spell_reminded_header
 
 /* @sem Ability::Gift{gift:[$gift_food_token]} */
 gift_food_spell_reminded_header ::= "gift" gift_food_token "(" gift_explanation_start "they" "create" "a" "Food" "token" gift_explanation_before_effects food_token_rule_words ")"
@@ -1655,3 +1655,45 @@ graft_land_one_reminded_text ::= mechanic_graft_name "1" "(" "this" "land" "ente
 crew_restricted_reminded ::= crew_payment "." activation_limits "." "(" crew_reminder_cost ")"
 /* @sem Cost::Cost{parts:[Constrained{part:ChangeTapState{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Not(SameObject(Source)), ObjectFilter::Not(Tapped))}, choose:AnyNumber}], tapped:true}, constraints:[TotalProperty{property:Power, comparison:GreaterOrEqual, amount:$crew_explanation}]}]} */
 crew_reminder_cost ::= crew_explanation
+
+
+/* The shortened Mayhem reminder repeats the printed payment. */
+/* @sem Ability::Mechanic{mechanic:$mechanic_mayhem_name, cost:Cost::@agree($keyword_payment, $keyword_payment_2)} */
+mayhem_without_timing_reminded_text ::= mechanic_mayhem_name keyword_payment "(" "you" "may" "cast" "this" "card" "from" "your" "graveyard" "for" keyword_payment "if" "you" "discarded" "it" "this" "turn" "." ")"
+
+/* The unpriced form is a land play permission and keeps normal timing. */
+/* @sem Ability::Mechanic{mechanic:$unvalued_mayhem} */
+basic_mayhem_land_reminded_text ::= unvalued_mayhem "(" "you" "may" "play" "this" "card" "from" "your" "graveyard" "if" "you" "discarded" "it" "this" "turn" "." "timing" "rules" "still" "apply" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:$mechanic_sneak_name, cost:Cost::@agree($keyword_payment, $keyword_payment_2)} */
+sneak_enters_it_cost_reminded_text ::= mechanic_sneak_name keyword_payment "(" "you" "may" "cast" "this" "spell" "for" keyword_payment "if" "you" "also" "return" "an" "unblocked" "attacker" "you" "control" "to" "hand" "during" "the" "declare" "blockers" "step" "." "it" "enters" "tapped" "and" "attacking" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:$mechanic_emerge_artifact_name, cost:$keyword_payment} */
+artifact_emerge_reminded_text ::= mechanic_emerge_artifact_name keyword_payment "(" "you" "may" "cast" "this" "spell" "by" "sacrificing" "an" "artifact" "and" "paying" "the" "emerge" "cost" "reduced" "by" "that" "artifact's" "mana" "value" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:$mechanic_fortify_name, cost:Cost::@agree($keyword_payment, $cost)} */
+fortify_detached_reminded_text ::= mechanic_fortify_name keyword_payment "(" cost ":" "attach" "to" "target" "land" "you" "control" "." "fortify" "only" "as" "a" "sorcery" "." "this" "card" "enters" "unattached" "and" "stays" "on" "the" "battlefield" "if" "the" "land" "leaves" "." ")"
+
+/* The sacrifice is a fixed component of Transfigure itself. */
+/* @sem Ability::Mechanic{mechanic:$mechanic_transfigure_name, cost:Cost::@agree($keyword_payment, $keyword_payment_2)} */
+transfigure_reminded_text ::= mechanic_transfigure_name keyword_payment "(" keyword_payment "," "↑" "sacrifice" "this" "creature" ":" "search" "your" "library" "for" "a" "creature" "card" "with" "the" "same" "mana" "value" "as" "this" "creature" "," "put" "that" "card" "onto" "the" "battlefield" "," "then" "shuffle" "." "transfigure" "only" "as" "a" "sorcery" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:$mechanic_commander_ninjutsu_name, cost:Cost::@agree($keyword_payment, $keyword_payment_2)} */
+commander_ninjutsu_reminded_text ::= mechanic_commander_ninjutsu_name keyword_payment "(" keyword_payment "," "↑" "return" "an" "unblocked" "attacker" "you" "control" "to" "hand" ":" "put" "this" "card" "onto" "the" "battlefield" "from" "your" "hand" "or" "the" "command" "zone" "tapped" "and" "attacking" "." ")"
+
+/* @sem Ability::Mechanic{mechanic:Reconfigure, cost:Cost::@agree($keyword_payment, Cost{parts:$mana_or_energy_payment})} */
+reconfigure_alternatives_reminded_text ::= "reconfigure" keyword_payment "(" mana_or_energy_payment ":" "attach" "to" "target" "creature" "you" "control" ";" "or" "unattach" "from" "a" "creature" "." "reconfigure" "only" "as" "a" "sorcery" "." "while" "attached" "," "this" "isn't" "a" "creature" "." ")"
+
+/* @sem Ability::Gift{gift:[$gift_treasure_token]} */
+gift_treasure_spell_reminded_header ::= "gift" gift_treasure_token "(" gift_explanation_start "they" "create" "a" "Treasure" "token" gift_explanation_before_effects "it's" "an" "artifact" "with" '"' "{" "T" "}" "," "↑" "sacrifice" "this" "token" ":" "add" "one" "mana" "of" "any" "color" "." '"' ")"
+
+/* @sem Ability::Gift{gift:[$gift_extra_turn]} */
+gift_turn_spell_reminded_header ::= "gift" gift_extra_turn "(" gift_explanation_start "they" "take" "an" "extra" "turn" "after" "this" "one" "." ")"
+
+/* The additional payment applies to the ordinary and gifted resolutions. */
+/* @sem Ability::[$casting_additional_cost, WithPresentation{reminder:true, ability:@gift_branch($gift_spell_reminded_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})}] */
+line_gift_additional_cost_reminded ::= gift_spell_reminded_header NEWLINE casting_additional_cost NEWLINE kicker_branch_program
+
+
+/* @sem Ability::Mechanic{mechanic:$mechanic_beam_name, cost:Cost::@agree($keyword_payment, $keyword_payment_2)} */
+beam_paid_return_reminded_text ::= mechanic_beam_name keyword_payment "(" "you" "may" "cast" "this" "card" "from" "your" "graveyard" "for" keyword_payment "if" "you" "also" "return" "a" "creature" "you" "control" "to" "its" "owner's" "hand" "." "then" "exile" "this" "spell" "." ")"

@@ -672,17 +672,6 @@ impl Engine {
         self.surface_key_types(self.root, surfaces, card, text, ordered)
     }
 
-    pub(super) fn surface_key(
-        &self,
-        root: u32,
-        surfaces: Vec<Value>,
-        name: &str,
-        text: &str,
-        ordered: bool,
-    ) -> Result<Option<Vec<String>>, String> {
-        self.surface_key_types(root, surfaces, (name, &[]), text, ordered)
-    }
-
     pub(super) fn surface_key_types(
         &self,
         root: u32,
@@ -785,16 +774,6 @@ impl Engine {
             }
         }
         Ok(None)
-    }
-
-    pub(super) fn replayed_surfaces(
-        &self,
-        root: u32,
-        surfaces: Vec<Value>,
-        name: &str,
-        trail: &[String],
-    ) -> Result<Vec<String>, String> {
-        self.replayed_surfaces_types(root, surfaces, (name, &[]), trail)
     }
 
     pub(super) fn replayed_surfaces_types(
