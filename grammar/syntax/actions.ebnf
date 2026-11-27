@@ -6634,8 +6634,13 @@ clause_vote_graveyard_return_any ::= "for" "each" vote_word "vote" "," "return" 
 /* A modal spell followed by a separate snow-spending-bounded graveyard return.
    The mode selection and both card-type operands remain available to the inverse. */
 /* @prefer always */
-/* @sem Ability::[Spell{body:Program{}, announcement:Announcement{modes:$mode_selection}}, Spell{body:Program{instructions:$snow_spent_return}, announcement:@announcement}] */
-line_modal_snow_spent_return ::= mode_selection NEWLINE "then" snow_spent_return "."
+/* @sem Ability::[$spell_modal, $snow_spent_return_paragraph] */
+line_modal_snow_spent_return ::= spell_modal NEWLINE "then" snow_spent_return_paragraph
+snow_spent_return_paragraph ::= snow_spent_return_plain | snow_spent_return_reminded
+/* @sem Ability::Spell{body:Program{instructions:$snow_spent_return}, announcement:@announcement} */
+snow_spent_return_plain ::= snow_spent_return "."
+/* @sem Ability::WithPresentation{reminder:true, ability:$snow_spent_return_plain} */
+snow_spent_return_reminded ::= snow_spent_return_plain "(" snow_mana_explanation_words ")"
 
 /* @prefer always */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([AnyOf([$noun, $noun_2]), Property{property:ManaValue, test:Compare{comparison:LessOrEqual, value:ManaSpent{object:Source, filter:_{snow:true}, aggregation:Count}}}])}), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:_{}}}}] */
