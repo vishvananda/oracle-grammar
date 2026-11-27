@@ -53,6 +53,7 @@ mod source_events;
 #[cfg(test)]
 mod source_events_tests;
 mod spell_paragraphs;
+mod target_mill;
 mod target_pairs;
 mod target_stats;
 mod trace;
@@ -654,6 +655,9 @@ impl Walker {
                     value,
                     self.scopes.last().map(|scope| &scope.optional_targets),
                 ),
+                ("Change", "GainAbilitiesOf") if !self.keep_order => {
+                    keywords::top_ability_kinds(value);
+                }
                 ("Operation", "ChooseAction") => {
                     keywords::villainous_options(value, self.tracing);
                 }

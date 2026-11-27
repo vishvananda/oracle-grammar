@@ -122,6 +122,13 @@ fn action_part(inner: &Value) -> Option<Value> {
     if operation["kind"] == "Move" && (singular_selection(objects) || exile_hand) {
         return move_part(args, objects, Value::Null);
     }
+    // A mill used as a cost requires the complete count (CR 701.17b).
+    if operation["kind"] == "Mill"
+        && args["players"] == controller()
+        && args["amount"]["kind"] == "Constant"
+    {
+        return Some(json!({"Mill":{"count":args["amount"]}}));
+    }
     if operation["kind"] != "Keyword" || args["actor"] != controller() {
         return None;
     }
@@ -261,7 +268,7 @@ pub(super) fn may_need(value: &Value) -> bool {
         .is_some_and(|items| match items.as_slice() {
             [inner] => matches!(
                 inner["args"]["operation"]["kind"].as_str(),
-                Some("Discard" | "Move" | "Keyword")
+                Some("Discard" | "Mill" | "Move" | "Keyword")
             ),
             [choice, movement] => {
                 choice["args"]["operation"]["kind"] == "ChooseObjects"

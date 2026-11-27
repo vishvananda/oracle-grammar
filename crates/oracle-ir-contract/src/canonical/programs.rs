@@ -98,6 +98,7 @@ impl Visit for Normalize {
         self.changed |= super::target_pairs::normalize(value, self.tracing, walker)?;
         if !self.keep_order {
             super::combat_pairs::delayed_bounce(value);
+            super::target_mill::normalize(value, self.tracing);
         }
         let Some(needed) = self.owners.pop() else {
             return Ok(());

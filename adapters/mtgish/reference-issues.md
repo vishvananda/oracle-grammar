@@ -262,6 +262,9 @@ different are marked *(different)*. No group is open at this reference.
 
 ## Updated locally
 
+- `U0202` requires the targets on Perpetual Timepiece and The Bath Song to
+  be in the ability controller’s graveyard.
+
 - `U0199` preserves Demolition Field’s controller search when the targeted land
   survives. The reference reads the controller of the targeted land, including
   last-known information after a successful destruction.

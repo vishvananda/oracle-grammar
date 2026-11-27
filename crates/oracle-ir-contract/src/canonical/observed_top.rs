@@ -13,7 +13,7 @@ fn fields(value: &Value, names: &[&str]) -> bool {
     })
 }
 
-fn one_library_top(query: &Value) -> bool {
+pub(super) fn one_library_top(query: &Value) -> bool {
     let args = &query["args"];
     let objects = &args["objects"];
     let zone = &objects["args"];

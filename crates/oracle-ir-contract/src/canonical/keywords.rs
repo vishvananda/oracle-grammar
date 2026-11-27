@@ -159,3 +159,25 @@ pub(super) fn hexproof_object_qualities(value: &mut Value, tracing: bool) {
         json!({"Objects":{"kind":"Any","filter":part}})
     }).collect::<Vec<_>>()});
 }
+
+/// A singleton activated-ability selector is one kind. The top-card population
+/// stays a live query owned by the same static condition.
+pub(super) fn top_ability_kinds(value: &mut Value) {
+    if !super::observed_top::one_library_top(&value["args"]["objects"]) {
+        return;
+    }
+    let kinds = &mut value["args"]["kinds"];
+    if kinds["kind"] != "List" {
+        return;
+    }
+    let Some([only]) = kinds["args"].as_array_mut().map(Vec::as_mut_slice) else {
+        return;
+    };
+    if only
+        == &json!({"kind":"Term","args":{
+            "family":"CheckHasable","form":"ActivatedAbility","operands":[]
+        }})
+    {
+        *kinds = only.take();
+    }
+}
