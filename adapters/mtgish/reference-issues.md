@@ -281,6 +281,9 @@ the IR path, the value it replaces and why.
   Alchemy faces. Minthara of the Absolute also places its static pump before
   its trigger, in printed order. Audits of the amended export use those
   printed declarations in their Oracle input. [Wizards' intensity description](https://magic.wizards.com/en/news/mtg-arena/mtg-arena-state-game-alchemy-kamigawa-2022-03-16#newmechanicintensity)
+- `U0193` sets Earwig Squad's unqualified search for three cards to
+  `AsManyAsCan(3)`. A library with at least three cards supplies all three.
+  A shorter library supplies all available cards. [Wizards' search ruling](https://magic.wizards.com/en/news/feature/spider-man-release-notes)
 
 - `U0001` (normalization): a count of spells cast is tested `>= 1`, as every other
   event history count is. Dream Thief ("draw a card if you've cast another blue
