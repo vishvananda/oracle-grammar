@@ -212,6 +212,9 @@ impl Writer<'_> {
                 if n == "TargetSpec" {
                     return self.target(v);
                 }
+                if n == "CardPlayOrigins" {
+                    return self.node(&Ty::Vec(Box::new(named("EventZone"))), v);
+                }
                 if n == "Instruction" && v["kind"] == "Effect" {
                     let op = self.node(&named("Operation"), &v["args"]["operation"])?;
                     let result = &v["args"]["result"];
@@ -896,6 +899,9 @@ impl Reader {
                 if name == "TargetSpec" {
                     return self.target(n);
                 }
+                if name == "CardPlayOrigins" {
+                    return self.node(&Ty::Vec(Box::new(named("EventZone"))), n);
+                }
                 if name == "Expr" && matches!(n, Node::Scalar(Value::Number(_))) {
                     return Ok(json!({"kind":"Constant","args":raw_value(n)?}));
                 }
@@ -1123,7 +1129,12 @@ impl Reader {
                     }
                     let v = if let Some((k, n)) = candidates.first() {
                         consumed.insert(k.clone());
-                        let v = if (key == "binding"
+                        let v = if owner == "PlayerRule::PlayPermission"
+                            && key == "origins"
+                            && k == "from"
+                        {
+                            self.node(&named("EventZone"), n).map(|zone| json!([zone]))
+                        } else if (key == "binding"
                             || owner == "Instruction::Effect" && key == "result")
                             && matches!(t,Ty::Named(name) if BindingKind::of_type(name).is_some())
                         {

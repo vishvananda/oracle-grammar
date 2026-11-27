@@ -23,7 +23,7 @@ pub enum PlayerRule {
     /// queries can admit later cards. A top query is re-evaluated each play.
     PlayPermission {
         cards: ObjectSet,
-        from: EventZone,
+        origins: CardPlayOrigins,
         action: CardPlayAction,
         filter: ObjectFilter,
     },
@@ -216,15 +216,11 @@ pub enum PlayerRule {
         component: ManaPaymentComponent,
         uses: u32,
     },
-    /// A single play permission drawing from several origins. A use limit
-    /// wraps this permission once and is shared across all origins.
-    PlayPermissionFromZones {
-        cards: ObjectSet,
-        origins: Vec<EventZone>,
-        action: CardPlayAction,
-        filter: ObjectFilter,
-    },
 }
+
+/// Nonempty distinct card origins sharing one play permission and its limit.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct CardPlayOrigins(pub Vec<EventZone>);
 
 /// The closed list of player rules specific to one or two cards.
 #[derive(

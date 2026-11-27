@@ -535,6 +535,11 @@ impl Walker {
         match schema.types.get(name) {
             Some(TypeDef::Struct(fields)) => {
                 self.fields(value, fields, name);
+                if name == "CardPlayOrigins"
+                    && let Some(origins) = value.as_array_mut()
+                {
+                    origins.sort_by(|left, right| left.as_str().cmp(&right.as_str()));
+                }
                 if name == "TargetSpec" {
                     bound_divided_count(value);
                     if let (Some(slot), Some(scope)) =

@@ -17,7 +17,6 @@ impl<'a> Scope<'a> {
             }
             | Operation::PlayCards { .. }
             | Operation::PlayWith { .. }
-            | Operation::CastMatching { .. }
             | Operation::RemoveMarkedDamage { .. }
             | Operation::CreateTriggerRule { .. }
             | Operation::DraftChangeZone { .. }

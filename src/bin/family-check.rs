@@ -3,7 +3,7 @@ use oracle_ir_grammar::corpus;
 use oracle_ir_grammar::engine::{
     CardInputContext, CardNote, Engine, Refusal, canonical_abilities, validate_abilities,
 };
-use oracle_ir_grammar::model::ir::Characteristics;
+use oracle_ir_grammar::model::{ir::Characteristics, migrate};
 use oracle_ir_grammar::parse::RuleSet;
 use oracle_ir_grammar::render::FaceMemo;
 use serde::Deserialize;
@@ -466,7 +466,7 @@ fn read_family(reader: impl Read, budget: &mut FamilyBudget) -> Result<Family, S
         .remaining_bytes
         .checked_sub(bytes.len())
         .ok_or("family fixtures exceed 1 GiB in total")?;
-    let family: Family = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    let mut family: Family = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
     if family.family.is_empty() || family.cases.is_empty() || family.cases.len() > 4096 {
         return Err("a named family needs between 1 and 4096 cases".into());
     }
@@ -474,6 +474,16 @@ fn read_family(reader: impl Read, budget: &mut FamilyBudget) -> Result<Family, S
         .remaining_cases
         .checked_sub(family.cases.len())
         .ok_or("family fixtures exceed 262144 cases in total")?;
+    // Existing persisted family expectations can be in the preceding schema.
+    // Migrate the whole ability list using its frozen types, leaving malformed
+    // payloads for the ordinary fixture validator to report.
+    for case in &mut family.cases {
+        if let Some(expected) = &mut case.expected
+            && let Ok(legacy) = migrate::abilities_from_194(expected)
+        {
+            *expected = legacy;
+        }
+    }
     Ok(family)
 }
 

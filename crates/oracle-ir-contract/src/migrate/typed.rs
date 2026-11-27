@@ -91,6 +91,24 @@ pub(super) fn upgrade(mut value: Value, track: bool) -> Result<MappedMigration, 
     })
 }
 
+/// Upgrade a schema-194 ability list extracted separately from its card.
+pub fn abilities_from_194(source: &Value) -> Result<Value, String> {
+    let mut value = source.clone();
+    let mut walker = Walker {
+        schema: super::schema::input(194)?,
+        map: None,
+        version: 194,
+        work: 0,
+        coin_calls: BTreeSet::new(),
+    };
+    walker.node(
+        &Ty::Vec(Box::new(Ty::Named("Ability".into()))),
+        &mut value,
+        "",
+    )?;
+    Ok(value)
+}
+
 fn args_path(path: &str, adjacent: bool, variant: &str) -> String {
     binding_map::pointer(path, if adjacent { "args" } else { variant })
 }
@@ -153,6 +171,9 @@ impl Walker<'_> {
                         if matches!(name.as_str(), "Card" | "UnifiedCard") {
                             value["schema_version"] = json!(SCHEMA_VERSION);
                         }
+                        if name == "PlayTerms" {
+                            value["cast_filter"] = Value::Null;
+                        }
                         if self.version <= 183 {
                             let regions = super::mode_payloads::structure(name, value, path)?;
                             self.regions(regions);
@@ -208,6 +229,11 @@ impl Walker<'_> {
                         let owner = format!("{name}::{variant}");
                         let at = args_path(path, *adjacent, &variant);
                         self.fields(fields, args, &at)?;
+                        if owner == "PlayerRule::PlayPermission" {
+                            let fields = args.as_object_mut().ok_or("play permission fields")?;
+                            let origin = fields.remove("from").ok_or("play permission origin")?;
+                            fields.insert("origins".into(), Value::Array(vec![origin]));
+                        }
                         if self.version <= 180
                             && let Some((field, single)) = copy_field(&owner)
                         {

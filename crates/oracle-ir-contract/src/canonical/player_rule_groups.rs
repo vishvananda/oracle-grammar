@@ -25,7 +25,7 @@ fn dimensions(change: &Value) -> Option<u8> {
         Some(LOSE_GAME)
     } else if rule["Prohibit"] == "WinGame" {
         Some(WIN_GAME)
-    } else if permission["from"] == "Exile"
+    } else if permission["origins"] == json!(["Exile"])
         && permission["action"] == "Either"
         && permission["filter"] == json!({"kind":"Any"})
         && permission["cards"]["kind"] == "Transition"

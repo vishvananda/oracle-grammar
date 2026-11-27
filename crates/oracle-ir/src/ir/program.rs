@@ -674,7 +674,8 @@ pub enum Operation {
         entry: Vec<Operand>,
         face_down: Option<FaceDownAs>,
     },
-    /// `PlayCards` on terms: how it is paid for and what the spell gets.
+    /// `PlayCards` on terms: the proposed spell, its payment and what it
+    /// gets. The result records the cards played and their new incarnations.
     PlayWith {
         actor: PlayerSet,
         action: CardPlayAction,
@@ -987,16 +988,6 @@ pub enum Operation {
     /// effect supplies one receipt; clauses do not publish named intermediate
     /// receipts. Use an instruction `Group` when each action needs its own result.
     InOrder(Vec<Operation>),
-    /// Cast during this resolution. `filter` applies to each proposed spell,
-    /// including its announced face and characteristics on the stack, not
-    /// the characteristics of an uncast card in `cards`.
-    CastMatching {
-        actor: PlayerSet,
-        cards: ObjectSet,
-        count: Count,
-        filter: ObjectFilter,
-        cost: PlayCost,
-    },
     /// Remove damage marked on the specified permanents. This neither taps
     /// them nor removes them from combat as regeneration would.
     RemoveMarkedDamage {

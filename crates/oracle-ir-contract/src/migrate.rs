@@ -12,7 +12,7 @@ mod movement_payloads;
 mod number_tests;
 mod schema;
 mod typed;
-pub use typed::{MappedMigration, mapped_read_json};
+pub use typed::{MappedMigration, abilities_from_194, mapped_read_json};
 
 pub fn input_sites(
     version: u32,

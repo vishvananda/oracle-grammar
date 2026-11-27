@@ -275,7 +275,7 @@ impl<'a> Scope<'a> {
                             Operation::ReorderLibrary { .. }
                             | Operation::Destroy { .. }
                             | Operation::Move { .. }
-                            | Operation::CastMatching { .. }
+                            | Operation::PlayWith { .. }
                             | Operation::Counter { .. }
                             | Operation::SetTapped { .. }
                             | Operation::Discard { .. }

@@ -387,19 +387,6 @@ impl<'a> Scope<'a> {
                 self.objects(cards)?;
                 self.count(count)
             }
-            Operation::CastMatching {
-                actor,
-                cards,
-                count,
-                filter,
-                cost,
-            } => {
-                self.players(actor)?;
-                self.objects(cards)?;
-                self.count(count)?;
-                self.filter(filter)?;
-                self.play_cost(cost)
-            }
             Operation::RemoveMarkedDamage { objects } => self.objects(objects),
             Operation::CreateTriggerRule {
                 abilities,
@@ -415,12 +402,13 @@ impl<'a> Scope<'a> {
                 count,
                 terms,
                 group,
-                ..
+                action,
             } => {
                 self.players(actor)?;
                 self.objects(cards)?;
                 self.count(count)?;
                 self.play_cost(&terms.cost)?;
+                self.play_cast_filter(action, terms)?;
                 if let Some(then) = &terms.then {
                     self.destination(then)?;
                 }

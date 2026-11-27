@@ -92,3 +92,90 @@ fn copy_exception_keeps_creature_subtype_alongside_artifact_type() {
         "args":["Artifact"]
     })));
 }
+
+#[test]
+fn proposed_spell_filter_is_separate_from_card_selection() {
+    let parsed = engine()
+        .parse(
+            "Brazen Bluff",
+            concat!(
+                "Choose target noncreature spell an opponent controls. That player may exile it. ",
+                "If they don't, you may cast a noncreature spell from your hand ",
+                "without paying its mana cost."
+            ),
+        )
+        .unwrap();
+    let [reading] = parsed.readings.as_slice() else {
+        panic!("expected one reading");
+    };
+    let mut landed = reading.clone();
+    let play = landed
+        .pointer_mut("/0/args/body/instructions/1/args/then/instructions/0/args/operation")
+        .unwrap();
+    assert_eq!(play["kind"], "PlayWith");
+    assert_eq!(play["args"]["cards"]["args"]["filter"]["kind"], "Any");
+    assert_eq!(
+        play["args"]["terms"]["cast_filter"],
+        serde_json::json!({"kind":"Not", "args":{"kind":"CardType","args":"Creature"}})
+    );
+    play["args"]["action"] = serde_json::json!("PlayLand");
+    let error = crate::engine::validate_abilities(&landed).unwrap_err();
+    assert!(error.contains("land-only play"));
+}
+
+#[test]
+fn play_origins_share_one_limit_and_compare_as_a_set() {
+    let parsed = engine()
+        .parse(
+            "The Holodeck",
+            concat!(
+                "Once during each of your turns, you may play a permanent card you own ",
+                "from outside the game or from your graveyard."
+            ),
+        )
+        .unwrap();
+    let [reading] = parsed.readings.as_slice() else {
+        panic!("expected one reading");
+    };
+    let extended = &reading[0]["args"]["changes"][0]["args"]["PlayPermissionWith"];
+    assert_eq!(
+        extended["terms"]["limit"],
+        serde_json::json!({"EachTurn":1})
+    );
+    let location = concat!(
+        "/0/args/changes/0/args/PlayPermissionWith",
+        "/permission/PlayPermission/origins"
+    );
+    assert_eq!(
+        reading.pointer(location).unwrap(),
+        &serde_json::json!(["Graveyard", "Outside"])
+    );
+
+    let mut reordered = reading.clone();
+    *reordered.pointer_mut(location).unwrap() = serde_json::json!(["Outside", "Graveyard"]);
+    assert_eq!(
+        crate::engine::canonical_abilities(&reordered).unwrap(),
+        reading.clone()
+    );
+    for invalid in [
+        serde_json::json!([]),
+        serde_json::json!(["Graveyard", "Graveyard"]),
+        serde_json::json!(["Graveyard"]),
+        serde_json::json!(["Outside"]),
+        serde_json::json!(["Graveyard", "Outside", "Battlefield"]),
+        serde_json::json!(["Graveyard", "Outside", "Stack"]),
+    ] {
+        *reordered.pointer_mut(location).unwrap() = invalid;
+        assert!(crate::engine::validate_abilities(&reordered).is_err());
+    }
+
+    let mut mixed = reading.clone();
+    *mixed.pointer_mut(location).unwrap() = serde_json::json!(["Exile"]);
+    let cards = concat!(
+        "/0/args/changes/0/args/PlayPermissionWith",
+        "/permission/PlayPermission/cards/args/0"
+    );
+    *mixed.pointer_mut(cards).unwrap() =
+        serde_json::json!({"kind":"AnyZone","args":{"kind":"Any"}});
+    assert!(crate::engine::validate_abilities(&mixed).is_err());
+}

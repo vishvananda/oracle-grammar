@@ -170,51 +170,21 @@ impl<'a> Scope<'a> {
             ) => self.protection(quality),
             PlayerRule::PlayPermission {
                 cards,
-                from,
-                filter,
-                ..
-            } => {
-                if matches!(from, EventZone::Stack | EventZone::Battlefield) {
-                    return Err("play permission origin must be a card zone".into());
-                }
-                if self.known_zones(cards).is_some_and(|zones| {
-                    zones
-                        .iter()
-                        .any(|z| matches!(z, EventZone::Stack | EventZone::Battlefield))
-                }) {
-                    return Err(
-                        "play permission must select cards outside the battlefield and stack"
-                            .into(),
-                    );
-                }
-                self.require_zone(cards, from.clone())?;
-                self.filter(filter)
-            }
-            PlayerRule::PlayPermissionFromZones {
-                cards,
                 origins,
                 filter,
                 ..
             } => {
-                if origins.len() < 2
-                    || origins.iter().enumerate().any(|(index, zone)| {
-                        matches!(zone, EventZone::Stack | EventZone::Battlefield)
-                            || origins[..index].contains(zone)
-                    })
-                {
-                    return Err("play permission needs distinct card origins".into());
-                }
-                self.objects(cards)?;
-                if self
-                    .known_zones(cards)
-                    .is_some_and(|zones| zones.iter().any(|zone| !origins.contains(zone)))
-                {
-                    return Err("play permission card set falls outside its origins".into());
-                }
+                self.play_permission_origins(cards, origins)?;
                 self.filter(filter)
             }
             PlayerRule::PlayPermissionWith { permission, terms } => {
                 self.player_rule(permission)?;
+                if terms.cast_filter.is_some() {
+                    let PlayerRule::PlayPermission { action, .. } = permission.as_ref() else {
+                        return Err("a proposed-spell filter requires a play permission".into());
+                    };
+                    self.play_cast_filter(action, terms)?;
+                }
                 self.play_permission_terms(terms)
             }
             PlayerRule::Primitive { name, operands } => self.primitive(name, operands),
@@ -272,6 +242,53 @@ impl<'a> Scope<'a> {
             } if colors.is_empty() => Err("empty mana retention colors".into()),
             _ => Ok(()),
         }
+    }
+
+    fn play_permission_origins(&self, cards: &ObjectSet, origins: &CardPlayOrigins) -> Result {
+        let zones = &origins.0;
+        // This scan stops at the first duplicate or invalid zone. The distinct
+        // prefix is bounded by the closed EventZone enum.
+        if zones.is_empty()
+            || zones.iter().enumerate().any(|(index, zone)| {
+                matches!(zone, EventZone::Stack | EventZone::Battlefield)
+                    || zones[..index].contains(zone)
+            })
+        {
+            return Err("play permission needs distinct card origins".into());
+        }
+        self.objects(cards)?;
+        if !self.play_origins_cover_cards(cards, zones) {
+            return Err("play permission card set falls outside its origins".into());
+        }
+        Ok(())
+    }
+
+    fn play_origins_cover_cards(&self, cards: &ObjectSet, zones: &[EventZone]) -> bool {
+        match cards {
+            // An unknown branch cannot erase another branch's known origin.
+            ObjectSet::Union(sets) => sets
+                .iter()
+                .all(|branch| self.play_origins_cover_cards(branch, zones)),
+            ObjectSet::Matching { objects, .. }
+            | ObjectSet::Difference { objects, .. }
+            | ObjectSet::Take { objects, .. }
+            | ObjectSet::One(ObjectRef::Query { objects, .. }) => {
+                self.play_origins_cover_cards(objects, zones)
+            }
+            _ => self
+                .known_zones(cards)
+                .is_none_or(|known| known.iter().all(|zone| zones.contains(zone))),
+        }
+    }
+
+    pub(super) fn play_cast_filter(&self, action: &CardPlayAction, terms: &PlayTerms) -> Result {
+        let Some(filter) = &terms.cast_filter else {
+            return Ok(());
+        };
+        if matches!(action, CardPlayAction::PlayLand) {
+            return Err("a land-only play cannot use a proposed-spell filter".into());
+        }
+        self.filter(filter)
     }
 
     fn play_permission_terms(&self, terms: &PlayTerms) -> Result {

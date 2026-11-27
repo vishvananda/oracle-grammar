@@ -56,10 +56,16 @@ fn schema_190_extraction_preserves_json_binary_canonical_and_authoring_contracts
         assert_eq!(records.len(), 40);
         for record in records {
             let name = record["name"].as_str().unwrap();
-            let card: UnifiedCard = serde_json::from_value(record["card"].clone()).unwrap();
+            // Historical JSON goes through its frozen schema before current
+            // binary and authoring roundtrips.
+            let card = migrate::read_json(&record["card"].to_string()).unwrap();
+            let current = serde_json::to_value(&card).unwrap();
             assert_eq!(
-                serde_json::to_value(&card).unwrap(),
-                record["card"],
+                serde_json::to_value(
+                    serde_json::from_value::<UnifiedCard>(current.clone()).unwrap()
+                )
+                .unwrap(),
+                current,
                 "{name}: JSON"
             );
             let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
@@ -68,12 +74,9 @@ fn schema_190_extraction_preserves_json_binary_canonical_and_authoring_contracts
             assert_eq!(consumed, bytes.len());
             assert_eq!(
                 serde_json::to_value(decoded).unwrap(),
-                record["card"],
+                current,
                 "{name}: binary"
             );
-            // Keep historical JSON, binary and authoring fixtures untouched.
-            // Only the explicit migration boundary advances their epoch.
-            let card = migrate::read_json(&serde_json::to_string(&card).unwrap()).unwrap();
             validate::unified(&card).unwrap_or_else(|e| panic!("{name}: {e}"));
             for face in &card.faces {
                 validate::card(face).unwrap_or_else(|e| panic!("{name}: {e}"));
@@ -87,7 +90,13 @@ fn schema_190_extraction_preserves_json_binary_canonical_and_authoring_contracts
                 "{name}: canonical"
             );
             let code = human::write(&card).unwrap_or_else(|e| panic!("{name}: {e}"));
-            assert_eq!(code, record["code"], "{name}: authoring code");
+            let legacy_code = human::read(record["code"].as_str().unwrap())
+                .unwrap_or_else(|e| panic!("{name}: legacy authoring: {e}"));
+            assert_eq!(
+                human::write(&legacy_code).unwrap(),
+                code,
+                "{name}: authoring code"
+            );
             let reparsed = human::read(&code).unwrap_or_else(|e| panic!("{name}: {e}"));
             assert_eq!(
                 serde_json::to_value(canonical::unified(&reparsed).unwrap()).unwrap(),
