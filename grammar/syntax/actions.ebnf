@@ -2223,6 +2223,9 @@ return_each_exact_x_card_battlefield ::= "return" "each" card_filter "card" modi
 /* @sem Ability::Triggered{event:$event_self_dies, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$return_event_qualified_battlefield}]}} */
 triggered_source_death_qualified_return ::= "when" event_self_dies "," return_event_qualified_battlefield "."
 
+/* @sem Ability::Triggered{event:$event_self_dies, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true}}, qualifiers:[]}}]}} */
+triggered_death_return_front_tapped ::= "when" event_self_dies "," "return" "it" "to" "the" "battlefield" "tapped" front_face_up_words "."
+
 /* @sem Operation::Move{objects:One($return_event_qualified_card), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
 return_event_qualified_battlefield ::= "return" return_event_qualified_card "to" "the" "battlefield"
 
@@ -5966,6 +5969,12 @@ damage_each_player_amount ::= "half" "that" "player's" "life" "total" "," roundi
 /* Exile the holder and return the actual exile arrival in the same sequence. */
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Result{result:@prior, phase:After, index:0}), zone:Exile}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
 instructions_self_exile_return ::= "exile" self_explicit_ref "," "then" "return" "it" "to" "the" "battlefield"
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:One($self_explicit_ref), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Transition{result:@prior, phase:After}, zone:Exile}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{}}, qualifiers:[]}}] */
+instructions_self_return_front ::= "exile" self_explicit_ref "," "then" "return" "it" "to" "the" "battlefield" front_face_up_words
+
+/* @sem () */
+front_face_up_words ::= "(" "↓" "front" "face" "up" ")"
 
 /* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly($multiple_color_count), options:[]}} */
 choose_many_colors ::= "choose" multiple_color_count "colors"
@@ -21806,7 +21815,7 @@ planar_top_count ::= "the" "top" card_count "of" "your" "planar" "deck"
 
 /* The counter condition and the exile arrival belong to this same source. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$add_mana}, If{condition:ObjectMatches{object:Source, filter:Counters(_{kind:$counter_kind, comparison:GreaterOrEqual, value:$value})}, then:_{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Result{result:@prior, phase:After, index:0}), zone:Exile}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{}}, qualifiers:[]}}]}, otherwise:_{}}]} */
-program_mana_source_counter_blink ::= add_mana "." "if" SELF_NAME "has" value "or" "more" counter_kind "counters" "on" "it" "," "exile" "it" "," "then" "return" "it" "to" "the" "battlefield"
+program_mana_source_counter_blink ::= add_mana "." "if" SELF_NAME "has" value "or" "more" counter_kind "counters" "on" "it" "," "exile" "it" "," "then" "return" "it" "to" "the" "battlefield" front_face_up_words?
 
 /* The attachment refers to the arrival of the chosen graveyard card. */
 /* @sem Instruction::[...$return_chosen_graveyard_battlefield, Effect{result:@next, operation:Attach{attachments:$affected, host:Result{result:@prior, phase:After, index:0}}}] */

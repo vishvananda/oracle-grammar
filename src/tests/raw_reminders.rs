@@ -286,6 +286,54 @@ fn an_indestructible_reminder_stays_with_its_mode() {
 }
 
 #[test]
+fn joined_energy_reminders_agree_with_the_symbol_count() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Creature);
+    let text = "When this creature enters, draw a card and you get {E}{E} (two energy counters).";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("two energy counters", "three energy counters");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
+fn energy_choice_prints_the_same_exiled_card_without_a_key() {
+    let mut context = empty_card_characteristics();
+    context.card_types.push(CardType::Creature);
+    let text = "Haste\nWhenever this creature attacks, exile the top card of your library. You may get {E}{E} (two energy counters). If you don't, you may play that card this turn.\n{T}, Pay {E}{E}{E}: This creature deals 3 damage to any target.";
+    let reading = exact_roundtrip(text, &context);
+    let engine = super::engine();
+    let printed = engine
+        .print_card_keyed(NAME, &reading, &context, &[])
+        .unwrap()
+        .expect("the acceptance and refusal paths in the energy choice must print");
+    assert!(
+        engine
+            .parse_card(NAME, &printed, &context)
+            .unwrap()
+            .readings
+            .contains(&reading)
+    );
+}
+
+#[test]
+fn a_front_face_return_preserves_the_exile_arrival() {
+    let context = empty_card_characteristics();
+    let original = "Exile Synthetic, then return it to the battlefield (front face up).";
+    let plain = "Exile Synthetic, then return it to the battlefield.";
+    let reading = exact_roundtrip(original, &context);
+    let bare = super::engine().parse_card(NAME, plain, &context).unwrap();
+    assert!(bare.readings.contains(&reading));
+    let instructions = &reading.abilities[0]["args"]["body"]["instructions"];
+    let objects = &instructions[1]["args"]["operation"]["args"]["objects"];
+    assert_eq!(objects["args"]["zone"], "Exile");
+    assert_eq!(objects["args"]["objects"]["args"]["phase"], "After");
+    assert_eq!(
+        objects["args"]["objects"]["args"]["result"],
+        instructions[0]["args"]["result"]
+    );
+}
+
+#[test]
 fn reminder_checks_both_colors_spent_to_cast_the_spell() {
     let mut context = empty_card_characteristics();
     context.card_types.push(CardType::Sorcery);

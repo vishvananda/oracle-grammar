@@ -1,4 +1,4 @@
-use super::evidence::{in_resolution, step_operation, target_spec};
+use super::evidence::{effects, in_resolution, step_operation, target_spec};
 use serde_json::Value;
 
 pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> bool) -> bool {
@@ -14,7 +14,10 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
         && (makes_creature(&args["changes"], false) && visit("SummoningSickness")
             || args["affected"]["Objects"]["kind"] == "Zone"
                 && grants_keyword(&args["changes"], "Wither")
-                && visit("WitherGroup"))
+                && visit("WitherGroup")
+            || own_graveyard_cards(&args["affected"]["Objects"])
+                && grants_jump_start(&args["changes"])
+                && visit("JumpStartFromYourGraveyard"))
     {
         return true;
     }
@@ -49,10 +52,75 @@ pub(super) fn mentions(ability: &Value, mut visit: impl FnMut(&'static str) -> b
                     op["args"]["change"]["Reselect"]["players_only"] == false
                         && visit("AttackReselection")
                 }
+                Some("Move") => unattachable_auras(&op["args"]) && visit("UnattachableAuras"),
+                Some("CreateContinuousEffect") => {
+                    grants_graveyard_jump_start(op, frame) && visit("JumpStartFromYourGraveyard")
+                }
+                Some("ReflexiveTrigger") => {
+                    effects(&op["args"]["body"])
+                        .take(16)
+                        .any(|op_inside| grants_graveyard_jump_start(op_inside, &op["args"]))
+                        && visit("JumpStartFromYourGraveyard")
+                }
                 _ => false,
             }
         },
     )
+}
+
+fn unattachable_auras(movement: &Value) -> bool {
+    let objects = &movement["objects"];
+    let args = &objects["args"];
+    movement["destination"]["Battlefield"].is_object()
+        && objects["kind"] == "Zone"
+        && args["kind"] == "Card"
+        && super::receipts::own_zone(&args["scope"]["Players"], "Graveyard")
+        && matches!(
+            (
+                args["filter"]["kind"].as_str(),
+                args["filter"]["args"].as_str()
+            ),
+            (Some("CardType"), Some("Enchantment")) | (Some("Subtype"), Some("Aura"))
+        )
+}
+
+fn own_graveyard_cards(objects: &Value) -> bool {
+    let args = &objects["args"];
+    objects["kind"] == "Zone"
+        && args["kind"] == "Card"
+        && super::receipts::own_zone(&args["scope"]["Players"], "Graveyard")
+}
+
+fn grants_jump_start(changes: &Value) -> bool {
+    changes.as_array().is_some_and(|changes| {
+        changes.iter().take(16).any(|change| {
+            change["kind"] == "GrantAbility"
+                && change["args"]["kind"] == "Mechanic"
+                && change["args"]["args"]["mechanic"] == "JumpStart"
+        })
+    })
+}
+
+fn grants_graveyard_jump_start(operation: &Value, frame: &Value) -> bool {
+    let args = &operation["args"];
+    let affected = &args["affected"]["Objects"];
+    let objects = &affected["args"]["objects"];
+    operation["kind"] == "CreateContinuousEffect"
+        && affected["kind"] == "InZone"
+        && affected["args"]["zone"] == "Graveyard"
+        && objects["kind"] == "One"
+        && grants_jump_start(&args["changes"])
+        && target_spec(&objects["args"], &frame["announcement"]).is_some_and(|target| {
+            filter_proves(
+                &target["filter"],
+                &|leaf| {
+                    leaf["kind"] == "InZone"
+                        && super::receipts::own_zone(&leaf["args"]["Players"], "Graveyard")
+                },
+                0,
+                &mut 256,
+            )
+        })
 }
 
 fn seek_arrival(step: &Value, previous: &Value) -> bool {

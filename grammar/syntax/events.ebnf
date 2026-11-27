@@ -2273,7 +2273,7 @@ foretell_event_third ::= event_player "foretells"
 event_energy_controller ::= player_rule_you energy_gain_event
 
 /* @sem PlayerEvent::GetsEnergy */
-energy_gain_event ::= "get" "one" "or" "more" "{E}"
+energy_gain_event ::= "get" "one" "or" "more" "{E}" energy_counter_unit?
 
 /* The chapter ability refers to the filtered object's own ability. */
 chapter_ability_object ::= chapter_ability_object_a | chapter_ability_object_an
@@ -6689,6 +6689,7 @@ triggered_controlled_batch_graveyard ::= "whenever" event_controlled_batch_grave
 damage_dealing_event ::= event_damage | event_combat_damage
 
 /* Any supported event can introduce the scoped library and energy choice. */
+/* @prefer always */
 /* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$top_card_energy_or_play_program} */
 triggered_top_card_energy_or_play ::= event_clause "," top_card_energy_or_play_program
 
@@ -6860,6 +6861,9 @@ triggered_turn_then_counter_threshold ::= "at" turn_event "," program_then_count
 /* The condition and entry modification share the triggering spell. */
 /* @sem Ability::Triggered{event:$cast_creature_snow_event, intervening_if:$spell_own_color_snow_spent, limits:TriggerLimits{}, announcement:@announcement, body:$cast_creature_entry_counter_program} */
 triggered_snow_spent_entry_counter ::= cast_creature_snow_event "," "if" spell_own_color_snow_spent "," cast_creature_entry_counter_program
+
+/* @sem Ability::[WithPresentation{reminder:true, ability:$triggered_snow_spent_entry_counter}] */
+line_snow_spent_entry_reminded ::= triggered_snow_spent_entry_counter "(" snow_mana_explanation_words ")"
 
 /* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:$additional_creature_spell_filter} */
 cast_creature_snow_event ::= "whenever" "you" "cast" "a" additional_creature_spell_filter "spell"

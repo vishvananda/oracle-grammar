@@ -557,6 +557,7 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "PreparedSource"
                     | "PermanentSpellCopy"
                     | "PermanentSpellCopyRule"
+                    | "CreatureSpellCopy"
                     | "NoncreatureForm"
                     | "BattlefieldReturn"
                     | "ReturnExiledCreature"
@@ -573,6 +574,7 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "GrantedSuspendController"
                     | "SeekWholeLibrary"
                     | "PlottedByController"
+                    | "JumpStartFromYourGraveyard"
             )
         )
     )
@@ -645,6 +647,7 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
                 | "GrantedSuspendController"
                 | "SeekWholeLibrary"
                 | "PlottedByController"
+                | "CreatureSpellCopy"
         )
     );
     let mut deferred =

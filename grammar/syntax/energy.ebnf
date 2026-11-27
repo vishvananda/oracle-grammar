@@ -1,6 +1,11 @@
 /* Energy is a resource, independent of mana symbols and object counters.
    A run of symbols and a worded quantity construct the same typed amount. */
 energy_amount ::= energy_symbols | energy_counted
+/* @sem () */
+energy_counter_unit ::= "(" "↓" "energy" "counters" ")"
+energy_amount_spelled ::= energy_amount | energy_amount_reminded
+/* @sem Expr::@agree($energy_amount, $energy_word_amount) */
+energy_amount_reminded ::= energy_amount "(" "↓" energy_word_amount ")"
 energy_symbols ::= energy_symbol_one | energy_symbols_more
 /* @sem Expr::Constant(1) */
 energy_symbol_one ::= "{E}"
@@ -16,9 +21,7 @@ energy_fifty ::= "fifty"
 /* Payments remain native costs, including in optional resolution payments. */
 /* @sem CostPart::Energy($energy_payment_amount) */
 cost_energy ::= "pay" energy_payment_amount
-energy_payment_amount ::= energy_amount | energy_word_amount | energy_computed_amount | energy_reminded_payment
-/* @sem Expr::@agree($energy_amount, $energy_word_amount) */
-energy_reminded_payment ::= energy_amount "(" "↓" energy_word_amount ")"
+energy_payment_amount ::= energy_amount_spelled | energy_word_amount | energy_computed_amount
 /* @sem $value */
 energy_computed_amount ::= "an" "amount" "of" "{E}" "equal" "to" value
 energy_word_amount ::= energy_word_one | energy_word_many
@@ -211,8 +214,10 @@ chosen_graveyard_card_mana_value ::= "choose" "up" "to" "one" "target" noun "or"
 return_affected_from_your_graveyard ::= "return" affected "from" "your" "graveyard" "to" "the" "battlefield"
 
 /* The intervening operation and paid action remain independent operands. */
-/* @sem Instruction::[Effect{result:@next, operation:$operation}, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Energy($chosen_graveyard_card_mana_value)]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:$return_affected_from_your_graveyard}]}, otherwise:Program{}}] */
-chosen_card_energy_payment_instructions ::= chosen_graveyard_card_mana_value "." operation "." "then" "you" "may" "pay" "an" "amount" "of" "{E}" "equal" "to" "that" "card's" "mana" "value" "." "if" "you" "do" "," return_affected_from_your_graveyard
+/* @sem Instruction::[Effect{result:@next, operation:$chosen_card_energy_operation}, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Energy($chosen_graveyard_card_mana_value)]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:$return_affected_from_your_graveyard}]}, otherwise:Program{}}] */
+chosen_card_energy_payment_instructions ::= chosen_graveyard_card_mana_value "." chosen_card_energy_operation "." "then" "you" "may" "pay" "an" "amount" "of" "{E}" "equal" "to" "that" "card's" "mana" "value" "." "if" "you" "do" "," return_affected_from_your_graveyard
+
+chosen_card_energy_operation ::= operation | energy_tax_gain_reminded
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$chosen_card_energy_payment_instructions}} */
 spell_chosen_card_energy_payment ::= chosen_card_energy_payment_instructions "."

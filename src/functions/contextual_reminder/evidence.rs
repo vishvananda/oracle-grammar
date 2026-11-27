@@ -184,6 +184,8 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
     let args = &value["args"];
     match value["kind"].as_str() {
         Some("Shadow") => Some("Shadow"),
+        Some("Skulk") => Some("Skulk"),
+        Some("Flanking") => Some("Flanking"),
         Some("Intimidate") => Some("Intimidate"),
         Some("Wither") => Some("Wither"),
         Some("Infect") => Some("Infect"),
@@ -472,8 +474,13 @@ fn copy_mentions(op: &Value, frame: &Value, visit: &mut impl FnMut(&'static str)
     visit("PermanentSpellCopyRule")
         || copy["times"]["kind"] == "Constant"
             && copy["times"]["args"] == 1
-            && permanent_spell_filter(filter, 0, &mut 256)
-            && visit("PermanentSpellCopy")
+            && (permanent_spell_filter(filter, 0, &mut 256) && visit("PermanentSpellCopy")
+                || super::object_notes::filter_proves(
+                    filter,
+                    &|leaf| leaf["kind"] == "CardType" && leaf["args"] == "Creature",
+                    0,
+                    &mut 256,
+                ) && visit("CreatureSpellCopy"))
 }
 
 /// The trigger watches this source's cast and copies that exact stack object.

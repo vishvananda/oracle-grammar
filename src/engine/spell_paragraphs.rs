@@ -73,16 +73,18 @@ pub(super) fn can_merge(items: &[Value]) -> bool {
 pub(super) fn written_splits(surfaces: &[Value]) -> Vec<Value> {
     const MAX_SPLITS: usize = 64;
     let mut results = Vec::new();
-    // Keep the single-reminder views first under the shared cap.
-    for both_reminded in [false, true] {
+    // Keep the ordinary single-wrapper spellings first under the shared cap.
+    for placement in [
+        ReminderPlacement::WithLabel,
+        ReminderPlacement::OtherParagraph,
+        ReminderPlacement::Both,
+    ] {
         for surface in surfaces {
             let Some(abilities) = surface.as_array() else {
                 continue;
             };
             for (index, ability) in abilities.iter().enumerate() {
-                if ability["kind"] != "WithPresentation"
-                    || (both_reminded && ability["args"]["reminder"] != true)
-                {
+                if ability["kind"] != "WithPresentation" || !placement.applies(ability) {
                     continue;
                 }
                 let Some(instructions) = ordinary_instructions(ability) else {
@@ -93,13 +95,8 @@ pub(super) fn written_splits(surfaces: &[Value]) -> Vec<Value> {
                 }
                 for split in 1..instructions.len() {
                     for label_first in [true, false] {
-                        let parts = split_paragraph(
-                            ability,
-                            instructions,
-                            split,
-                            label_first,
-                            both_reminded,
-                        );
+                        let parts =
+                            split_paragraph(ability, instructions, split, label_first, placement);
                         let mut split_view = abilities.clone();
                         split_view.splice(index..=index, parts);
                         let view = Value::Array(split_view);
@@ -117,12 +114,30 @@ pub(super) fn written_splits(surfaces: &[Value]) -> Vec<Value> {
     results
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ReminderPlacement {
+    WithLabel,
+    OtherParagraph,
+    Both,
+}
+
+impl ReminderPlacement {
+    fn applies(self, ability: &Value) -> bool {
+        let args = &ability["args"];
+        match self {
+            Self::WithLabel => true,
+            Self::OtherParagraph => args["reminder"] == true && args["label"].is_string(),
+            Self::Both => args["reminder"] == true,
+        }
+    }
+}
+
 fn split_paragraph(
     ability: &Value,
     instructions: &[Value],
     split: usize,
     label_first: bool,
-    both_reminded: bool,
+    placement: ReminderPlacement,
 ) -> [Value; 2] {
     let (prefix, suffix) = instructions.split_at(split);
     let spell = &ability["args"]["ability"];
@@ -137,8 +152,11 @@ fn split_paragraph(
     };
     let mut wrapper = ability.clone();
     wrapper["args"]["ability"] = std::mem::take(labelled);
+    if placement == ReminderPlacement::OtherParagraph {
+        wrapper["args"]["reminder"] = json!(false);
+    }
     *labelled = wrapper;
-    if both_reminded {
+    if placement != ReminderPlacement::WithLabel {
         *other = json!({"kind":"WithPresentation","args":{"ability":std::mem::take(other),"label":null,"reminder":true}});
     }
     [first, second]

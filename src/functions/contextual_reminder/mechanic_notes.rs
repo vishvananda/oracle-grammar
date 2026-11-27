@@ -16,6 +16,7 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
         }
         "ChooseValue" if args["kind"] == "CardType" => Some("CardTypes"),
         "Triggered" => counters_on_damage_recipient(args),
+        "PutCounters" => keyword_counter_reminder(args),
         "TowardPlayer"
             if matches!(
                 args["action"].as_str(),
@@ -28,10 +29,44 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
             Some("AdditionalVoteChoices")
         }
         "Protection"
+            if args["Objects"]["kind"] == "Any"
+                && args["Objects"]["filter"]["kind"] == "Chosen"
+                && args["Objects"]["filter"]["args"] == "Color" =>
+        {
+            Some("ProtectionChosenColor")
+        }
+        "Protection"
+            if args["Players"]["kind"] == "OpponentsOf"
+                && args["Players"]["args"]["kind"] == "AbilityController" =>
+        {
+            Some("ProtectionOpponents")
+        }
+        "Protection"
             if args["Objects"]["filter"]["kind"] == "Shares"
                 && args["Objects"]["filter"]["args"]["property"] == "CardTypes" =>
         {
             Some("CardTypes")
+        }
+        _ => None,
+    }
+}
+
+fn keyword_counter_reminder(operation: &Value) -> Option<&'static str> {
+    let [placement] = operation["placements"].as_array()?.as_slice() else {
+        return None;
+    };
+    let recipients = &placement["recipients"];
+    if recipients["kind"] != "Objects" {
+        return None;
+    }
+    match placement["kind"]["Named"].as_str()? {
+        "ShadowCounter" => Some("Shadow"),
+        "MenaceCounter"
+            if recipients["args"]["kind"] == "One"
+                || placement["selection"]["count"]["AsManyAsCan"]
+                    == serde_json::json!({"kind":"Constant","args":1}) =>
+        {
+            Some("Menace")
         }
         _ => None,
     }
