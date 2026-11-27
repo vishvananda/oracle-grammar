@@ -568,7 +568,15 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                     scope.damage_pronoun(&name, root, &item, &introduced, &prior)?
                 }
                 "another_target_reference" | "other_reference" | "other_filter" => {
-                    other::resolve_marker(&name, prior.before(&item.path, scope), &node["args"][0])?
+                    let domain = node["args"][0].clone();
+                    other::resolve_marker(
+                        &name,
+                        root,
+                        &item.path,
+                        prior.before(&item.path, scope),
+                        &domain,
+                        &introduced,
+                    )?
                 }
                 "that_object" => prior
                     .before(&item.path, scope)
@@ -590,18 +598,8 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                 "next_slot" => json!(scope.target_base + scope.targets.len()),
                 "last_slot" => json!(scope.target_base + scope.targets.len().saturating_sub(1)),
                 "card_name" => json!(scope.card_name),
-                "that_opponent" => {
-                    controller_role::reference(root, &item.path, &introduced, scope, &prior)?
-                }
-                "that_player_literal" => controller_role::literal_reference(
-                    root,
-                    &item.path,
-                    &introduced,
-                    scope,
-                    &prior,
-                )?,
-                "that_player" => {
-                    per_recipient::reference(root, &item.path, &introduced, scope, &prior)?
+                "that_opponent" | "that_player_literal" | "that_player" => {
+                    per_recipient::bind(&name, root, &item.path, &introduced, scope, &prior)?
                 }
                 // Naming this player makes them the one a later `their` reads.
                 "defending" => {

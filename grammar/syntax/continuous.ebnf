@@ -1496,25 +1496,14 @@ rule_block_unlimited ::= "can" "block" "any" "number" "of" "creatures"
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:[SetController(AbilityController), GrantKeyword($keyword_value)], duration:$duration, evaluation:Snapshot} */
 gain_control_and_keyword ::= duration "," "you" "gain" "control" "of" target_object "and" "it" "gains" keyword_value
 
-/* These two spellings share one counter Pump meaning. The joined form
-   preserves the two explicit host sentences as one native Static. */
-static_attached_counter_population ::= static_attached_counter_plain | static_attached_counter_joined
+/* This paragraph owns the counter pump on its attached creature. */
+static_attached_counter_population ::= static_attached_counter_plain
 
 /* @sem Ability::Static{kind:Ordinary, affected:Objects(One(ObjectRef::@enchanted_creature_operand(ObjectRef::AttachedTo(Source)))), changes:[$attached_counter_pump]} */
 static_attached_counter_plain ::= attached_counter_pump "."
 
-/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(ObjectRef::@enchanted_creature_operand(ObjectRef::AttachedTo(Source)))), changes:[$attached_counter_pump, ...$attached_counter_follow]} */
-static_attached_counter_joined ::= attached_counter_pump "." NEWLINE "enchanted" "creature" attached_counter_follow
-
 /* @sem Change::Pump{power:@times($signed, Expr::CountCounters{recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Not(ObjectFilter::SameObject(AttachedTo(Source))))}), kind:$counter_kind, information:CurrentOrLastKnown}), toughness:@times($signed_2, Expr::CountCounters{recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Not(ObjectFilter::SameObject(AttachedTo(Source))))}), kind:$counter_kind, information:CurrentOrLastKnown})} */
 attached_counter_pump ::= "enchanted" "creature" "gets" signed "/" signed "for" "each" counter_kind ("counter" | "counters") "on" "other" "creatures" "you" "control"
-
-/* The existing quoted-sentence rule owns its closing inner period. Ordinary
-   unquoted changes still require their own terminal period. */
-attached_counter_follow ::= paired_changes_sentence | attached_counter_follow_quoted
-
-/* @sem $closed_grants */
-attached_counter_follow_quoted ::= ("has" | "have") closed_grants
 
 /* The receiving player is the caster. Cast's origin narrows the spells, not
    the zone of the rule's affected player or the ability holder. */
@@ -7747,7 +7736,7 @@ instead_artifact_animation ::= "until" "end" "of" "turn" "," object_one change_b
 /* Replace color words on a controlled enchantment and grant it upkeep.
    Both the target color and upkeep cost remain independent operands. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:ColorWord, terms:_{count:Exactly(Constant(2)), options:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$adjective_color, CardType(Enchantment), ControlledBy(One(AbilityController)), Not(HasKeywordFamily(CumulativeUpkeep))])}), index:0})), changes:[ReplaceWord{from:Vocabulary{family:ColorWord, form:TheFirstChosenColorWord}, to:Vocabulary{family:ColorWord, form:TheSecondChosenColorWord}}, GrantAbility(Mechanic{mechanic:CumulativeUpkeep, cost:_{parts:[Mana($mana_symbols)]}})], duration:Indefinite, evaluation:Snapshot}}] */
-color_word_upkeep_program ::= "change" "the" "text" "of" "target" adjective_color "enchantment" "you" "control" "that" "doesn't" "have" "cumulative" "upkeep" "by" "replacing" "all" "instances" "of" "one" "color" "word" "with" "another" "." granted_upkeep_followup "enchantment" "gains" '"' "cumulative" "upkeep" mana_symbols "." '"' cumulative_upkeep_controller_note?
+color_word_upkeep_program ::= "change" "the" "text" "of" "target" adjective_color "enchantment" "you" "control" "that" "doesn't" "have" "cumulative" "upkeep" "by" "replacing" "all" "instances" "of" "one" "color" "word" "with" "another" "." granted_upkeep_followup "enchantment" "gains" '"' "cumulative" "upkeep" mana_symbols "." '"'
 
 /* One selected ability moves between distinct targets for the stated duration. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, Chosen(Ability)])}), index:0})), changes:[LosesAbility(Term{family:CheckHasable, form:TheChosenAbility})], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([Not(SameObject(Target{slot:0, index:0})), $noun_2])}), index:0})), changes:[ChosenAbility], duration:$duration, evaluation:Snapshot}}] */
@@ -12903,8 +12892,6 @@ counted_reduction_generic_fallback ::= counted_reduction_color "(" "↓" "or" "{
 /* Both explanations belong to the same continuous change and its grant. */
 /* @sem () */
 granted_upkeep_word_example ::= "(" "for" "example" "," "you" "may" "change" '"' "↓" "black" "creatures" "can't" "attack" '"' "to" '"' "↓" "blue" "creatures" "can't" "attack" "." '"' ")"
-/* @sem () */
-cumulative_upkeep_controller_note ::= "(" "at" "the" "beginning" "of" "its" "controller's" "upkeep" "," "that" "player" "puts" "an" "age" "counter" "on" "it" "," "then" "sacrifices" "it" "unless" "they" "pay" "its" "upkeep" "cost" "for" "each" "age" "counter" "on" "it" "." ")"
 
 
 granted_upkeep_followup ::= granted_upkeep_bare_followup | granted_upkeep_example_followup

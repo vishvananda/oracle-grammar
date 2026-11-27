@@ -31,6 +31,26 @@ pub(crate) fn life_amount(recipients: &Value, expression: &Value, at: usize) -> 
     json!({"$sym":"recipient_value","args":[recipients,expression],"at":at})
 }
 
+pub(super) fn bind(
+    marker: &str,
+    root: &Value,
+    path: &[Step],
+    introduced: &[super::references::TargetIntroduction],
+    scope: &super::Scope,
+    prior_targets: &super::references::Contexts,
+) -> Result<Value, String> {
+    match marker {
+        "that_opponent" => {
+            super::controller_role::reference(root, path, introduced, scope, prior_targets)
+        }
+        "that_player_literal" => {
+            super::controller_role::literal_reference(root, path, introduced, scope, prior_targets)
+        }
+        "that_player" => reference(root, path, introduced, scope, prior_targets),
+        _ => Err("unknown player reference marker".into()),
+    }
+}
+
 pub(super) fn reference(
     root: &Value,
     path: &[Step],

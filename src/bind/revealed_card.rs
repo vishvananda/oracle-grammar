@@ -149,7 +149,8 @@ fn single_card_before_move<'a>(root: &'a Value, path: &[Step]) -> Option<&'a Val
     let operation = &previous["args"]["operation"];
     (previous["kind"] == "Effect"
         && (operation["kind"] == "LookAt" && one_library_card(&operation["args"]["objects"])
-            || one_searched_card(operation)))
+            || one_searched_card(operation)
+            || one_chosen_card(operation)))
     .then_some(previous)
 }
 
@@ -218,6 +219,24 @@ fn one_searched_card(operation: &Value) -> bool {
         .any(|kind| choice["count"][*kind] == json!({"kind":"Constant","args":1}))
 }
 
+/// A choice with a one-card bound supplies its actual selection to the next move.
+fn one_chosen_card(operation: &Value) -> bool {
+    operation["kind"] == "ChooseObjects"
+        && operation["args"]["constraints"] == json!([])
+        && ["Exactly", "AsManyAsCan", "UpTo"]
+            .iter()
+            .any(|kind| operation["args"]["count"][*kind] == json!({"kind":"Constant","args":1}))
+        && {
+            let objects = &operation["args"]["objects"];
+            let zone = if objects["kind"] == "Take" {
+                &objects["args"]["objects"]
+            } else {
+                objects
+            };
+            zone["kind"] == "Zone" && zone["args"]["kind"] == "Card"
+        }
+}
+
 pub(super) fn resolve(
     root: &Value,
     path: &[Step],
@@ -239,11 +258,11 @@ pub(super) fn resolve(
     {
         let operation = &previous["args"]["operation"];
         let result = &previous["args"]["result"];
-        let searched = operation["kind"] == "Search";
+        let chosen = matches!(operation["kind"].as_str(), Some("Search" | "ChooseObjects"));
         crate::functions::branch_bounds(operation)?;
         let receipt = json!({"kind":"Query","args":{
-            "objects":{"kind":if searched { "Selected" } else { "Observed" },"args":result},"index":0}});
-        let same_card = if searched {
+            "objects":{"kind":if chosen { "Selected" } else { "Observed" },"args":result},"index":0}});
+        let same_card = if chosen {
             reference
                 == json!({"kind":"Result","args":{
                 "result":result,"phase":"After","index":0}})
@@ -253,9 +272,7 @@ pub(super) fn resolve(
             reference == queried || objects["kind"] == "One" && reference == objects["args"]
         };
         if reference != receipt && !same_card {
-            return Err(
-                "that card after a one-card observation or search needs that actual card".into(),
-            );
+            return Err("that card needs the preceding one-card observation or selection".into());
         }
     }
     if own && reference == json!({"kind":"Source"}) && paid_library_look(root, path).is_some() {

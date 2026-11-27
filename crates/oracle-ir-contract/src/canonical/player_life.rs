@@ -4,7 +4,7 @@ use crate::ir::{
     EventZone, Expr, Instruction, ObjectFilter, ObjectKind, ObjectSet, Operation, PlayerRef,
     PlayerSet, ZoneScope,
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 
 fn one_player(value: &Value, path: &str, uses: &Uses, tracing: bool) -> Option<(Value, usize)> {
     let Instruction::ForEachPlayer {
@@ -76,6 +76,89 @@ fn one_player(value: &Value, path: &str, uses: &Uses, tracing: bool) -> Option<(
     Some((value["args"]["players"].clone(), index))
 }
 
+/// A single event player or an announced permanent's controller can receive
+/// one hand-to-battlefield offer. No intervening action changes that player.
+fn optional_hand_entry(outer: &Value, uses: &Uses, tracing: bool) -> Option<Value> {
+    if outer["kind"] != "ForEachPlayer" {
+        return None;
+    }
+    let args = &outer["args"];
+    let player = &args["players"]["args"];
+    if args["players"]["kind"] != "One"
+        || !(player["kind"] == "EventSubject"
+            || player["kind"] == "ControllerOf" && player["args"]["kind"] == "Target")
+        || !args["starting_with"].is_null()
+        || args["in_chosen_direction"] != false
+    {
+        return None;
+    }
+    let binding = super::trace::number(&args["binding"])?;
+    let [choice] = args["body"]["instructions"].as_array()?.as_slice() else {
+        return None;
+    };
+    let bound = |value: &Value| {
+        value["kind"] == "Bound" && super::trace::number(&value["args"]) == Some(binding)
+    };
+    if choice["kind"] != "Optional" || !bound(&choice["args"]["decider"]) {
+        return None;
+    }
+    let [pick, put] = choice["args"]["body"]["instructions"]
+        .as_array()?
+        .as_slice()
+    else {
+        return None;
+    };
+    let selection = &pick["args"]["operation"];
+    let move_card = &put["args"]["operation"];
+    let hand = &selection["args"]["objects"];
+    let zone = &hand["args"];
+    let scope = &zone["scope"]["Players"];
+    let arrival = &move_card["args"]["destination"]["Battlefield"];
+    let filter = &zone["filter"];
+    let selected = super::trace::number(&pick["args"]["result"])?;
+    let returned = super::trace::number(&put["args"]["result"])?;
+    if pick["kind"] != "Effect"
+        || put["kind"] != "Effect"
+        || selection["kind"] != "ChooseObjects"
+        || !bound(&selection["args"]["player"])
+        || selection["args"]["count"] != json!({"AsManyAsCan":{"kind":"Constant","args":1}})
+        || selection["args"]["constraints"] != json!([])
+        || hand["kind"] != "Zone"
+        || zone["kind"] != "Card"
+        || scope["zone"] != "Hand"
+        || scope["players"]["kind"] != "One"
+        || !bound(&scope["players"]["args"])
+        || filter["kind"] != "AnyOf"
+        || !filter["args"].as_array().is_some_and(|parts| {
+            (1..=8).contains(&parts.len()) && parts.iter().all(|part| part["kind"] == "CardType")
+        })
+        || move_card["kind"] != "Move"
+        || move_card["args"]["objects"]["kind"] != "Selected"
+        || super::trace::number(&move_card["args"]["objects"]["args"]) != Some(selected)
+        || move_card["args"]["qualifiers"] != json!([])
+        || !bound(&arrival["controller"]["Player"])
+        || !arrival["arrival"]["controller"].is_null()
+        || arrival["arrival"]["counters"] != json!([])
+        || arrival["arrival"]["states"] != json!([])
+        || uses.definitions.get(&selected) != Some(&1)
+        || uses.total.get(&selected) != Some(&2)
+        || uses.definitions.get(&returned) != Some(&1)
+        || uses.total.get(&returned) != Some(&1)
+    {
+        return None;
+    }
+    lossless::<Instruction>(outer, tracing)?;
+    let mut direct = choice.clone();
+    direct["args"]["decider"] = player.clone();
+    let actions = &mut direct["args"]["body"]["instructions"];
+    let select = &mut actions[0]["args"]["operation"]["args"];
+    select["player"] = player.clone();
+    select["objects"]["args"]["scope"]["Players"]["players"]["args"] = player.clone();
+    actions[1]["args"]["operation"]["args"]["destination"]["Battlefield"]["controller"]["Player"] =
+        player.clone();
+    Some(direct)
+}
+
 pub(super) fn flatten(items: &mut [Value], path: &str, uses: &Uses, tracing: bool) -> bool {
     let mut changed = false;
     for (index, item) in items.iter_mut().enumerate() {
@@ -88,6 +171,9 @@ pub(super) fn flatten(items: &mut [Value], path: &str, uses: &Uses, tracing: boo
             op["amount"]["args"]["args"]["filter"]["args"][at]["args"] = player.clone();
             op["players"] = player;
             *item = effect;
+            changed = true;
+        } else if let Some(offer) = optional_hand_entry(item, uses, tracing) {
+            *item = offer;
             changed = true;
         }
     }

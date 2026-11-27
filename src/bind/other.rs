@@ -107,9 +107,113 @@ fn shares_card_type(earlier: &Value, later: &Value) -> bool {
     first.is_empty() || second.is_empty() || !first.is_disjoint(&second)
 }
 
-pub(super) fn resolve_marker(marker: &str, scope: &Scope, domain: &Value) -> Result<Value, String> {
+/// "Another target" in the paid continuation contrasts with the permanent
+/// named in the first sentence. The kicked spell is the subject of the test.
+fn paid_return(
+    root: &Value,
+    path: &[Step],
+    scope: &Scope,
+    domain: &Value,
+    introduced: &[super::references::TargetIntroduction],
+) -> Option<Value> {
+    let [
+        Step::Key(args),
+        Step::Key(body),
+        Step::Key(instructions),
+        Step::Index(1),
+        tail @ ..,
+    ] = path
+    else {
+        return None;
+    };
+    if root["kind"] != "Spell" || args != "args" || body != "body" || instructions != "instructions"
+    {
+        return None;
+    }
+    let [first, branch] = root["args"]["body"]["instructions"].as_array()?.as_slice() else {
+        return None;
+    };
+    let (branch, target_path) = if matches!(symbol_name(branch), Some("leading_if" | "resolution"))
+    {
+        let [Step::Key(args), Step::Index(0), rest @ ..] = tail else {
+            return None;
+        };
+        if args != "args" {
+            return None;
+        }
+        (&branch["args"][0], rest)
+    } else {
+        (branch, tail)
+    };
+    let [
+        Step::Key(args),
+        Step::Key(then),
+        Step::Key(instructions),
+        Step::Index(0),
+        ..,
+    ] = target_path
+    else {
+        return None;
+    };
+    let test = &branch["args"]["condition"];
+    let checked = &test["args"]["object"];
+    if args != "args"
+        || then != "then"
+        || instructions != "instructions"
+        || branch["kind"] != "If"
+        || test["kind"] != "ObjectMatches"
+        || !(checked["kind"] == "Source" || symbol_name(checked) == Some("self"))
+        || test["args"]["filter"] != json!({"kind":"State","args":"Kicked"})
+        || branch["args"]["otherwise"]["instructions"] != json!([])
+        || !matches!(
+            branch["args"]["then"]["instructions"]
+                .as_array()?
+                .as_slice(),
+            [_]
+        )
+        || first["kind"] != "Effect"
+    {
+        return None;
+    }
+    let mut moved = &first["args"]["operation"];
+    if symbol_name(moved) == Some("owner_return") {
+        moved = moved["args"].get(0)?;
+    }
+    if moved["kind"] != "Move" || moved["args"]["destination"].get("OwnersHand").is_none() {
+        return None;
+    }
+    let objects = &moved["args"]["objects"];
+    let reference = &objects["args"];
+    if objects["kind"] != "One" || reference["kind"] != "Target" || reference["args"]["index"] != 0
+    {
+        return None;
+    }
+    let earlier =
+        super::references::bound_reference(reference, introduced, scope.target_base).ok()?;
+    let matches = |target: &Target| {
+        target.single
+            && target.filter == *domain
+            && serde_json::to_value(&target.reference).ok().as_ref() == Some(&earlier)
+    };
+    scope
+        .references
+        .iter()
+        .filter_map(|item| item.other_target.as_deref())
+        .any(matches)
+        .then_some(earlier)
+}
+
+pub(super) fn resolve_marker(
+    marker: &str,
+    root: &Value,
+    path: &[Step],
+    scope: &Scope,
+    domain: &Value,
+    introduced: &[super::references::TargetIntroduction],
+) -> Result<Value, String> {
     match marker {
-        "another_target_reference" => another_target(scope, domain),
+        "another_target_reference" => paid_return(root, path, scope, domain, introduced)
+            .map_or_else(|| another_target(scope, domain), Ok),
         "other_reference" => resolve(scope, domain),
         "other_filter" => super::other_filter::resolve(scope, domain),
         _ => Err("unknown contextual-other marker".into()),
@@ -145,7 +249,7 @@ pub(super) fn resolve(scope: &Scope, domain: &Value) -> Result<Value, String> {
 /// An earlier artifact, enchantment, land or Equipment target does not merely by
 /// coming first: "other target creatures" then excludes the source (Jaheira, Heroic
 /// Harper; Amy Rose). Event focus does not contrast.
-pub(super) fn another_target(scope: &Scope, domain: &Value) -> Result<Value, String> {
+fn another_target(scope: &Scope, domain: &Value) -> Result<Value, String> {
     if let Some(reference) = scope.object() {
         if reference["kind"] == "Target" {
             let typed: ObjectRef =
