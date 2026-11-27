@@ -14,6 +14,9 @@ pub(super) fn mention(value: &Value) -> Option<&'static str> {
             Some("ReplaceCreatureTypes")
         }
         "ChooseValue" if args["kind"] == "CardType" => Some("CardTypes"),
+        "PlayerRule" if args["AdditionalVote"]["optional"].is_boolean() => {
+            Some("AdditionalVoteChoices")
+        }
         "Protection"
             if args["Objects"]["filter"]["kind"] == "Shares"
                 && args["Objects"]["filter"]["args"]["property"] == "CardTypes" =>
@@ -38,6 +41,13 @@ pub(super) fn root_mentions(ability: &Value, mut visit: impl FnMut(&'static str)
         _ => &Value::Null,
     };
     adventure_creatures(adventure_filter) && visit("HasAdventure")
+        || ability["kind"] == "Triggered"
+            && matches!(
+                event["Player"]["event"].as_str(),
+                Some("Clashes" | "WinsClash")
+            )
+            && visit("ClashFinished")
+        || source_cycling_trigger(ability) && visit("CyclingBeforeDraw")
         || matches!(ability["kind"].as_str(), Some("Static" | "Spell"))
             && controller_shroud(ability)
             && visit("PlayerShroud")
@@ -53,6 +63,18 @@ pub(super) fn root_mentions(ability: &Value, mut visit: impl FnMut(&'static str)
             } else {
                 "AbilityBecomesBlocked"
             })
+}
+
+fn source_cycling_trigger(ability: &Value) -> bool {
+    let scoped = unscoped(ability);
+    let trigger = unscoped(&scoped["args"]["ability"]);
+    let discard = &trigger["args"]["event"]["Discard"];
+    scoped["kind"] == "Scoped"
+        && trigger["kind"] == "Triggered"
+        && discard["kind"] == "Cycling"
+        && discard["source_only"] == true
+        && discard["players"]["kind"] == "One"
+        && discard["players"]["args"]["kind"] == "AbilityController"
 }
 
 fn adventure_creatures(filter: &Value) -> bool {

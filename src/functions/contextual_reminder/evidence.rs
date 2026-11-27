@@ -532,7 +532,7 @@ fn cast_event(mut event: &Value) -> Option<&Value> {
     None
 }
 
-fn in_resolution(
+pub(super) fn in_resolution(
     program: &Value,
     frame: &Value,
     depth: usize,
@@ -648,7 +648,7 @@ fn battlefield_return(operation: &Value, frame: &Value, permanent: bool) -> bool
             && event["Pair"]["event"] == "Blocks"
 }
 
-fn step_operation(step: &Value) -> Option<&Value> {
+pub(super) fn step_operation(step: &Value) -> Option<&Value> {
     if step["kind"] == "Effect" {
         step["args"].get("operation")
     } else {
@@ -771,7 +771,7 @@ pub(super) fn effects(program: &Value) -> impl Iterator<Item = &Value> {
         .map(|step| &step["args"]["operation"])
 }
 
-fn target_spec<'a>(object: &'a Value, announcement: &'a Value) -> Option<&'a Value> {
+pub(super) fn target_spec<'a>(object: &'a Value, announcement: &'a Value) -> Option<&'a Value> {
     let slot = match object["kind"].as_str() {
         Some("Target") if object["args"]["index"] == 0 => &object["args"]["slot"],
         Some("Targets") => &object["args"],

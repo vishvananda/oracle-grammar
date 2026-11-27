@@ -90,6 +90,33 @@ fn compleated_reminder_binds_the_printed_phyrexian_symbol() {
 }
 
 #[test]
+fn epic_reminder_uses_the_spells_own_announcement() {
+    let mut context = empty_card_characteristics();
+    context.card_types = vec![CardType::Sorcery];
+    let rule = "For the rest of the game, you can't cast spells. At the beginning of each of your upkeeps, copy this spell except for its epic ability.";
+    let retarget = " You may choose a new target for the copy.";
+    let plain = "Draw a card.\nEpic";
+    let targeted = "Destroy target creature.\nEpic";
+    exact_roundtrip(&format!("{plain} ({rule})"), &context);
+    exact_roundtrip(&format!("{targeted} ({rule}{retarget})"), &context);
+    for wrong in [
+        format!("{plain} ({rule}{retarget})"),
+        format!("{targeted} ({rule})"),
+    ] {
+        assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+    }
+}
+
+#[test]
+fn phase_out_reminder_keeps_the_controller_of_its_target() {
+    let context = empty_card_characteristics();
+    let text = "{2}, {T}: Target creature you control phases out. (Treat it and anything attached to it as though they don't exist until your next turn.)";
+    exact_roundtrip(text, &context);
+    let wrong = text.replace("you control", "an opponent controls");
+    assert!(super::engine().parse_card(NAME, &wrong, &context).is_err());
+}
+
+#[test]
 fn native_and_bracketed_loyalty_headings_preserve_the_same_activations() {
     let context = empty_card_characteristics();
     let raw = "+2: Draw a card.\n−1: You gain 2 life.\n0: Scry 1.";

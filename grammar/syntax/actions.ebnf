@@ -10190,7 +10190,18 @@ source_tapped_target_counter_program ::= source_tapped_target_untap_rule "," "an
 
 /* Epic appends its keyword action to the spell's preceding instructions. */
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Epic}}]}} */
-shared_spell_epic ::= instructions "." NEWLINE "Epic"
+shared_spell_epic ::= instructions "." NEWLINE "epic"
+
+spell_epic ::= shared_spell_epic | spell_search_epic
+/* @sem Ability::@contextual_reminder($spell_epic, $epic_explanation) */
+spell_epic_reminded ::= spell_epic "(" epic_explanation ")"
+epic_explanation ::= epic_without_targets | epic_with_targets
+/* @sem String::'EpicWithoutTargets' */
+epic_without_targets ::= epic_rule
+/* @sem String::'EpicWithTargets' */
+epic_with_targets ::= epic_rule "you" "may" "choose" "a" "new" "target" "for" "the" "copy" "."
+/* @sem () */
+epic_rule ::= "for" "the" "rest" "of" "the" "game" "," "you" "can't" "cast" "spells" "." "at" "the" "beginning" "of" "each" "of" "your" "upkeeps" "," "copy" "this" "spell" "except" "for" "its" "epic" "ability" "."
 
 /* The copied card is the arrival of this exact exile payment. */
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:One($object_ref)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_copy_single, words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}, exceptions:[$copy_set_enchantment]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */

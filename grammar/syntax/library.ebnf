@@ -166,7 +166,7 @@ search_either_two ::= "," found_action "," ("and" | "then") found_action
 search_filter ::= search_filter_serial_keywords | search_filter_permanent_kind | search_filter_subtype_list | exiled_card_test | search_filter_modified | search_filter_either | search_filter_either_bare | search_filter_distinct_controlled_name | search_filter_shared_object_name | search_filter_keyword_alternative | search_filter_basic_plains_list | search_filter_no_abilities | search_filter_mana_ceiling | search_filter_three_repeated | search_filter_mana_ability_or | search_filter_either_mana_ceiling | search_filter_same_total_event | search_filter_same_name_graveyard | search_filter_head_union
 
 /* "A basic land card or a Desert card": either kind, each with its own noun. */
-/* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
+/* @sem ObjectFilter::AnyOf(@unordered([$card_filter, $card_filter_2])) */
 search_filter_either ::= card_filter "card" "or" ("a" | "an") card_filter "card"
 
 /* @sem @and($card_filter, $modifiers) */
@@ -4096,7 +4096,7 @@ choose_reveal_expansion_name ::= "choose" "a" "card" "name" "from" "the" "Lorwyn
 /* An epic spell resolves its search sentence before the epic action. The
    reusable search clause retains its own search receipt and follow-ups. */
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$clause_search_general, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Epic}}]}} */
-spell_search_epic ::= clause_search_general "." NEWLINE "Epic"
+spell_search_epic ::= clause_search_general "." NEWLINE "epic"
 
 /* The reveal and its consumers share a single observation and X binding. */
 reveal_definition ::= value_event_spell_mana | value
@@ -4128,10 +4128,6 @@ named_search_entry ::= battlefield_control | linked_battlefield_tapped
 /* @prefer always */
 /* @sem $noun_or_four */
 search_filter_four_alternatives ::= noun_or_four "card"
-
-/* Epic is appended to the spell's existing instructions in the same scope. */
-/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Epic}}]}} */
-spell_instructions_epic ::= instructions "." NEWLINE "Epic"
 
 /* A four-kind search with a separately stated found-card action. */
 /* @prefer always */
@@ -4183,10 +4179,6 @@ exile_observed_library_up_to ::= "you" "may" "exile" value "of" "those" "cards" 
 
 /* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@mark, operation:$look_event_library_top}, ...$exile_observed_library_up_to]}}] */
 instructions_optional_event_library_split ::= "you" "may" look_event_library_top "." exile_observed_library_up_to
-
-/* Epic extends any complete spell instruction sequence without changing its operands. */
-/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Epic}}]}} */
-line_spell_epic ::= instructions "." NEWLINE "Epic"
 
 /* The first choice remains in both conditional branches; the extra choice is
    available only when the condition holds. Both branches reveal and move the

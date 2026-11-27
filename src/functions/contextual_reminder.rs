@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 mod casting;
 mod evidence;
 mod mechanic_notes;
+mod object_notes;
 
 pub(crate) fn is_symbol(name: &str) -> bool {
     matches!(
@@ -154,6 +155,7 @@ fn devotion(args: &Value) -> Option<&'static str> {
         "Black" => Some("DevotionBlack"),
         "Red" => Some("DevotionRed"),
         "Green" => Some("DevotionGreen"),
+        "Chosen" => Some("DevotionChosen"),
         _ => None,
     }
 }
@@ -453,6 +455,7 @@ fn visit_mentions<'a>(
         })
         || !measured && ordinary_activation(ability) && visit("InstantActivation", None)
         || !measured && mechanic_notes::root_mentions(ability, |topic| visit(topic, None))
+        || !measured && object_notes::mentions(ability, |topic| visit(topic, None))
         || !measured && evidence::root_mentions(ability, |topic| visit(topic, None))
 }
 
@@ -529,6 +532,11 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
                     | "NoncreatureForm"
                     | "BattlefieldReturn"
                     | "ReturnExiledCreature"
+                    | "PhaseOutUntilYourTurn"
+                    | "EquipmentKeepsController"
+                    | "SummoningSickness"
+                    | "EpicWithoutTargets"
+                    | "EpicWithTargets"
             )
         )
     )
@@ -581,9 +589,19 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
     } else {
         ability
     };
-    // Spell paragraphs can share a whole-card frame. Their directly proved
-    // reminders stay with the written paragraph when paragraphs are joined.
-    let deferred = inner["kind"] != "Spell" && bound_claim(name, explanation);
+    // Spell paragraphs can share a whole-card frame. A claim about the
+    // spell's own targets must wait for that announcement to be bound.
+    let needs_bound_spell = matches!(
+        explanation.as_str(),
+        Some(
+            "EquipmentKeepsController"
+                | "SummoningSickness"
+                | "EpicWithoutTargets"
+                | "EpicWithTargets"
+        )
+    );
+    let deferred =
+        (inner["kind"] != "Spell" || needs_bound_spell) && bound_claim(name, explanation);
     let matches = if deferred {
         true
     } else if let Some(candidates) = typed_claims(name, inner) {
