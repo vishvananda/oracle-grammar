@@ -12,6 +12,12 @@ impl<'a> Scope<'a> {
 
     pub(super) fn objects(&self, objects: &ObjectSet) -> Result {
         match objects {
+            ObjectSet::FightParticipants(result) => {
+                if !matches!(self.results.get(&result.0), Some(ResultKind::Fight)) {
+                    return Err("fight participants require a fight result".into());
+                }
+                Ok(())
+            }
             ObjectSet::Prepared(binding) => {
                 if self.prepared.contains_key(&binding.0) {
                     Ok(())
@@ -219,6 +225,21 @@ impl<'a> Scope<'a> {
     #[inline]
     pub(super) fn expr(&self, expression: &Expr) -> Result {
         match expression {
+            Expr::CountersPlaced {
+                result,
+                objects,
+                by,
+                ..
+            } => {
+                if !matches!(
+                    self.results.get(&result.0),
+                    Some(ResultKind::CounterPlacement)
+                ) {
+                    return Err("counter placements require a counter-placement result".into());
+                }
+                self.filter(objects)?;
+                self.player(by)
+            }
             Expr::DamageBy(_) | Expr::ModesChosen(_) => self.expr_case_0(expression),
             Expr::AdditionalCostPaid(_) => self.expr_case_0(expression),
             Expr::DraftNoted { .. } => self.expr_case_0(expression),

@@ -25023,11 +25023,12 @@ first_return_subtype ::= creature_subtype
 second_return_subtype ::= creature_subtype
 
 /* Both conditional arrivals inspect the same entering permanent. It can
-   receive either, both or neither type of additional counter. */
-/* @sem Instruction::[Effect{result:@next,operation:ChooseObjects{player:AbilityController,objects:Zone{scope:Players{zone:Hand,players:One(AbilityController)},kind:Card,filter:AnyOf([$filter_phrase,$filter_phrase_2])},count:UpTo(Constant(1)),constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController),arrival:BattlefieldArrival{}}}]}},Effect{result:@next,operation:@where(Operation::Move{objects:Selected(@prior),destination:Battlefield{controller:Player(AbilityController),arrival:BattlefieldArrival{states:[$conditional_x_counter_arrival,$conditional_x_counter_arrival_2]}},qualifiers:[]},$value)}] */
+   receive either, both or neither type of additional counter, all using the
+   single value determined before it enters. */
+/* @sem Instruction::[Effect{result:@next,operation:ChooseObjects{player:AbilityController,objects:Zone{scope:Players{zone:Hand,players:One(AbilityController)},kind:Card,filter:AnyOf([$filter_phrase,$filter_phrase_2])},count:UpTo(Constant(1)),constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController),arrival:BattlefieldArrival{}}}]}},Effect{result:@mark,operation:BindValue{value:$value}},Effect{result:@next,operation:Move{objects:Selected(@back(3)),destination:Battlefield{controller:Player(AbilityController),arrival:BattlefieldArrival{states:[$conditional_x_counter_arrival,$conditional_x_counter_arrival_2]}},qualifiers:[]}}] */
 instructions_hand_entry_dual_counter_kind ::= "you" "may" "put" "a" filter_phrase "or" filter_phrase "card" "from" "your" "hand" "onto" "the" "battlefield" "." "it" "enters" "with" conditional_x_counter_arrival "and" conditional_x_counter_arrival "," "where" "X" "is" value
 
-/* @sem BattlefieldState::When{filter:$filter_phrase,entry:BattlefieldArrival{counters:[[$counter_kind,AnnouncedX]]}} */
+/* @sem BattlefieldState::When{filter:$filter_phrase,entry:BattlefieldArrival{counters:[[$counter_kind,BoundValue(@marked)]]}} */
 conditional_x_counter_arrival ::= "X" "additional" counter_kind "counters" "on" "it" "if" "it's" "a" filter_phrase
 
 /* Make the card copies from the actual exile arrival; only those copies may
@@ -25047,3 +25048,36 @@ instructions_optional_hand_entry_delay ::= "you" "may" hand_entry_payment_compon
    draw is a reflexive trigger on the delayed move, not on entering. */
 /* @sem Instruction::[Effect{result:@mark,operation:PayCost{player:AbilityController,cost:Cost{parts:[$hand_entry_payment_component]},optional:true}},If{condition:PaymentChosen(@marked),then:_{instructions:[Effect{result:@next,operation:CreateContinuousEffect{source:Source,affected:Objects(InZone{objects:CostObjects{payment:Resolution(@marked),component:[0],view:Performed,phase:After},zone:Battlefield}),changes:$grants,duration:Indefinite,evaluation:Snapshot}},Effect{result:@next,operation:CreateDelayedTrigger{event:$delayed_move_any_end,start:Immediately,body:_{instructions:[Effect{result:@next,operation:Move{objects:InZone{objects:CostObjects{payment:Resolution(@marked),component:[0],view:Performed,phase:After},zone:Battlefield},destination:Library{position:Bottom,order:DestinationDefault,arrival:CardArrival{}},qualifiers:[]}},Effect{result:@next,operation:@reflexive(Operation::ReflexiveTrigger{performed:@prior,announcement:@announcement,body:_{instructions:[Effect{result:@next,operation:@apply(PlayerSet::One(AbilityController),$draw_base)}]}})}]}}}]},otherwise:_{}}] */
 instructions_hand_entry_haste_delayed_reflexive ::= "you" "may" hand_entry_payment_component "." "that" "creature" "gains" grants "." "at" delayed_move_any_end "," "put" "it" "on" "the" "bottom" "of" "your" "library" "." "when" "you" "do" "," draw_base
+
+/* Each opponent contributes a separate optional target. All follow-ups
+   keep those original announced creature identities. */
+/* @sem Instruction::[Effect{result:@next,operation:CreateContinuousEffect{source:Source,affected:Objects($opponent_low_mana_creature_targets),changes:[SetController(AbilityController)],duration:$duration,evaluation:Snapshot}},Effect{result:@next,operation:SetTapped{objects:$opponent_low_mana_creature_targets,tapped:false}},Effect{result:@next,operation:CreateContinuousEffect{source:Source,affected:Objects($opponent_low_mana_creature_targets),changes:[CreatureTypes{mode:Add,types:Listed($cross_creature_types)},...$grants],duration:$duration_2,evaluation:Snapshot}}] */
+instructions_worf_control_untap_grant ::= "for" "each" "opponent" "," "gain" "control" "of" opponent_low_mana_creature_targets duration "." "untap" "those" "creatures" "." duration "," "they" "become" cross_creature_types "in" "addition" "to" "their" "other" "types" "and" "gain" grants
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot,kind:Object(_{kind:Permanent,zones:[Battlefield]}),count:PerPlayer{players:OpponentsOf(AbilityController),each:UpTo(Constant(1))},filter:AllOf([CardType(Creature),$modifier_mana_value_bound])})) */
+opponent_low_mana_creature_targets ::= "up" "to" "one" "target" "creature" "that" "player" "controls" modifier_mana_value_bound
+
+/* Qualify the actual placement receipt by the written kind and recipients. */
+/* @sem Instruction::[Effect{result:@mark,operation:$put_counters_direct},If{condition:Compare{left:CountersPlaced{result:@marked,kind:PowerToughness(1,1),objects:CardType(Creature),by:AbilityController},test:NumberTest::Compare{comparison:GreaterOrEqual,value:$number}},then:_{instructions:[Effect{result:@next,operation:@apply(PlayerSet::One(AbilityController),$draw_base)}]},otherwise:_{}}] */
+instructions_guinan_recorded_counter_draw ::= put_counters_direct "." "if" "you" "put" number "or" "more" "+" "1" "/" "+" "1" "counters" "on" "creatures" "this" "way" "," draw_base
+
+/* No delayed trigger follows a mere announcement. Its filter captures
+   precisely the participants of the fight that happened. */
+/* @sem Instruction::[Optional{decider:AbilityController,body:_{instructions:[Effect{result:@mark,operation:Keyword{actor:One(AbilityController),action:Fight{first:$retrigger_other_controlled_target,second:$target_permanent}}},Effect{result:@next,operation:CreateTrigger{event:ZoneChange{objects:InSet(FightParticipants(@marked)),from:Battlefield,to:Graveyard},duration:EndOfTurn,announcement:Announcement{},body:_{instructions:[Effect{result:@next,operation:@apply(PlayerSet::One(AbilityController),$draw_base)}]}}}]}}] */
+instructions_optional_fight_death_draw ::= "choose" retrigger_other_controlled_target "and" target_permanent "." "you" "may" "have" "the" "chosen" "creatures" "fight" "each" "other" "." "whenever" "a" "creature" "that" "fought" "this" "way" "dies" "this" "turn" "," "you" draw_base
+
+/* The active target player makes the immediate cast. Copy only their
+   actual resulting spell, and let the ability controller choose copy targets. */
+/* @sem Instruction::[Effect{result:@mark,operation:CastMatching{actor:One($active_target_opponent),cards:Zone{scope:Players{zone:Hand,players:One($active_target_opponent)},kind:Card,filter:Any},count:UpTo(Constant(1)),filter:Any,cost:Free}},If{condition:Compare{left:CountObjects(Transition{result:@marked,phase:Before}),test:NumberTest::Compare{comparison:GreaterOrEqual,value:Constant(1)}},then:_{instructions:[Effect{result:@next,operation:CopyOnStack{actor:One(AbilityController),object:Result{result:@marked,phase:After,index:0},times:Constant(1),targets:May}}]},otherwise:_{instructions:[Effect{result:@next,operation:@apply(PlayerSet::One(AbilityController),$draw_base)}]}}] */
+instructions_opponent_cast_copy_or_draw ::= active_target_opponent "may" "cast" "a" "spell" "from" "their" "hand" "without" "paying" "its" "mana" "cost" "." "if" "they" "do" "," "you" "copy" "that" "spell" "." "you" "may" "choose" "new" "targets" "for" "the" "copy" "." "if" "they" "don't" "," "you" draw_base
+
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot,kind:Player,count:Exactly(Constant(1)),filter:Any,players:Intersection([OpponentsOf(AbilityController),One(Active)])}),index:0} */
+active_target_opponent ::= "target" "opponent" "whose" "turn" "it" "is"
+
+/* The spell's controller decides the exile. The resolving spell's
+   controller can choose the second cast only if that player declined. */
+/* @sem Instruction::[Effect{result:@mark,operation:PayCost{player:ControllerOf($brazen_target_spell),cost:Cost{parts:[PlayerAction{player:ControllerOf($brazen_target_spell),body:_{instructions:[Effect{result:@next,operation:Move{objects:One($brazen_target_spell),destination:Exile{visibility:FaceUp,arrival:ExileArrival{}},qualifiers:[]}}]}}]},optional:true}},If{condition:Not(PaymentChosen(@marked)),then:_{instructions:[Effect{result:@next,operation:CastMatching{actor:One(AbilityController),cards:Zone{scope:Players{zone:Hand,players:One(AbilityController)},kind:Card,filter:Any},count:UpTo(Constant(1)),filter:Not(CardType(Creature)),cost:Free}}]},otherwise:_{}}] */
+instructions_brazen_optional_exile_cast ::= "choose" brazen_target_spell "." "that" "player" "may" "exile" "it" "." "if" "they" "don't" "," "you" "may" "cast" "a" "noncreature" "spell" "from" "your" "hand" "without" "paying" "its" "mana" "cost"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot,kind:Object(_{kind:Spell,zones:[Stack]}),count:Exactly(Constant(1)),filter:AllOf([Not(CardType(Creature)),ControlledBy(OpponentsOf(AbilityController))])}),index:0} */
+brazen_target_spell ::= "target" "noncreature" "spell" "an" "opponent" "controls"

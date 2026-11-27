@@ -369,6 +369,9 @@ pub enum ObjectSet {
         from: Option<EventZone>,
         to: Option<EventZone>,
     },
+    /// The actual participants of the referenced fight. If a creature
+    /// could not fight, the set is empty rather than the attempted pair.
+    FightParticipants(ResultId),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

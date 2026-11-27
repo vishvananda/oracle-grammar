@@ -66,3 +66,29 @@ fn battlefront_reads_attacked_opponents_from_history() {
     assert_eq!(pump["power"]["args"]["kind"], "OpponentsAttackedBy");
     assert_eq!(pump["power"]["args"]["args"]["window"], "ThisTurn");
 }
+
+#[test]
+fn copy_exception_keeps_creature_subtype_alongside_artifact_type() {
+    let engine = engine();
+    let name = "Reg Barclay, Fidgety Fantasist";
+    let text = concat!(
+        "Seek out — Whenever you draw your second card each turn, ",
+        "create a token that's a copy of another target creature you control, ",
+        "except it isn't legendary, it's an Illusion artifact in addition to its other types, ",
+        "and it has haste. Exile that token at the beginning of the next end step."
+    );
+    let parsed = engine.parse(name, text).unwrap();
+    let [reading] = parsed.readings.as_slice() else {
+        panic!("expected one reading");
+    };
+    let exceptions = &reading[0]["args"]["ability"]["args"]["body"]["instructions"][0]["args"]["operation"]
+        ["args"]["tokens"][0]["recipe"]["Copy"]["exceptions"];
+    assert!(exceptions.as_array().unwrap().contains(&serde_json::json!({
+        "kind":"AddCreatureTypes",
+        "args":["Illusion"]
+    })));
+    assert!(exceptions.as_array().unwrap().contains(&serde_json::json!({
+        "kind":"AddCardTypes",
+        "args":["Artifact"]
+    })));
+}

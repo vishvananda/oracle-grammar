@@ -248,4 +248,5 @@ pub enum CounterType {
     // Action Counter
     ShieldCounter,
     StunCounter,
+    PeaceCounter,
 }

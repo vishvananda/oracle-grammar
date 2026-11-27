@@ -215,23 +215,7 @@ impl<'a> Scope<'a> {
             }
             PlayerRule::PlayPermissionWith { permission, terms } => {
                 self.player_rule(permission)?;
-                if let Some(players) = &terms.during {
-                    self.players(players)?;
-                }
-                if let PlayCost::Alternate(cost) | PlayCost::Additional(cost) = &terms.cost {
-                    self.operand(cost)?;
-                }
-                if let Some(condition) = &terms.condition {
-                    self.condition(condition)?;
-                }
-                // A program here runs as the card is cast, and reads that spell.
-                let mut cast = self.clone();
-                cast.event.object = true;
-                cast.event.spell = true;
-                terms.effects.iter().try_for_each(|o| match o {
-                    Operand::Program(_) => cast.operand(o),
-                    _ => self.operand(o),
-                })
+                self.play_permission_terms(terms)
             }
             PlayerRule::Primitive { name, operands } => self.primitive(name, operands),
             PlayerRule::SpellsHaveAbilities {
@@ -288,6 +272,26 @@ impl<'a> Scope<'a> {
             } if colors.is_empty() => Err("empty mana retention colors".into()),
             _ => Ok(()),
         }
+    }
+
+    fn play_permission_terms(&self, terms: &PlayTerms) -> Result {
+        if let Some(players) = &terms.during {
+            self.players(players)?;
+        }
+        if let PlayCost::Alternate(cost) | PlayCost::Additional(cost) = &terms.cost {
+            self.operand(cost)?;
+        }
+        if let Some(condition) = &terms.condition {
+            self.condition(condition)?;
+        }
+        // A program here runs as the card is cast, and reads that spell.
+        let mut cast = self.clone();
+        cast.event.object = true;
+        cast.event.spell = true;
+        terms.effects.iter().try_for_each(|o| match o {
+            Operand::Program(_) => cast.operand(o),
+            _ => self.operand(o),
+        })
     }
 
     fn limited_spending(
