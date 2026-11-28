@@ -675,6 +675,7 @@ impl Walker {
                         value,
                         self.scopes.last().map(|scope| &scope.optional_targets),
                     );
+                    keywords::detain_singleton(value);
                     if !self.keep_order {
                         keywords::turn_linked_face_up(value);
                     }

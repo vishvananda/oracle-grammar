@@ -1,4 +1,4 @@
-//! A single-object Suspect and Suspect over a singleton set are one action.
+//! Canonical forms for keyword actions and their object populations.
 use crate::ir::Operand;
 use serde_json::{Value, json};
 use std::collections::HashSet;
@@ -57,6 +57,24 @@ pub(super) fn suspect(value: &mut Value, optional: Option<&HashSet<u64>>) {
     *value = json!({"kind":"KeywordEach","args":{
         "actor":actor,"action":"Suspect","objects":objects(object, optional)
     }});
+}
+
+/// Detaining the sole member of an explicit singleton detains that object once.
+pub(super) fn detain_singleton(value: &mut Value) {
+    let args = &value["args"];
+    let objects = &args["objects"];
+    if value["kind"] == "KeywordEach"
+        && value.as_object().is_some_and(|fields| fields.len() == 2)
+        && args.as_object().is_some_and(|fields| fields.len() == 3)
+        && args["action"] == "Detain"
+        && objects["kind"] == "One"
+        && objects.as_object().is_some_and(|fields| fields.len() == 2)
+        && let (Some(actor), Some(object)) = (args.get("actor"), objects.get("args"))
+    {
+        *value = json!({"kind":"Keyword","args":{
+            "actor":actor,"action":{"Detain":{"object":object}}
+        }});
+    }
 }
 
 /// Each villainous option is one program, including the legacy single-item list.

@@ -103,6 +103,35 @@ fn legacy_suspect(mut reading: Value, at: usize) -> Value {
 }
 
 #[test]
+fn detain_on_one_object_has_one_reading_and_prints_its_current_target() {
+    let text = "Detain target artifact an opponent controls.\nDraw two cards.";
+    let name = "Context example";
+    let types = ["Sorcery".to_string()];
+    let parsed = engine()
+        .parse_without_types(name, text, &types, &Default::default())
+        .unwrap();
+    assert_eq!(parsed.readings.len(), 1, "{:#?}", parsed.readings);
+    let reading = &parsed.readings[0];
+    let detain = operation(reading, 0);
+    assert_eq!(detain["kind"], "Keyword");
+
+    let mut singleton = reading.clone();
+    singleton[0]["args"]["body"]["instructions"][0]["args"]["operation"] = json!({
+        "kind":"KeywordEach","args":{
+            "actor":detain["args"]["actor"],"action":"Detain","objects":{
+                "kind":"One","args":detain["args"]["action"]["Detain"]["object"]
+            }
+        }
+    });
+    validate_abilities(&singleton).unwrap();
+    assert_eq!(canonical_abilities(&singleton).unwrap(), *reading);
+    assert_eq!(printed_types(&singleton, &["Sorcery"]), text);
+
+    let group = compositional("Detain each creature an opponent controls.");
+    assert_eq!(operation(&group, 0)["kind"], "KeywordEach");
+}
+
+#[test]
 fn suspect_has_one_shape_and_preserves_legacy_actor_and_object_operands() {
     let reading = compositional("Target player draws a card. Suspect target creature.");
     let mut legacy = legacy_suspect(reading.clone(), 1);

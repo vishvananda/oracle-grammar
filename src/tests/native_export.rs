@@ -42,6 +42,61 @@ fn native_export_validates_and_keeps_refusals_explicit() {
 }
 
 #[test]
+fn empower_jace_explanations_keep_the_actual_count() {
+    let engine = crate::test_support::engine();
+    let valid = concat!(
+        "Empower Jace 2. (Put two loyalty counters on a Jace token you control. ",
+        "If you don't control one, first create a blue Jace planeswalker token ",
+        "with \"[−1]: Surveil 1\" and \"[−3]: Draw a card.\")",
+    );
+    let changed = valid.replace("two loyalty", "three loyalty");
+    let faces = scryfall(&[
+        raw("valid", "Synthetic loyalty", valid),
+        raw("inconsistent", "Synthetic loyalty", &changed),
+    ])
+    .unwrap();
+    let parsed = outcome(engine, &faces[0]);
+    assert_eq!(parsed["status"], "unique", "{parsed}");
+    let abilities = &parsed["readings"][0]["card"]["abilities"];
+    let operation =
+        &abilities[0]["args"]["ability"]["args"]["body"]["instructions"][0]["args"]["operation"];
+    assert_eq!(
+        operation["args"]["action"]["EmpowerJace"]["amount"],
+        json!({"kind":"Constant","args":2}),
+        "{abilities}"
+    );
+    assert_eq!(outcome(engine, &faces[1])["status"], "refused");
+}
+
+#[test]
+fn a_prepared_entry_licenses_the_prepared_cast_reminder() {
+    let engine = crate::test_support::engine();
+    let reminder =
+        "(While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)";
+    let mut prepared = raw(
+        "prepared",
+        "Synthetic preparer",
+        &format!("This creature enters prepared. {reminder}"),
+    );
+    prepared["type_line"] = json!("Creature — Human");
+    prepared["power"] = json!("2");
+    prepared["toughness"] = json!("2");
+    let mut unrelated = prepared.clone();
+    unrelated["oracle_id"] = json!("unrelated");
+    unrelated["oracle_text"] = json!(format!("This creature enters tapped. {reminder}"));
+    let faces = scryfall(&[prepared, unrelated]).unwrap();
+    let parsed = outcome(engine, &faces[0]);
+    assert_eq!(parsed["status"], "unique", "{parsed}");
+    let replacement = &parsed["readings"][0]["card"]["abilities"][0]["args"]["ability"];
+    assert_eq!(replacement["kind"], "Replacement");
+    assert_eq!(
+        replacement["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["change"],
+        json!({"Entry":"Prepared"})
+    );
+    assert_eq!(outcome(engine, &faces[1])["status"], "refused");
+}
+
+#[test]
 fn resource_limit_cannot_export_partial_success() {
     let mut engine = Engine::load().unwrap();
     engine.limits.steps = 0;

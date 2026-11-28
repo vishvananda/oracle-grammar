@@ -455,6 +455,18 @@ fn ability_mentions(
     {
         return true;
     }
+    if ability["kind"] == "Replacement"
+        && args["active"] == "SourceEntering"
+        && args["event"]["Enter"]["objects"]["kind"] == "SameObject"
+        && args["event"]["Enter"]["objects"]["args"]["kind"] == "Source"
+        && let Some([step]) = args["body"]["instructions"].as_array().map(Vec::as_slice)
+        && let Some(operation) = step_operation(step)
+        && operation["kind"] == "ModifyEvent"
+        && operation["args"]["change"]["Entry"] == "Prepared"
+        && visit("PreparedSource")
+    {
+        return true;
+    }
     let changes = &args["changes"];
     let filter = &args["affected"]["Objects"]["args"]["filter"];
     if ability["kind"] == "Static" {
