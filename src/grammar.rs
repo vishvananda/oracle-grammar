@@ -166,6 +166,15 @@ pub fn seeded(name: &str) -> bool {
     name.starts_with("m_") || name.starts_with("t_")
 }
 
+fn presentation_terms_match(words: &[&str], label: &str) -> bool {
+    match words.split_last() {
+        Some((&punctuation, head)) if matches!(punctuation, "!" | "?") => label
+            .strip_suffix(punctuation)
+            .is_some_and(|stem| head.join(" ").eq_ignore_ascii_case(stem)),
+        _ => words.join(" ").eq_ignore_ascii_case(label),
+    }
+}
+
 /// A small validated catalogue, shared by built-in and hot-loaded normalization.
 pub(crate) fn presentation_labels(source: &str) -> Result<Vec<String>, String> {
     let (notes, _) = declarations(source)?;
@@ -210,7 +219,7 @@ pub(crate) fn presentation_labels(source: &str) -> Result<Vec<String>, String> {
                         _ => None,
                     })
                     .collect();
-                if !words.is_some_and(|words| words.join(" ").eq_ignore_ascii_case(&label)) {
+                if !words.is_some_and(|words| presentation_terms_match(&words, &label)) {
                     return Err(format!(
                         "{name}: presentation label disagrees with its terminals"
                     ));

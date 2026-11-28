@@ -1257,3 +1257,19 @@ fn ordered_key_preserves_an_admitted_reminder_gap() {
             .is_none()
     );
 }
+
+#[test]
+fn label_validation_preserves_terminal_punctuation() {
+    let grammar = r#"
+        /* @sem String::'No One Dies!' */
+        ability_label ::= "no" "One" "Dies" "!"
+    "#;
+    let labels = crate::grammar::presentation_labels(grammar).unwrap();
+    assert_eq!(labels, ["No One Dies!"]);
+
+    for incorrect in ["No One Dies?", "No One Dies !", "No One Lives!"] {
+        let changed = grammar.replace("No One Dies!", incorrect);
+        let error = crate::grammar::presentation_labels(&changed).unwrap_err();
+        assert!(error.contains("presentation label disagrees with its terminals"));
+    }
+}

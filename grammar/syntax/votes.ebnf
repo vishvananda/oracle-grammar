@@ -35,7 +35,7 @@ condition_most_votes ::= vote_word "gets" "more" "votes"
 condition_most_votes_or_tied ::= vote_word "gets" "more" "votes" "or" "the" "vote" "is" "tied"
 
 /* The words a ballot offers, each a data terminal that prints as written. */
-vote_word ::= vote_truth | vote_consequences | vote_redhorn_pass | vote_mines_of_moria | vote_bribery | vote_carnage | vote_chaos | vote_condemnation | vote_death | vote_denial | vote_dominion | vote_duplication | vote_embark | vote_evidence | vote_feather | vote_free | vote_grace | vote_guidance | vote_harvest | vote_homage | vote_knowledge | vote_money | vote_numbers | vote_past | vote_planeswalk | vote_present | vote_profit | vote_psychosis | vote_quill | vote_return | vote_security | vote_sickness | vote_sprout | vote_strength | vote_taxes | vote_time | vote_torture | vote_wild
+vote_word ::= vote_innocent | vote_guilty | vote_truth | vote_consequences | vote_redhorn_pass | vote_mines_of_moria | vote_bribery | vote_carnage | vote_chaos | vote_condemnation | vote_death | vote_denial | vote_dominion | vote_duplication | vote_embark | vote_evidence | vote_feather | vote_free | vote_grace | vote_guidance | vote_harvest | vote_homage | vote_knowledge | vote_money | vote_numbers | vote_past | vote_planeswalk | vote_present | vote_profit | vote_psychosis | vote_quill | vote_return | vote_security | vote_sickness | vote_sprout | vote_strength | vote_taxes | vote_time | vote_torture | vote_wild
 /* @sem String::'Bribery' */
 vote_bribery ::= "bribery"
 /* @sem String::'Carnage' */
@@ -340,3 +340,13 @@ shared_choice_three_outcomes ::= shared_three_word_choices "." shared_choice_out
 
 /* @sem Instruction::[...$each_player_mill_cards, ...$choose_graveyard_card_added_type] */
 instructions_mill_graveyard_entry ::= each_player_mill_cards "." "then" choose_graveyard_card_added_type
+
+/* @sem String::'innocent' */
+vote_innocent ::= "innocent"
+
+/* @sem String::'guilty' */
+vote_guilty ::= "guilty"
+
+/* The winning outcome reads the linked exiled cards, using each card's owner's library. */
+/* @sem Program::Program{instructions:[...$clause_word_vote, If{condition:$condition_most_votes, then:Program{instructions:[ForEachPlayer{players:All, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Zone{scope:Shared(Exile), kind:Card, filter:AllOf([ExiledWith($self_explicit_ref), OwnedBy(One(Bound(0)))])}, destination:Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{}}, qualifiers:[]}}]}}]}, otherwise:Program{}}]} */
+program_vote_linked_exile_bottom ::= clause_word_vote "." "if" condition_most_votes "," "the" "owner" "of" "each" "card" "exiled" "with" self_explicit_ref "puts" "that" "card" "on" "the" "bottom" "of" "their" "library"

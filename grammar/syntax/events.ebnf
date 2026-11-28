@@ -4691,7 +4691,7 @@ triggered_cast_origin_exile_linked ::= "whenever" event_player_casts_from_own_zo
 /* @sem EventSpec::NthCounter{kind:$nth_counter_kind, objects:$event_self, nth:$counter_event_ordinal} */
 event_nth_counter_source ::= "the" counter_event_ordinal nth_counter_kind "counter" "is" "put" "on" event_self
 
-counter_event_ordinal ::= ordinal | ordinal_fifth
+counter_event_ordinal ::= ordinal | ordinal_fifth | ordinal_seventh
 
 nth_counter_kind ::= nth_counter_plan | nth_counter_hour
 
@@ -8911,3 +8911,16 @@ copy_cast_permanent_pair ::= "artifact" "or" "creature"
 
 /* @sem CopyException::[SetPowerToughness{power:$token_stat, toughness:$token_stat_2}, AddCreatureTypes($becomes_types), AddCardTypes([Creature])] */
 copy_spell_added_creature_stats ::= "the" "copy" "is" "a" token_stat "/" token_stat becomes_types "creature" "in" "addition" "to" "its" "other" "types"
+
+/* @sem Expr::Constant(7) */
+ordinal_seventh ::= "seventh"
+
+/* Announce at most one qualifying creature per opponent. The attacker is
+   the comparison subject and the two effects share the announced group. */
+/* @sem Ability::WithPresentation{reminder:true, ability:Triggered{event:Object{event:Attacks, objects:$event_self}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:SetTapped{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:PerPlayer{players:OpponentsOf(AbilityController), each:UpTo(Constant(1))}, filter:AllOf([CardType(Creature), Property{property:Power, test:NumberTest::Compare{comparison:Less, value:ObjectProperty{object:Source, property:Power, information:CurrentOrLastKnown}}}])})), tapped:true}}, Effect{result:@next, operation:KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Goad{}, objects:Targets(@last_slot)}}]}}} */
+triggered_attacks_tap_goad_lesser ::= "whenever" event_self "attacks" "," "for" "each" "opponent" "," "tap" "up" "to" "one" "target" "creature" "that" "player" "controls" "with" "lesser" "power" "and" "goad" "it" "." "(" reminder_until_your_next_turn "that" "creature" goad_single_requirement ")"
+
+/* The ordinal belongs to the creature's tap history for the turn. Controller
+   and creature type are checked when the event that triggers this ability occurs. */
+/* @sem Ability::Triggered{event:Filtered{event:FirstForObjectEachTurn(Object{event:BecomesTapped, objects:Any}), condition:AllOf([PlayerIsActive(AbilityController), ObjectMatches{object:EventSubject, filter:AllOf([$noun_creature, ControlledBy(One(AbilityController))])}])}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:SetTapped{objects:One(EventSubject), tapped:false}}]}} */
+triggered_first_tap_of_controlled_creature ::= "whenever" "a" noun_creature "you" "control" "becomes" "tapped" "during" "your" "turn" "," "if" "it's" "the" "first" "time" "that" "creature" "has" "become" "tapped" "this" "turn" "," "untap" "it" "."
