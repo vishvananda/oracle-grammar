@@ -51,6 +51,20 @@ pub(super) fn printed_mana_value(cost: &[ManaSymbol]) -> Result<u32, String> {
     })
 }
 
+/// A printed land-play cost describes this source as a land, not a spell or
+/// a generic payment instruction. Check the actual face in both directions.
+pub(super) fn check_land_play_cost(context: &Characteristics, present: bool) -> Result<(), String> {
+    if present
+        && !context
+            .card_types
+            .iter()
+            .any(|kind| matches!(kind, CardType::Land))
+    {
+        return Err("land-play cost requires a printed land face".into());
+    }
+    Ok(())
+}
+
 /// Explanations of rules intrinsic to the source face's layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub enum LayoutReminder {
@@ -184,6 +198,22 @@ pub(super) struct CountedPowerExample {
 }
 
 impl CardSurface {
+    pub(super) fn decode(
+        value: serde_json::Value,
+        context: &Characteristics,
+    ) -> Result<Self, String> {
+        let surface: Self =
+            serde_json::from_value(value).map_err(|why| format!("typed card surface: {why}"))?;
+        check_land_play_cost(
+            context,
+            surface
+                .abilities
+                .iter()
+                .any(|ability| matches!(ability, Ability::LandPlayCost { .. })),
+        )?;
+        Ok(surface)
+    }
+
     pub(super) fn note_count(&self) -> usize {
         self.notes.len()
             + usize::from(self.land_mana.is_some())
@@ -286,4 +316,26 @@ pub(super) fn example_toughness(value: Option<i32>) -> Result<u32, String> {
     value
         .and_then(|value| u32::try_from(value).ok())
         .ok_or_else(|| "power example needs a fixed printed toughness".into())
+}
+
+#[cfg(test)]
+mod land_play_cost_tests {
+    use super::check_land_play_cost;
+    use crate::model::ir::Characteristics;
+    use crate::model::mtg_types::CardType;
+    use serde_json::json;
+
+    #[test]
+    fn land_play_cost_requires_a_land_but_does_not_restrict_other_abilities() {
+        let mut context: Characteristics = serde_json::from_value(json!({
+            "supertypes":[], "card_types":["Land", "Creature"], "subtypes":[],
+            "mana_cost":null, "color_indicator":[], "power_toughness":null,
+            "loyalty":null, "defense":null
+        }))
+        .unwrap();
+        assert!(check_land_play_cost(&context, true).is_ok());
+        context.card_types = vec![CardType::Creature];
+        assert!(check_land_play_cost(&context, true).is_err());
+        assert!(check_land_play_cost(&context, false).is_ok());
+    }
 }

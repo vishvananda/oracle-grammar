@@ -34,7 +34,12 @@ impl<'a> Scope<'a> {
             ObjectFilter::Noted(_) | ObjectFilter::NthChosen(_) => Ok(()),
             ObjectFilter::NameMatches(query) => validate_name_match(query),
             ObjectFilter::RepresentsCharacterTrait(_) => Ok(()),
-            ObjectFilter::NameFromChoice(result) => self.name_choice(result),
+            ObjectFilter::NameFromChoice(result) => {
+                self.chosen_value(result, ResultKind::NameChoice)
+            }
+            ObjectFilter::IllustratedByChoice(result) => {
+                self.chosen_value(result, ResultKind::ArtistChoice)
+            }
             ObjectFilter::RepresentsCharacter(name) if !name.trim().is_empty() => Ok(()),
             ObjectFilter::RepresentsCharacter(_) => Err("character name must be nonempty".into()),
             ObjectFilter::MostCommonCreatureTypeIn(player) => self.player(player),
@@ -255,11 +260,14 @@ impl<'a> Scope<'a> {
         self.objects(others)
     }
 
-    fn name_choice(&self, result: &ResultId) -> Result {
-        if matches!(self.results.get(&result.0), Some(ResultKind::NameChoice)) {
+    fn chosen_value(&self, result: &ResultId, kind: ResultKind) -> Result {
+        if self.results.get(&result.0) == Some(&kind) {
             Ok(())
         } else {
-            Err("chosen name requires a visible name choice".into())
+            Err(format!(
+                "result {} is not an available {:?}",
+                result.0, kind
+            ))
         }
     }
 

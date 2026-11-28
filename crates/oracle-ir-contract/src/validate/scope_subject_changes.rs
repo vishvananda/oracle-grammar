@@ -249,6 +249,7 @@ impl<'a> Scope<'a> {
                 }
                 self.count(count)
             }
+            PlayerRule::PromptAsCast { spells, .. } => self.filter(spells),
             PlayerRule::SpellCost { spells, modifier } => {
                 self.filter(spells)?;
                 let mut each = self.clone();

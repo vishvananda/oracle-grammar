@@ -711,6 +711,9 @@ pub enum ObjectFilter {
     RepresentsCharacterTrait(CharacterTrait),
     /// Has the name chosen by the stated name choice in this resolution.
     NameFromChoice(ResultId),
+    /// The current physical or digital printing credits the chosen artist.
+    /// The same Oracle card may have printings with different artists.
+    IllustratedByChoice(ResultId),
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

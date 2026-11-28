@@ -18,6 +18,15 @@ impl<'a> Scope<'a> {
                 child.outside_gift = true;
                 child.program(on_gift)
             }
+            Operation::SearchForFavoriteArt {
+                searcher,
+                library_owner,
+                qualifying,
+            } => {
+                self.player(searcher)?;
+                self.player(library_owner)?;
+                self.filter(qualifying)
+            }
             Operation::ChooseFavoriteArt {
                 in_game_choosers,
                 cards,

@@ -312,6 +312,8 @@ impl<'a> Scope<'a> {
                                 ResultKind::CoinBatch
                             }
                             Operation::ChooseValue { kind: ValueKind::Name, .. } => ResultKind::NameChoice,
+                            Operation::ChooseValue { kind: ValueKind::MagicArtist, .. } => ResultKind::ArtistChoice,
+                            Operation::SearchForFavoriteArt { .. } => ResultKind::Search,
                             Operation::ChooseObjects { .. }
                             | Operation::ChooseFavoriteArt { .. }
                             | Operation::SeparatePiles { .. }

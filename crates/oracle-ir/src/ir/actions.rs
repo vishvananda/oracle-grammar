@@ -109,6 +109,8 @@ pub enum ValueKind {
     ColorAndCreatureType,
     /// Choose a name. The choice is unrestricted by the catalog of card names.
     Name,
+    /// A person credited as an illustrator of a Magic printing.
+    MagicArtist,
 }
 
 #[derive(

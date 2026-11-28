@@ -22,8 +22,8 @@ pub use station::{CardInputContext, StationAnimationBox};
 pub use surface::{AdventureReturnType, LayoutReminder};
 use surface::{
     CardSurface, CountedPowerExample, LandMana, MonocoloredHybridNote, check_compleated,
-    check_no_mana_cost, check_retained_artifact_type, copy_token_note_types, creature_note_types,
-    example_toughness, fixed_identity_color, printed_mana_value,
+    check_land_play_cost, check_no_mana_cost, check_retained_artifact_type, copy_token_note_types,
+    creature_note_types, example_toughness, fixed_identity_color, printed_mana_value,
 };
 
 /// A reference into current characteristics, never a retained mana operand.
@@ -371,8 +371,7 @@ impl Engine {
         let mut value = value.clone();
         let station_notes =
             bind_source_abilities(&mut value, name, context, source, permanent_source)?;
-        let surface: CardSurface = serde_json::from_value(value)
-            .map_err(|why| Refusal::Binding(format!("typed card surface: {why}")))?;
+        let surface = CardSurface::decode(value, context).map_err(Refusal::Binding)?;
         if let Some(source) = source {
             source
                 .printed_power_toughness
@@ -572,6 +571,12 @@ impl Engine {
         written: bool,
     ) -> Result<Vec<Value>, String> {
         self.card_context(context)?;
+        let has_land_play_cost = reading.abilities.as_array().is_some_and(|abilities| {
+            abilities
+                .iter()
+                .any(|ability| ability.get("kind").and_then(Value::as_str) == Some("LandPlayCost"))
+        });
+        check_land_play_cost(context, has_land_play_cost)?;
         if reading.notes.len() > self.limits.depth {
             return Err("card note limit".into());
         }

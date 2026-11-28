@@ -9235,5 +9235,20 @@ merch_symbol_cost ::= merch_cost_one | merch_cost_two | merch_cost_four
 /* @sem Ability::Activated{origin:Ordinary, cost:$merch_symbol_cost, limits:ActivationLimits{}, announcement:@announcement, body:$program} */
 merch_symbol_activated ::= merch_symbol_cost "—" program "."
 
+/* Each player chooses the artwork while carrying out their own search. */
+/* @sem Ability::Triggered{event:$event_planeswalk_here, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[ForEachPlayer{players:All, binding:0, body:Program{instructions:[Effect{result:@mark, operation:SearchForFavoriteArt{searcher:Bound(0), library_owner:Bound(0), qualifying:AllOf([$card_permanent, Not(CardType(Land))])}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Hand{player:Bound(0), arrival:CardArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}]}} */
+triggered_museum_favorite_art_search ::= "when" event_planeswalk_here "," "each" "player" "searches" "their" "library" "for" "a" "nonland" card_permanent "card" "with" "their" "favorite" "art" "," "shows" "it" "off" "to" "the" "table" "," "puts" "that" "card" "into" "their" "hand" "," "then" "shuffles" "."
+
+/* The prompt and the discount both apply to the same proposed spell. */
+/* @sem Ability::[Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PromptAsCast{spells:$museum_first_spell, prompt:DescribeFavoriteThingAsMuseumCurator}), PlayerRule(SpellCost{spells:$museum_first_spell, modifier:Reduce{reductions:[ManaReduction{amount:$number}], spill_into_generic:true}})]}] */
+line_museum_first_spell_description ::= "as" museum_first_spell "," "describe" "your" "favorite" "thing" "about" "it" "in" "your" "best" "museum" "curator" "voice" "." "it" "costs" number "less" "to" "cast" "."
+
+/* @sem ObjectFilter::NthCast{ordinal:Constant(1), spells:Any, by:One(AbilityController), scope:Turn} */
+museum_first_spell ::= "you" "cast" "your" "first" "spell" "each" "turn"
+
+/* The printed artwork and the chosen artist are independent of Oracle name. */
+/* @sem Ability::Triggered{event:$event_chaos_ensues, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:ChooseValue{choosers:One(AbilityController), kind:MagicArtist, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(Token), ControlledBy(One(AbilityController)), IllustratedByChoice(@marked)])}, exceptions:[]}}], entry:BattlefieldArrival{}}}]}} */
+triggered_museum_artist_copy ::= "whenever" event_chaos_ensues "," "choose" "a" "Magic" "artist" "." "for" "each" "nontoken" "permanent" "you" "control" "by" "that" "artist" "," "create" "a" "token" "that's" "a" "copy" "of" "it" "."
+
 /* @sem EventSpec::Turn{point:FirstMainPhaseBegins, players:$turn_owner} */
 turn_precombat_main ::= "the" "beginning" "of" turn_owner "precombat" "main" "phase"

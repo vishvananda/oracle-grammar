@@ -39,7 +39,7 @@ mod layout;
 /// The slot in `casting_costs` that holds the enclosing cost branch's cost.
 const BRANCH_COST: u32 = u32::MAX;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ResultKind {
     Observation,
     Surveil,
@@ -65,6 +65,7 @@ enum ResultKind {
     PlanarSearch,
     PlayerSuggestions,
     NameChoice,
+    ArtistChoice,
     Blighted,
     OracleCopies,
 }
@@ -1216,3 +1217,6 @@ mod outside_gift_tests;
 
 #[cfg(test)]
 mod omega_media_tests;
+
+#[cfg(test)]
+mod merch_at_tests;

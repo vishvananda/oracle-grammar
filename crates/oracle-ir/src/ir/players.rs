@@ -227,6 +227,19 @@ pub enum PlayerRule {
     PrintedResourceOwnTurnOnly {
         resource: PrintedResource,
     },
+    /// Ask the caster to perform the prompt while proposing an eligible cast.
+    /// The prompt does not change the spell's cost or determine its legality.
+    PromptAsCast {
+        spells: ObjectFilter,
+        prompt: CastPrompt,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CastPrompt {
+    /// Describe the thing the caster likes best about the proposed spell in
+    /// their best museum curator voice.
+    DescribeFavoriteThingAsMuseumCurator,
 }
 
 /// Nonempty distinct card origins sharing one play permission and its limit.
@@ -519,4 +532,6 @@ pub enum ManaPaymentComponent {
 pub enum PrintedResource {
     /// The exact symbol ❖, distinct from all other printed symbols.
     Diamond,
+    /// The exact printed @ symbol, independent of the diamond resource.
+    AtSign,
 }

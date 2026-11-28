@@ -417,6 +417,7 @@ impl<'a> Scope<'a> {
             }
             | Operation::Exchange { .. }
             | Operation::GiftOutsideCard { .. }
+            | Operation::SearchForFavoriteArt { .. }
             | Operation::ChooseFavoriteArt { .. }
             | Operation::JoinRavnicanGuildFromEventSpell { .. }
             | Operation::ChooseRevealThenJoinPlaneAffiliations { .. }

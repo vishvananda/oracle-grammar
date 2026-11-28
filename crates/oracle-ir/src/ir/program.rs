@@ -1203,6 +1203,14 @@ pub enum Operation {
         resource: PrintedResource,
         amount: Expr,
     },
+    /// Search this library for a qualifying card with the searcher's favorite
+    /// illustration. The result has the same selection and search visibility
+    /// as a regular search. The preference belongs to the searching player.
+    SearchForFavoriteArt {
+        searcher: PlayerRef,
+        library_owner: PlayerRef,
+        qualifying: ObjectFilter,
+    },
 }
 
 #[derive(
