@@ -798,27 +798,30 @@ impl Engine {
         Ok(None)
     }
 
-    pub(super) fn replayed_surfaces_types(
+    pub(super) fn replay_first_verified(
         &self,
         root: u32,
         surfaces: Vec<Value>,
         (name, types): (&str, &[String]),
         trail: &[String],
-    ) -> Result<Vec<String>, String> {
-        let Some(trail) = PrintTrail::decode(self, trail) else {
-            return Ok(Vec::new());
-        };
+        mut verify: impl FnMut(&str) -> bool,
+    ) -> Option<String> {
+        let trail = PrintTrail::decode(self, trail)?;
         let names = Names::for_card(name, types);
-        let mut texts = Vec::new();
-        for text in surfaces
-            .iter()
-            .filter_map(|surface| trail.render(self, root, surface, &names))
-        {
-            if !texts.contains(&text) {
-                texts.push(text);
+        let mut rejected = rustc_hash::FxHashSet::default();
+        for surface in &surfaces {
+            let Some(text) = trail.render(self, root, surface, &names) else {
+                continue;
+            };
+            if rejected.contains(&text) {
+                continue;
             }
+            if verify(&text) {
+                return Some(text);
+            }
+            rejected.insert(text);
         }
-        Ok(texts)
+        None
     }
 
     /// A derivation's alternatives, only for the rules where it leaves the default print.

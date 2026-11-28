@@ -123,17 +123,13 @@ impl Engine {
         if reading.notes.is_empty() {
             return self.print_trail_types(name, &types, &reading.abilities, trail);
         }
-        for text in self.replayed_surfaces_types(
+        Ok(self.replay_first_verified(
             self.card_root()?,
             self.card_surfaces(reading, context, true)?,
             (name, &types),
             trail,
-        )? {
-            if self.reads_as_card(name, &text, &wanted, context) {
-                return Ok(Some(text));
-            }
-        }
-        Ok(None)
+            |text| self.reads_as_card(name, text, &wanted, context),
+        ))
     }
 
     fn reads_as_card(

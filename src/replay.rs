@@ -69,7 +69,7 @@ impl<'a> Replay<'a> {
         };
         // A pattern with a splice can bind more than one way; the trail decides which.
         let (left, written, spellings) = (self.left, self.out.len(), self.spellings);
-        for bindings in grammar.print_unify(rule, value, true) {
+        for bindings in grammar.print_unify_guided(rule, value, true) {
             if self.symbols(rule, index, &bindings) {
                 return true;
             }
