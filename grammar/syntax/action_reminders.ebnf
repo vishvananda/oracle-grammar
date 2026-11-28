@@ -728,7 +728,7 @@ reminder_turn_if ::= "at" turn_event "," "if" condition "," reminder_program_sen
    Ordinary clauses on either side retain their order, definitions and targets. */
 /* @sem Program::Program{instructions:$reminder_instructions} */
 reminder_program_sentence ::= reminder_instructions
-reminder_instructions ::= instructions_damage_target_excess_empower | source_named_phaseout_next_turn_reminded | destroy_target_attraction_reminded | reminder_closed | reminder_before | reminder_closed_before
+reminder_instructions ::= reminder_sacrifice_excess_callback | instructions_damage_target_excess_empower | source_named_phaseout_next_turn_reminded | destroy_target_attraction_reminded | reminder_closed | reminder_before | reminder_closed_before
     | reminder_after_plain | reminder_after_reminder | reminder_open_then_plain | reminder_open_then_reminder
 reminder_before ::= reminder_before_surveil | reminder_before_period | reminder_before_then | reminder_before_line | reminder_before_controller_energy
 /* @sem Instruction::[...$clause, ...$reminder_you] */
@@ -3190,8 +3190,11 @@ activated_exile_source_graveyard_reminded ::= mana_symbols "," "↑" "exile" sco
 /* @sem Instruction::[Effect{result:@next, operation:$empower_jace_excess_damage}] */
 empower_jace_excess_damage_reminded ::= empower_jace_excess_damage "." "(" "put" "that" "many" "loyalty" "counters" empower_jace_reminder_tail ")"
 
-/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Amass{amount:$excess_damage_x_amount, creature_type:Goblin}}}] */
-amass_excess_receipt_reminded ::= "amass" "Goblins" excess_damage_x_amount "." "(" "put" "X" "+" "1" "/" "+" "1" "counters" "on" "an" "Army" "you" "control" "." "it's" "also" "a" "Goblin" "." "if" "you" "don't" "control" "an" "Army" "," "create" "a" "0" "/" "0" "black" "Goblin" "Army" "creature" "token" "first" "." ")"
+/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Amass{amount:$amass_damage_result_amount, creature_type:Goblin}}}] */
+amass_excess_receipt_reminded ::= "amass" "Goblins" amass_damage_result_amount "." "(" "put" "X" "+" "1" "/" "+" "1" "counters" "on" "an" "Army" "you" "control" "." "it's" "also" "a" "Goblin" "." "if" "you" "don't" "control" "an" "Army" "," "create" "a" "0" "/" "0" "black" "Goblin" "Army" "creature" "token" "first" "." ")"
+
+/* @sem Expr::ExcessDamage{result:@marked, to:Any} */
+amass_damage_result_amount ::= "X" "," "where" "X" "is" "that" "excess" "damage"
 
 /* Both reads of excess use the damage to the same announced permanent. */
 /* @sem Instruction::[Effect{result:@mark, operation:$named_damage_either_permanent}, If{condition:Compare{left:ExcessDamage{result:@marked, to:SameObject(Target{slot:@last_slot,index:0})}, test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:EmpowerJace{amount:ExcessDamage{result:@marked, to:SameObject(Target{slot:@last_slot,index:0})}}}}]}, otherwise:Program{}}] */
@@ -3204,3 +3207,20 @@ line_attack_prepare_reminded ::= "whenever" self_creature "attacks" "," "it" "be
 /* Both alternatives identify the source. The created token has a fresh scope. */
 /* @sem Ability::Triggered{event:AnyOf([ZoneChange{objects:$event_self, to:Battlefield}, Damage{source_kind:Permanent, sources:$event_self, recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}]), limits:TriggerLimits{}, announcement:@announcement, body:$reminder_program_sentence} */
 reminder_named_entry_combat_trigger ::= "when" event_self "enters" "and" "whenever" "it" "deals" "combat" "damage" "to" "a" "player" "," reminder_program_sentence
+
+/* The announced damage target belongs to the reflexive trigger. The sacrifice
+   is the parent receipt, while amass counts the child damage result. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[...$sacrifice_creature_receipt, $reflexive_sacrifice_excess_amass]}}] */
+reminder_sacrifice_excess_callback ::= "you" "may" sacrifice_creature_receipt "." reflexive_sacrifice_excess_amass
+
+/* @sem Instruction::Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:$sacrifice_then_excess_amass})} */
+reflexive_sacrifice_excess_amass ::= "when" "you" "do" "," sacrifice_then_excess_amass
+
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:DealDamage{source:$self_ref, recipients:$recipients, amount:$reflexive_sacrificed_creature_stat, preventable:true}}, If{condition:$condition_amass_damage_result, then:Program{instructions:$amass_excess_receipt_reminded}, otherwise:Program{}}]} */
+sacrifice_then_excess_amass ::= self_ref "deals" "damage" "equal" "to" reflexive_sacrificed_creature_stat "to" recipients "." "if" condition_amass_damage_result "," amass_excess_receipt_reminded
+
+/* @sem Expr::ObjectProperty{object:Query{objects:Transition{result:@reflexive_performed, phase:Before}, index:0}, property:$stat, information:CurrentOrLastKnown} */
+reflexive_sacrificed_creature_stat ::= "that" "creature's" stat
+
+/* @sem Condition::Compare{left:ExcessDamage{result:@marked, to:Any}, test:NumberTest::Compare{comparison:Greater, value:Constant(0)}} */
+condition_amass_damage_result ::= "excess" "damage" "was" "dealt" "this" "way"
