@@ -152,7 +152,10 @@ pub(super) fn check_spell_grants(ability: &Value) -> Result<(), String> {
                     && named["args"]["slot"]
                         .as_u64()
                         .is_some_and(|slot| walk.stack_slots.contains(&slot));
-                if !named.is_null() && !target && !(spell && *named == subject) {
+                // Result references are checked by the typed program validator,
+                // where the producing instruction and its namespace are known.
+                let result = named["kind"] == "Result";
+                if !named.is_null() && !target && !result && !(spell && *named == subject) {
                     return Err("a continuing spell change names a spell".into());
                 }
             }

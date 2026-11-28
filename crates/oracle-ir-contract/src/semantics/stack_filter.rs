@@ -214,6 +214,14 @@ pub fn entry_return_event() -> EventSpec {
 
 #[inline]
 pub fn event_bindings(event: &EventSpec) -> EventBindings {
+    event_bindings_in(event, true)
+}
+
+/// A whole batch cannot name one ordinary discarded card's destination.
+pub(super) fn event_bindings_in(
+    event: &EventSpec,
+    allow_discard_destination: bool,
+) -> EventBindings {
     match event {
         EventSpec::SagaChapter(_)
         | EventSpec::FirstEachTurn(_)
@@ -262,13 +270,16 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
         | EventSpec::Player {
             event: PlayerEvent::RingTempts,
             ..
-        } => event_bindings_case_0(event),
-        _ => event_bindings_dispatch_1(event),
+        } => event_bindings_case_0(event, allow_discard_destination),
+        _ => event_bindings_dispatch_1(event, allow_discard_destination),
     }
 }
 
 #[inline]
-pub(super) fn event_bindings_dispatch_1(event: &EventSpec) -> EventBindings {
+pub(super) fn event_bindings_dispatch_1(
+    event: &EventSpec,
+    allow_discard_destination: bool,
+) -> EventBindings {
     match event {
         EventSpec::Player { .. }
         | EventSpec::Discard { .. }
@@ -292,13 +303,16 @@ pub(super) fn event_bindings_dispatch_1(event: &EventSpec) -> EventBindings {
             count: _,
             including: _,
         }
-        | EventSpec::ClassLevel { .. } => event_bindings_case_1(event),
-        _ => event_bindings_dispatch_2(event),
+        | EventSpec::ClassLevel { .. } => event_bindings_case_1(event, allow_discard_destination),
+        _ => event_bindings_dispatch_2(event, allow_discard_destination),
     }
 }
 
 #[inline]
-pub(super) fn event_bindings_dispatch_2(event: &EventSpec) -> EventBindings {
+pub(super) fn event_bindings_dispatch_2(
+    event: &EventSpec,
+    allow_discard_destination: bool,
+) -> EventBindings {
     match event {
         EventSpec::Damage(_)
         | EventSpec::Spell { .. }
@@ -308,25 +322,28 @@ pub(super) fn event_bindings_dispatch_2(event: &EventSpec) -> EventBindings {
         | EventSpec::StateWithPlayer { .. }
         | EventSpec::WithOtherObject { .. }
         | EventSpec::Filtered { .. }
-        | EventSpec::AnyOf(_) => event_bindings_case_2(event),
+        | EventSpec::AnyOf(_) => event_bindings_case_2(event, allow_discard_destination),
         _ => unreachable!("all current variants were dispatched"),
     }
 }
 
-pub(super) fn event_bindings_case_0(event: &EventSpec) -> EventBindings {
+pub(super) fn event_bindings_case_0(
+    event: &EventSpec,
+    allow_discard_destination: bool,
+) -> EventBindings {
     match event {
         EventSpec::SagaChapter(_) => EventBindings::default(),
         EventSpec::FirstEachTurn(event)
         | EventSpec::FirstForObjectEachTurn(event)
-        | EventSpec::FirstEachGame(event) => event_bindings(event),
-        EventSpec::NthEachTurn { event, .. } => event_bindings(event),
+        | EventSpec::FirstEachGame(event) => event_bindings_in(event, allow_discard_destination),
+        EventSpec::NthEachTurn { event, .. } => event_bindings_in(event, allow_discard_destination),
         EventSpec::Caused { event, .. } => EventBindings {
             stack_object: true,
-            ..event_bindings(event)
+            ..event_bindings_in(event, allow_discard_destination)
         },
         EventSpec::WhileActivating { event, .. } => EventBindings {
             player: true,
-            ..event_bindings(event)
+            ..event_bindings_in(event, allow_discard_destination)
         },
         EventSpec::ZoneChangeFromElsewhere { to, .. } => EventBindings {
             object: true,
@@ -427,7 +444,10 @@ pub(super) fn event_bindings_case_0(event: &EventSpec) -> EventBindings {
     }
 }
 
-pub(super) fn event_bindings_case_1(event: &EventSpec) -> EventBindings {
+pub(super) fn event_bindings_case_1(
+    event: &EventSpec,
+    allow_discard_destination: bool,
+) -> EventBindings {
     match event {
         EventSpec::Player { event, .. } => PLAYER_EVENTS
             .iter()
@@ -442,7 +462,8 @@ pub(super) fn event_bindings_case_1(event: &EventSpec) -> EventBindings {
             discarded: matches!(grouping, DiscardGrouping::Card),
             activation_x: matches!(kind, DiscardKind::Cycling),
             stack_object: matches!(kind, DiscardKind::CausedBy(_)),
-            moved: matches!(kind, DiscardKind::CausedBy(_)),
+            moved: matches!(kind, DiscardKind::CausedBy(_))
+                || allow_discard_destination && matches!(grouping, DiscardGrouping::Card),
             ..Default::default()
         },
         EventSpec::ZoneChange { objects, from, to } => EventBindings {
@@ -508,7 +529,10 @@ pub(super) fn event_bindings_case_1(event: &EventSpec) -> EventBindings {
             count,
             including,
         } => {
-            let mut inner = event_bindings(event);
+            let mut inner = event_bindings_in(
+                event,
+                allow_discard_destination && matches!(per, BatchPer::Subject),
+            );
             // The subject of a batched pair is one object even though its
             // other half is not.
             if matches!(**event, EventSpec::Pair { .. }) {
@@ -534,5 +558,81 @@ pub(super) fn event_bindings_case_1(event: &EventSpec) -> EventBindings {
             ..EventBindings::default()
         },
         _ => unreachable!("validated dispatch"),
+    }
+}
+
+#[cfg(test)]
+mod bloodbile_destination_tests {
+    use super::*;
+
+    fn discard(grouping: DiscardGrouping, kind: DiscardKind) -> EventSpec {
+        EventSpec::Discard {
+            players: PlayerSet::All,
+            cards: ObjectFilter::Any,
+            source_only: false,
+            kind,
+            grouping,
+        }
+    }
+    fn sacrifice() -> EventSpec {
+        EventSpec::Player {
+            event: PlayerEvent::Sacrifices,
+            players: PlayerSet::All,
+            objects: Some(ObjectFilter::Any),
+        }
+    }
+    fn batch(event: EventSpec, per: BatchPer) -> EventSpec {
+        EventSpec::Batch {
+            event: Box::new(event),
+            per,
+            count: None,
+            including: None,
+        }
+    }
+    #[test]
+    fn singular_discard_and_sacrifice_share_the_destination() {
+        let any = discard(DiscardGrouping::Card, DiscardKind::Any);
+        let cycling = discard(DiscardGrouping::Card, DiscardKind::Cycling);
+        assert!(event_bindings(&any).moved);
+        assert!(event_bindings(&cycling).moved);
+        assert!(event_bindings(&sacrifice()).moved);
+        assert!(event_bindings(&EventSpec::AnyOf(vec![sacrifice(), any])).moved);
+        assert!(!event_bindings(&discard(DiscardGrouping::Player, DiscardKind::Any)).moved);
+        assert!(
+            !event_bindings(&EventSpec::AnyOf(vec![
+                sacrifice(),
+                discard(DiscardGrouping::Player, DiscardKind::Any)
+            ]))
+            .moved
+        );
+    }
+    #[test]
+    fn batches_do_not_gain_an_arbitrary_discard_destination() {
+        let single = discard(DiscardGrouping::Card, DiscardKind::Any);
+        assert!(!event_bindings(&batch(single.clone(), BatchPer::Whole)).moved);
+        assert!(event_bindings(&batch(single.clone(), BatchPer::Subject)).moved);
+        assert!(
+            !event_bindings(&batch(
+                EventSpec::FirstEachTurn(Box::new(single)),
+                BatchPer::Whole
+            ))
+            .moved
+        );
+    }
+    #[test]
+    fn prior_destination_capabilities_remain_available() {
+        let caused = discard(
+            DiscardGrouping::Card,
+            DiscardKind::CausedBy(ObjectFilter::Any),
+        );
+        assert!(event_bindings(&caused).moved);
+        assert!(event_bindings(&batch(caused, BatchPer::Whole)).moved);
+        let dies = EventSpec::ZoneChange {
+            objects: ObjectFilter::Any,
+            from: Some(EventZone::Battlefield),
+            to: EventZone::Graveyard,
+        };
+        assert!(event_bindings(&dies).moved);
+        assert!(event_bindings(&batch(dies, BatchPer::Whole)).moved);
     }
 }

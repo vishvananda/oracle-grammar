@@ -117,7 +117,10 @@ impl Names {
     /// Which spelling a card prints: a legend goes by the part before its comma.
     pub fn printed(&self, context: &[String]) -> u8 {
         let full = self.names.first().map_or("", String::as_str);
-        let short = full.split_once(", ").map(|(short, _)| short);
+        let short = full.split_once(", ").and_then(|(first, rest)| {
+            // A coordinated list names the whole source, including its plural subject.
+            (!rest.contains(", and ")).then_some(first)
+        });
         let legend = context.iter().any(|name| name == "Legendary");
         let index = self
             .names

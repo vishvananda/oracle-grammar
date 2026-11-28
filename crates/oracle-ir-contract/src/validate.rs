@@ -23,6 +23,7 @@ enum ResultKind {
     Selection,
     ObjectTransition,
     CreatedObjects,
+    StackSpellCopy,
     DamageReplacement,
     Fight,
     CounterPlacement,

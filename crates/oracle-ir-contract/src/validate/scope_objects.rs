@@ -237,6 +237,7 @@ impl<'a> Scope<'a> {
     pub(super) fn player_number(&self, number: &PlayerNumber) -> Result {
         match number {
             PlayerNumber::Permanents(filter) => self.filter(filter),
+            PlayerNumber::DistanceFromHome => Err("home distance supports ranking only".into()),
             _ => Ok(()),
         }
     }

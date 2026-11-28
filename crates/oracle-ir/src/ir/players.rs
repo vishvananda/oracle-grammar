@@ -271,6 +271,9 @@ pub enum PlayerNumber {
     StartingDeckSize,
     EnergyPaidOrLostThisTurn,
     CardsDrawnThisTurn,
+    /// Compare each player's distance from their own real-world home to the
+    /// current play location. This external measurement fixes no distance unit.
+    DistanceFromHome,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

@@ -272,6 +272,8 @@ impl<'a> Scope<'a> {
                                 ResultKind::Payment
                             }
                             Operation::CreateTokens { .. } => ResultKind::CreatedObjects,
+                            Operation::CopyOnStack { actor: PlayerSet::One(_), object, times: Expr::Constant(1), .. }
+                                if self.names_stack_spell(object) => ResultKind::StackSpellCopy,
                             Operation::AddMana { .. } => ResultKind::Mana,
                             Operation::FlipCoin { .. } => ResultKind::Coin,
                             Operation::FlipCoins { .. } | Operation::FlipCoinSeries { .. } => {

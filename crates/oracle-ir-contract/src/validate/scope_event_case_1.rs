@@ -162,6 +162,20 @@ impl<'a> Scope<'a> {
         Ok(())
     }
 
+    pub(super) fn names_stack_spell(&self, object: &ObjectRef) -> bool {
+        match object {
+            ObjectRef::EventSubject => self.event.spell,
+            ObjectRef::Target { slot, .. } => self.slots.get(&slot.0).is_some_and(|target| {
+                matches!(&target.kind, TargetKind::Object(domain)
+                    if matches!(domain.kind, ObjectKind::Spell) && matches!(domain.zones.as_slice(), [EventZone::Stack]))
+            }),
+            ObjectRef::Result { result, phase: ObjectPhase::After, index: 0 } => {
+                matches!(self.results.get(&result.0), Some(ResultKind::StackSpellCopy))
+            }
+            _ => false,
+        }
+    }
+
     pub(super) fn object(&self, object: &ObjectRef) -> Result {
         match object {
             ObjectRef::Scoped => Ok(()),
@@ -248,6 +262,7 @@ impl<'a> Scope<'a> {
             ObjectRef::EventDestination if self.event.moved => Ok(()),
             ObjectRef::EventDestination => Err("this event moves no object".into()),
             ObjectRef::Chosen => Ok(()),
+            ObjectRef::Result { .. } if self.names_stack_spell(object) => Ok(()),
             ObjectRef::Primitive { name, operands } => self.primitive(name, operands),
             ObjectRef::Result {
                 result,

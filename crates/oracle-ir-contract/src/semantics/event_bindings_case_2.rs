@@ -1,6 +1,10 @@
 //! Extracted portable semantic contracts.
+use super::stack_filter::event_bindings_in;
 use super::*;
-pub(super) fn event_bindings_case_2(event: &EventSpec) -> EventBindings {
+pub(super) fn event_bindings_case_2(
+    event: &EventSpec,
+    allow_discard_destination: bool,
+) -> EventBindings {
     match event {
         EventSpec::Damage(event) => {
             let source = matches!(
@@ -80,12 +84,12 @@ pub(super) fn event_bindings_case_2(event: &EventSpec) -> EventBindings {
         },
         EventSpec::WithOtherObject { event, .. } => EventBindings {
             other: true,
-            ..event_bindings(event)
+            ..event_bindings_in(event, allow_discard_destination)
         },
-        EventSpec::Filtered { event, .. } => event_bindings(event),
+        EventSpec::Filtered { event, .. } => event_bindings_in(event, allow_discard_destination),
         EventSpec::AnyOf(events) => events
             .iter()
-            .map(event_bindings)
+            .map(|event| event_bindings_in(event, allow_discard_destination))
             .reduce(EventBindings::shared)
             .unwrap_or_default(),
         _ => unreachable!("validated dispatch"),

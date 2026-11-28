@@ -186,3 +186,54 @@ fn door_action_after_observable_prefix_and_variable_reduction_keep_current_opera
     let printed = printed_types(&reduction, &["Artifact"]);
     assert!(printed.contains("costs {5} less"), "{printed}");
 }
+
+#[test]
+fn a_continuing_grant_reads_only_its_own_completed_spell_copy() {
+    let oracle = concat!(
+        "This spell can't be copied.\nChoose one or both —\n",
+        "• Copy target instant or sorcery spell you control. You may choose new targets for the copy.\n",
+        "• Copy target creature spell you control. The copy gains haste and ",
+        "\"At the beginning of the end step, sacrifice this token.\""
+    );
+    let reading = one(oracle);
+    validate_abilities(&reading).unwrap();
+    let body = "/1/args/announcement/modes/options/1/body/instructions";
+    for (tail, value) in [
+        (
+            "/1/args/operation/args/subject/One/args/phase",
+            json!("Before"),
+        ),
+        ("/1/args/operation/args/subject/One/args/index", json!(1)),
+        ("/0/args/operation/args/times/args", json!(2)),
+    ] {
+        let mut unsupported = reading.clone();
+        *unsupported.pointer_mut(&format!("{body}{tail}")).unwrap() = value;
+        assert!(
+            validate_abilities(&unsupported)
+                .unwrap_err()
+                .contains("does not provide objects")
+        );
+    }
+    let mut future = reading.clone();
+    future
+        .pointer_mut(body)
+        .unwrap()
+        .as_array_mut()
+        .unwrap()
+        .swap(0, 1);
+    assert!(
+        validate_abilities(&future)
+            .unwrap_err()
+            .contains("does not provide objects")
+    );
+
+    let mut edited = reading;
+    let keyword = "/1/args/operation/args/changes/0/args/changes/0/args/kind";
+    *edited.pointer_mut(&format!("{body}{keyword}")).unwrap() = json!("Flying");
+    let printed = engine()
+        .print_keyed("Context example", &edited, &["Instant".into()], &[])
+        .unwrap()
+        .unwrap();
+    assert!(printed.contains("The copy gains flying and"), "{printed}");
+    assert_eq!(one(&printed), edited);
+}

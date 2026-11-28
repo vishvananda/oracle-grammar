@@ -369,7 +369,17 @@ impl<'a> Scope<'a> {
             }
             Operation::ChangeSpell { subject, changes } => {
                 match subject {
-                    SpellSubject::One(spell) => self.object(spell)?,
+                    SpellSubject::One(spell) => {
+                        self.object(spell)?;
+                        if matches!(spell, ObjectRef::Result { .. })
+                            && changes
+                                .iter()
+                                .any(|change| matches!(change, Change::Continuing { .. }))
+                            && !self.names_stack_spell(spell)
+                        {
+                            return Err("a result names no proved spell copy".into());
+                        }
+                    }
                     SpellSubject::Next { spells, player, .. } => {
                         self.filter(spells)?;
                         self.player(player)?;

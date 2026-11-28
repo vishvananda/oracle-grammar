@@ -530,7 +530,9 @@ pub enum Operation {
     },
     /// Copy a spell or ability on the stack `times` times, as Forge's
     /// `CopySpellAbility`. Exceptions modify the copies' copiable values;
-    /// later continuing changes belong in their own instructions.
+    /// later continuing changes belong in their own instructions. Copying one
+    /// known spell for one player exposes the created spell as result index 0
+    /// in `After`. Its receipt contains no object if the copy was not made.
     CopyOnStack {
         actor: PlayerSet,
         object: ObjectRef,
