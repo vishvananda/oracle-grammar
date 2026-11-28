@@ -410,6 +410,8 @@ pub enum ObjectSet {
     /// must still be that first incarnation in its owner's graveyard; replacement
     /// redirects and later moves (including a return) break the link (CR 400.7f).
     EventDepartureAuras,
+    /// Ephemeral copies made by a visible CopyOracleDefinition receipt.
+    OracleCopies(ResultId),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -663,6 +665,11 @@ pub enum NameMatch {
     Prefix(String),
     /// An English letter occurs at least once, irrespective of capitalization.
     Letter(String),
+    /// The whole printed word, not a substring of another word. When enabled,
+    /// the word's possessive also matches (for example, Urza and Urza's).
+    /// Word boundaries and Unicode normalization follow the host's reviewed
+    /// rules-name tokenizer; do not substitute ASCII-only matching.
+    Word { word: String, possessive: bool },
 }
 
 /// Something that happened to an object. See `ObjectFilter::History`.

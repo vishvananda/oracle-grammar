@@ -200,7 +200,7 @@ impl<'a> Scope<'a> {
                 if let Some(nth) = nth_each_turn {
                     self.expr(nth)?;
                 }
-                self.operand(abilities)
+                self.spell_grant_operand(abilities)
             }
             PlayerRule::SpendManaAs { on, .. } => self.mana_payment(on),
             PlayerRule::SpendManaAsLimited {

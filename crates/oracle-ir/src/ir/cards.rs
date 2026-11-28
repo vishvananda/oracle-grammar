@@ -88,6 +88,25 @@ pub enum Operand {
     /// The instruction a "this way" row reads: the nearest one before it.
     Result(ResultId),
     Stickers(Vec<Sticker>),
+    /// Copy-time exceptions attached to this exact granted offspring instance.
+    /// When the containing SpellEffect::Offspring has this second operand, apply
+    /// the exceptions only to the token created by its own paid trigger. Other
+    /// instances, including intrinsic offspring, keep their original behavior.
+    CopyExceptions(Vec<CopyException>),
+    /// One optional additional casting cost and its own delayed entry trigger.
+    /// Each grant has a distinct cost-choice identity, even if identical costs
+    /// are granted again. Only choosing and paying this instance creates its
+    /// trigger. The trigger matches the actual battlefield arrival of the same
+    /// spell's first permanent incarnation, with EventSubject bound to that
+    /// arrival; countering, redirection, other entrants or later incarnations do
+    /// not match. A stack copy inherits the original's cost choice (CR 707.10),
+    /// but is not cast and does not create or share this delayed trigger. The delayed ability
+    /// retains the grant's source and controller, and announces targets only
+    /// when its entry trigger is put on the stack. It is not a creature ability.
+    OptionalCastCostOnEntry {
+        cost: Cost,
+        trigger: Box<Ability>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

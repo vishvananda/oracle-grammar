@@ -827,6 +827,7 @@ pub fn artifact_type(value: &ArtifactType) -> SubType {
         ArtifactType::Map => SubType::Map,
         ArtifactType::Mutagen => SubType::Mutagen,
         ArtifactType::Nail => SubType::Nail,
+        ArtifactType::Note => SubType::Note,
         ArtifactType::Powerstone => SubType::Powerstone,
         ArtifactType::Spacecraft => SubType::Spacecraft,
         ArtifactType::Stone => SubType::Stone,

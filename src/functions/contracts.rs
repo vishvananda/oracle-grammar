@@ -649,7 +649,10 @@ fn optional_scope_call(
     ty: &Ty,
     schema: &Schema,
 ) -> Result<Pattern, String> {
-    let expected = if matches!(name, "optional_program" | "optional_action_program") {
+    let expected = if matches!(
+        name,
+        "optional_program" | "optional_action_program" | "may_command_program"
+    ) {
         Ty::Named("Program".into())
     } else {
         Ty::Vec(Box::new(Ty::Named("Instruction".into())))
@@ -663,6 +666,7 @@ fn optional_scope_call(
             | "announced_targets"
             | "optional_program"
             | "optional_action_program"
+            | "may_command_program"
     ) {
         1
     } else {
@@ -719,6 +723,22 @@ fn defining_call(name: &str, args: &[Syntax], ty: &Ty, schema: &Schema) -> Resul
     ))
 }
 
+fn departure_controller_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    let [event, filter] = args else {
+        return Err("@departure_controller needs EventSpec and ObjectFilter".into());
+    };
+    if *ty != Ty::Named("EventSpec".into()) {
+        return Err("@departure_controller produces EventSpec".into());
+    }
+    Ok(Pattern::Symbol(
+        "departure_controller".into(),
+        vec![
+            elaborate(event, ty, schema)?,
+            elaborate(filter, &Ty::Named("ObjectFilter".into()), schema)?,
+        ],
+    ))
+}
+
 fn specialized_call(
     name: &str,
     args: &[Syntax],
@@ -753,21 +773,7 @@ fn specialized_call(
                 vec![elaborate(reference, ty, schema)?],
             )))
         }
-        "departure_controller" => {
-            let [event, filter] = args else {
-                return Err("@departure_controller needs EventSpec and ObjectFilter".into());
-            };
-            if *ty != Ty::Named("EventSpec".into()) {
-                return Err("@departure_controller produces EventSpec".into());
-            }
-            Ok(Some(Pattern::Symbol(
-                name.into(),
-                vec![
-                    elaborate(event, ty, schema)?,
-                    elaborate(filter, &Ty::Named("ObjectFilter".into()), schema)?,
-                ],
-            )))
-        }
+        "departure_controller" => departure_controller_call(args, ty, schema).map(Some),
         "repeated_damage_actor" => {
             let [instruction] = args else {
                 return Err("@repeated_damage_actor needs one Instruction".into());
@@ -895,7 +901,8 @@ fn specialized_call(
         | "announced_targets"
         | "optional_program"
         | "independent_top_continuation"
-        | "optional_action_program" => optional_scope_call(name, args, ty, schema).map(Some),
+        | "optional_action_program"
+        | "may_command_program" => optional_scope_call(name, args, ty, schema).map(Some),
         "computed_condition" | "number_condition" => {
             let [condition] = args else {
                 return Err("@computed_condition needs one Condition".into());

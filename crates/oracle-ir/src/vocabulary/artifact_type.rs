@@ -26,4 +26,5 @@ pub enum ArtifactType {
     Vibranium,
     Communicator,
     Nail,
+    Note,
 }

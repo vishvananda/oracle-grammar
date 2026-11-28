@@ -14,6 +14,12 @@ fn validate_name_match(query: &NameMatch) -> Result {
     let text = match query {
         NameMatch::Letter(letter) => return validate_name_letter(letter),
         NameMatch::Prefix(text) => text,
+        NameMatch::Word { word, .. } => {
+            if word.chars().any(char::is_whitespace) {
+                return Err("name word query requires one word".into());
+            }
+            word
+        }
     };
     if text.is_empty() || text.len() > 256 || text.chars().any(char::is_control) {
         Err("name text query requires nonempty bounded text".into())
@@ -235,6 +241,14 @@ impl<'a> Scope<'a> {
         }
     }
 
+    fn cast_receipt(&self, result: &ResultId) -> Result {
+        if self.cast_results.contains(&result.0) {
+            Ok(())
+        } else {
+            Err("cast result requires a visible direct cast-capable play action".into())
+        }
+    }
+
     pub(super) fn condition(&self, condition: &Condition) -> Result {
         match condition {
             Condition::ChoseNth { player, .. } => self.player(player),
@@ -372,6 +386,7 @@ impl<'a> Scope<'a> {
                 }
             }
             Condition::MovedToOwnersLibrary { result, .. } => self.move_placement_receipt(result),
+            Condition::CastPerformed(result) => self.cast_receipt(result),
             Condition::Searched(result) => match self.results.get(&result.0) {
                 Some(ResultKind::Search) => Ok(()),
                 _ => Err("searched condition requires an available search result".into()),

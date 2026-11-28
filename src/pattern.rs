@@ -615,7 +615,10 @@ impl Pattern {
                         [actions],
                     ) => return crate::functions::optional_scope::action_guard(name, actions),
                     (
-                        "blocker_exception" | "postposed_choice" | "optional_action_program",
+                        "blocker_exception"
+                        | "postposed_choice"
+                        | "optional_action_program"
+                        | "may_command_program",
                         [operand],
                     ) => {
                         return crate::functions::checked_operand(name, operand);
@@ -963,7 +966,8 @@ impl Pattern {
             | "offered_action"
             | "optional_program"
             | "independent_top_continuation"
-            | "optional_action_program" => {
+            | "optional_action_program"
+            | "may_command_program" => {
                 return crate::functions::optional_scope::unify(name, args, value, bindings, ctx);
             }
             "captured_targets" | "announced_targets" => {

@@ -387,6 +387,20 @@ impl<'a> Scope<'a> {
                 }
                 changes.iter().try_for_each(|change| self.change(change))
             }
+            Operation::ChooseOracleDefinitionAtRandom { chooser, cards } => {
+                self.player(chooser)?;
+                if !matches!(cards, Operand::Term { family, .. } if family == "CardsInOracle") {
+                    return Err("Oracle definition query must have CardsInOracle family".into());
+                }
+                self.operand(cards)
+            }
+            Operation::CopyOracleDefinition { actor, selection } => {
+                self.player(actor)?;
+                match self.results.get(&selection.0) {
+                    Some(ResultKind::OracleDefinition) => Ok(()),
+                    _ => Err("Oracle copy requires a visible definition selection".into()),
+                }
+            }
             Operation::PlayCards {
                 actor,
                 cards,

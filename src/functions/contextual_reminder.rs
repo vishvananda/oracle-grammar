@@ -179,7 +179,9 @@ fn devotion(args: &Value) -> Option<&'static str> {
 }
 
 fn marker(value: &Value) -> Option<&'static str> {
-    if value["CopyAtRandom"]["cards"].is_object() {
+    if value["CopyAtRandom"]["cards"].is_object()
+        || value["kind"] == "ChooseOracleDefinitionAtRandom"
+    {
         return Some("RandomOracleSearch");
     }
     if value["Keyword"]["action"] == "Forage" {

@@ -192,6 +192,9 @@ pub enum Condition {
         result: ResultId,
         end: SequenceEnd,
     },
+    /// True only when this play action actually cast a spell. A declined or
+    /// impossible optional cast is false; later countering does not undo it.
+    CastPerformed(ResultId),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

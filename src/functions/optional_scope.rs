@@ -579,6 +579,10 @@ pub(crate) fn unify<'p, 'v>(
             [inner] if action_guard(name, value).is_ok() => inner.unify_with(value, bindings, ctx),
             _ => Vec::new(),
         },
+        "may_command_program" => match args {
+            [inner] if may_command_program(value).is_ok() => inner.unify_with(value, bindings, ctx),
+            _ => Vec::new(),
+        },
         "optional_action_program" => match args {
             [inner] if action_program(value).is_ok() => inner.unify_with(value, bindings, ctx),
             _ => Vec::new(),
@@ -638,6 +642,22 @@ pub(crate) fn unify_sequence<'p, 'v>(
         unify_pair(head, tail, left, right, &bindings, &mut result);
     }
     result
+}
+
+/// Indicative “it connives” is not a command following “you may”.
+/// A separate typed “have it connive” production owns that surface.
+pub(crate) fn may_command_program(value: &Value) -> Result<Value, String> {
+    let items = value["instructions"].as_array().ok_or("expected program")?;
+    if let [only] = items.as_slice() {
+        let operation = &only["args"]["operation"];
+        if only["kind"] == "Effect"
+            && operation["kind"] == "Keyword"
+            && operation["args"]["action"].get("Connive").is_some()
+        {
+            return Err("an indicative connive clause is not a may-command".into());
+        }
+    }
+    Ok(value.clone())
 }
 
 #[cfg(test)]
@@ -870,5 +890,17 @@ mod tests {
                 value
             );
         }
+    }
+    #[test]
+    fn may_command_rejects_only_direct_indicative_connive() {
+        let connive = json!({"instructions":[{"kind":"Effect","args":{"operation":{
+            "kind":"Keyword","args":{"actor":{"kind":"One","args":{"kind":"AbilityController"}},
+                "action":{"Connive":{"object":{"kind":"Source"},"amount":null}}}
+        }}}]});
+        let draw = json!({"instructions":[{"kind":"Effect","args":{"operation":{
+            "kind":"Draw","args":{"players":{"kind":"One","args":{"kind":"AbilityController"}},"amount":{"kind":"Constant","args":1}}
+        }}}]});
+        assert!(may_command_program(&connive).is_err());
+        assert!(may_command_program(&draw).is_ok());
     }
 }

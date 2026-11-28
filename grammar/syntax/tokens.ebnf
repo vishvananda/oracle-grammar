@@ -183,7 +183,7 @@ token_named_other_tapped ::= "a" "tapped" token_named_recipe "token" "for" "each
 
 token_recipe ::= token_statless_named_before_abilities | token_artifact_stats_implicit_color_with | named_equipment_token_pump | named_snow_artifact_recipe | token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors | token_recipe_basic_land_named | token_recipe_basic_land_named_plural | token_recipe_life_paid_entry | token_recipe_unlocked_doors | token_recipe_named_statless_with | token_recipe_statless_keyword_defining | token_recipe_equal_stats | token_named_before_abilities
 
-token_recipe_base ::= token_recipe_named_subtyped_statless | token_recipe_named_subtyped_land | token_recipe_statless_named | token_recipe_statless_named_plural | token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
+token_recipe_base ::= token_recipe_implicit_colorless_artifact_creature | token_recipe_named_subtyped_statless | token_recipe_named_subtyped_land | token_recipe_statless_named | token_recipe_statless_named_plural | token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
 
 /* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
 token_recipe_plain ::= token_stat "/" token_stat token_colors token_subtypes token_types ("token" | "tokens")
@@ -194,9 +194,27 @@ token_recipe_with ::= token_recipe_base token_ability_description
 /* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2]}) */
 token_recipe_no_subtype ::= token_stat "/" token_stat token_colors token_types ("token" | "tokens")
 
-/* A characteristic-defining ability can supply statistics instead of numerals. */
-/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Expr::Constant(0), Expr::Constant(0)]}) */
-token_recipe_statless ::= token_colors token_subtypes token_types ("token" | "tokens")
+token_recipe_statless ::= token_statless_creature_recipe | token_statless_artifact_one | token_statless_artifact_many
+
+/* A creature's characteristic-defining ability can supply its statistics. */
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_creature_recipe_types, subtypes:$token_subtypes, power_toughness:[Expr::Constant(0), Expr::Constant(0)]}) */
+token_statless_creature_description ::= token_colors token_subtypes token_creature_recipe_types
+
+token_statless_creature_recipe ::= token_statless_creature_one | token_statless_creature_many
+
+/* @sem $token_statless_creature_description */
+token_statless_creature_one ::= token_statless_creature_description "token"
+
+/* @sem $token_statless_creature_description */
+token_statless_creature_many ::= token_statless_creature_description "tokens"
+
+token_creature_recipe_types ::= tt_creature | tt_artifact_creature | tt_enchantment_creature | tt_land_creature | tt_enchantment_artifact_creature
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, colors:$token_colors, card_types:[Artifact], subtypes:$token_subtypes} */
+token_statless_artifact_one ::= token_colors token_subtypes "artifact" "token"
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, colors:$token_colors, card_types:[Artifact], subtypes:$token_subtypes} */
+token_statless_artifact_many ::= token_colors token_subtypes "artifact" "tokens"
 
 /* Oracle's following sentence states intrinsic token abilities too. It is part
    of the recipe, rather than an instruction granting an ability after creation. */
@@ -2798,7 +2816,7 @@ token_named_bands_reminded ::= '"' "↓" "bands" "with" "other" "creatures" "nam
 /* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:Explicit($titled_token_name), supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:$token_ability_description}} */
 token_legendary_titled ::= titled_token_name "," "a" "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" token_ability_description
 
-titled_token_name ::= titled_token_porthos | titled_token_murf
+titled_token_name ::= titled_token_kirri | titled_token_porthos | titled_token_murf
 /* @sem String::'Porthos' */
 titled_token_porthos ::= "Porthos"
 /* @sem String::'Murf' */
@@ -3040,3 +3058,10 @@ create_random_creature_copy_attacking ::= "create" "a" "tapped" "and" "attacking
 
 /* @sem String::'Follower of Fleem' */
 created_name_follower_of_fleem ::= "Follower" "of" "Fleem"
+
+/* Artifact creature token recipes omit the color when it is colorless. */
+/* @sem TokenRecipe::Defined{ name:FromSubtypes, colors:[], card_types:$tt_artifact_creature, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2] } */
+token_recipe_implicit_colorless_artifact_creature ::= token_stat "/" token_stat token_subtypes tt_artifact_creature "tokens"
+
+/* @sem String::'Kirri' */
+titled_token_kirri ::= "Kirri"

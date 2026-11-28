@@ -145,6 +145,33 @@ impl<'a> Scope<'a> {
         checked
     }
 
+    pub(super) fn spell_grant_operand(&self, operand: &Operand) -> Result {
+        match operand {
+            Operand::List(items) => items
+                .iter()
+                .try_for_each(|item| self.spell_grant_operand(item)),
+            Operand::OptionalCastCostOnEntry { cost, trigger } => {
+                self.cost(cost)?;
+                match &**trigger {
+                    Ability::Triggered {
+                        event:
+                            EventSpec::ZoneChange {
+                                objects: ObjectFilter::Any,
+                                from: Some(EventZone::Stack),
+                                to: EventZone::Battlefield,
+                            },
+                        ..
+                    } => validate_ability(trigger),
+                    _ => Err(
+                        "optional cast cost requires its own stack-to-battlefield entry trigger"
+                            .into(),
+                    ),
+                }
+            }
+            _ => self.operand(operand),
+        }
+    }
+
     pub(super) fn bare_operand(&self, operand: &Operand) -> Result {
         match operand {
             Operand::Absent | Operand::Bool(_) | Operand::Integer(_) | Operand::Text(_) => Ok(()),
@@ -157,7 +184,23 @@ impl<'a> Scope<'a> {
                 Err(format!("{form} names something in scope"))
             }
             Operand::Vocabulary { .. } => Ok(()),
-            Operand::Term { operands, .. } => operands.iter().try_for_each(|o| self.operand(o)),
+            Operand::Term {
+                family,
+                form,
+                operands,
+            } => {
+                if family == "SpellEffect"
+                    && form == "Offspring"
+                    && let [cost @ Operand::Cost(_), Operand::CopyExceptions(exceptions)] =
+                        operands.as_slice()
+                {
+                    self.operand(cost)?;
+                    return self.copy_exceptions(exceptions);
+                }
+                operands
+                    .iter()
+                    .try_for_each(|operand| self.operand(operand))
+            }
             Operand::Object(object) => self.object(object),
             Operand::Objects(objects) => self.objects(objects),
             Operand::Recipients(recipients) => self.recipients(recipients),
@@ -169,6 +212,12 @@ impl<'a> Scope<'a> {
             Operand::Filter(filter) => self.filter(filter),
             Operand::Comparison(_, expression) => self.expr(expression),
             Operand::NumberTest(test) => self.number_test(test),
+            Operand::CopyExceptions(_) => {
+                Err("copy exceptions require the second operand of an offspring grant".into())
+            }
+            Operand::OptionalCastCostOnEntry { .. } => {
+                Err("optional cast cost entry followup requires a spell grant".into())
+            }
             Operand::Stickers(stickers) => {
                 for sticker in stickers {
                     if let Sticker::Abilities { abilities, .. } = sticker {

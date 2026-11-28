@@ -52,6 +52,8 @@ enum ResultKind {
     Coin,
     CoinBatch,
     Other,
+    OracleDefinition,
+    OracleCopies,
 }
 
 type Result<T = ()> = std::result::Result<T, String>;
@@ -88,6 +90,7 @@ struct Scope<'a> {
     results: BTreeMap<u32, ResultKind>,
     /// Receipts originating from direct movement, distinct from generic transitions.
     single_move_results: BTreeSet<u32>,
+    cast_results: BTreeSet<u32>,
     /// Receipts visible only to an explicit join after mutually exclusive branches.
     join_groups: Vec<BTreeSet<u32>>,
     result_zones: BTreeMap<u32, Vec<EventZone>>,
@@ -1157,3 +1160,9 @@ mod scope_operation_case_9;
 mod scope_operation_dispatch_6;
 mod scope_paid_component;
 mod scope_subject_changes;
+
+#[cfg(test)]
+mod oracle_copy_receipts_tests;
+
+#[cfg(test)]
+mod oracle_name_word_tests;

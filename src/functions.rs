@@ -590,6 +590,7 @@ pub(crate) fn checked_operand(name: &str, operand: &Value) -> Result<Value, Stri
         "blocker_exception" => filter_union::blocker_exception(operand),
         "postposed_choice" => conditional::postposed_choice(operand),
         "optional_action_program" => optional_scope::action_program(operand),
+        "may_command_program" => optional_scope::may_command_program(operand),
         _ => Err(format!("unknown guarded operand {name}")),
     }
 }

@@ -89,6 +89,9 @@ impl Names {
                 let second = words[1].trim_end_matches(',');
                 if !second.is_empty() {
                     names.push(format!("{} {second}", words[0]));
+                    if words[2] == "of" {
+                        names.push(second.to_string());
+                    }
                 }
             }
         }

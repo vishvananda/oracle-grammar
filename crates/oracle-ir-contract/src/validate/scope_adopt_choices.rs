@@ -269,6 +269,8 @@ impl<'a> Scope<'a> {
             }
         }
         let kind = match operation.action() {
+                            Operation::ChooseOracleDefinitionAtRandom { .. } => ResultKind::OracleDefinition,
+                            Operation::CopyOracleDefinition { .. } => ResultKind::OracleCopies,
                             op if single_move_producer(op) => ResultKind::ObjectTransition,
                             Operation::ExileLibraryUntil { stop: ExileLibraryStop::Matching { .. }, .. } => ResultKind::ExileUntilMatching,
                             Operation::ExileLibraryUntil { stop: ExileLibraryStop::CumulativeAtLeast { .. }, .. } => ResultKind::ExileUntilThreshold,
@@ -364,6 +366,18 @@ impl<'a> Scope<'a> {
         }
         if single_move_producer(operation) {
             self.single_move_results.insert(result.0);
+        }
+        if matches!(
+            operation.action(),
+            Operation::PlayWith {
+                action: CardPlayAction::CastSpell,
+                ..
+            } | Operation::PlayCards {
+                action: CardPlayAction::CastSpell,
+                ..
+            }
+        ) {
+            self.cast_results.insert(result.0);
         }
         if matches!(
             operation,

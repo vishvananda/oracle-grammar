@@ -32,6 +32,14 @@ impl<'a> Scope<'a> {
             ObjectSet::Earlier { by, .. } => {
                 by.iter().try_for_each(|players| self.players(players))
             }
+            ObjectSet::OracleCopies(result)
+                if matches!(self.results.get(&result.0), Some(ResultKind::OracleCopies)) =>
+            {
+                Ok(())
+            }
+            ObjectSet::OracleCopies(_) => {
+                Err("Oracle copies require a visible Oracle copy result".into())
+            }
             ObjectSet::Recorded(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectSet::Recorded(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectSet::DamageSources(filter)

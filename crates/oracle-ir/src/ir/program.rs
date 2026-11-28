@@ -1051,6 +1051,26 @@ pub enum Operation {
         library: PlayerRef,
         stop: ExileLibraryStop,
     },
+    /// Randomly select at most one matching Oracle definition. The receipt is
+    /// definition data, not an object, a card in a zone, or a target. Empty
+    /// query results produce an empty selection. Catalog lookup is external.
+    /// CardsInOracle::Matching takes a Filter evaluated against each Oracle
+    /// definition, including its printed colors and card characteristics.
+    /// CardsInOracle::EternalLegal is the host catalog's reviewed Eternal
+    /// eligibility as of evaluation, not a hardcoded single format. Hosts
+    /// provide the applicable format/category and banned-list policy; absent
+    /// such data the query is unresolved rather than an unrestricted pool.
+    ChooseOracleDefinitionAtRandom {
+        chooser: PlayerRef,
+        cards: Operand,
+    },
+    /// Make an ephemeral castable card copy of the selected definition, owned
+    /// by actor, available to this resolution. An empty selection makes none.
+    /// This is neither a physical sideboard card nor a battlefield token.
+    CopyOracleDefinition {
+        actor: PlayerRef,
+        selection: ResultId,
+    },
 }
 
 /// Tests only actual exile arrivals, using each card's characteristics as it

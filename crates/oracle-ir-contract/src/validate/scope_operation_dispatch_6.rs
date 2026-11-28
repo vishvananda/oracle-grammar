@@ -15,6 +15,8 @@ impl<'a> Scope<'a> {
                 subject: _,
                 changes: _,
             }
+            | Operation::ChooseOracleDefinitionAtRandom { .. }
+            | Operation::CopyOracleDefinition { .. }
             | Operation::PlayCards { .. }
             | Operation::PlayWith { .. }
             | Operation::RemoveMarkedDamage { .. }

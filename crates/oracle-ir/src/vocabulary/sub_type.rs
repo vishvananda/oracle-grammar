@@ -644,4 +644,5 @@ pub enum SubType {
     Rondvaartboot,
     Dimension,
     Nail,
+    Note,
 }

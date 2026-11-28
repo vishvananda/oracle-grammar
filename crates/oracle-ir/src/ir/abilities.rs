@@ -365,6 +365,14 @@ pub enum PartnerKind {
     NamedGroup(String),
 }
 
+/// The additional commander must match this card or the named character.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CommanderPartner {
+    NamedCard(String),
+    /// The card catalog identifies the character across variants and subtypes.
+    Character(String),
+}
+
 /// What a card says about building a deck, as Forge's `K:Partner` and
 /// `DeckHints` do. None of these changes a game in progress.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -381,6 +389,12 @@ pub enum DeckRule {
     AnyCardsWithOneAdditionalColor(ObjectFilter),
     Banned,
     RemoveUnlessPlayingForAnte,
+    /// This card permits one additional commander in the same deck.
+    CommanderPair {
+        /// The text independently permits this card to be a commander.
+        grants_source_eligibility: bool,
+        partner: CommanderPartner,
+    },
 }
 
 #[derive(
