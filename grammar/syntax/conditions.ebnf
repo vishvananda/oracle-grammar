@@ -1,4 +1,4 @@
-condition ::= condition_death_and_type | condition_there_are_graveyard_cards_at_least | condition_controller_loyalty_history | condition_opponent_noncombat_damage | condition_scried_or_surveilled | condition_is_prepared | condition_isnt_prepared | condition_control_distinct_pair | condition_first_end_step | condition_other_hand_alternatives_shared | condition_one | condition_and | condition_or | condition_or_if | condition_control_three_alternatives | condition_event_player_conjunction | condition_control_except_and_hand_empty | condition_enduring_story
+condition ::= condition_death_and_type | condition_there_are_graveyard_cards_at_least | condition_controller_loyalty_history | condition_opponent_noncombat_damage | condition_scried_or_surveilled | condition_is_prepared | condition_isnt_prepared | condition_control_distinct_pair | condition_first_end_step | condition_other_hand_alternatives_shared | condition_one | condition_paired_life_bounds | condition_empty_hand_and_counters | condition_graveyard_card_and_counter | condition_own_turn_and_control | condition_before_control_test | condition_and | condition_or | condition_or_if | condition_control_three_alternatives | condition_event_player_conjunction | condition_control_except_and_hand_empty | condition_enduring_story
 
 /* @sem Condition::AllOf([$condition_one, $condition_one_2]) */
 condition_and ::= condition_one "and" condition_one
@@ -4476,3 +4476,18 @@ condition_you_sacrificed_many_this_turn ::= "you've" "sacrificed" number "or" "m
 /* The matched activation retains what its cost payment actually removed. */
 /* @sem Condition::Compare{left:EventActivationCountersRemoved{kind:$counter_kind}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number_words}} */
 condition_activation_counters_removed ::= "you" "removed" number_words "or" "more" counter_kind "counters" "to" "activate" "it"
+
+/* @sem Condition::AllOf(@unordered([$condition_life, ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:Compare{left:PlayerNumber{player:Bound(0), number:Life}, test:NumberTest::Compare{comparison:$bound_words, value:$number}}}])) */
+condition_paired_life_bounds ::= condition_life "and" "an" "opponent" "has" number bound_words "life"
+
+/* @sem Condition::AllOf(@unordered([$condition_hand_none, $condition_counters_at_least])) */
+condition_empty_hand_and_counters ::= condition_hand_none "and" condition_counters_at_least
+
+/* @sem Condition::AllOf(@unordered([$condition_graveyard_has, $condition_has_counter])) */
+condition_graveyard_card_and_counter ::= condition_graveyard_has "and" condition_has_counter
+
+/* @sem Condition::AllOf(@unordered([$condition_your_turn, $condition_control])) */
+condition_own_turn_and_control ::= condition_your_turn "and" condition_control
+
+/* @sem Condition::AllOf(@unordered([$condition_one, $condition_control])) */
+condition_before_control_test ::= condition_one "and" condition_control
