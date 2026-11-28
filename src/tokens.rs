@@ -144,6 +144,8 @@ pub const LOWER: char = '\u{2193}';
 pub const TIGHT_PLUS: char = '\u{207A}';
 /// A hyphen tight against the number before it, as in `LEVEL 1-3` or `20-sided`.
 pub const TIGHT_HYPHEN: char = '\u{2011}';
+/// A hyphen with spaces on both sides, as in `Choose one - Planeswalk`.
+pub const SPACED_HYPHEN: char = '\u{2012}';
 
 /// An uninterrupted spaced ellipsis, written as three separately spaced dots.
 pub const SPACED_ELLIPSIS: char = '…';
@@ -626,6 +628,10 @@ fn scan(
                 tokens.push(Token::Mark(TIGHT_PLUS));
                 at += c.len_utf8();
             }
+            '-' if text[..at].ends_with(' ') && text[at + 1..].starts_with(' ') => {
+                tokens.push(Token::Mark(SPACED_HYPHEN));
+                at += 1;
+            }
             '-' if text[..at].ends_with(|d: char| d.is_ascii_digit()) => {
                 tokens.push(Token::Mark(TIGHT_HYPHEN));
                 at += c.len_utf8();
@@ -725,7 +731,7 @@ fn spelled(mark: char) -> char {
     match mark {
         TIGHT_DASH => '\u{2014}',
         TIGHT_PLUS => '+',
-        TIGHT_HYPHEN => '-',
+        TIGHT_HYPHEN | SPACED_HYPHEN => '-',
         ORPHAN_REMINDER_QUOTE => '"',
         other => other,
     }

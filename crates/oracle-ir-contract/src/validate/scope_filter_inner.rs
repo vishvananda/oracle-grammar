@@ -33,6 +33,8 @@ impl<'a> Scope<'a> {
         match filter {
             ObjectFilter::Noted(_) | ObjectFilter::NthChosen(_) => Ok(()),
             ObjectFilter::NameMatches(query) => validate_name_match(query),
+            ObjectFilter::RepresentsCharacterTrait(_) => Ok(()),
+            ObjectFilter::NameFromChoice(result) => self.name_choice(result),
             ObjectFilter::RepresentsCharacter(name) if !name.trim().is_empty() => Ok(()),
             ObjectFilter::RepresentsCharacter(_) => Err("character name must be nonempty".into()),
             ObjectFilter::MostCommonCreatureTypeIn(player) => self.player(player),
@@ -251,6 +253,14 @@ impl<'a> Scope<'a> {
             return Err("creature-type set exceeds limit".into());
         }
         self.objects(others)
+    }
+
+    fn name_choice(&self, result: &ResultId) -> Result {
+        if matches!(self.results.get(&result.0), Some(ResultKind::NameChoice)) {
+            Ok(())
+        } else {
+            Err("chosen name requires a visible name choice".into())
+        }
     }
 
     pub(super) fn number_test(&self, test: &NumberTest) -> Result {
@@ -700,6 +710,7 @@ impl<'a> Scope<'a> {
             Change::Colors { .. }
             | Change::ChosenColor { .. }
             | Change::ChosenAbility
+            | Change::ChosenName
             | Change::CreatureTypes { .. }
             | Change::AddCardType(_)
             | Change::RemoveCardType(_)

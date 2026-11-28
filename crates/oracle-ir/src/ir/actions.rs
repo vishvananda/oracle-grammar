@@ -107,6 +107,8 @@ pub enum ValueKind {
     Action,
     /// One of a fixed list of pairs of a color and a creature type.
     ColorAndCreatureType,
+    /// Choose a name. The choice is unrestricted by the catalog of card names.
+    Name,
 }
 
 #[derive(

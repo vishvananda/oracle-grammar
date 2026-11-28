@@ -424,6 +424,10 @@ pub enum ObjectSet {
     /// or changed. No legal choice yields an empty set; a later new incarnation
     /// is not included. It is not every creature that received counters.
     Blighted(ResultId),
+    /// The current winner's own revealed card from this clash, tracked through
+    /// the clash placement. Later reorders in the same library preserve that
+    /// incarnation (CR 400.7). A subsequent zone change ends the link.
+    ClashWinningCard,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -699,6 +703,17 @@ pub enum ObjectFilter {
     /// host supplies the represented animal and habitat from its catalog;
     /// a nonanimal or an unknown habitat matches neither kind.
     RepresentsAnimal(AnimalHabitat),
+    /// At least one character represented by this card or token's current
+    /// form has this catalogued trait. Character identity is not inferred from
+    /// creature subtypes, player identity, artwork, or card name alone.
+    RepresentsCharacterTrait(CharacterTrait),
+    /// Has the name chosen by the stated name choice in this resolution.
+    NameFromChoice(ResultId),
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CharacterTrait {
+    Transgender,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

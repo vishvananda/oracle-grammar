@@ -494,6 +494,8 @@ impl<'a> Scope<'a> {
                 Some(ResultKind::Payment | ResultKind::Selection) => Ok(()),
                 _ => Err(format!("result {} has no one who performed it", result.0)),
             },
+            PlayerRef::ClashWinner if self.clash_winner => Ok(()),
+            PlayerRef::ClashWinner => Err("clash winner outside a winner program".into()),
             PlayerRef::ClashOpponent if self.clashing => Ok(()),
             PlayerRef::ClashOpponent => Err("a clash opponent outside a clash".into()),
             PlayerRef::DeclaringPlayer if self.declaration => Ok(()),

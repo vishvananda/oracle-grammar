@@ -416,3 +416,21 @@ fn same_object_owner_return_preserves_opponent_controller_role() {
         json!({"kind": "One", "args": {"kind": "OwnerOf", "args": {"kind": "Target", "args": {"slot": 0, "index": 0}}}})
     );
 }
+
+#[test]
+fn spaced_hyphen_is_distinct_from_minus_and_tight_hyphen() {
+    let names = Names::of("Example");
+    let words = vocab(&["choose", "one", "target", "creature", "gets", "sided"]);
+    for text in [
+        "Choose one - Planeswalk.",
+        "Target creature gets -2/-2.",
+        "20-sided",
+    ] {
+        let tokens = tokenize(text, &names, &words).unwrap();
+        assert_eq!(detokenize(&tokens, &names), text);
+        assert_eq!(
+            tokens.contains(&Token::Mark(crate::tokens::SPACED_HYPHEN)),
+            text.contains(" - ")
+        );
+    }
+}

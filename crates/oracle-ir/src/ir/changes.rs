@@ -146,6 +146,8 @@ pub enum Change {
         mode: ChangeMode,
         mana: ResultId,
     },
+    /// Give this object the name chosen by the source's linked entry ability.
+    ChosenName,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

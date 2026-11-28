@@ -286,6 +286,11 @@ pub enum PlayerNumber {
     /// The host supplies the stated nonnegative whole-year measurement and its
     /// interpretation; unavailable history is unknown, never implicitly zero.
     YearsPlayedMagic,
+    /// Hours of sleep the real player got last night, supplied as a
+    /// nonnegative whole-hour external measurement by the host. The host
+    /// interprets ambiguous reporting; unavailable information is unknown,
+    /// never implicitly zero. This is not a duration in the game.
+    HoursSleptLastNight,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -384,6 +389,9 @@ pub enum PlayerRef {
         moment: Box<Moment>,
         player: Box<PlayerRef>,
     },
+    /// The winner of the individual clash currently being processed by a
+    /// ClashEachOpponent winner program, never a winner from another clash.
+    ClashWinner,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

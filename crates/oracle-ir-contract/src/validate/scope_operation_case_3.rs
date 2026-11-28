@@ -410,6 +410,15 @@ impl<'a> Scope<'a> {
 
     pub(super) fn operation_case_6(&self, operation: &Operation) -> Result {
         match operation {
+            Operation::ClashEachOpponent { actor, on_winner } => {
+                self.player(actor)?;
+                let mut child = self.clone();
+                child.open_searches.clear();
+                child.join_groups.clear();
+                child.clashing = true;
+                child.clash_winner = true;
+                child.program(on_winner)
+            }
             Operation::Conjure {
                 actor,
                 card,

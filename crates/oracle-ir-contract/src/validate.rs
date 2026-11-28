@@ -10,6 +10,8 @@ mod activation_payment_event_tests;
 #[cfg(test)]
 mod actor_untap_tests;
 #[cfg(test)]
+mod character_trait_tests;
+#[cfg(test)]
 mod color_permission_tests;
 #[cfg(test)]
 mod deck_printing_tests;
@@ -60,6 +62,7 @@ enum ResultKind {
     OracleDefinition,
     PlanarSearch,
     PlayerSuggestions,
+    NameChoice,
     Blighted,
     OracleCopies,
 }
@@ -115,6 +118,7 @@ struct Scope<'a> {
     open_searches: Vec<PlayerRef>,
     /// Inside `Operation::Clash`, where `PlayerRef::ClashOpponent` has a value.
     clashing: bool,
+    clash_winner: bool,
     search_libraries: BTreeMap<u32, PlayerRef>,
     event: crate::semantics::EventBindings,
     affected: bool,
@@ -1193,3 +1197,6 @@ mod demo_printing_tests;
 
 #[cfg(test)]
 mod head_chef_blight_tests;
+
+#[cfg(test)]
+mod clash_each_tests;

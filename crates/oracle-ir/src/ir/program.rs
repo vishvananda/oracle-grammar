@@ -1173,6 +1173,19 @@ pub enum Operation {
         allow_outside_game: bool,
         cards: ObjectSet,
     },
+    /// `actor` clashes once with each opponent. Each pair follows CR 701.30:
+    /// simultaneous reveals, APNAP top/bottom choices, then simultaneous
+    /// placement, with a winner only for a strictly greater revealed mana value.
+    /// If the overlapping clashes cannot happen simultaneously, process the
+    /// affected opponents in APNAP order under CR 608.2f; do not merge reveals.
+    /// After all clashes, run `on_winner` for each individual winning result,
+    /// binding ClashWinner and ClashWinningCard to that result only. A tie
+    /// yields no winner program. Apply CR 608.2f to any non-simultaneous winner
+    /// actions, without substituting a later clash's winner or card.
+    ClashEachOpponent {
+        actor: PlayerRef,
+        on_winner: Program,
+    },
 }
 
 #[derive(

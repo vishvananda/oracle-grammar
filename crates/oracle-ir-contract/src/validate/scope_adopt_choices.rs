@@ -311,6 +311,7 @@ impl<'a> Scope<'a> {
                             Operation::FlipCoins { .. } | Operation::FlipCoinSeries { .. } => {
                                 ResultKind::CoinBatch
                             }
+                            Operation::ChooseValue { kind: ValueKind::Name, .. } => ResultKind::NameChoice,
                             Operation::ChooseObjects { .. }
                             | Operation::ChooseFavoriteArt { .. }
                             | Operation::SeparatePiles { .. }
