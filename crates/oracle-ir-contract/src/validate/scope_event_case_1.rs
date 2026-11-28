@@ -526,6 +526,10 @@ impl<'a> Scope<'a> {
 
     pub(super) fn players(&self, players: &PlayerSet) -> Result {
         match players {
+            PlayerSet::RelatedPlaneAffiliation { plane, player, .. } => {
+                self.object(plane)?;
+                self.player(player)
+            }
             PlayerSet::PlaneAffiliation { plane, choice } => {
                 if !Self::valid_affiliation_label(choice) {
                     return Err("invalid plane affiliation label".into());
@@ -554,6 +558,10 @@ impl<'a> Scope<'a> {
             PlayerSet::One(p) | PlayerSet::OpponentsOf(p) | PlayerSet::OthersThan(p) => {
                 self.player(p)
             }
+            PlayerSet::SuggestedIn(result) => match self.results.get(&result.0) {
+                Some(ResultKind::PlayerSuggestions) => Ok(()),
+                _ => Err("the suggestions require a visible suggestion collection".into()),
+            },
             PlayerSet::GainedLifeBy(result) => match self.results.get(&result.0) {
                 Some(ResultKind::LifeGain) => Ok(()),
                 _ => Err("life-gain beneficiaries require a visible direct GainLife result".into()),

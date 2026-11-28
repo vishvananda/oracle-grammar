@@ -168,12 +168,17 @@ pub fn seeded(name: &str) -> bool {
 }
 
 fn presentation_terms_match(words: &[&str], label: &str) -> bool {
-    match words.split_last() {
-        Some((&punctuation, head)) if matches!(punctuation, "!" | "?") => label
-            .strip_suffix(punctuation)
-            .is_some_and(|stem| head.join(" ").eq_ignore_ascii_case(stem)),
-        _ => words.join(" ").eq_ignore_ascii_case(label),
-    }
+    // These punctuation marks are lexer tokens, but attach to the word before.
+    words
+        .iter()
+        .copied()
+        .filter(|word| !matches!(*word, "↑" | "↓"))
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace(" ,", ",")
+        .replace(" !", "!")
+        .replace(" ?", "?")
+        .eq_ignore_ascii_case(label)
 }
 
 /// A small validated catalogue, shared by built-in and hot-loaded normalization.

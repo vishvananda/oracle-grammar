@@ -195,6 +195,7 @@ impl<'a> Scope<'a> {
             | ObjectFilter::Name(_)
             | ObjectFilter::Token
             | ObjectFilter::PrintingHas(_)
+            | ObjectFilter::RepresentsAnimal(_)
             | ObjectFilter::Modified
             | ObjectFilter::Tapped
             | ObjectFilter::Attacking

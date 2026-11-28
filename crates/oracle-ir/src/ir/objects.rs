@@ -687,6 +687,18 @@ pub enum ObjectFilter {
         allowed: Vec<CreatureType>,
         others: Box<ObjectSet>,
     },
+    /// Whether this object represents an animal of the stated habitat. The
+    /// host supplies the represented animal and habitat from its catalog;
+    /// a nonanimal or an unknown habitat matches neither kind.
+    RepresentsAnimal(AnimalHabitat),
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum AnimalHabitat {
+    /// Lives in the ocean or another saltwater environment.
+    Marine,
+    /// An animal whose habitat excludes saltwater environments.
+    NonMarine,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -796,6 +808,13 @@ pub enum PrintingFeature {
     Foil,
     /// This edition came from a Secret Lair product.
     SecretLair,
+    /// The symbol actually printed on this card, not a set in which another
+    /// card with the same Oracle identity was printed. Catalog resolution must
+    /// identify the symbol on this individual physical or digital printing.
+    ExpansionSymbol(ExpansionSymbolKind),
+    /// An original Limited Edition Alpha printing. It has no expansion symbol;
+    /// this predicate excludes Beta, other symbol-less printings and reprints.
+    AlphaPrinting,
 }
 
 #[derive(
@@ -805,4 +824,13 @@ pub enum CastPaymentAction {
     TapForCost,
     TapForManaSpent,
     SacrificeForCost,
+}
+
+/// Reviewed classes of actual printed expansion symbols.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ExpansionSymbolKind {
+    /// The Foundations FDN symbol, not a different Foundations product symbol.
+    Foundations,
+    /// A symbol that denotes a core set; an absent symbol never matches.
+    CoreSet,
 }

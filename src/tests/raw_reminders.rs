@@ -1275,6 +1275,23 @@ fn label_validation_preserves_terminal_punctuation() {
 }
 
 #[test]
+fn label_validation_preserves_internal_comma() {
+    let grammar = r#"
+        /* @sem String::'Play the Game, See the World' */
+        ability_label ::= "play" "the" "Game" "," "↑" "see" "the" "World"
+    "#;
+    let labels = crate::grammar::presentation_labels(grammar).unwrap();
+    assert_eq!(labels, ["Play the Game, See the World"]);
+    for incorrect in [
+        "Play the Game See the World",
+        "Play the Game, Save the World",
+    ] {
+        let changed = grammar.replace("Play the Game, See the World", incorrect);
+        assert!(crate::grammar::presentation_labels(&changed).is_err());
+    }
+}
+
+#[test]
 fn ongoing_scheme_layout_prints_with_a_verified_body() {
     use crate::engine::{CardInputContext, PrintedPowerToughness};
     use crate::model::mtg_types::{CardType, SuperType};

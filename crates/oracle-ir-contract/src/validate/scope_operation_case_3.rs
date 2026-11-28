@@ -20,27 +20,36 @@ impl<'a> Scope<'a> {
                 self.operand(second)?;
                 until.iter().try_for_each(|until| self.duration(until))
             }
+            Operation::CollectPlayerSuggestions {
+                players,
+                starting_with,
+                topics,
+            } => {
+                if topics.is_empty()
+                    || topics
+                        .iter()
+                        .enumerate()
+                        .any(|(index, topic)| topics[..index].contains(topic))
+                {
+                    return Err("suggestions require one or more distinct topics".into());
+                }
+                self.players(players)?;
+                self.player(starting_with)
+            }
             Operation::ChoosePlaneAffiliations {
                 plane,
                 players,
                 options,
                 ..
+            } => self.plane_affiliation_choices(plane, players, options),
+            Operation::ChooseRevealThenJoinPlaneAffiliations {
+                plane,
+                players,
+                options,
+                duration_player,
             } => {
-                if options.len() < 2
-                    || options.len() > 32
-                    || options
-                        .iter()
-                        .any(|label| !Self::valid_affiliation_label(label))
-                    || options
-                        .iter()
-                        .collect::<std::collections::HashSet<_>>()
-                        .len()
-                        != options.len()
-                {
-                    return Err("plane affiliations need 2 to 32 distinct valid labels".into());
-                }
-                self.object(plane)?;
-                self.players(players)
+                self.player(duration_player)?;
+                self.plane_affiliation_choices(plane, players, options)
             }
             Operation::ChooseValue {
                 choosers: actor,
@@ -131,6 +140,29 @@ impl<'a> Scope<'a> {
             },
             _ => unreachable!("validated dispatch"),
         }
+    }
+
+    fn plane_affiliation_choices(
+        &self,
+        plane: &ObjectRef,
+        players: &PlayerSet,
+        options: &[String],
+    ) -> Result {
+        if options.len() < 2
+            || options.len() > 32
+            || options
+                .iter()
+                .any(|label| !Self::valid_affiliation_label(label))
+            || options
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+                != options.len()
+        {
+            return Err("plane affiliations need 2 to 32 distinct valid labels".into());
+        }
+        self.object(plane)?;
+        self.players(players)
     }
 
     pub(super) fn operation_case_4(&self, operation: &Operation) -> Result {

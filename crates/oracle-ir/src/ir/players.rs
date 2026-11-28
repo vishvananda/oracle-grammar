@@ -281,6 +281,11 @@ pub enum PlayerNumber {
     /// Compare each player's distance from their own real-world home to the
     /// current play location. This external measurement fixes no distance unit.
     DistanceFromHome,
+    /// Number of years this real player has played Magic across games. This is
+    /// external player history, not turns or elapsed time in the current game.
+    /// The host supplies the stated nonnegative whole-year measurement and its
+    /// interpretation; unavailable history is unknown, never implicitly zero.
+    YearsPlayedMagic,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -422,6 +427,22 @@ pub enum PlayerSet {
         plane: ObjectRef,
         choice: String,
     },
+    /// Players who made a qualifying suggestion in this visible collection.
+    SuggestedIn(ResultId),
+    /// Players in the same or a different affiliation as `player` for this
+    /// exact plane visit. If the reference player has none, both sets are empty;
+    /// an unassigned candidate is different from a defined reference affiliation.
+    RelatedPlaneAffiliation {
+        plane: ObjectRef,
+        player: PlayerRef,
+        relation: AffiliationRelation,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum AffiliationRelation {
+    Same,
+    Different,
 }
 
 /// Something a player did or had done to them. See `Condition::PlayerDid`.

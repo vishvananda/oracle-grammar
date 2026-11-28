@@ -56,6 +56,7 @@ enum ResultKind {
     Other,
     OracleDefinition,
     PlanarSearch,
+    PlayerSuggestions,
     OracleCopies,
 }
 
@@ -1180,3 +1181,6 @@ mod planar_search_tests;
 
 #[cfg(test)]
 mod planar_crime_counters_tests;
+
+#[cfg(test)]
+mod demo_printing_tests;

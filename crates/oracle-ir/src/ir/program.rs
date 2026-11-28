@@ -1124,6 +1124,33 @@ pub enum Operation {
         secret: bool,
         reveal: bool,
     },
+    /// Beginning with `starting_with`, each listed player may make a suggestion
+    /// on one of these topics before the next player is offered the choice.
+    /// The result records exactly the players who made a qualifying suggestion.
+    CollectPlayerSuggestions {
+        players: PlayerSet,
+        starting_with: PlayerRef,
+        topics: Vec<SuggestionTopic>,
+    },
+    /// Each player secretly chooses one option; reveal all choices together,
+    /// then assign each player's chosen affiliation to that player for the
+    /// current visit of this exact plane while `duration_player` is on it.
+    /// Choices and reveal still occur if that duration has already ended,
+    /// but no assignment persists.
+    ChooseRevealThenJoinPlaneAffiliations {
+        plane: ObjectRef,
+        players: PlayerSet,
+        options: Vec<String>,
+        duration_player: PlayerRef,
+    },
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum SuggestionTopic {
+    LocalRestaurant,
+    LocalTouristAttraction,
 }
 
 /// Tests only actual exile arrivals, using each card's characteristics as it

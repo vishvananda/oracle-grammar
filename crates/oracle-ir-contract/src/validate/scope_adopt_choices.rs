@@ -270,6 +270,7 @@ impl<'a> Scope<'a> {
         }
         let kind = match operation.action() {
                             Operation::SearchPlanarDeck { .. } => ResultKind::PlanarSearch,
+                            Operation::CollectPlayerSuggestions { .. } => ResultKind::PlayerSuggestions,
                             Operation::ChooseOracleDefinitionAtRandom { .. } => ResultKind::OracleDefinition,
                             Operation::CopyOracleDefinition { .. } => ResultKind::OracleCopies,
                             op if single_move_producer(op) => ResultKind::ObjectTransition,

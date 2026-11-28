@@ -830,6 +830,11 @@ pub enum PlayerEvent {
     BecomesMonarch,
     CompletesDungeon,
     TapsPermanent,
+    /// One actual card play: either a land play or a completed cast of a card.
+    /// The filter reads that played card's physical/digital printing provenance,
+    /// including through the stack or battlefield transition. A copied spell
+    /// that was not cast is not a played card; matching several disjuncts does
+    /// not create extra occurrences of this event.
     PlaysCard,
     DrawsRevealedCard,
     DrawsCard,
