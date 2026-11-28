@@ -179,6 +179,9 @@ fn devotion(args: &Value) -> Option<&'static str> {
 }
 
 fn marker(value: &Value) -> Option<&'static str> {
+    if value["CopyAtRandom"]["cards"].is_object() {
+        return Some("RandomOracleSearch");
+    }
     if value["Keyword"]["action"] == "Forage" {
         return Some("Forage");
     }
@@ -317,10 +320,11 @@ fn marker(value: &Value) -> Option<&'static str> {
             Some("EquipTwo")
         }
         Some("DeckRule")
-            if matches!(
-                args["Partner"].as_str(),
-                Some("FriendsForever" | "CharacterSelect" | "FatherAndSon")
-            ) =>
+            if args["Partner"]["NamedGroup"].is_string()
+                || matches!(
+                    args["Partner"].as_str(),
+                    Some("FriendsForever" | "CharacterSelect" | "FatherAndSon")
+                ) =>
         {
             Some("SharedPartner")
         }
@@ -509,6 +513,7 @@ fn visit_mentions<'a>(
     } else {
         ability
     };
+    let mut connive_subject = None;
     ability["kind"] != "Keyword"
         && evidence::visit_nodes(ability, |value, remaining| {
             let Some(object) = value.as_object() else {
@@ -529,6 +534,11 @@ fn visit_mentions<'a>(
                 visit(topic, None)
                     || matches!(topic, "AirbendOne" | "AirbendMany") && visit("AirbendRule", None)
                     || topic == "RegenerateSource" && visit("RegenerationShield", None)
+                    || topic == "Connive" && {
+                        let subject = *connive_subject
+                            .get_or_insert_with(|| evidence::unique_connive_subject(ability));
+                        subject.is_some_and(|subject| visit(subject, None))
+                    }
                     || topic == "Connive"
                         && evidence::single_connive(value)
                         && visit("ConniveOne", None)
@@ -659,7 +669,9 @@ fn bound_claim(name: &str, explanation: &Value) -> bool {
         (
             "contextual_reminder",
             Some(
-                "EncounteredPhenomenon"
+                "ConniveSelf"
+                    | "ConniveOther"
+                    | "EncounteredPhenomenon"
                     | "CounterProhibited"
                     | "PreparedSource"
                     | "PermanentSpellCopy"
@@ -783,7 +795,9 @@ pub(crate) fn attach(name: &str, value: &Value, explanation: &Value) -> Result<V
     let needs_bound_spell = matches!(
         explanation.as_str(),
         Some(
-            "EquipmentKeepsController"
+            "ConniveSelf"
+                | "ConniveOther"
+                | "EquipmentKeepsController"
                 | "SummoningSickness"
                 | "InfectTokenGroup"
                 | "EpicWithoutTargets"

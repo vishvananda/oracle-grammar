@@ -548,7 +548,7 @@ spell_branch_either_written ::= spell_subtype_qualified "or" spell_atomic
 /* @sem ObjectFilter::AnyOf([$spell_atomic, $spell_subtype_qualified]) */
 spell_branch_either_reversed ::= spell_subtype_qualified "or" spell_atomic
 
-/* @sem ObjectFilter::AnyOf([...$spell_adjective_commas, $spell_adjective]) */
+/* @sem ObjectFilter::AnyOf(@unordered([...$spell_adjective_commas, $spell_adjective])) */
 spell_adjective_list ::= spell_adjective_commas "or" spell_adjective
 
 spell_adjective_commas ::= spell_adjective_commas_more | spell_adjective_commas_last
@@ -9078,3 +9078,22 @@ fleem_creature_population ::= "a" "creature" "named" fleem_token_full_name
 
 /* @sem String::'Fleem, Goben''s Creation' */
 fleem_token_full_name ::= "Fleem" "," "Goben's" "Creation"
+
+/* Either arrival at this plane or a qualifying entry invokes the same trigger. */
+/* @sem EventSpec::AnyOf(@unordered([$event_planeswalk_here, $event_controlled_enters])) */
+event_here_or_controlled_entry ::= event_planeswalk_here "and" "whenever" event_controlled_enters
+
+/* The parenthetical defines bottle and gives permission for this exile receipt. */
+/* @sem Ability::WithPresentation{reminder:true, ability:Triggered{event:$event_here_or_controlled_entry, limits:_{}, announcement:@announcement, body:Program{instructions:$bottle_top_card}}} */
+triggered_bottle_top_card ::= "when" event_here_or_controlled_entry "," bottle_top_card
+
+/* @sem Vec<Instruction>::[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, origins:CardPlayOrigins([Exile]), action:Either, filter:Any})], duration:EndOfTurn, evaluation:LiveObjects}}] */
+bottle_top_card ::= "bottle" "the" "top" "card" "of" "your" "library" "." "(" "exile" "it" "." "you" "may" "play" "it" "this" "turn" "." ")"
+
+/* The planeswalk and chaos are independent occurrences of one ability. */
+/* @sem EventSpec::AnyOf([$event_chaos_ensues, $event_planeswalk_away_here]) */
+event_chaos_or_planeswalk_away ::= event_chaos_ensues "and" "when" event_planeswalk_away_here
+
+/* The cleanup selects linked cards still in exile, separately for each owner. */
+/* @sem Ability::Triggered{event:$event_chaos_or_planeswalk_away, limits:_{}, announcement:@announcement, body:Program{instructions:[ForEachPlayer{players:All, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Zone{scope:Shared(Exile), kind:Card, filter:AllOf([ExiledWith(Source), OwnedBy(One(Bound(0)))])}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:One(Bound(0)), tokens:[TokenSpec{amount:CountObjects(InZone{objects:Transition{result:@prior, phase:After}, zone:Graveyard}), words:CreatingEffect, recipe:$token_recipe_base}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}]}} */
+triggered_bottled_cards_to_tokens ::= "whenever" event_chaos_or_planeswalk_away "," "each" "player" "puts" "each" "bottled" "card" "they" "own" "into" "their" "graveyard" "and" "creates" "that" "many" token_recipe_base "."

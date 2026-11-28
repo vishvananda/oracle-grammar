@@ -1013,3 +1013,136 @@ fn permanent_spell_filter(filter: &Value, depth: usize, remaining: &mut usize) -
         _ => false,
     }
 }
+
+/// The native connive action, rather than a nearby trigger subject, fixes the
+/// pronoun used in its explanation. Parsing defers this until references bind.
+pub(super) fn connive_subject(value: &Value) -> Option<&str> {
+    let args = &value["args"];
+    if value["kind"] == "KeywordEach" && args["action"] == "Connive" {
+        return (args["actor"] == json!({"kind":"One", "args":{"kind":"AbilityController"}}))
+            .then_some("Group");
+    }
+    if value["kind"] != "Keyword" {
+        return None;
+    }
+    let object = &args["action"]["Connive"]["object"];
+    let actor = &args["actor"];
+    if actor["kind"] != "One"
+        || actor["args"]["kind"] != "ControllerOf"
+        || &actor["args"]["args"] != object
+    {
+        return None;
+    }
+    object["kind"].as_str()
+}
+
+/// A reminder may identify one conniving object or one group, never an
+/// arbitrary member among differently bound connive actions.
+pub(super) fn unique_connive_subject(ability: &Value) -> Option<&'static str> {
+    fn walk(
+        value: &Value,
+        depth: usize,
+        remaining: &mut usize,
+        found: &mut Option<(Value, &'static str, usize)>,
+        scope: usize,
+    ) -> bool {
+        if *remaining == 0 || depth >= 80 {
+            return false;
+        }
+        *remaining -= 1;
+        let scope = if depth > 0
+            && matches!(
+                value["kind"].as_str(),
+                Some(
+                    "Triggered"
+                        | "Activated"
+                        | "Static"
+                        | "Spell"
+                        | "Replacement"
+                        | "GrantAbility"
+                        | "CreateTrigger"
+                        | "CreateDelayedTrigger"
+                        | "ReflexiveTrigger"
+                )
+            ) {
+            std::ptr::from_ref(value) as usize
+        } else {
+            scope
+        };
+        let args = &value["args"];
+        let is_group = value["kind"] == "KeywordEach" && args["action"] == "Connive";
+        let is_one = value["kind"] == "Keyword" && args["action"].get("Connive").is_some();
+        if is_group || is_one {
+            let Some(subject) = connive_subject(value) else {
+                return false;
+            };
+            let role = if matches!(subject, "Source" | "AbilityHolder") {
+                "ConniveSelf"
+            } else {
+                "ConniveOther"
+            };
+            let object = if is_group {
+                &args["objects"]
+            } else {
+                &args["action"]["Connive"]["object"]
+            };
+            match found {
+                Some((prior, prior_role, prior_scope))
+                    if prior != object || *prior_role != role || *prior_scope != scope =>
+                {
+                    return false;
+                }
+                None => *found = Some((object.clone(), role, scope)),
+                _ => {}
+            }
+        }
+        match value {
+            Value::Object(fields) => fields
+                .values()
+                .all(|v| walk(v, depth + 1, remaining, found, scope)),
+            Value::Array(items) => items
+                .iter()
+                .all(|v| walk(v, depth + 1, remaining, found, scope)),
+            _ => true,
+        }
+    }
+    let mut found = None;
+    if walk(ability, 0, &mut 8192, &mut found, 0) {
+        found.map(|(_, role, _)| role)
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod connive_subject_tests {
+    use super::*;
+
+    fn action(object: Value) -> Value {
+        json!({"kind":"Keyword","args":{
+            "actor":{"kind":"One","args":{"kind":"ControllerOf","args":object}},
+            "action":{"Connive":{"object":object,"amount":null}}
+        }})
+    }
+
+    #[test]
+    fn connive_subject_requires_actor_and_holder_scope() {
+        let source = action(json!({"kind":"Source"}));
+        let target = action(json!({"kind":"Target","args":{"slot":0,"index":0}}));
+        assert_eq!(unique_connive_subject(&source), Some("ConniveSelf"));
+        assert_eq!(unique_connive_subject(&target), Some("ConniveOther"));
+        let mut wrong_actor = target.clone();
+        wrong_actor["args"]["actor"] = json!({"kind":"One","args":{"kind":"AbilityController"}});
+        assert_eq!(unique_connive_subject(&wrong_actor), None);
+        let nested = json!({"kind":"Triggered","args":{"body":{"instructions":[
+            source,
+            {"kind":"GrantAbility","args":{"kind":"Triggered","args":{"body":{"instructions":[action(json!({"kind":"Source"}))]}}}}
+        ]}}});
+        assert_eq!(unique_connive_subject(&nested), None);
+        let mut deep = action(json!({"kind":"Source"}));
+        for _ in 0..81 {
+            deep = json!([deep]);
+        }
+        assert_eq!(unique_connive_subject(&deep), None);
+    }
+}

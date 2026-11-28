@@ -360,6 +360,9 @@ pub enum PartnerKind {
     FriendsForever,
     Survivors,
     With(String),
+    /// Both commanders must have this same named group ability. This is
+    /// a deck-building permission and does not confer partner-with search.
+    NamedGroup(String),
 }
 
 /// What a card says about building a deck, as Forge's `K:Partner` and
