@@ -26,6 +26,7 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
             });
             // A proposed departure has not granted the post-departure Aura exception.
             bindings.enchanted_left = false;
+            bindings.departure_subject = false;
             bindings
         }
         ReplacementEvent::Primitive { name, operands } => event_bindings(&EventSpec::Primitive {

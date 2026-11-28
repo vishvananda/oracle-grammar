@@ -189,6 +189,11 @@ pub(super) fn with_bindings(outer: &EventBindings, row: &EventBindings) -> Event
         block_pair: outer.block_pair || row.block_pair,
         group: outer.group || row.group,
         departure_group: outer.departure_group || row.departure_group,
+        departure_subject: if row.object {
+            row.departure_subject
+        } else {
+            outer.departure_subject
+        },
         stack_object: outer.stack_object || row.stack_object,
         other: outer.other || row.other,
         other_player: outer.other_player || row.other_player,
@@ -477,6 +482,8 @@ pub(super) fn event_bindings_case_1(
             ..Default::default()
         },
         EventSpec::ZoneChange { objects, from, to } => EventBindings {
+            departure_subject: matches!(from, Some(EventZone::Battlefield))
+                && !matches!(to, EventZone::Battlefield),
             object: true,
             permanent: true,
             moved: true,

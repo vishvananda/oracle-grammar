@@ -403,6 +403,13 @@ pub enum ObjectSet {
     /// all-targets-illegal rule prevents resolution. If no modes were selected,
     /// this set is empty and the common action does nothing.
     ChosenModeTargets,
+    /// First owner's-graveyard incarnations of the Auras attached to this
+    /// departure event's subject immediately before it left the battlefield.
+    /// The Aura must have entered that graveyard simultaneously with the host's
+    /// departure or as a state-based action for no longer being attached. Each
+    /// must still be that first incarnation in its owner's graveyard; replacement
+    /// redirects and later moves (including a return) break the link (CR 400.7f).
+    EventDepartureAuras,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

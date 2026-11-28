@@ -75,6 +75,11 @@ impl<'a> Scope<'a> {
             }
             ObjectSet::Damage(DamageSubject::Source) if self.event.damage => Ok(()),
             ObjectSet::Damage(DamageSubject::Recipient) if self.event.damage_objects => Ok(()),
+            ObjectSet::EventDepartureAuras if self.event.departure_subject => Ok(()),
+            ObjectSet::EventDepartureAuras => Err(
+                "Aura departure collection requires a completed battlefield departure subject"
+                    .into(),
+            ),
             ObjectSet::EventGroupDeparture if self.event.departure_group => Ok(()),
             ObjectSet::EventGroupDeparture => Err("this event groups no zone departures".into()),
             ObjectSet::EventGroup if self.event.group => Ok(()),

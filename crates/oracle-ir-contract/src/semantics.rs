@@ -37,6 +37,8 @@ pub struct EventBindings {
     pub group: bool,
     /// A grouped zone change captures its pre-departure object views.
     pub departure_group: bool,
+    /// A completed battlefield departure binds its subject attachment snapshot.
+    pub departure_subject: bool,
     pub stack_object: bool,
     pub other: bool,
     pub other_player: bool,
@@ -713,6 +715,7 @@ impl EventBindings {
             block_pair: a.block_pair && b.block_pair,
             group: a.group && b.group,
             departure_group: a.departure_group && b.departure_group,
+            departure_subject: a.departure_subject && b.departure_subject,
             stack_object: a.stack_object && b.stack_object,
             other: a.other && b.other,
             other_player: a.other_player && b.other_player,
