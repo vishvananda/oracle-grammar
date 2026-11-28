@@ -191,20 +191,13 @@ impl<'a> Scope<'a> {
                 self.play_permission_origins(cards, origins)?;
                 self.filter(filter)
             }
+            PlayerRule::PlayPermissionWithCounterPayment {
+                permission,
+                sources,
+                ..
+            } => self.play_permission_with_counter_payment(permission, sources),
             PlayerRule::PlayPermissionWith { permission, terms } => {
-                self.player_rule(permission)?;
-                if terms.cast_filter.is_some()
-                    || matches!(terms.limit, Some(PlayLimit::OnePerColorEachTurn))
-                {
-                    let PlayerRule::PlayPermission { action, .. } = permission.as_ref() else {
-                        return Err(
-                            "a proposed-spell filter or color limit requires a play permission"
-                                .into(),
-                        );
-                    };
-                    self.play_cast_filter(action, terms)?;
-                }
-                self.play_permission_terms(terms)
+                self.play_permission_with_terms(permission, terms)
             }
             PlayerRule::PlayPermissionWithCastEffects {
                 permission,
@@ -267,6 +260,45 @@ impl<'a> Scope<'a> {
             } if colors.is_empty() => Err("empty mana retention colors".into()),
             _ => Ok(()),
         }
+    }
+
+    fn play_permission_with_counter_payment(
+        &self,
+        permission: &PlayerRule,
+        sources: &ObjectSet,
+    ) -> Result {
+        let PlayerRule::PlayPermissionWith {
+            permission: base, ..
+        } = permission
+        else {
+            return Err("counter payment requires a cast permission with terms".into());
+        };
+        if !matches!(
+            base.as_ref(),
+            PlayerRule::PlayPermission {
+                action: CardPlayAction::CastSpell,
+                ..
+            }
+        ) {
+            return Err("counter payment requires a cast-spell permission".into());
+        }
+        self.player_rule(permission)?;
+        self.objects(sources)
+    }
+
+    fn play_permission_with_terms(&self, permission: &PlayerRule, terms: &PlayTerms) -> Result {
+        self.player_rule(permission)?;
+        if terms.cast_filter.is_some()
+            || matches!(terms.limit, Some(PlayLimit::OnePerColorEachTurn))
+        {
+            let PlayerRule::PlayPermission { action, .. } = permission else {
+                return Err(
+                    "a proposed-spell filter or color limit requires a play permission".into(),
+                );
+            };
+            self.play_cast_filter(action, terms)?;
+        }
+        self.play_permission_terms(terms)
     }
 
     fn play_permission_origins(&self, cards: &ObjectSet, origins: &CardPlayOrigins) -> Result {

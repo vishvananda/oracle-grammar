@@ -714,6 +714,22 @@ pub enum ObjectFilter {
     /// The current physical or digital printing credits the chosen artist.
     /// The same Oracle card may have printings with different artists.
     IllustratedByChoice(ResultId),
+    /// Match an object sharing at least one color with `player`'s currently
+    /// enrolled affiliation for this exact face-up `plane` visit. Resolve the
+    /// affiliation's colors from the specified external catalog in this plane's
+    /// context, not from the affiliation label or an object's current colors.
+    /// An unassigned player has no matching color. If the catalog is unavailable,
+    /// the test is unresolved; do not silently treat it as false or colorless.
+    SharesPlaneAffiliationColor {
+        plane: ObjectRef,
+        player: PlayerRef,
+        catalog: PlaneAffiliationCatalog,
+    },
+    /// The candidate's actual represented text has reminder text. For a cast
+    /// proposal this is the chosen spell face. The host supplies facts for
+    /// the actual representation. Missing data is indeterminate, including
+    /// under negation, and must be obtained before deciding the predicate.
+    HasReminderText,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

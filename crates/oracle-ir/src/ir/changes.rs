@@ -400,6 +400,9 @@ pub enum ActivationFilter {
     /// Abilities of a source that matches.
     Of(Box<ObjectFilter>),
     Is(StackTrait),
+    /// The exact activated ability has reminder text in its actual presented
+    /// text. Reminder on another ability of the same source does not qualify.
+    HasReminderText,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

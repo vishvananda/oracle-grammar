@@ -9252,3 +9252,20 @@ triggered_museum_artist_copy ::= "whenever" event_chaos_ensues "," "choose" "a" 
 
 /* @sem EventSpec::Turn{point:FirstMainPhaseBegins, players:$turn_owner} */
 turn_precombat_main ::= "the" "beginning" "of" turn_owner "precombat" "main" "phase"
+
+/* @sem Ability::Triggered{event:$event_planeswalk_here, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:ChoosePlaneAffiliations{plane:Source, players:All, options:['Silverquill', 'Prismari', 'Witherbloom', 'Lorehold', 'Quandrix'], secret:false, reveal:false}}]}} */
+strix_enroll ::= "when" event_planeswalk_here "," "each" "player" "enrolls" "in" "a" "Strixhaven" "college" "for" "as" "long" "this" "plane" "remains" "face" "up" "."
+
+/* @sem Ability::Triggered{event:Spell{event:Cast, players:One(AbilityController), spells:SharesPlaneAffiliationColor{plane:Source, player:AbilityController, catalog:StrixhavenColleges}}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:CardType(Creature)}), index:0})), kind:$counter_kind, amount:$counter_amount}]}}]}} */
+strix_cast ::= "whenever" "you" "cast" "a" "spell" "that" "shares" "a" "color" "with" "your" "college" "," "put" counter_amount counter_kind "counter" "on" "up" "to" "one" "target" "creature" "."
+
+/* @sem Ability::Triggered{event:$event_chaos_ensues, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DoubleCounters{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:AnyNumber, filter:ControlledBy(One(AbilityController))})), kind:None}}]}} */
+strix_chaos ::= "whenever" event_chaos_ensues "," "double" "the" "number" "of" "each" "kind" "of" "counter" "on" "any" "number" "of" "target" "permanents" "you" "control" "."
+
+/* @sem Ability::Triggered{event:@either_event($event_planeswalk_here, $turn_upkeep), limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$flip_coin_win_or_lose}} */
+triggered_planar_coin_flip ::= "when" event_planeswalk_here "and" "at" turn_upkeep "," flip_coin_win_or_lose "."
+
+/* The format's subgame rules already move supplementary decks and leave the face-up source.
+   Only a completed subgame supplies the winner information for its own loss calculation. */
+/* @sem Ability::WithPresentation{reminder:true, ability:Triggered{event:$event_chaos_ensues, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:StartSubgame{agreement:All, retain_in_main:[Source]}}, If{condition:PlayedSubgame(@marked), then:Program{instructions:[ForEachPlayer{players:Matching{binding:0, condition:Not(WonSubgame{player:Bound(0), result:@marked})}, binding:0, body:Program{instructions:[Effect{result:@next, operation:LoseLife{players:One(Bound(0)), amount:Divide{numerator:PlayerNumber{player:Bound(0), number:Life}, denominator:$fraction_denominator, rounding:$rounding_words}}}]}}]}, otherwise:Program{}}]}}} */
+triggered_planar_agreement_subgame ::= "whenever" event_chaos_ensues "," "all" "players" "may" "agree" "to" "play" "a" "subgame" "." "each" "player" "who" "doesn't" "win" "the" "subgame" "loses" fraction_denominator "their" "life" "," rounding_words "." "(" "planar" "decks" "also" "go" "to" "the" "subgame" "," "but" "this" "plane" "stays" "here" "." SELF_FULL_NAME "always" "applies" "," "even" "after" "MagicCon" "is" "over" "." ")"

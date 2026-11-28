@@ -233,6 +233,20 @@ pub enum PlayerRule {
         spells: ObjectFilter,
         prompt: CastPrompt,
     },
+    /// The enclosed cast permission may use counters as a payment source.
+    /// The eligible cards, ordinary timing and own-turn restriction remain on
+    /// the permission. One removed counter contributes one mana-equivalent
+    /// unit in the specified colors, not an actual mana-production event.
+    /// A None policy field records an unresolved source-text question and is
+    /// not permission to silently choose either answer.
+    PlayPermissionWithCounterPayment {
+        permission: Box<PlayerRule>,
+        sources: ObjectSet,
+        counter: crate::counter::CounterKind,
+        spend_as: SpendAs,
+        minimum_counter_use: Option<u32>,
+        ordinary_mana_may_supplement: Option<bool>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -534,4 +548,13 @@ pub enum PrintedResource {
     Diamond,
     /// The exact printed @ symbol, independent of the diamond resource.
     AtSign,
+}
+
+/// Externally supplied colors for a named plane affiliation catalog.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum PlaneAffiliationCatalog {
+    /// The five colleges of Strixhaven in the referenced plane's context.
+    StrixhavenColleges,
 }

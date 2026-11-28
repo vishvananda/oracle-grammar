@@ -1211,6 +1211,14 @@ pub enum Operation {
         library_owner: PlayerRef,
         qualifying: ObjectFilter,
     },
+    /// Play a subgame under the ordinary subgame rules. If an agreement is
+    /// required, the subgame starts only once everyone in that set consents.
+    /// Retained objects stay in the main game. The receipt records whether
+    /// the subgame happened and its outcome for each participating player.
+    StartSubgame {
+        agreement: Option<PlayerSet>,
+        retain_in_main: Vec<ObjectRef>,
+    },
 }
 
 #[derive(

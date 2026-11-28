@@ -202,6 +202,8 @@ pub enum Condition {
         player: PlayerRef,
         color: ManaColor,
     },
+    /// Whether a subgame was actually played. False if consent was withheld.
+    PlayedSubgame(ResultId),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

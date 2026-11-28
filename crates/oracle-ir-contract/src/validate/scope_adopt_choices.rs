@@ -308,6 +308,8 @@ impl<'a> Scope<'a> {
                                 if self.names_stack_spell(object) => ResultKind::StackSpellCopy,
                             Operation::AddMana { .. } => ResultKind::Mana,
                             Operation::FlipCoin { .. } => ResultKind::Coin,
+                            Operation::StartSubgame { .. }
+                            | Operation::Keyword { action: KeywordAction::PlaySubgame, .. } => ResultKind::Subgame,
                             Operation::FlipCoins { .. } | Operation::FlipCoinSeries { .. } => {
                                 ResultKind::CoinBatch
                             }

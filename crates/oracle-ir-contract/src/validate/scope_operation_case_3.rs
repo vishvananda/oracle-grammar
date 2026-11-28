@@ -18,6 +18,17 @@ impl<'a> Scope<'a> {
                 child.outside_gift = true;
                 child.program(on_gift)
             }
+            Operation::StartSubgame {
+                agreement,
+                retain_in_main,
+            } => {
+                if let Some(players) = agreement {
+                    self.players(players)?;
+                }
+                retain_in_main
+                    .iter()
+                    .try_for_each(|object| self.object(object))
+            }
             Operation::SearchForFavoriteArt {
                 searcher,
                 library_owner,

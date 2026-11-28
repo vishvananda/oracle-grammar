@@ -418,6 +418,7 @@ impl<'a> Scope<'a> {
             | Operation::Exchange { .. }
             | Operation::GiftOutsideCard { .. }
             | Operation::SearchForFavoriteArt { .. }
+            | Operation::StartSubgame { .. }
             | Operation::ChooseFavoriteArt { .. }
             | Operation::JoinRavnicanGuildFromEventSpell { .. }
             | Operation::ChooseRevealThenJoinPlaneAffiliations { .. }

@@ -97,6 +97,9 @@ pub enum ManaUse {
         spells: ObjectFilter,
         effects: Vec<Operand>,
     },
+    /// The actual activated ability whose activation cost receives this mana,
+    /// tested during that activation, rather than any ability of its source.
+    ActivateMatchingAbility(ActivationFilter),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

@@ -31,14 +31,18 @@ fn validate_name_match(query: &NameMatch) -> Result {
 impl<'a> Scope<'a> {
     pub(super) fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
+            ObjectFilter::SharesPlaneAffiliationColor { plane, player, .. } => {
+                self.object(plane)?;
+                self.player(player)
+            }
             ObjectFilter::Noted(_) | ObjectFilter::NthChosen(_) => Ok(()),
             ObjectFilter::NameMatches(query) => validate_name_match(query),
             ObjectFilter::RepresentsCharacterTrait(_) => Ok(()),
             ObjectFilter::NameFromChoice(result) => {
-                self.chosen_value(result, ResultKind::NameChoice)
+                self.typed_result(result, ResultKind::NameChoice)
             }
             ObjectFilter::IllustratedByChoice(result) => {
-                self.chosen_value(result, ResultKind::ArtistChoice)
+                self.typed_result(result, ResultKind::ArtistChoice)
             }
             ObjectFilter::RepresentsCharacter(name) if !name.trim().is_empty() => Ok(()),
             ObjectFilter::RepresentsCharacter(_) => Err("character name must be nonempty".into()),
@@ -69,33 +73,7 @@ impl<'a> Scope<'a> {
             ObjectFilter::DamagedBy(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectFilter::DamagedBy(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectFilter::Primitive { name, operands } => self.primitive(name, operands),
-            ObjectFilter::History { event, window } => {
-                match event {
-                    ObjectHistory::AttackedDefender(filter) | ObjectHistory::Enlisted(filter) => {
-                        self.filter(filter)?
-                    }
-                    ObjectHistory::Drawn(Some(players))
-                    | ObjectHistory::ExiledFromGraveyard(players) => self.players(players)?,
-                    ObjectHistory::DamagedBy(object)
-                    | ObjectHistory::Convoked(object)
-                    | ObjectHistory::Exploited(object)
-                    | ObjectHistory::TappedToPayFor(object)
-                    | ObjectHistory::PhasedOutWith(object)
-                    | ObjectHistory::CountersPutWith { with: object, .. }
-                    | ObjectHistory::CountersRemovedWith { with: object, .. } => {
-                        self.object(object)?
-                    }
-                    ObjectHistory::CountersPutBy { by, .. } => self.players(by)?,
-                    _ => {}
-                }
-                match window {
-                    ObjectWindow::LastTurnOf(player)
-                    | ObjectWindow::SinceLastUpkeepOf(player)
-                    | ObjectWindow::SinceLastTurnOf(player)
-                    | ObjectWindow::LastCombatOf(player) => self.player(player),
-                    _ => Ok(()),
-                }
-            }
+            ObjectFilter::History { event, window } => self.object_history(event, window),
             ObjectFilter::ManaSpent {
                 sources,
                 payers,
@@ -201,6 +179,7 @@ impl<'a> Scope<'a> {
             | ObjectFilter::IsCard
             | ObjectFilter::Name(_)
             | ObjectFilter::Token
+            | ObjectFilter::HasReminderText
             | ObjectFilter::PrintingHas(_)
             | ObjectFilter::RepresentsAnimal(_)
             | ObjectFilter::Modified
@@ -233,6 +212,33 @@ impl<'a> Scope<'a> {
         }
     }
 
+    fn object_history(&self, event: &ObjectHistory, window: &ObjectWindow) -> Result {
+        match event {
+            ObjectHistory::AttackedDefender(filter) | ObjectHistory::Enlisted(filter) => {
+                self.filter(filter)?
+            }
+            ObjectHistory::Drawn(Some(players)) | ObjectHistory::ExiledFromGraveyard(players) => {
+                self.players(players)?
+            }
+            ObjectHistory::DamagedBy(object)
+            | ObjectHistory::Convoked(object)
+            | ObjectHistory::Exploited(object)
+            | ObjectHistory::TappedToPayFor(object)
+            | ObjectHistory::PhasedOutWith(object)
+            | ObjectHistory::CountersPutWith { with: object, .. }
+            | ObjectHistory::CountersRemovedWith { with: object, .. } => self.object(object)?,
+            ObjectHistory::CountersPutBy { by, .. } => self.players(by)?,
+            _ => {}
+        }
+        match window {
+            ObjectWindow::LastTurnOf(player)
+            | ObjectWindow::SinceLastUpkeepOf(player)
+            | ObjectWindow::SinceLastTurnOf(player)
+            | ObjectWindow::LastCombatOf(player) => self.player(player),
+            _ => Ok(()),
+        }
+    }
+
     fn cast_payment_participant(
         &self,
         participant: &ObjectFilter,
@@ -260,12 +266,12 @@ impl<'a> Scope<'a> {
         self.objects(others)
     }
 
-    fn chosen_value(&self, result: &ResultId, kind: ResultKind) -> Result {
+    fn typed_result(&self, result: &ResultId, kind: ResultKind) -> Result {
         if self.results.get(&result.0) == Some(&kind) {
             Ok(())
         } else {
             Err(format!(
-                "result {} is not an available {:?}",
+                "result {} is not an available {:?} receipt",
                 result.0, kind
             ))
         }
@@ -309,9 +315,12 @@ impl<'a> Scope<'a> {
         match condition {
             Condition::ChoseNth { player, .. } => self.player(player),
             Condition::IsPrime(value) => self.expr(value),
-            Condition::WonSubgame { player, .. } | Condition::CompletedDungeon { player, .. } => {
-                self.player(player)
+            Condition::PlayedSubgame(result) => self.typed_result(result, ResultKind::Subgame),
+            Condition::WonSubgame { player, result } => {
+                self.player(player)?;
+                self.typed_result(result, ResultKind::Subgame)
             }
+            Condition::CompletedDungeon { player, .. } => self.player(player),
             Condition::NotedForDraft { player, note } => {
                 self.player(player)?;
                 self.player(&note.player)
@@ -528,7 +537,8 @@ impl<'a> Scope<'a> {
 
     pub(super) fn activation_filter(&self, filter: &ActivationFilter) -> Result {
         match filter {
-            ActivationFilter::Is(_)
+            ActivationFilter::HasReminderText
+            | ActivationFilter::Is(_)
             | ActivationFilter::Any
             | ActivationFilter::Mana
             | ActivationFilter::Cycling => Ok(()),

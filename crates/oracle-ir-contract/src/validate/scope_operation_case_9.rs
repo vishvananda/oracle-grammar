@@ -515,6 +515,7 @@ impl<'a> Scope<'a> {
     pub(super) fn mana_use(&self, r: &ManaUse) -> Result {
         match r {
             ManaUse::CastSpell(f) | ManaUse::ActivateAbility { sources: f, .. } => self.filter(f),
+            ManaUse::ActivateMatchingAbility(f) => self.activation_filter(f),
             ManaUse::All(v) | ManaUse::Either(v) => {
                 for r in v {
                     self.mana_use(r)?;
