@@ -2584,7 +2584,7 @@ activated_reveal_self_hand_unlimited ::= cost_parts "," "↑" cost_reveal_self_h
 /* Ordinary activations use this view so a direct self-reveal cost is
    dispatched through the hand-scoped activation. Other cost contexts retain
    the full cost vocabulary. */
-activation_cost ::= activation_cost_standard | activation_cost_choice | cost_pay_mana_or_words | cost_reattach_player_subtype
+activation_cost ::= activation_cost_shared_sacrifice_discard | activation_cost_standard | activation_cost_choice | cost_pay_mana_or_words | cost_reattach_player_subtype
 
 /* @sem Cost::Cost{parts:$activation_cost_parts} */
 activation_cost_standard ::= activation_cost_parts
@@ -3100,8 +3100,8 @@ casting_tap_controlled_creature ::= "tap" "an" "untapped" "creature" "you" "cont
 line_casting_tap_creature_counter ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," casting_tap_controlled_creature "." NEWLINE exile_objects "." casting_tap_counter_placement "."
 
 /* Each alternative is a complete activation payment. */
-/* @sem Cost::Cost{parts:[Choice([Cost::Cost{parts:$activation_cost_parts}, Cost::Cost{parts:$activation_cost_parts_2}])]} */
-activation_cost_choice ::= activation_cost_parts "or" activation_cost_parts
+/* @sem Cost::Cost{parts:[Choice([Cost::Cost{parts:$activation_cost_choice_left}, Cost::Cost{parts:$activation_cost_parts}])]} */
+activation_cost_choice ::= activation_cost_choice_left "or" activation_cost_parts
 
 /* A resolution payment and its chosen-payment branch. */
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$mana_life_resolution_payment, optional:true}}, If{condition:PaymentChosen(@marked), then:$program, otherwise:Program{}}]} */
@@ -3263,3 +3263,18 @@ activated_return_graveyard_with_counters_add_types ::= cost_mana "," "↑" cost_
 /* The discarded card shares its name with a legendary permanent controlled now. */
 /* @sem CostPart::Discard{count:Constant(1), filter:AllOf([Supertype(Legendary), SharesWithAny{property:Names, with:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Supertype(Legendary), ControlledBy(One(AbilityController))])}}])} */
 cost_discard_legendary_matching_controlled ::= "discard" "a" "legendary" "card" "with" "the" "same" "name" "as" "a" "legendary" "permanent" "you" "control"
+
+/* @sem CostPart::Constrained{part:Move{selections:[_{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$adjective_color}, choose:AnyNumber}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}, constraints:[TotalManaSymbols{color:$mana_color_word, comparison:GreaterOrEqual, amount:$number_words}]} */
+cost_graveyard_symbol_exile ::= "exile" "any" "number" "of" adjective_color "cards" "from" "your" "graveyard" "with" number_words "or" "more" mana_color_word "mana" "symbols" "among" "their" "mana" "costs"
+
+/* A comma-delimited prefix applies to both cost alternatives. */
+/* @sem Cost::Cost{parts:[...$activation_cost_parts, $cost_sacrifice_or_discard_choice]} */
+activation_cost_shared_sacrifice_discard ::= activation_cost_parts "," "↑" cost_sacrifice_or_discard_choice
+
+/* The two complete alternatives may each start with one cost part, or with
+   a symbol pair such as mana and tap. */
+activation_cost_choice_left ::= activation_cost_one | activation_cost_symbol_pair
+/* @sem CostPart::[$cost_symbols, $cost_symbols_2] */
+activation_cost_symbol_pair ::= cost_symbols "," cost_symbols
+/* @sem CostPart::Choice([Cost{parts:[$cost_sacrifice]}, Cost{parts:[$cost_discard_filtered]}]) */
+cost_sacrifice_or_discard_choice ::= cost_sacrifice "or" cost_discard_filtered

@@ -1,5 +1,5 @@
 //! Card surfaces use the shared enumerator, matcher and derivation replay.
-use super::{CardInputContext, CardReading, Engine};
+use super::{CardInputContext, CardNote, CardReading, Engine, LayoutReminder};
 use crate::engine::Enumerated;
 use crate::engine::ability_joins::has_joined_events;
 use crate::engine::spell_paragraphs::can_split_reminded_spell;
@@ -73,6 +73,26 @@ impl Engine {
             let surfaces = self.card_surfaces_with_source(&wanted, context, true)?;
             if let Some(text) = self.verify_card_surfaces(name, &types, &surfaces, key, verify)? {
                 return Ok(Some(text));
+            }
+        }
+        // Compose the independent layout prefix with a verified ability body.
+        if let [CardNote::LayoutReminder(LayoutReminder::OngoingScheme)] = wanted.notes.as_slice()
+            && let Some(&root) = self.grammar.names.get("ongoing_scheme_header")
+        {
+            let layout = serde_json::to_value(LayoutReminder::OngoingScheme)
+                .map_err(|error| error.to_string())?;
+            let headers = self.enumerated_surfaces(root, &[layout], name, &types, 1, &[])?;
+            let body = CardReading {
+                abilities: wanted.abilities.clone(),
+                notes: Vec::new(),
+            };
+            if let Some(header) = headers.texts.into_iter().next()
+                && let Some(body) = self.print_card_keyed_with_source(name, &body, context, &[])?
+            {
+                let text = format!("{header}\n{body}");
+                if verify(&text) {
+                    return Ok(Some(text));
+                }
             }
         }
         // Independently printable abilities can exhaust a shared candidate

@@ -59,28 +59,7 @@ impl<'a> Scope<'a> {
                 component,
                 view,
                 phase,
-            } => {
-                self.paid_component(payment, component)?;
-                if self.announcing {
-                    let known = matches!(
-                        (payment, view, phase),
-                        (
-                            PaymentRef::Activation
-                                | PaymentRef::Casting { .. }
-                                | PaymentRef::Branch,
-                            CostObjectView::Inputs,
-                            ObjectPhase::Before
-                        )
-                    );
-                    if !known {
-                        return Err("payment history is unavailable during announcement".into());
-                    }
-                }
-                if matches!(view, CostObjectView::Inputs) && !matches!(phase, ObjectPhase::Before) {
-                    return Err("payment input history requires original identities".into());
-                }
-                Ok(())
-            }
+            } => self.cost_objects(payment, component, view, phase),
             ObjectSet::CreationLinkedCards(source) => self.object(source),
             ObjectSet::Observed(result) => match self.results.get(&result.0) {
                 Some(ResultKind::Observation) => Ok(()),
@@ -129,6 +108,10 @@ impl<'a> Scope<'a> {
                 }
                 self.count(&Count::Exactly(count.clone()))
             }
+            ObjectSet::ExileUntilMatches(result) => match self.results.get(&result.0) {
+                Some(ResultKind::ExileUntilMatching) => Ok(()),
+                _ => Err("matching exile receipt requires a matching exile-until result".into()),
+            },
             ObjectSet::TransitionWhere {
                 result, from, to, ..
             } => {
@@ -137,25 +120,32 @@ impl<'a> Scope<'a> {
                         "a constrained transition requires a departure or arrival zone".into(),
                     );
                 }
-                match self.results.get(&result.0) {
-                    Some(ResultKind::ObjectTransition | ResultKind::Surveil) => Ok(()),
-                    _ => Err("constrained transition requires an object-transition result".into()),
-                }
+                self.require_object_transition(
+                    result,
+                    true,
+                    "constrained transition requires an object-transition result",
+                )
             }
-            ObjectSet::Transition { result, .. } => match self.results.get(&result.0) {
-                Some(ResultKind::ObjectTransition | ResultKind::Surveil) => Ok(()),
-                _ => Err("transition set requires an object-transition result".into()),
-            },
+            ObjectSet::Transition { result, .. } => self.require_object_transition(
+                result,
+                true,
+                "transition set requires an object-transition result",
+            ),
             ObjectSet::MovedBy { result, player, .. } => {
                 self.player(player)?;
-                match self.results.get(&result.0) {
-                    Some(ResultKind::ObjectTransition) => Ok(()),
-                    _ => Err("a player's share requires an object-transition result".into()),
-                }
+                self.require_object_transition(
+                    result,
+                    false,
+                    "a player's share requires an object-transition result",
+                )
             }
             ObjectSet::Primitive { name, operands } => self.primitive(name, operands),
             ObjectSet::One(object) => self.object(object),
             // A loop over "any target" binds each one, player or permanent.
+            ObjectSet::ChosenModeTargets if self.shared_mode_targets => Ok(()),
+            ObjectSet::ChosenModeTargets => {
+                Err("chosen mode targets require shared modal resolution".into())
+            }
             ObjectSet::Targets(slot) => self
                 .target(slot, None, TargetKind::Object(ObjectDomain::permanent()))
                 .or_else(|_| self.target(slot, None, TargetKind::DamageRecipient)),
@@ -205,6 +195,50 @@ impl<'a> Scope<'a> {
                     result.0
                 )),
             },
+        }
+    }
+
+    fn cost_objects(
+        &self,
+        payment: &PaymentRef,
+        component: &[u32],
+        view: &CostObjectView,
+        phase: &ObjectPhase,
+    ) -> Result {
+        self.paid_component(payment, component)?;
+        if self.announcing {
+            let known = matches!(
+                (payment, view, phase),
+                (
+                    PaymentRef::Activation | PaymentRef::Casting { .. } | PaymentRef::Branch,
+                    CostObjectView::Inputs,
+                    ObjectPhase::Before
+                )
+            );
+            if !known {
+                return Err("payment history is unavailable during announcement".into());
+            }
+        }
+        if matches!(view, CostObjectView::Inputs) && !matches!(phase, ObjectPhase::Before) {
+            return Err("payment input history requires original identities".into());
+        }
+        Ok(())
+    }
+
+    fn require_object_transition(
+        &self,
+        result: &ResultId,
+        allow_surveil: bool,
+        error: &str,
+    ) -> Result {
+        match self.results.get(&result.0) {
+            Some(
+                ResultKind::ObjectTransition
+                | ResultKind::ExileUntilMatching
+                | ResultKind::ExileUntilThreshold,
+            ) => Ok(()),
+            Some(ResultKind::Surveil) if allow_surveil => Ok(()),
+            _ => Err(error.into()),
         }
     }
 

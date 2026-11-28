@@ -577,6 +577,17 @@ impl<'a> Scope<'a> {
                     ) {
                         self.results.insert(result.0, ResultKind::ObjectTransition);
                     }
+                    if let Operation::ExileLibraryUntil { stop, .. } = operation {
+                        let kind = match stop {
+                            ExileLibraryStop::Matching { .. } => ResultKind::ExileUntilMatching,
+                            ExileLibraryStop::CumulativeAtLeast { .. } => {
+                                ResultKind::ExileUntilThreshold
+                            }
+                        };
+                        self.results.insert(result.0, kind);
+                        self.result_zones.insert(result.0, vec![EventZone::Exile]);
+                        self.ordered_results.insert(result.0);
+                    }
                     if matches!(operation, Operation::CreateTokens { .. }) {
                         self.results.insert(result.0, ResultKind::CreatedObjects);
                     }

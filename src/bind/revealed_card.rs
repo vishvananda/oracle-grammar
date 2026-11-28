@@ -154,6 +154,39 @@ fn single_card_before_move<'a>(root: &'a Value, path: &[Step]) -> Option<&'a Val
     .then_some(previous)
 }
 
+/// A bare pronoun immediately after a one-card look denotes the inspected
+/// card. The bounded look-and-move production supplies the complete operand.
+pub(super) fn optional_top_graveyard_pronoun(root: &Value, path: &[Step]) -> Result<(), String> {
+    let Some((sequence, index)) = move_site(root, path) else {
+        return Ok(());
+    };
+    let Some(instructions) = at(root, sequence).and_then(Value::as_array) else {
+        return Ok(());
+    };
+    let (Some(optional), Some(previous)) = (
+        instructions.get(index),
+        index
+            .checked_sub(1)
+            .and_then(|index| instructions.get(index)),
+    ) else {
+        return Ok(());
+    };
+    let lookup = &previous["args"]["operation"];
+    let moving = &optional["args"]["body"]["instructions"][0]["args"]["operation"];
+    if previous["kind"] == "Effect"
+        && lookup["kind"] == "LookAt"
+        && one_library_card(&lookup["args"]["objects"])
+        && optional["kind"] == "Optional"
+        && moving["kind"] == "Move"
+        && moving["args"]["destination"]
+            .get("OwnersGraveyard")
+            .is_some()
+    {
+        return Err("the optional move needs the single previously inspected library card".into());
+    }
+    Ok(())
+}
+
 /// The first move in a successful optional one-card look follows that look.
 fn paid_library_look(root: &Value, path: &[Step]) -> Option<()> {
     let (sequence, index) = move_site(root, path)?;

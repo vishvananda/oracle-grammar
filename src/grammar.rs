@@ -29,6 +29,7 @@ pub enum Class {
     Capitalized,
     SelfName,
     Newline,
+    SelfFullName,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -409,6 +410,7 @@ fn class_of(name: &str) -> Option<Class> {
         "WORD" => Some(Class::Word),
         "CAPITALIZED" => Some(Class::Capitalized),
         "SELF_NAME" => Some(Class::SelfName),
+        "SELF_FULL_NAME" => Some(Class::SelfFullName),
         "NEWLINE" => Some(Class::Newline),
         _ => None,
     }

@@ -1021,6 +1021,29 @@ pub enum Operation {
         rule: TriggerRule,
         duration: Duration,
     },
+    /// Exile the current top card one at a time, applying replacement effects
+    /// and completing each move before examining the next. Stop after actual
+    /// exile arrivals satisfy `stop`, or when the library is empty. Check the
+    /// initial empty receipt before the first move, so a nonpositive threshold
+    /// or zero required matches stops immediately. A move redirected elsewhere
+    /// is not an exile arrival. If a replacement leaves
+    /// the same top card in place, normal rules for loops apply. The result's
+    /// transition receipt contains only successful moves to exile, in order;
+    /// its before and after views are those moves' pre-move and exile-arrival
+    /// identities, never attempted inputs redirected elsewhere.
+    ExileLibraryUntil {
+        actor: PlayerRef,
+        library: PlayerRef,
+        stop: ExileLibraryStop,
+    },
+}
+
+/// Tests only actual exile arrivals, using each card's characteristics as it
+/// arrives. The required count or threshold is evaluated when the operation begins.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ExileLibraryStop {
+    Matching { filter: ObjectFilter, count: Expr },
+    CumulativeAtLeast { property: Property, threshold: Expr },
 }
 
 impl Program {

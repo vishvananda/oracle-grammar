@@ -5,6 +5,7 @@ use super::*;
 fn optional_top_moves_keep_the_inspected_card_and_its_library_owner() {
     for text in [
         "Look at the top card of target player's library. You may put that card into their graveyard.",
+        "{T}: Look at the top card of target player's library. You may put it into their graveyard.",
         "When this creature enters, look at the top card of target player's library. You may put that card into their graveyard.",
         "{2}, {T}: Look at the top card of target player's library. You may put that card into that player's graveyard.",
         "Whenever this creature attacks and isn't blocked, look at the top card of defending player's library. You may put that card on the bottom of that player's library.",

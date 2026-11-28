@@ -108,10 +108,10 @@ impl<'a> Replay<'a> {
             Sym::Word(word) => Some(word_token(word)),
             Sym::Mark(mark) => Some(Token::Mark(*mark)),
             Sym::Class(Class::Newline) => Some(Token::Newline),
-            Sym::Class(Class::SelfName) => {
+            Sym::Class(class @ (Class::SelfName | Class::SelfFullName)) => {
                 let (last, rest) = self.spellings.split_last()?;
                 self.spellings = rest;
-                Some(Token::SelfName(*last))
+                (*class != Class::SelfFullName || *last == 0).then_some(Token::SelfName(*last))
             }
             Sym::Class(_) => value.and_then(|value| class_token(sym, value)),
             Sym::Rule(_) => None,

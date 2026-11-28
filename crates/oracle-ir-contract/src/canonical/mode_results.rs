@@ -249,3 +249,50 @@ fn mode_target_scopes_preserve_genuine_outer_targets() {
     };
     assert_eq!(norm(captured(7, [23, 23])), norm(captured(41, [59, 61])));
 }
+
+fn shared_modal() -> Value {
+    let mut value = modal(vec![vec![], vec![]], vec![]);
+    let selection = &mut value[0]["args"]["announcement"]["modes"];
+    selection["count"]["minimum"] = json!({"kind":"Constant","args":0});
+    selection["count"]["maximum"] = json!({"kind":"Constant","args":2});
+    selection["mechanism"] =
+        json!({"AnnouncedShared":{"chooser":"Controller","method":"PlayerChoice"}});
+    for mode in selection["options"].as_array_mut().unwrap() {
+        mode["announcement"]["targets"] = json!([{"slot":0,"kind":{"Object":{"kind":"Card","zones":["Graveyard"]}},
+            "count":{"Exactly":{"kind":"Constant","args":1}},"filter":{"kind":"Any"},
+            "players":null,"distribute":null,"constraints":[],"chooser":null}]);
+    }
+    value[0]["args"]["body"]["instructions"] = json!([effect(
+        0,
+        json!({"kind":"Move","args":{
+        "objects":{"kind":"ChosenModeTargets"},"destination":{"OwnersHand":{"counters":[],"states":[]}},"qualifiers":[]}})
+    )]);
+    value
+}
+
+#[test]
+fn shared_modal_targets_are_scoped_to_one_common_move() {
+    let valid_shared = shared_modal();
+    assert!(valid(&valid_shared).is_ok());
+    let mut renamed = valid_shared.clone();
+    renamed[0]["args"]["announcement"]["modes"]["options"][0]["announcement"]["targets"][0]["slot"] =
+        json!(4);
+    renamed[0]["args"]["announcement"]["modes"]["options"][1]["announcement"]["targets"][0]["slot"] =
+        json!(9);
+    assert_eq!(norm(valid_shared.clone()), norm(renamed));
+    let mut wrong_mechanism = valid_shared.clone();
+    wrong_mechanism[0]["args"]["announcement"]["modes"]["mechanism"] =
+        json!({"Announced":{"chooser":"Controller","method":"PlayerChoice"}});
+    assert!(valid(&wrong_mechanism).is_err());
+    let mut leak = valid_shared.clone();
+    leak[0]["args"]["announcement"]["modes"] = Value::Null;
+    assert!(valid(&leak).is_err());
+    let mut bad_mode = valid_shared.clone();
+    bad_mode[0]["args"]["announcement"]["modes"]["options"][0]["body"]["instructions"] =
+        json!([bind(0)]);
+    assert!(valid(&bad_mode).is_err());
+    let mut wrong_kind = valid_shared;
+    wrong_kind[0]["args"]["announcement"]["modes"]["options"][0]["announcement"]["targets"] =
+        json!([player_target(0)]);
+    assert!(valid(&wrong_kind).is_err());
+}

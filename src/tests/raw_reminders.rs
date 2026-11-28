@@ -1273,3 +1273,64 @@ fn label_validation_preserves_terminal_punctuation() {
         assert!(error.contains("presentation label disagrees with its terminals"));
     }
 }
+
+#[test]
+fn ongoing_scheme_layout_prints_with_a_verified_body() {
+    use crate::engine::{CardInputContext, PrintedPowerToughness};
+    use crate::model::mtg_types::{CardType, SuperType};
+
+    let name = "Nature Shields Its Own";
+    let text = r#"(An ongoing scheme remains face up until it's abandoned.)
+Whenever a creature attacks and isn't blocked, if you're the defending player, create a 0/1 green Plant creature token that's blocking that creature.
+When four or more creatures attack you, abandon this scheme at end of combat."#;
+    let mut characteristics = empty_card_characteristics();
+    characteristics.card_types.push(CardType::Scheme);
+    characteristics.supertypes.push(SuperType::Ongoing);
+    let context = CardInputContext {
+        characteristics,
+        printed_power_toughness: PrintedPowerToughness::Absent,
+        station_nonanimating: false,
+        station_animation: None,
+        station_present: false,
+        transform_front: None,
+    };
+    let engine = super::engine();
+    let parsed = engine.parse_card_with_source(name, text, &context).unwrap();
+    let reading = &parsed.readings[0];
+    let printed = engine
+        .print_card_keyed_with_source(name, reading, &context, &[])
+        .unwrap()
+        .unwrap();
+    assert!(printed.starts_with("(An ongoing scheme"));
+    let reparsed = engine
+        .parse_card_with_source(name, &printed, &context)
+        .unwrap();
+    assert_eq!(reparsed.readings, parsed.readings);
+}
+
+#[test]
+fn copy_exception_keeps_the_full_printed_name() {
+    let name = "Taskmaster, Mercenary Mimic";
+    let types = ["Legendary".to_owned(), "Creature".to_owned()];
+    let text = "Photographic Reflexes — At the beginning of your first main phase, until your next turn, Taskmaster becomes a copy of up to one target creature on the battlefield or creature card in a graveyard, except his name is Taskmaster, Mercenary Mimic and he's a legendary Human Mercenary Villain creature.";
+    let engine = super::engine();
+    let read = engine.parse_types(name, text, &types).unwrap();
+    assert_eq!(read.readings.len(), 1);
+    let generated = engine
+        .print_keyed(name, &read.readings[0], &types, &[])
+        .unwrap()
+        .unwrap();
+    assert!(generated.contains("his name is Taskmaster, Mercenary Mimic"));
+    assert!(
+        !engine
+            .parse_types(
+                name,
+                &text.replace(
+                    "his name is Taskmaster, Mercenary Mimic",
+                    "his name is Taskmaster"
+                ),
+                &types,
+            )
+            .is_ok_and(|reduced| reduced.readings == read.readings)
+    );
+}

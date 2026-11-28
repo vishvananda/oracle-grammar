@@ -147,6 +147,7 @@ impl<'a> Scope<'a> {
     pub(super) fn ordered(&self, objects: &ObjectSet) -> bool {
         match objects {
             ObjectSet::Observed(result)
+            | ObjectSet::ExileUntilMatches(result)
             | ObjectSet::Transition { result, .. }
             | ObjectSet::TransitionWhere { result, .. } => self.ordered_results.contains(&result.0),
             ObjectSet::Difference { objects, .. }
@@ -183,7 +184,18 @@ impl<'a> Scope<'a> {
                 ..
             } => crate::cost_history::zone(self.paid_component(payment, component).ok()?, phase)
                 .map(|z| vec![z]),
+            ObjectSet::Transition {
+                result,
+                phase: ObjectPhase::Before,
+            } if matches!(
+                self.results.get(&result.0),
+                Some(ResultKind::ExileUntilMatching | ResultKind::ExileUntilThreshold)
+            ) =>
+            {
+                Some(vec![EventZone::Library])
+            }
             ObjectSet::Transition { result, .. }
+            | ObjectSet::ExileUntilMatches(result)
             | ObjectSet::MovedBy { result, .. }
             | ObjectSet::Observed(result)
             | ObjectSet::Unselected(result)

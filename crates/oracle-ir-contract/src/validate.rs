@@ -7,6 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[cfg(test)]
 mod event_group_departure_tests;
+#[cfg(test)]
+mod exile_until_tests;
 
 mod arrival;
 mod bounds;
@@ -25,6 +27,8 @@ enum ResultKind {
     Payment,
     Selection,
     ObjectTransition,
+    ExileUntilMatching,
+    ExileUntilThreshold,
     CreatedObjects,
     StackSpellCopy,
     DamageReplacement,
@@ -42,6 +46,8 @@ type Result<T = ()> = std::result::Result<T, String>;
 #[derive(Clone, Default)]
 struct Scope<'a> {
     slots: BTreeMap<u16, &'a TargetSpec>,
+    shared_mode_targets: bool,
+    allow_shared_mode_announcement: bool,
     prepared: BTreeMap<u32, Option<Vec<EventZone>>>,
     results: BTreeMap<u32, ResultKind>,
     /// Receipts visible only to an explicit join after mutually exclusive branches.
@@ -832,9 +838,42 @@ fn validate_ability_in_case_3(
         Ability::OpeningHand { announcement, body } => (announcement, body),
         _ => unreachable!("validated dispatch"),
     };
+    scope.allow_shared_mode_announcement = announcement
+        .modes
+        .as_ref()
+        .is_some_and(|modes| matches!(modes.mechanism, ModeMechanism::AnnouncedShared { .. }));
     scope.announcement(announcement)?;
-    if announcement.modes.is_some() && !body.instructions.is_empty() {
-        return Err("modal ability has a separate resolution body".into());
+    scope.allow_shared_mode_announcement = false;
+    if let Some(modes) = &announcement.modes {
+        if matches!(modes.mechanism, ModeMechanism::AnnouncedShared { .. }) {
+            if modes.options.iter().any(|mode| {
+                !mode.body.instructions.is_empty()
+                    || mode.announcement.modes.is_some()
+                    || mode.announcement.targets.is_empty()
+                    || mode
+                        .announcement
+                        .targets
+                        .iter()
+                        .any(|target| !matches!(target.kind, TargetKind::Object(_)))
+            }) {
+                return Err("shared modal resolution requires target-only object modes".into());
+            }
+            if !matches!(
+                body.instructions.as_slice(),
+                [Instruction::Effect {
+                    operation: Operation::Move {
+                        objects: ObjectSet::ChosenModeTargets,
+                        ..
+                    },
+                    ..
+                }]
+            ) {
+                return Err("shared modal resolution requires one selected-target move".into());
+            }
+            scope.shared_mode_targets = true;
+        } else if !body.instructions.is_empty() {
+            return Err("modal ability has a separate resolution body".into());
+        }
     }
     scope.program(body)
 }
@@ -950,9 +989,42 @@ fn validate_ability_in_case_4(
         }
         _ => unreachable!("validated dispatch"),
     };
+    scope.allow_shared_mode_announcement = announcement
+        .modes
+        .as_ref()
+        .is_some_and(|modes| matches!(modes.mechanism, ModeMechanism::AnnouncedShared { .. }));
     scope.announcement(announcement)?;
-    if announcement.modes.is_some() && !body.instructions.is_empty() {
-        return Err("modal ability has a separate resolution body".into());
+    scope.allow_shared_mode_announcement = false;
+    if let Some(modes) = &announcement.modes {
+        if matches!(modes.mechanism, ModeMechanism::AnnouncedShared { .. }) {
+            if modes.options.iter().any(|mode| {
+                !mode.body.instructions.is_empty()
+                    || mode.announcement.modes.is_some()
+                    || mode.announcement.targets.is_empty()
+                    || mode
+                        .announcement
+                        .targets
+                        .iter()
+                        .any(|target| !matches!(target.kind, TargetKind::Object(_)))
+            }) {
+                return Err("shared modal resolution requires target-only object modes".into());
+            }
+            if !matches!(
+                body.instructions.as_slice(),
+                [Instruction::Effect {
+                    operation: Operation::Move {
+                        objects: ObjectSet::ChosenModeTargets,
+                        ..
+                    },
+                    ..
+                }]
+            ) {
+                return Err("shared modal resolution requires one selected-target move".into());
+            }
+            scope.shared_mode_targets = true;
+        } else if !body.instructions.is_empty() {
+            return Err("modal ability has a separate resolution body".into());
+        }
     }
     scope.program(body)
 }

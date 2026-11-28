@@ -12,6 +12,9 @@ impl Scope {
         prior_targets: &super::references::Contexts,
     ) -> Result<Value, String> {
         super::revealed_card::tested_pronoun(root, &item.path)?;
+        if name == "it" {
+            super::revealed_card::optional_top_graveyard_pronoun(root, &item.path)?;
+        }
         if name == "it"
             && let Some(actor) = reference(root, &item.path, introduced, self.target_base)?
         {

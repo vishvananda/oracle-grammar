@@ -43,6 +43,12 @@ pub enum ModeMechanism {
     },
     /// Targets or a mode's requirement determine which mode applies (601.2c).
     Implied,
+    /// Announce target-only modes and resolve their common program once. Mode
+    /// bodies are empty; the common program may refer to ChosenModeTargets.
+    AnnouncedShared {
+        chooser: ModeChooser,
+        method: ModePicking,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

@@ -39,8 +39,8 @@ pub(crate) enum CompiledStep {
     /// One or more consecutive static literal tokens (`Word`, `Mark`, `Newline`),
     /// stored as a shared slice with combined style trigger flags.
     Literal { tokens: Arc<[RToken]>, flags: u64 },
-    /// `Class::SelfName` at original symbol index `sym`.
-    SelfName { sym: usize },
+    /// A card's own name at original symbol index `sym`.
+    SelfName { sym: usize, full: bool },
     /// A dynamic token class (`Number`, `Word`, `Capitalized`) at `sym`.
     Class {
         sym: usize,
@@ -183,9 +183,12 @@ impl WordTable {
                 Sym::Class(Class::Newline) => {
                     lit_buf.push(RToken::Newline);
                 }
-                Sym::Class(Class::SelfName) => {
+                Sym::Class(class @ (Class::SelfName | Class::SelfFullName)) => {
                     flush(&mut steps, &mut lit_buf, &mut lit_flags);
-                    steps.push(CompiledStep::SelfName { sym: sym_idx });
+                    steps.push(CompiledStep::SelfName {
+                        sym: sym_idx,
+                        full: *class == Class::SelfFullName,
+                    });
                 }
                 Sym::Class(class) => {
                     flush(&mut steps, &mut lit_buf, &mut lit_flags);

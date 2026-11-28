@@ -91,7 +91,7 @@ fn class_mask(class: Class) -> u8 {
         Class::Number => 1 << NUMBER,
         Class::Word => 1 << LOWER | 1 << UPPER,
         Class::Capitalized => 1 << UPPER,
-        Class::SelfName => 1 << SELF_NAME,
+        Class::SelfName | Class::SelfFullName => 1 << SELF_NAME,
         Class::Newline => 1 << NEWLINE,
     }
 }

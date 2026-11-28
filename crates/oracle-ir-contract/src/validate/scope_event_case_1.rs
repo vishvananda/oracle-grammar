@@ -281,7 +281,13 @@ impl<'a> Scope<'a> {
             ObjectRef::Result { result, .. }
                 if matches!(
                     self.results.get(&result.0),
-                    Some(ResultKind::Selection | ResultKind::Search | ResultKind::ObjectTransition)
+                    Some(
+                        ResultKind::Selection
+                            | ResultKind::Search
+                            | ResultKind::ObjectTransition
+                            | ResultKind::ExileUntilMatching
+                            | ResultKind::ExileUntilThreshold
+                    )
                 ) =>
             {
                 Ok(())

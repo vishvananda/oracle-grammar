@@ -90,7 +90,8 @@ pub struct Parts<'a> {
 pub fn parts(selection: &ModeSelection) -> Parts<'_> {
     let (implied, chooser, random) = match &selection.mechanism {
         ModeMechanism::Implied => (true, None, false),
-        ModeMechanism::Announced { chooser, method } => (
+        ModeMechanism::Announced { chooser, method }
+        | ModeMechanism::AnnouncedShared { chooser, method } => (
             false,
             match chooser {
                 ModeChooser::Controller => None,

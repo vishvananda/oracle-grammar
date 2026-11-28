@@ -59,6 +59,7 @@ impl<'a> Scope<'a> {
                 count: _,
                 at_most: _,
             }
+            | Operation::ExileLibraryUntil { .. }
             | Operation::RevealUntilGroup {
                 library: _,
                 constraints: _,

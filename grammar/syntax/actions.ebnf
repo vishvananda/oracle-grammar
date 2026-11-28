@@ -709,7 +709,7 @@ controller_damage_each ::= "each" filter_head "that" "player" "or" "that" "plane
 reflexive_trigger_modal ::= "when" "you" "do" "," reflexive_mode_selection
 
 /* The final mode sentence also closes its enclosing reflexive-trigger program. */
-program_sentence_reflexive_modal ::= program_sentence_may_reflexive_modal | program_sentence_required_reflexive_modal | program_sentence_repeated_payment_modal
+program_sentence_reflexive_modal ::= program_sentence_repeated_payment_when_do_modal | program_sentence_may_reflexive_modal | program_sentence_required_reflexive_modal | program_sentence_repeated_payment_modal
 /* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[...$reflexive_action, $reflexive_trigger_modal]}}]} */
 program_sentence_may_reflexive_modal ::= "you" "may" reflexive_action "." reflexive_trigger_modal
 /* @sem Program::Program{instructions:[...$reflexive_required, $reflexive_trigger_modal]} */
@@ -724,10 +724,11 @@ reflexive_choose_one_or_both ::= "choose" "one" "or" "both" "—" NEWLINE reflex
 /* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Constant(1), maximum:@length($reflexive_modes)}, options:$reflexive_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
 reflexive_choose_one_or_more ::= "choose" "one" "or" "more" "—" NEWLINE reflexive_modes
 reflexive_modes ::= reflexive_modes_one | reflexive_modes_more
-/* @sem Mode::[$reflexive_mode] */
-reflexive_modes_one ::= reflexive_mode
-/* @sem Mode::[$reflexive_mode, ...$reflexive_modes] */
-reflexive_modes_more ::= reflexive_mode NEWLINE reflexive_modes
+/* @sem Mode::[$reflexive_mode_any] */
+reflexive_modes_one ::= reflexive_mode_any
+/* @sem Mode::[$reflexive_mode_any, ...$reflexive_modes] */
+reflexive_modes_more ::= reflexive_mode_any NEWLINE reflexive_modes
+reflexive_mode_any ::= reflexive_mode | reflexive_mode_flavor
 /* @sem @reflexive(Mode::Mode{announcement:@announcement, body:$program_sentence, weight:1}) */
 reflexive_mode ::= "•" program_sentence
 
@@ -788,7 +789,7 @@ clause_villainous_each ::= clause_villainous_each_program | clause_villainous_qu
 /* @sem Instruction::[ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseAction{actor:One(Bound(0)), options:[Program($villainous_option), Program($villainous_option_2)], villainous:true}}]}}] */
 clause_villainous_each_program ::= "each" "opponent" "faces" "a" "villainous" "choice" "—" villainous_option "," "or" villainous_option
 
-villainous_option ::= villainous_discard_hand | villainous_hand_damage | villainous_sacrifice | villainous_each_damage | villainous_draw_chaos | villainous_you_option | villainous_opponent_option
+villainous_option ::= villainous_exile_until_cast | villainous_exile_by_mana_value | villainous_discard_hand | villainous_hand_damage | villainous_sacrifice | villainous_each_damage | villainous_draw_chaos | villainous_you_option | villainous_opponent_option
 /* @sem () */
 villainous_opponent_words ::= "that" ("player" | "opponent")
 /* @sem Program::Program{instructions:@apply(PlayerSet::One(PlayerRef::AbilityController), $verbs_base)} */
@@ -22310,7 +22311,7 @@ clause_davriel_offer ::= "accept" "one" "of" SELF_NAME "'s" "offers"
 clause_davriel_condition ::= "accept" "one" "of" SELF_NAME "'s" "conditions"
 
 /* The target's controller investigates once per matching object moved out by the prior exile. */
-/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(ControllerOf(Target{slot:@last_slot, index:0})), action:KeywordAction::Investigate{times:CountObjects(Matching{objects:Transition{result:@prior, phase:Before}, filter:$filter_phrase})}}}] */
+/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(ControllerOf(Target{slot:@last_slot, index:0})), action:KeywordAction::Investigate{times:CountObjects(Matching{objects:TransitionWhere{result:@prior, phase:Before, from:Battlefield, to:Exile}, filter:$filter_phrase})}}}] */
 clause_target_controller_investigates_exiled ::= "that" "player" "investigates" "for" "each" filter_phrase "exiled" "this" "way"
 
 /* Tempting offer copies reuse the single announced target across all three creations. */
@@ -25220,3 +25221,46 @@ up_to_one_controlled_subtype_target ::= "up" "to" "one" "target" subtype "you" "
 /* The same announcement supplies the possession, comparison and follow-ups. */
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[If{condition:Controls{player:AbilityController, filter:AllOf([$subtype, Property{property:$stat, test:NumberTest::Compare{comparison:Greater, value:ObjectProperty{object:$kicker_pump_creature, property:$stat, information:CurrentOrLastKnown}}}]), minimum:1}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($kicker_pump_creature)), changes:[SetController(AbilityController)], duration:$duration_2, evaluation:Snapshot}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($kicker_pump_creature)), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot}}]}}, Effect{result:@next, operation:SetTapped{objects:One($kicker_pump_creature), tapped:false}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($kicker_pump_creature)), changes:[GrantKeyword($keyword_value)], duration:$duration_3, evaluation:Snapshot}}]}} */
 spell_stat_extends_control_then_untap ::= "gain" "control" "of" kicker_pump_creature duration "." "if" "you" "control" "a" subtype "with" "greater" stat "than" "that" "creature" "," "gain" "control" "of" "that" "creature" duration "instead" "." "untap" "that" "creature" "." "it" "gains" keyword_value duration "."
+
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$card_exile_value_producer}}, If{condition:$condition_exiled_top_card_type, then:Program{instructions:$clause}, otherwise:Program{}}, ...$card_exile_play_permission] */
+optional_top_exile_type_then_play ::= "you" "may" card_exile_value_producer "." "if" condition_exiled_top_card_type "," clause "." card_exile_play_permission
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:$named_group_exile_creature_controller, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, ...$clause_target_controller_investigates_exiled]}} */
+spell_exile_named_group_investigate ::= "exile" named_group_exile_creature_controller "." clause_target_controller_investigates_exiled "."
+
+/* The same announced creature supplies both the name and controller of the
+   other creatures. Both the target and the qualifying group move together. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($named_group_exile_creature), AllOf([$plural_creature, ControlledBy(One(ControllerOf($named_group_exile_creature))), Not(SameObject($named_group_exile_creature)), SharesNameWith($named_group_exile_creature)])])} */
+named_group_exile_creature_controller ::= named_group_exile_creature "and" "all" "other" plural_creature "its" "controller" "controls" "with" "the" "same" "name" "as" "that" "creature"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0} */
+named_group_exile_creature ::= "target" "creature"
+
+/* @sem @reflexive(Mode::Mode{announcement:@announcement, body:$program_sentence, weight:1}) */
+reflexive_mode_flavor ::= "•" modal_flavor_words "—" program_sentence
+
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayRepeatedly{player:AbilityController, cost:$cost, at_most:$number_words}}, Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:Constant(0), maximum:Performed(@marked)}, options:$reflexive_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}})}]} */
+program_sentence_repeated_payment_when_do_modal ::= "you" "may" "pay" cost "up" "to" number_words "times" "." "when" "you" "do" "," "choose" "up" "to" "that" "many" "—" NEWLINE reflexive_modes
+
+/* @sem Instruction::[Effect{result:@mark, operation:CopyCards{actor:One(AbilityController), objects:InZone{objects:CostObjects{payment:Activation, component:[0], view:Performed, phase:After}, zone:Exile}, times:Constant(1)}}, Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Copies(@marked), count:UpTo($number_words), cost:Free}}] */
+activation_exiled_copies_cast_up_to ::= "copy" "those" "exiled" "cards" "." "you" "may" "cast" "up" "to" number_words "of" "the" "copies" "without" "paying" "their" "mana" "costs"
+
+/* This is one immediate cast during resolution, from any qualifying exile card. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Zone{scope:Shared(Exile), kind:Card, filter:Counters{kind:$counter_kind, comparison:Greater, value:Constant(0)}}, count:AsManyAsCan(Constant(1)), cost:Free, into_exile:false}}]}}] */
+optional_cast_counter_exile_free ::= "you" "may" "cast" "a" "card" "from" "exile" "with" "a" counter_kind "counter" "on" "it" "without" "paying" "its" "mana" "cost"
+
+/* The deciding opponent exiles cards. The spell's controller may cast only
+   the matching arrival of that opponent's sequential exile. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:ExileLibraryUntil{actor:Bound(0), library:Bound(0), stop:Matching{filter:$card_filter, count:Constant(1)}}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:ExileUntilMatches(@marked), count:AsManyAsCan(Constant(1)), cost:Free, into_exile:false}}]}}]} */
+villainous_exile_until_cast ::= "they" "exile" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "exile" "a" card_filter "card" "," "then" "you" "may" "cast" "that" "card" "without" "paying" "its" "mana" "cost"
+
+/* The card filter is spoken only in the stop clause. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}, count:$number, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:DealDamage{source:$self_ref_named, recipients:Players(One(Bound(0))), amount:Aggregate{objects:TransitionWhere{result:@marked, phase:After, from:Library, to:Exile}, property:ManaValue, aggregation:Sum}, preventable:true}}]} */
+villainous_exile_by_mana_value ::= "that" "player" "exiles" "the" "top" number "cards" "of" "their" "library" "and" self_ref_named "deals" "damage" "equal" "to" "the" "total" "mana" "value" "of" "those" "exiled" "cards" "to" "that" "player"
+
+/* Return only objects that arrived in exile from this specific action. */
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_objects}, ...$exile_return_each_hand_entry, Effect{result:@next, operation:Move{objects:InZone{objects:Transition{result:@marked, phase:After}, zone:Exile}, destination:OwnersHand(CardArrival{}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:One($self_explicit_ref), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}] */
+exile_all_then_hand_entry_then_return ::= exile_objects "." exile_return_each_hand_entry "." "then" "put" "all" "cards" "exiled" "this" "way" "into" "their" "owners'" "hands" "." "exile" self_explicit_ref
+
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:_{instructions:[Optional{decider:Bound(0), body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Zone(_{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:$card_filter}), count:AnyNumber}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(Bound(0)), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]}}] */
+exile_return_each_hand_entry ::= players_singular "may" "put" "any" "number" "of" card_filter "cards" "from" "their" "hand" "onto" "the" "battlefield"

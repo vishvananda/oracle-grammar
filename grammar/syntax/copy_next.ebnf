@@ -402,3 +402,14 @@ turn_optional_linked_copy_free_cast ::= "at" turn_event "," optional_linked_copy
 /* The copied spell owns the quoted ability, in a fresh holder scope. */
 /* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$object_ref, times:Constant(1), targets:May, exceptions:[IfPermanentSpell([$copy_added_keyword, $copy_quoted_ability])]}}] */
 clause_copy_permanent_grants_sentence ::= "copy" object_ref "." "you" "may" "choose" "new" "targets" "for" "the" "copy" "." "if" "it's" "a" "permanent" "spell" "," "the" "copy" "gains" copy_added_keyword "and" copy_quoted_ability
+
+/* The paid sacrifice gates a copy of the triggering spell; changing targets
+   remains optional as part of that copy. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[$cost_sacrifice]}, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:$copy_cast_event_joined_targets}]}, otherwise:Program{}}]} */
+paid_sacrifice_event_copy ::= "you" "may" cost_sacrifice "." "if" "you" "do" "," copy_cast_event_joined_targets "."
+
+/* @sem Operation::CopyOnStack{actor:One(AbilityController), object:EventSubject, times:Constant(1), targets:May} */
+copy_cast_event_joined_targets ::= "copy" "that" "spell" "and" "you" "may" "choose" "new" "targets" "for" "the" "copy"
+
+/* @sem Ability::Triggered{event:$event_cast, limits:TriggerLimits{}, announcement:@announcement, body:$paid_sacrifice_event_copy} */
+triggered_paid_sacrifice_cast_copy ::= "whenever" event_cast "," paid_sacrifice_event_copy

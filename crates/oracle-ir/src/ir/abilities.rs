@@ -436,7 +436,8 @@ pub struct ClassLevel {
 }
 
 /// Rules-defined kinds of activated ability, which other cards can refer to. Both
-/// activate only once; power-up also reduces its cost on the turn it was cast.
+/// activate only once. Power-up also reduces its activation cost by the
+/// permanent's mana cost if the permanent entered the battlefield this turn.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ActivatedKeyword {
     Exhaust,

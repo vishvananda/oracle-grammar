@@ -8924,3 +8924,38 @@ triggered_attacks_tap_goad_lesser ::= "whenever" event_self "attacks" "," "for" 
    and creature type are checked when the event that triggers this ability occurs. */
 /* @sem Ability::Triggered{event:Filtered{event:FirstForObjectEachTurn(Object{event:BecomesTapped, objects:Any}), condition:AllOf([PlayerIsActive(AbilityController), ObjectMatches{object:EventSubject, filter:AllOf([$noun_creature, ControlledBy(One(AbilityController))])}])}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:SetTapped{objects:One(EventSubject), tapped:false}}]}} */
 triggered_first_tap_of_controlled_creature ::= "whenever" "a" noun_creature "you" "control" "becomes" "tapped" "during" "your" "turn" "," "if" "it's" "the" "first" "time" "that" "creature" "has" "become" "tapped" "this" "turn" "," "untap" "it" "."
+
+/* One trigger watches both kinds of target with a shared ability-use limit. */
+/* @sem Ability::Triggered{event:$event_controlled_ability_targets, limits:$trigger_once_each_turn_suffix, announcement:@announcement, body:$program_sentence} */
+triggered_controlled_ability_targets ::= "whenever" event_controlled_ability_targets "," program_sentence trigger_once_each_turn_suffix
+
+/* @sem EventSpec::AnyOf([Player{event:BecomesTarget, players:All, objects:AllOf([AnyOf([OnStack(Activated), OnStack(Triggered)]), ControlledBy(One(AbilityController))])}, BecomesTarget{objects:InZone(Shared(Battlefield)), kind:Ability, by:Filter(ControlledBy(One(AbilityController)))}]) */
+event_controlled_ability_targets ::= "a" "player" "or" "permanent" "becomes" "the" "target" "of" "an" "ability" "you" "control"
+
+/* The comparison at the death event uses the departing creature's controller,
+   and includes ties. It is not checked again on resolution. */
+/* @sem Ability::Triggered{event:$event_ranked_opponent_creature_dies, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence} */
+triggered_ranked_opponent_creature_dies ::= "whenever" event_ranked_opponent_creature_dies "," program_sentence
+
+/* @sem EventSpec::Filtered{event:ZoneChange{objects:AllOf([CardType(Creature), ControlledBy(OpponentsOf(AbilityController))]), from:Battlefield, to:Graveyard}, condition:Compare{left:ObjectProperty{object:EventSubject, property:$stat, information:CurrentOrLastKnown}, test:NumberTest::Compare{comparison:Equal, value:Aggregate{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(ControllerOf(EventSubject)))])}, property:$stat, aggregation:Maximum}}}} */
+event_ranked_opponent_creature_dies ::= "a" "creature" "an" "opponent" "controls" "with" "the" "greatest" stat "among" "creatures" "that" "player" "controls" "dies"
+
+/* @sem Ability::Triggered{event:AnyOf([Object{event:Attacks, objects:SameObject(AttachedTo(Source))}, Object{event:Blocks, objects:SameObject(AttachedTo(Source))}]), limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Attach{attachments:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:AnyNumber, filter:AllOf([$subtype, ControlledBy(One(AbilityController))])})), host:EventSubject}}]}} */
+triggered_enchanted_combat_attach_targets ::= "whenever" "enchanted" "creature" "attacks" "or" "blocks" "," "attach" "any" "number" "of" "target" subtype "you" "control" "to" "it" "."
+
+/* The turn's opponent receives control. The pronoun after the second named
+   mention still refers to the untapped source, which the controller goads. */
+/* @sem Ability::Triggered{event:Turn{point:CombatBegins, players:OpponentsOf(AbilityController)}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($self_explicit_ref)), changes:[SetController(EventSubject)], duration:$until_end_of_turn, evaluation:Snapshot}}, Effect{result:@next, operation:SetTapped{objects:One($self_explicit_ref_2), tapped:false}}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Goad{object:Source}}}]}}]}} */
+triggered_opponent_combat_optional_source_control ::= "at" "the" "beginning" "of" "each" "opponent's" "combat" "," "you" "may" "have" "them" "gain" "control" "of" self_explicit_ref until_end_of_turn "." "if" "you" "do" "," "untap" self_explicit_ref "and" "goad" "them" "."
+
+/* The controller's yes/no choice, rather than damage successfully dealt,
+   suppresses assignment by the first creature for the rest of the turn. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:Object{event:BecomesBlocked, objects:SameObject(AttachedTo(Source))}, limits:TriggerLimits{}, announcement:@announcement, body:$enchanted_blocked_optional_damage} */
+triggered_enchanted_blocked_optional_damage ::= "whenever" "enchanted" "creature" "becomes" "blocked" "," enchanted_blocked_optional_damage
+
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:EventSubject, recipients:Objects(One($blocked_uses_damage_creature)), amount:ObjectProperty{object:EventSubject, property:$stat, information:CurrentOrLastKnown}, preventable:true}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(EventSubject)), changes:[Rule(CombatDamage(NoAssignment))], duration:$this_duration, evaluation:LiveObjects}}]}, otherwise:Program{}}]} */
+enchanted_blocked_optional_damage ::= "you" "may" "have" "it" "deal" "damage" "equal" "to" "its" stat "to" blocked_uses_damage_creature "." "if" "you" "do" "," "the" "first" "creature" "assigns" "no" "combat" "damage" this_duration "."
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot,kind:Object(ObjectDomain{kind:Permanent,zones:[Battlefield]}),count:Exactly(Constant(1)),filter:CardType(Creature)}),index:0} */
+blocked_uses_damage_creature ::= "target" "creature"

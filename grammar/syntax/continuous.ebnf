@@ -609,7 +609,7 @@ static_negative_x ::= "-" "X"
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One($object_ref), changes:$static_changes}}] */
 clause_perpetual_card_changes ::= object_ref "perpetually" static_changes
 
-static_changes ::= retained_plural_vehicle_stats_grants | perpetual_type_pump_keyword | static_retained_land_creature_stats | static_pump_protection_types_keeps | static_artifact_base_keyword_loss | shared_base_keyword | shared_artifact_stat_type | shared_base_keywords | shared_base_keywords_named | static_pump_keyword_color_type | static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature | retained_plural_animation | static_base_and_retained_types | static_base_grant_and_retained_types | static_base_keyword_color_type | retained_colored_land_animation | retained_colored_typed_land_animation | retained_colored_dual_animation | static_pump_and_added_names | sticker_pump_changes | static_base_keyword_other_loss | shared_loss_and_creature_form | static_pump_and_retained_artifact | shared_loss_counter_creature_form | static_pump_and_protection_list | linked_property_defined_changes | singular_base_grant_remove_type | singular_base_grant_set_type | retained_vehicle_stats_grants | static_plural_pump_pair | static_equal_defined_pump | static_card_type_walk_pump | static_have_subtype_equip | resolution_defined_changes
+static_changes ::= static_pump_two_keywords_legendary_type | retained_plural_vehicle_stats_grants | perpetual_type_pump_keyword | static_retained_land_creature_stats | static_pump_protection_types_keeps | static_artifact_base_keyword_loss | shared_base_keyword | shared_artifact_stat_type | shared_base_keywords | shared_base_keywords_named | static_pump_keyword_color_type | static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature | retained_plural_animation | static_base_and_retained_types | static_base_grant_and_retained_types | static_base_keyword_color_type | retained_colored_land_animation | retained_colored_typed_land_animation | retained_colored_dual_animation | static_pump_and_added_names | sticker_pump_changes | static_base_keyword_other_loss | shared_loss_and_creature_form | static_pump_and_retained_artifact | shared_loss_counter_creature_form | static_pump_and_protection_list | linked_property_defined_changes | singular_base_grant_remove_type | singular_base_grant_set_type | retained_vehicle_stats_grants | static_plural_pump_pair | static_equal_defined_pump | static_card_type_walk_pump | static_have_subtype_equip | resolution_defined_changes
 static_changes_plain ::= static_changes_last_chosen_protection | static_changes_protection_keeps | static_change | static_changes_and | retained_keyword_and_added_color_type | static_loss_and_colored_base | static_changes_prohibited_and
 
 /* @sem Instruction::[Effect{result:@next, operation:$copy_effect_duration}] */
@@ -644,7 +644,7 @@ copy_become_indefinite_except ::= affected "become" "a" "copy" "of" copy_model_r
 
 /* A proved noun view comes from the current announcement's operands.
    Plain target/query references still use the ordinary reference grammar. */
-copy_model_ref ::= transfer_second_controlled_target | linked_exiled_card | copy_model_qualified | copy_model_controlled_chosen_type | object_ref | copy_crewed_nonlegendary_target
+copy_model_ref ::= copy_up_to_three_permanent_kinds | transfer_second_controlled_target | linked_exiled_card | copy_model_qualified | copy_model_controlled_chosen_type | object_ref | copy_crewed_nonlegendary_target | copy_up_to_creature_grave_or_battlefield
 /* @prefer symbol(qualified_object) */
 copy_model_qualified ::= that_noun
 
@@ -6677,7 +6677,7 @@ instructions_count_counter_comparison ::= count_counter_population "." counter_c
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, Property{property:$stat, test:NumberTest::Compare{comparison:$stat_comparison, value:BoundValue(@prior)}}])}), changes:$static_changes, duration:$this_duration, evaluation:LiveObjects} */
 counter_comparison_effect ::= filter_plural "with" stat stat_comparison "that" "number" static_changes this_duration
 
-copy_prefix_exceptions ::= copy_land_with_keyword | copy_vehicle_artifact_retained | copy_artifact_retained | copy_stats_vehicle_keyword
+copy_prefix_exceptions ::= copy_named_male_added_types_stats_keyword | copy_land_with_keyword | copy_vehicle_artifact_retained | copy_artifact_retained | copy_stats_vehicle_keyword | copy_named_male_replaced_types
 
 /* @sem Vec<CopyException>::[CopyException::AddArtifactTypes([Vehicle]), CopyException::AddCardTypes([Artifact])] */
 copy_vehicle_artifact_retained ::= "it's" "a" "Vehicle" "artifact" "in" "addition" "to" "its" "other" "types"
@@ -13147,3 +13147,25 @@ static_you_activate_ninjutsu_reduction ::= "ninjutsu" "abilities" "you" "activat
 conditional_counter_shared_hexproof ::= "as" "long" "as" named_source_single_counter_him "," hexproof_player_objects
 /* @sem Condition::ObjectMatches{object:Source, filter:Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})} */
 named_source_single_counter_him ::= self_named "has" "a" counter_kind "counter" "on" "him"
+
+/* Canonical adjacent player rules retain their separate printed sentences. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_private_visibility, ...$top_play_permissions, ...$player_prohibit_own_zone_land_cast]} */
+static_top_visibility_play_hand_restriction ::= "you" "may" "look" "at" top_private_visibility "any" "time" "." NEWLINE top_play_permissions "." NEWLINE "you" "can't" player_prohibit_own_zone_land_cast "."
+
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:AnyOf(@unordered([$noun, AllOf([Not(Subtype(Aura)), $noun_2]), $noun_3]))}), index:0} */
+copy_up_to_three_permanent_kinds ::= "up" "to" "one" "target" noun "," "non-Aura" noun "," "or" noun
+
+
+/* @sem Vec<CopyException>::[$copy_his_self_name, AddSupertypes([Legendary]), SetPowerToughness{power:$value, toughness:$value_2}, AddCreatureTypes($becomes_types), AddCardTypes([Creature]), $copy_his_keyword] */
+copy_named_male_added_types_stats_keyword ::= copy_his_self_name "," "he's" "a" "legendary" value "/" value becomes_types "creature" "in" "addition" "to" "his" "other" "types" "," "and" copy_his_keyword
+
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}, GrantKeyword($keyword_name), GrantKeyword($keyword_name_2), AddSupertype(Legendary), CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
+/* @prefer always */
+static_pump_two_keywords_legendary_type ::= "gets" signed "/" signed "," "has" keyword_name "and" keyword_name "," "and" "is" "a" "legendary" becomes_types "in" "addition" "to" "its" "other" "types"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Battlefield, Graveyard]}), count:UpTo(Constant(1)), filter:@agree($noun, $noun_2)}), index:0} */
+copy_up_to_creature_grave_or_battlefield ::= "up" "to" "one" "target" noun "on" "the" "battlefield" "or" noun "card" "in" "a" "graveyard"
+
+/* @sem Vec<CopyException>::[$copy_his_self_name, AddSupertypes([Legendary]), SetTypes{card_types:[Creature], subtypes:$token_subtypes}] */
+copy_named_male_replaced_types ::= copy_his_self_name "and" "he's" "a" "legendary" token_subtypes "creature"

@@ -818,6 +818,10 @@ impl<'a> Renderer<'a> {
         (RToken::Dynamic(id), flags)
     }
 
+    fn card_name_token(&self, full: bool) -> RToken {
+        RToken::SelfName(if full { 0 } else { self.self_name })
+    }
+
     fn class_rtoken(
         &mut self,
         class: Class,
@@ -832,8 +836,8 @@ impl<'a> Renderer<'a> {
                 let (tok, flags) = self.intern_word(word);
                 Some((tok, flags, Some(Value::from(word.clone()))))
             }
-            (Class::SelfName, _) => Some((
-                RToken::SelfName(self.self_name),
+            (Class::SelfName | Class::SelfFullName, _) => Some((
+                self.card_name_token(class == Class::SelfFullName),
                 crate::style::F_SELF_NAME,
                 Some(Value::from("$self")),
             )),
@@ -927,8 +931,8 @@ impl<'a> Renderer<'a> {
                         }
                         self.work.joined += partial.len() as u64;
                     }
-                    CompiledStep::SelfName { sym } => {
-                        let tok = RToken::SelfName(self.self_name);
+                    CompiledStep::SelfName { sym, full } => {
+                        let tok = self.card_name_token(*full);
                         let node = Rc::new(Node::Value(Value::from("$self")));
                         for d in &mut partial {
                             d.append_token(
@@ -998,8 +1002,8 @@ impl<'a> Renderer<'a> {
                     }
                     self.work.joined += partial.len() as u64;
                 }
-                Sym::Class(Class::SelfName) => {
-                    let tok = RToken::SelfName(self.self_name);
+                Sym::Class(class @ (Class::SelfName | Class::SelfFullName)) => {
+                    let tok = self.card_name_token(*class == Class::SelfFullName);
                     let node = Rc::new(Node::Value(Value::from("$self")));
                     for d in &mut partial {
                         d.append_token(
@@ -1298,6 +1302,7 @@ impl<'a> Matcher<'a> {
             Sym::Class(Class::SelfName) => {
                 return matches!(token, Token::SelfName(_)).then_some(at + 1);
             }
+            Sym::Class(Class::SelfFullName) => Token::SelfName(0),
             Sym::Class(_) => class_token(sym, value?)?,
             Sym::Rule(_) => return None,
         };
@@ -1327,7 +1332,7 @@ pub(crate) fn class_token(sym: &Sym, value: &Value) -> Option<Token> {
         (Sym::Class(Class::Word | Class::Capitalized), Value::String(word)) => {
             Some(Token::Word(word.clone()))
         }
-        (Sym::Class(Class::SelfName), _) => Some(Token::SelfName(0)),
+        (Sym::Class(Class::SelfName | Class::SelfFullName), _) => Some(Token::SelfName(0)),
         _ => None,
     }
 }

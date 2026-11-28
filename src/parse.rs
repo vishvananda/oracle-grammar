@@ -862,7 +862,10 @@ impl<'a> Parser<'a> {
             (Sym::Class(Class::Capitalized), Token::Word(word)) => word
                 .starts_with(char::is_uppercase)
                 .then(|| Some(Value::from(word.clone()))),
-            (Sym::Class(Class::SelfName), Token::SelfName(_)) => Some(Some(Value::from("$self"))),
+            (Sym::Class(Class::SelfName), Token::SelfName(_))
+            | (Sym::Class(Class::SelfFullName), Token::SelfName(0)) => {
+                Some(Some(Value::from("$self")))
+            }
             (Sym::Class(Class::Newline), Token::Newline) => Some(None),
             _ => None,
         }

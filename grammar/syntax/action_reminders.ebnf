@@ -687,7 +687,7 @@ reminded_action_ability ::= action_reminder_ability
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:$action_reminder_ability} */
 labelled_action_reminder ::= ability_label "—" action_reminder_ability
 
-action_reminder_ability ::= optional_combat_end_reminded | return_as_spirit_detective_reminded | attacker_selector_reminded | lasting_blaze_grant_reminded | named_land_legendary_reminded | source_combat_return_reminded | crime_return_from_battlefield_reminded | targeted_creature_return_reminded | scry_surveillance_look_reminded | dilemma_draw_reminded | sustain_endure_x_reminded | mana_cost_color_reminded | time_travel_three_reminded | grant_departure_trigger_reminded | pay_exiled_spell_reminded | end_turn_activated_your_turn_reminded | reminder_spell | reminder_activated | reminder_activated_limited | reminder_activated_trailing
+action_reminder_ability ::= paid_end_step_exile_and_plot_reminded | activated_ranked_skulk_goad_reminded | tiger_powerup_explained | optional_combat_end_reminded | return_as_spirit_detective_reminded | attacker_selector_reminded | lasting_blaze_grant_reminded | named_land_legendary_reminded | source_combat_return_reminded | crime_return_from_battlefield_reminded | targeted_creature_return_reminded | scry_surveillance_look_reminded | dilemma_draw_reminded | sustain_endure_x_reminded | mana_cost_color_reminded | time_travel_three_reminded | grant_departure_trigger_reminded | pay_exiled_spell_reminded | end_turn_activated_your_turn_reminded | reminder_spell | reminder_activated | reminder_activated_limited | reminder_activated_trailing
     | reminder_triggered | reminder_triggered_if | reminder_triggered_once | reminder_triggered_natural_twenty
     | self_enter_explore_twice_reminded | defined_echo_reminded
     | cascade_entry_reminded | all_damage_withers_reminded | static_afflict_reminded
@@ -3405,3 +3405,24 @@ line_enchanted_pump_two_abilities_ward_reminded ::= enchanted_creature_ref chang
 line_entry_shield_him_reminded ::= entry_modified "(" shield_him_explanation ")"
 /* @sem String::'Shield' */
 shield_him_explanation ::= "if" "he" "would" "be" "dealt" "damage" "or" "destroyed" "," "remove" "a" "shield" "counter" "from" "him" "instead" "."
+
+/* @prefer always */
+/* @sem $white_tiger_powerup */
+tiger_powerup_explained ::= white_tiger_powerup "(" "activate" "each" "power-up" "ability" "only" "once" "." "reduce" "the" "cost" "by" "her" "mana" "cost" "if" "she" "entered" "this" "turn" "." ")"
+
+/* Payment creates a new reflexive announcement with its own target players. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:Turn{point:EndStepBegins, players:One(AbilityController)}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$pay_mana, optional:false}}, Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:$target_library_tops_exile_and_plot})}]}}]}} */
+paid_end_step_exile_and_plot_reminded ::= "at" "the" "beginning" "of" "your" "end" "step" "," "you" "may" pay_mana "." "when" "you" "do" "," target_library_tops_exile_and_plot "(" plotted_actual_owner_explanation ")"
+
+/* @sem () */
+plotted_actual_owner_explanation ::= "its" "owner" "may" "cast" "it" "as" "a" "sorcery" "on" "a" "later" "turn" "without" "paying" "its" "mana" "cost" "."
+
+/* The threshold compares against the ability's source. The grant and goad
+   apply to the independently announced opposing creature. */
+/* @prefer always */
+/* @sem Ability::Activated{origin:Ordinary, cost:$activation_cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_opponent_creature_source_threshold)), changes:[GrantKeyword(Skulk)], duration:$until_end_of_turn, evaluation:Snapshot}}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Goad{object:$target_opponent_creature_source_threshold}}}]}} */
+activated_ranked_skulk_goad_reminded ::= activation_cost ":" target_opponent_creature_source_threshold "gains" "skulk" until_end_of_turn "." "goad" "it" "." "(" skulk_creature_words ")"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot,kind:Object(ObjectDomain{kind:Permanent,zones:[Battlefield]}),count:Exactly(Constant(1)),filter:AllOf([CardType(Creature), ControlledBy(OpponentsOf(AbilityController)), Property{property:$stat, test:NumberTest::Compare{comparison:LessOrEqual, value:ObjectProperty{object:$named_possessive_ref, property:$stat_2, information:CurrentOrLastKnown}}}])}),index:0} */
+target_opponent_creature_source_threshold ::= "target" "creature" "an" "opponent" "controls" "with" stat "less" "than" "or" "equal" "to" named_possessive_ref stat

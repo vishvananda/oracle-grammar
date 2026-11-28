@@ -538,6 +538,21 @@ impl<'a> Scope<'a> {
                 }
                 Ok(())
             }
+            Operation::ExileLibraryUntil {
+                actor,
+                library,
+                stop,
+            } => {
+                self.player(actor)?;
+                self.player(library)?;
+                match stop {
+                    ExileLibraryStop::Matching { filter, count } => {
+                        self.filter(filter)?;
+                        self.count(&Count::Exactly(count.clone()))
+                    }
+                    ExileLibraryStop::CumulativeAtLeast { threshold, .. } => self.expr(threshold),
+                }
+            }
             Operation::Reveal { objects } => self.objects(objects),
             Operation::RevealUntil {
                 library,

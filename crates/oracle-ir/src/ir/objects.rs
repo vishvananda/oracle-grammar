@@ -391,6 +391,15 @@ pub enum ObjectSet {
     /// every actual transition in a grouped zone-departure event. This snapshot
     /// stays available to the triggered ability after the objects change zones.
     EventGroupDeparture,
+    /// Actual matching exile arrivals of an ExileLibraryUntil matching stop,
+    /// recorded at arrival. Empty if no matching card actually arrived.
+    ExileUntilMatches(ResultId),
+    /// Distinct still-legal object targets of the selected modes, available only
+    /// in the common program of an AnnouncedShared selection. Unselected modes
+    /// contribute nothing; a shared target identity occurs once. The ordinary
+    /// all-targets-illegal rule prevents resolution. If no modes were selected,
+    /// this set is empty and the common action does nothing.
+    ChosenModeTargets,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

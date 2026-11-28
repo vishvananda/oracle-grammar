@@ -451,7 +451,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_lotus | created_name_doombot | created_name_stoneforged_blade | created_name_new_planet | card_name_wolves_of_the_hunt | created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | card_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite | created_name_sword | created_name_cloud_sprite | created_name_koma_coil | card_name_ornithopter | created_name_twin | created_name_cordyceps_infected | card_name_lightning_rager | created_name_goldmeadow_harrier | created_name_cadet | created_name_stone_boulder | created_name_phantasmal_angel
+created_token_name ::= created_name_void | created_name_lotus | created_name_doombot | created_name_stoneforged_blade | created_name_new_planet | card_name_wolves_of_the_hunt | created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | card_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite | created_name_sword | created_name_cloud_sprite | created_name_koma_coil | card_name_ornithopter | created_name_twin | created_name_cordyceps_infected | card_name_lightning_rager | created_name_goldmeadow_harrier | created_name_cadet | created_name_stone_boulder | created_name_phantasmal_angel
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -2962,3 +2962,44 @@ named_equipment_wasteland_guide ::= "Wasteland" "Survival" "Guide"
 /* Count opponents attacked across the turn, including departed opponents. */
 /* @sem Ability::Triggered{event:$turn_end_combat_bare, intervening_if:$condition_attacked, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountPlayers(OpponentsAttackedBy{attacker:AbilityController, window:ThisTurn}), words:CreatingEffect, recipe:$tn_junk}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}} */
 triggered_raid_opponents_junk ::= "at" turn_end_combat_bare "," "if" condition_attacked "," "create" "a" tn_junk "token" "for" "each" "opponent" "you" "attacked" "."
+
+/* The quoted combat requirement belongs to the created token. */
+/* @sem Ability::Triggered{event:$event_self_enters, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One($target_opponent), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:Explicit($created_name_void), supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:[Keyword($keyword_value), Keyword($keyword_value_2), @scope(Ability::Static{kind:Ordinary, affected:Objects(One(Source)), changes:$creature_quoted_attack})]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}} */
+triggered_opponent_named_attack_token ::= "when" event_self_enters "," target_opponent "creates" created_name_void "," "a" "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" "with" keyword_value "," keyword_value "," "and" '"' void_token_quoted_words creature_quoted_attack "." '"'
+
+/* @sem String::'The Void' */
+created_name_void ::= void_token_words
+
+/* @sem () */
+void_token_words ::= "The" "Void"
+
+/* @sem () */
+void_token_quoted_words ::= "the" "Void"
+
+/* The surveil trigger is part of the named token's own rules. Its printed
+   reminder describes the one-card surveil operation. */
+
+/* The attachment names only tokens made by this action. The quoted attack
+   trigger belongs to the Equipment token and follows its equipped creature. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$named_equipment_quoted_trigger}], entry:BattlefieldArrival{}}}, Effect{result:@next, operation:Attach{attachments:Created(@marked), host:$self_explicit_ref}}] */
+instructions_create_equipment_quoted_attach ::= equipment_create_word "an" named_equipment_quoted_trigger "." "attach" "it" "to" self_explicit_ref
+
+equipment_create_word ::= equipment_create | equipment_original_ereate
+
+/* @prefer always */
+/* @sem () */
+equipment_create ::= "create"
+
+/* Scryfall's pinned transcription spells this "ereate." The printed card
+   says "create," which remains the default wording. */
+/* @sem () */
+equipment_original_ereate ::= "ereate"
+
+/* @sem TokenRecipe::Defined{name:Explicit($camera_token_name), card_types:[Artifact], subtypes:[Equipment], abilities:[@holder($equipment_token_attack_surveillance), @holder($keyword_equip)]} */
+named_equipment_quoted_trigger ::= "Equipment" "token" "named" camera_token_name "with" '"' equipment_token_attack_surveillance '"' "and" keyword_equip
+
+/* @sem String::'Camera' */
+camera_token_name ::= "Camera"
+
+/* @sem Ability::Triggered{event:Object{event:Attacks, objects:SameObject(AttachedTo(Source))}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Surveil{players:One(AbilityController), amount:$number}}]}} */
+equipment_token_attack_surveillance ::= "whenever" "equipped" "creature" "attacks" "," "surveil" number

@@ -35,7 +35,14 @@ impl<'a> Scope<'a> {
                     );
                     self.results.insert(
                         result.0,
-                        if moved {
+                        if let Operation::ExileLibraryUntil { stop, .. } = operation {
+                            match stop {
+                                ExileLibraryStop::Matching { .. } => ResultKind::ExileUntilMatching,
+                                ExileLibraryStop::CumulativeAtLeast { .. } => {
+                                    ResultKind::ExileUntilThreshold
+                                }
+                            }
+                        } else if moved {
                             ResultKind::ObjectTransition
                         } else if matches!(
                             operation,
@@ -247,6 +254,8 @@ impl<'a> Scope<'a> {
             }
         }
         let kind = match operation.action() {
+                            Operation::ExileLibraryUntil { stop: ExileLibraryStop::Matching { .. }, .. } => ResultKind::ExileUntilMatching,
+                            Operation::ExileLibraryUntil { stop: ExileLibraryStop::CumulativeAtLeast { .. }, .. } => ResultKind::ExileUntilThreshold,
                             Operation::LookAt { .. }
                             | Operation::Reveal { .. }
                             | Operation::RevealUntil { .. }
@@ -321,6 +330,7 @@ impl<'a> Scope<'a> {
             | Operation::RevealUntil { .. }
             | Operation::RevealUntilGroup { .. } => Some(vec![EventZone::Library]),
             Operation::Draw { .. } => Some(vec![EventZone::Hand]),
+            Operation::ExileLibraryUntil { .. } => Some(vec![EventZone::Exile]),
             Operation::ChooseObjects { objects, .. } | Operation::SeparatePiles { objects, .. } => {
                 self.known_zones(objects)
             }
@@ -337,7 +347,9 @@ impl<'a> Scope<'a> {
         }
         if matches!(
             operation,
-            Operation::RevealUntil { .. } | Operation::RevealUntilGroup { .. }
+            Operation::RevealUntil { .. }
+                | Operation::RevealUntilGroup { .. }
+                | Operation::ExileLibraryUntil { .. }
         ) {
             self.ordered_results.insert(result.0);
         }
@@ -412,6 +424,11 @@ impl<'a> Scope<'a> {
             proposal.slots.insert(target.slot.0, target);
         }
         if let Some(selection) = &announcement.modes {
+            if matches!(selection.mechanism, ModeMechanism::AnnouncedShared { .. })
+                && !self.allow_shared_mode_announcement
+            {
+                return Err("shared modal selection requires its owning ability".into());
+            }
             let selection = crate::mode_policies::parts(selection);
             if let Some(ModeHistory::LastCombat(player)) = selection.unchosen {
                 proposal.player(player)?;
@@ -442,6 +459,7 @@ impl<'a> Scope<'a> {
                     proposal.condition(condition)?;
                 }
                 let mut scope = self.clone();
+                scope.allow_shared_mode_announcement = false;
                 scope.join_groups.clear();
                 scope
                     .announcement(&mode.announcement)
