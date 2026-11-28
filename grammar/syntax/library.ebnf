@@ -215,7 +215,7 @@ search_shuffle_top_any_order ::= "," "then" "shuffle" "and" "put" "those" "cards
 /* @sem () */
 found ::= "it" | "them" | "that" "card" | "those" "cards"
 
-found_action ::= found_battlefield_counters | found_battlefield_tapped_target_controller | found_battlefield_attached_player | found_reveal | found_exile | found_hand | found_graveyard | found_top | found_battlefield | found_battlefield_tapped
+found_action ::= found_hand_or_graveyard | found_battlefield_counters | found_battlefield_tapped_target_controller | found_battlefield_attached_player | found_reveal | found_exile | found_hand | found_graveyard | found_top | found_battlefield | found_battlefield_tapped
 
 /* @sem Operation::Reveal{objects:Selected(@marked)} */
 found_reveal ::= "reveal" found
@@ -8797,8 +8797,13 @@ trigger_turn_look_reveal_colors_hand ::= "at" turn_event "," program_look_reveal
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$filter_phrase}, count:AnyNumber, constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
 look_any_tapped_shuffle ::= "put" "any" "number" "of" filter_phrase "cards" "from" "among" "them" "onto" "the" "battlefield" "tapped" "," "then" "shuffle"
 
+dig_look_any_tapped_shuffle ::= dig_look_any_tapped_shuffle_period | dig_look_any_tapped_shuffle_comma
+
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_any_tapped_shuffle] */
-dig_look_any_tapped_shuffle ::= look_top "." look_any_tapped_shuffle
+dig_look_any_tapped_shuffle_period ::= look_top "." look_any_tapped_shuffle
+
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_any_tapped_shuffle] */
+dig_look_any_tapped_shuffle_comma ::= look_top "," look_any_tapped_shuffle
 
 /* A two-card search retains the search receipt across the reveal and split.
    The chosen card enters tapped; the remainder goes to its owner's hand. */
@@ -9915,3 +9920,10 @@ search_choice_distinct_value_equal ::= "up" "to" count card_filter "cards" "with
 /* A written count and a tapped arrival retain the selected cards until the move. */
 /* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_counted_filtered]}}, Effect{result:@next, operation:$found_plural_battlefield_tapped}, ...$search_shuffle] */
 clause_search_counted_tapped ::= "search" "your" "library" "for" search_choice_counted_filtered "," found_plural_battlefield_tapped search_shuffle
+
+/* The searcher chooses the destination of the same selected card. */
+/* @sem Operation::ChooseAction{actor:One(AbilityController), options:[Program{instructions:[Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{}), qualifiers:[]}}]}, Program{instructions:[Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersGraveyard(CardArrival{}), qualifiers:[]}}]}]} */
+found_hand_or_graveyard ::= "put" "it" "into" "your" "hand" "or" "graveyard"
+
+/* @sem Instruction::[...$reveal_top_hand_that, Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:ObjectProperty{object:Query{objects:Observed(0), index:0}, property:ManaValue, information:CurrentOrLastKnown}}}] */
+reveal_top_hand_controller_value_loss ::= reveal_top_hand_that "." "you" "lose" "life" "equal" "to" "the" "card's" "mana" "value"

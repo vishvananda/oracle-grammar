@@ -557,7 +557,7 @@ static_pump_subject ::= controlled_subtype_pair_subject | objects_self_and_plura
 static_pump_self ::= self_ref
 
 static_pump_changes ::= static_pump_change | static_pump_changes_more
-static_pump_change ::= static_change | change_pump_for_each
+static_pump_change ::= static_pump_for_every_singular | static_change | change_pump_for_each
 /* @sem Change::[...$static_pump_change, ...$static_pump_changes] */
 static_pump_changes_more ::= static_pump_change ("and" | "," "and"?) static_pump_changes
 
@@ -2982,8 +2982,13 @@ attached_color_pump ::= "gets" signed "/" signed "for" attached_color_count
 static_attached_color_pump ::= attached_color_subject attached_color_pump "."
 
 /* A grouped count rounds down before applying each written bonus. */
+grouped_population_count ::= grouped_affected_count | grouped_own_graveyard_count
+
 /* @sem Expr::Divide{numerator:CountObjects($affected), denominator:$value, rounding:Down} */
-grouped_population_count ::= "for" "every" value affected
+grouped_affected_count ::= "for" "every" value affected
+
+/* @sem Expr::Divide{numerator:CountObjects(Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}), denominator:$value, rounding:Down} */
+grouped_own_graveyard_count ::= "for" "every" value "cards" "in" "your" "graveyard"
 
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[Pump{power:Multiply([$value, $grouped_population_count]), toughness:Multiply([$value_2, $grouped_population_count])}]} */
 static_grouped_count_pump ::= grouped_population_count "," affected "get" "+" value "/" "+" value "."
@@ -3197,9 +3202,9 @@ static_once_during_your_turn_play ::= "once" "during" "each" "of" "your" "turns"
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($each_hand_card), changes:[GrantAbility($hand_card_granted_ability)]} */
 static_each_hand_card_grant ::= each_hand_card "has" hand_card_granted_ability "."
 
-each_hand_card ::= each_card_in_your_hand | each_card_in_each_players_hand
+each_hand_card ::= each_card_in_your_hand_bare | each_card_in_your_hand | each_card_in_each_players_hand
 
-hand_card_granted_ability ::= keyword_cycling | listed_typecycling | hand_card_miracle_reduced
+hand_card_granted_ability ::= hand_card_miracle_minus | keyword_cycling | listed_typecycling | hand_card_miracle_reduced
 
 /* Spells cast by the emblem controller are affected on the stack. */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($emblem_cast_spell_subject), changes:[GrantAbility(@holder($bare_storm))]} */
@@ -13007,6 +13012,17 @@ static_all_hand_cards_cycling_two ::= "cards" "in" "each" "player's" "hand" "hav
 /* @sem ManaSymbol::Generic($number) */
 bare_cycling_generic ::= NUMBER
 
-/* Both named spell types are in the controlled stack population. */
+/* A written group size rounds down before scaling both stats. */
+/* @sem Change::[Pump{power:@times($signed, $grouped_population_count), toughness:@times($signed_2, $grouped_population_count)}] */
+static_pump_for_every_singular ::= "gets" signed "/" signed grouped_population_count
+
+/* Instant and sorcery spells form one controlled stack population. */
 /* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:AllOf([AnyOf([CardType(Instant), CardType(Sorcery)]), ControlledBy(One(AbilityController))])} */
 cross_spells_instant_sorcery ::= "instant" "and" "sorcery" "spells" "you" "control"
+
+/* The received miracle cost follows the current card and reduction. */
+/* @sem Ability::Mechanic{mechanic:Miracle, cost:_{parts:[ManaCostReduced{reduction:$single_generic_reduction}]}} */
+hand_card_miracle_minus ::= "miracle" "." "its" "miracle" "cost" "is" "equal" "to" "its" "mana" "cost" "minus" single_generic_reduction
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any} */
+each_card_in_your_hand_bare ::= "each" "card" "in" "your" "hand"
