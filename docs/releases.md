@@ -113,8 +113,11 @@ Every source occurrence gets one outcome, identified by provider ID, record
 position within the selected input, layout and face position. Distinct meanings
 are never chosen by first match. `outcomes.jsonl.gz` preserves all readings for
 ambiguous inputs and explicit refusals/limits. `faces.jsonl.gz` contains only
-unique, fully parsed, typed-validated native faces and their presentation notes
-and source context. The wrapper verifies coverage counts and distinct reading
+unique, fully parsed, typed-validated native records. Ordinary faces use outcome
+format 1 with a face AST, presentation notes and source context. Sticker sheets
+use outcome format 2 with `record_kind: "sticker_sheet"` and a `StickerSheet`
+layout AST in `readings[].card`. Sticker sheets have no ordinary faces.
+The wrapper verifies coverage counts and distinct reading
 counts; deterministic ordering, JSON and gzip headers give reproducible assets.
 Printing, semantic reparse, exact wording and reference agreement are labeled
 `not_run`; parsing success does not imply those additional gates.

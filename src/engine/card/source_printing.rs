@@ -1,6 +1,7 @@
 //! Card surfaces use the shared enumerator, matcher and derivation replay.
 use super::{CardInputContext, CardReading, Engine};
 use crate::engine::Enumerated;
+use crate::engine::ability_joins::has_joined_events;
 use crate::engine::spell_paragraphs::can_split_reminded_spell;
 
 impl Engine {
@@ -45,12 +46,28 @@ impl Engine {
         let verify = |text: &str| self.reads_as_card_with_source(name, text, &wanted, context);
         let surfaces = self.card_surfaces_with_source(&wanted, context, !key.is_empty())?;
         let printed = self.verify_card_surfaces(name, &types, &surfaces, key, verify)?;
-        if printed.is_some() || !key.is_empty() || !can_split_reminded_spell(&wanted.abilities) {
+        if printed.is_some() || !key.is_empty() {
             return Ok(printed);
         }
-        // A merged spell can need a paragraph break to place its reminder.
-        let surfaces = self.card_surfaces_with_source(&wanted, context, true)?;
-        self.verify_card_surfaces(name, &types, &surfaces, key, verify)
+        if can_split_reminded_spell(&wanted.abilities) || has_joined_events(&wanted.abilities) {
+            // Merged abilities can need their separate printed clauses.
+            let surfaces = self.card_surfaces_with_source(&wanted, context, true)?;
+            if let Some(text) = self.verify_card_surfaces(name, &types, &surfaces, key, verify)? {
+                return Ok(Some(text));
+            }
+        }
+        // Independently printable abilities can exhaust a shared candidate
+        // beam. Recheck the combined text with the original source context.
+        if wanted.notes.is_empty()
+            && wanted
+                .abilities
+                .as_array()
+                .is_some_and(|items| (2..=8).contains(&items.len()))
+        {
+            let text = self.verified_apart(name, &wanted.abilities, &types, 8, key, None)?;
+            return Ok(text.filter(|text| verify(text)));
+        }
+        Ok(None)
     }
 
     pub fn card_key_of_with_source(

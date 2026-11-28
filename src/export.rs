@@ -67,6 +67,37 @@ fn cards(
     Ok(out)
 }
 
+fn set_readings(row: &mut Value, readings: Vec<Value>) -> Result<(), (&'static str, String)> {
+    if readings.is_empty() {
+        return Err(("validation", "empty native reading set".into()));
+    }
+    let mut distinct_cards: Vec<&Value> = Vec::new();
+    for reading in &readings {
+        if !distinct_cards.contains(&&reading["card"]) {
+            distinct_cards.push(&reading["card"]);
+        }
+    }
+    row["status"] = json!(if distinct_cards.len() == 1 {
+        "unique"
+    } else {
+        "ambiguous"
+    });
+    row["semantic_readings"] = json!(distinct_cards.len());
+    row["readings"] = json!(readings);
+    Ok(())
+}
+
+fn sticker_readings(engine: &Engine, face: &SourceFace) -> Result<Vec<Value>, Refusal> {
+    let mut readings: Vec<_> = engine
+        .parse_sticker_sheet(&face.name, &face.text)?
+        .into_iter()
+        .map(|card| json!({"card":card, "notes":[]}))
+        .collect();
+    readings.sort_by_cached_key(Value::to_string);
+    readings.dedup();
+    Ok(readings)
+}
+
 fn meld_partner(face: &SourceFace) -> Option<&str> {
     if face.identity["layout"] != "meld" {
         return None;
@@ -100,6 +131,11 @@ pub fn outcome(engine: &Engine, face: &SourceFace) -> Value {
         "status":"refused", "readings":[]
     });
     let result = (|| {
+        if face.source["type_line"] == "Stickers" {
+            row["format_version"] = json!(2);
+            row["record_kind"] = json!("sticker_sheet");
+            return set_readings(&mut row, sticker_readings(engine, face).map_err(refusal)?);
+        }
         let (characteristics, printed) = face
             .context
             .as_ref()
@@ -151,22 +187,7 @@ pub fn outcome(engine: &Engine, face: &SourceFace) -> Value {
         }
         let readings = cards(&face.name, &context.characteristics, parsed.readings)
             .map_err(|why| ("validation", why))?;
-        if readings.is_empty() {
-            return Err(("validation", "empty native reading set".into()));
-        }
-        let mut distinct_cards: Vec<&Value> = Vec::new();
-        for reading in &readings {
-            if !distinct_cards.contains(&&reading["card"]) {
-                distinct_cards.push(&reading["card"]);
-            }
-        }
-        row["status"] = json!(if distinct_cards.len() == 1 {
-            "unique"
-        } else {
-            "ambiguous"
-        });
-        row["semantic_readings"] = json!(distinct_cards.len());
-        row["readings"] = json!(readings);
+        set_readings(&mut row, readings)?;
         row["context"] = json!(context);
         row["work"] = json!(parsed.counters);
         Ok(())

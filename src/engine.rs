@@ -26,6 +26,7 @@ mod presentation;
 mod print_audit;
 mod printing;
 mod spell_paragraphs;
+mod stickers;
 pub use printing::Enumerated;
 
 pub mod diagnostics;

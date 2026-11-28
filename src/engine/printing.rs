@@ -433,7 +433,7 @@ impl Engine {
     /// hold the product of every ability's spellings, and spellings that mean the same thing
     /// crowd out the one combination that reads back. Apart, each ability searches alone,
     /// and the joined text is still read back whole.
-    fn verified_apart(
+    pub(super) fn verified_apart(
         &self,
         name: &str,
         abilities: &Value,

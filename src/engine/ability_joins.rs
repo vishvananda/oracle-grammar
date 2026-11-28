@@ -245,6 +245,22 @@ fn event_groups(cases: &[Value]) -> Vec<Vec<Vec<Value>>> {
     groups
 }
 
+fn joined_event_cases(ability: &Value) -> Option<&[Value]> {
+    if ability["kind"] != "Triggered" {
+        return None;
+    }
+    ability["args"]["event"]["AnyOf"]
+        .as_array()
+        .map(Vec::as_slice)
+        .filter(|cases| (2..=EVENTS).contains(&cases.len()))
+}
+
+pub(super) fn has_joined_events(abilities: &Value) -> bool {
+    abilities
+        .as_array()
+        .is_some_and(|items| items.iter().any(|item| joined_event_cases(item).is_some()))
+}
+
 /// Each trigger on any of a few events split into a trigger per group of its
 /// events. "Whenever you cast a green spell and whenever a Forest you control
 /// enters" writes two triggers that canonical form holds as one on either event.
@@ -254,12 +270,9 @@ pub(super) fn split_events(abilities: &Value) -> Vec<Value> {
     };
     let mut views = Vec::new();
     for (index, item) in items.iter().enumerate() {
-        let Some(Value::Array(cases)) = item["args"]["event"].get("AnyOf") else {
+        let Some(cases) = joined_event_cases(item) else {
             continue;
         };
-        if item["kind"] != "Triggered" || !(2..=EVENTS).contains(&cases.len()) {
-            continue;
-        }
         for groups in event_groups(cases) {
             let mut out = items[..index].to_vec();
             for mut group in groups {

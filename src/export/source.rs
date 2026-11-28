@@ -224,7 +224,11 @@ fn characteristics(face: &Value) -> Result<(ir::Characteristics, PrintedPowerTou
     if out.card_types.is_empty() {
         return Err("missing source card type".into());
     }
-    out.subtypes = subtypes(tail)?;
+    out.subtypes = match out.card_types.as_slice() {
+        // A plane has one subtype, even when its name contains several words (CR 311.3).
+        [CardType::Plane] if !tail.is_empty() => vec![vocabulary("SubType", tail)?],
+        _ => subtypes(tail)?,
+    };
     out.mana_cost = face
         .get("mana_cost")
         .filter(|v| !v.is_null() && v.as_str() != Some(""))

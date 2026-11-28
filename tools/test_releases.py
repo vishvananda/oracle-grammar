@@ -57,6 +57,19 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual({p.name: p.read_bytes() for p in one.iterdir()},
                          {p.name: p.read_bytes() for p in two.iterdir()})
 
+    def test_typed_layout_records_can_accompany_ordinary_faces(self):
+        row = self.row(1)
+        row.update(format_version=2, record_kind='sticker_sheet')
+        row['readings'][0]['card'] = {
+            'layout': 'StickerSheet', 'faces': [], 'schema_version': row['schema_version']
+        }
+        out = self.bundle('mixed', [self.row(0), row])
+        with gzip.open(out/'faces.jsonl.gz', 'rt') as file:
+            self.assertEqual([json.loads(line) for line in file], [self.row(0), row])
+        row['readings'][0]['card']['faces'] = [{}]
+        with self.assertRaisesRegex(ValueError, 'invalid sticker sheet outcome'):
+            self.bundle('invalid', [row])
+
     def test_rejects_partial_success_schema_drift_and_duplicates(self):
         row = self.row(0); row['status'] = 'limit'
         for bad in ([row], [self.row(0), self.row(0)],

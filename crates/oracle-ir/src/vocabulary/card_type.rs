@@ -17,4 +17,6 @@ pub enum CardType {
     Scheme,
     Sorcery,
     Vanguard,
+
+    Rank,
 }

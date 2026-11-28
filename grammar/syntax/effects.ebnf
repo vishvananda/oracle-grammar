@@ -660,8 +660,12 @@ clause_shared_counter_kinds ::= "put" counter_amount counter_kind ("counter" | "
 clause_you_sacrifice ::= "you" sacrifice_objects
 
 /* Tickets come as symbols: "you get {TK}{TK}" gets two. */
-/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::GetTickets{amount:$ticket_symbols}}}] */
-clause_get_tickets ::= "you" "get" ticket_symbols
+/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::GetTickets{amount:$ticket_amount}}}] */
+clause_get_tickets ::= "you" "get" ticket_amount
+
+ticket_amount ::= ticket_symbols | tickets_counted
+/* @sem $number_words */
+tickets_counted ::= number_words "{" "TK" "}"
 
 ticket_symbols ::= tickets_one | tickets_two | tickets_three
 /* @sem Expr::Constant(1) */
@@ -3407,3 +3411,12 @@ count_source_her_counters ::= "the" "number" "of" counter_kind "counters" "on" "
    alternatives still apply a single loss to the same announced target. */
 /* @sem Instruction::[Effect{result:@next, operation:$put_counters_direct}, If{condition:$condition, then:_{instructions:[Effect{result:@next, operation:LoseLife{players:One($target_opponent),amount:$value_2}}]}, otherwise:_{instructions:[Effect{result:@next, operation:LoseLife{players:One($target_opponent),amount:$value}}]}}] */
 instructions_put_counters_then_loss_alternative ::= put_counters_direct "." target_opponent "loses" value "life" "." "that" "player" "loses" value "life" "instead" "if" condition
+
+/* The followup tests cards actually drawn, including any replacement. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:Draw{players:One(AbilityController), amount:@written_x($value)}}, If{condition:Compare{left:Performed(@marked), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:Discard{players:One(AbilityController), amount:$card_count}}]}, otherwise:Program{}}]}}] */
+instructions_optional_draw_receipt_discard ::= "you" "may" "draw" "X" "cards" "," "where" "X" "is" value "." "if" "you" "draw" "one" "or" "more" "cards" "this" "way" "," "discard" card_count
+
+/* Declining the optional discard leaves its observed subset empty. All later
+   uses read the number actually discarded by the written action. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:@apply(PlayerSet::One(AbilityController), $discard_hand_base)}]}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:@written_x(Expr::CountObjects(Transition{result:@marked, phase:Before}))}}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(OpponentsOf(AbilityController)), amount:@written_x(Expr::CountObjects(Transition{result:@marked, phase:Before})), preventable:true}}]}, otherwise:Program{}}] */
+instructions_optional_discard_hand_x_actions ::= "you" "may" discard_hand_base "." "draw" "X" "cards" "," "where" "X" "is" "the" "number" "of" "cards" "discarded" "this" "way" "." "if" condition "," SELF_NAME "deals" "X" "damage" "to" "each" "opponent"

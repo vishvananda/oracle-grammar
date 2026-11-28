@@ -6,6 +6,99 @@ fn raw(id: &str, name: &str, text: &str) -> Value {
 }
 
 #[test]
+fn sticker_sheet_export_preserves_costs_abilities_and_stats() {
+    let engine = crate::test_support::engine();
+    let name = "Three Hot Dog Words";
+    let text = "{TK}{TK} — Flying\n{TK}{TK}{TK} — 4/5";
+    let faces = scryfall(&[json!({
+        "oracle_id":"sheet", "layout":"normal", "name":name,
+        "type_line":"Stickers", "oracle_text":text
+    })])
+    .unwrap();
+    let row = outcome(engine, &faces[0]);
+    assert_eq!(row["status"], "unique", "{}", row);
+    assert_eq!(row["format_version"], 2);
+    let mut card: ir::UnifiedCard =
+        serde_json::from_value(row["readings"][0]["card"].clone()).unwrap();
+    assert!(card.faces.is_empty());
+    validate::unified(&card).unwrap();
+    assert_eq!(
+        engine.print_sticker_sheet(&card).unwrap(),
+        Some((name.into(), text.into()))
+    );
+    let ir::Operand::Stickers(stickers) = &mut card.data[0].value else {
+        panic!("expected sticker metadata");
+    };
+    let ir::Sticker::PowerToughness { power, .. } = &mut stickers[4] else {
+        panic!("expected power and toughness sticker");
+    };
+    *power = 6;
+    assert_eq!(
+        engine.print_sticker_sheet(&card).unwrap(),
+        Some((name.into(), text.replace("4/5", "6/5")))
+    );
+    assert!(
+        engine
+            .parse_sticker_sheet(name, &format!("{text}\ninvalid tail"))
+            .is_err()
+    );
+    assert!(
+        engine
+            .parse_sticker_sheet(
+                name,
+                "{TK} — Whenever Three Hot Dog Words attacks, you gain 1 life.",
+            )
+            .is_err()
+    );
+}
+
+#[test]
+fn plane_type_line_keeps_the_printed_compound_subtype() {
+    let faces = scryfall(&[json!({
+        "oracle_id":"plane", "layout":"planar", "name":"Example Plane",
+        "type_line":"Plane — Unknown Planet",
+        "oracle_text":"Whenever chaos ensues, draw a card."
+    })])
+    .unwrap();
+    let (characteristics, _) = faces[0].context.as_ref().unwrap();
+    assert_eq!(
+        serde_json::to_value(&characteristics.subtypes).unwrap(),
+        json!(["UnknownPlanet"])
+    );
+}
+
+#[test]
+fn source_printer_can_split_coalesced_triggers() {
+    let engine = crate::test_support::engine();
+    let name = "Gideon the Oathless";
+    let text = concat!(
+        "Ward—Discard a card.\n",
+        "Whenever a creature an opponent controls enters, Gideon deals 1 damage to that player.\n",
+        "Whenever an opponent activates a loyalty ability, Gideon deals 1 damage to that player."
+    );
+    let faces = scryfall(&[json!({
+        "oracle_id":"joined", "layout":"normal", "name":name,
+        "type_line":"Legendary Creature — Human Soldier", "mana_cost":"{2}{W}",
+        "power":"3", "toughness":"3", "oracle_text":text,
+    })])
+    .unwrap();
+    let row = outcome(engine, &faces[0]);
+    assert_eq!(row["status"], "unique", "{}", row);
+    let context = serde_json::from_value(row["context"].clone()).unwrap();
+    let reading = CardReading {
+        abilities: row["readings"][0]["card"]["abilities"].clone(),
+        notes: Vec::new(),
+    };
+    assert_eq!(reading.abilities.as_array().unwrap().len(), 2);
+    assert!(
+        engine
+            .print_card_keyed_with_source(name, &reading, &context, &[])
+            .unwrap()
+            .is_some()
+    );
+}
+
+#[test]
 fn source_identity_includes_record_and_face_position() {
     let records = vec![
         raw("one", "Same", "Draw a card."),

@@ -4913,7 +4913,7 @@ clause_search_keyword_graveyard ::= search_keyword_library "," found_that_card_g
 mill_all_to_hand_milled ::= "mill" card_count "." "then" "put" "all" mill_plural_ability "from" "among" "the" "milled" "cards" "into" "your" "hand"
 
 /* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:Move{objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$search_filter_many}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
-mill_all_to_hand_them ::= "mill" card_count "." "put" "all" search_filter_many "from" "among" "them" "into" "your" "hand"
+mill_all_to_hand_them ::= "mill" card_count mill_hand_join "put" "all" search_filter_many "from" "among" "them" "into" "your" "hand"
 
 /* @sem $card_plural_ability */
 mill_plural_ability ::= "cards" card_plural_ability
@@ -9870,3 +9870,15 @@ instructions_each_opponent_top_exile_pick_land ::= "each" "opponent" "exiles" "t
    looked-at slice. Hidden cards and the spending rule stay tied to it. */
 /* @sem Ability::Spell{announcement:@announcement,body:_{instructions:[Effect{result:@next,operation:LookAt{player:$target_opponent,objects:Take{objects:Zone{scope:Players{zone:Library,players:One(AbilityController)},kind:Card,filter:Any},count:Constant(1),from:Top}}},Effect{result:@next,operation:Move{objects:Observed(@prior),destination:Exile{visibility:FaceDown,arrival:ExileArrival{}},qualifiers:[]}},Effect{result:@next,operation:LookAt{player:AbilityController,objects:Take{objects:Zone{scope:Players{zone:Library,players:One($target_opponent)},kind:Card,filter:Any},count:$card_count,from:Top}}},Effect{result:@next,operation:Move{objects:Observed(@prior),destination:Exile{visibility:FaceDown,arrival:ExileArrival{}},qualifiers:[]}},Effect{result:@next,operation:CreateContinuousEffect{source:Source,affected:Players(One($target_opponent)),changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:1,phase:After},origins:CardPlayOrigins([Exile]),action:Either,filter:Any},terms:_{cost:Normal,spend_as:AnyType,may_look:true}})],duration:WhileAnyExiled(Transition{result:1,phase:After}),evaluation:LiveObjects}},Effect{result:@next,operation:CreateContinuousEffect{source:Source,affected:Players(One(AbilityController)),changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:3,phase:After},origins:CardPlayOrigins([Exile]),action:Either,filter:Any},terms:_{cost:Normal,spend_as:AnyType,may_look:true}})],duration:WhileAnyExiled(Transition{result:3,phase:After}),evaluation:LiveObjects}}]}} */
 spell_reciprocal_look_exile_play ::= target_opponent "looks" "at" "the" "top" "card" "of" "your" "library" "," "then" "exiles" "it" "face" "down" "." "you" "look" "at" "the" "top" card_count "of" "their" "library" "," "then" "exile" "them" "face" "down" "." "for" "each" "card" "exiled" "this" "way" "," "the" "player" "who" "exiled" "it" "may" "play" "it" "for" "as" "long" "as" "it" "remains" "exiled" "." "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "spells" "this" "way" "."
+
+mill_hand_join ::= mill_hand_period | mill_hand_then
+/* @sem () */
+mill_hand_period ::= "."
+/* @sem () */
+mill_hand_then ::= "," "then"
+
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_instant_or_sorcery}, count:Exactly(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{}), qualifiers:[]}}] */
+mill_choose_instant_or_sorcery ::= "mill" card_count "," "then" "put" "an" filter_instant_or_sorcery "card" "from" "among" "them" "into" "your" "hand"
+
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$card_filter}, count:UpTo($count_plural)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{}), qualifiers:[]}}] */
+mill_choose_up_to_matching ::= "mill" card_count "," "then" "put" "up" "to" count_plural card_filter "cards" "from" "among" "them" "into" "your" "hand"

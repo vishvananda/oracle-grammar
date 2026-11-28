@@ -269,12 +269,21 @@ def bundle(out, rows, meta, spec, revision, exporter_commit=None, source=None):
         raise ValueError('duplicate source occurrence identity')
     counts = {key: 0 for key in ('unique', 'ambiguous', 'refused', 'limit')}
     for row in rows:
-        if row['schema_version'] != meta['model']['schema_version'] or row['format_version'] != 1:
+        version = row['format_version']
+        if row['schema_version'] != meta['model']['schema_version'] or version not in (1, 2):
             raise ValueError('outcome schema/container mismatch')
         status = row['status']
         if status not in counts:
             raise ValueError('unknown outcome status')
         readings = row['readings']
+        if version == 2 and (
+            row.get('record_kind') != 'sticker_sheet' or
+            any(r['card'].get('layout') != 'StickerSheet'
+                or r['card'].get('schema_version') != row['schema_version']
+                or r['card'].get('faces') != []
+                for r in readings)
+        ):
+            raise ValueError('invalid sticker sheet outcome')
         cards = {json_bytes(r['card']) for r in readings}
         expected = 'unique' if len(cards) == 1 else 'ambiguous' if len(cards) > 1 else None
         if status in ('unique', 'ambiguous') and (expected != status or row['semantic_readings'] != len(cards)):

@@ -690,3 +690,47 @@ entwine_second_reminded ::= mode NEWLINE reminder_mode
 /* Each mode retains its own note, announcement and effect. */
 /* @sem Mode::[$reminder_mode, $reminder_mode_2] */
 entwine_both_reminded ::= reminder_mode NEWLINE reminder_mode
+
+/* Teamwork changes the number of modes announced during casting. Each
+   branch uses the same options and scopes their targets independently. */
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:$teamwork_cast_cost, paid:Spell{announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:Constant(2), maximum:Constant(2)}, options:$conditional_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}, unpaid:Spell{announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:$conditional_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}} */
+spell_teamwork_modal_branch ::= teamwork_cast_cost NEWLINE "choose" "one" "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," "choose" "both" "instead" "." NEWLINE conditional_two_modes
+
+/* @sem Ability::CostBranch{keyword:AdditionalCost, cost:$branch_optional_header, paid:Spell{announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:Constant(2), maximum:Constant(2)}, options:$conditional_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}, unpaid:Spell{announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:$conditional_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}} */
+spell_optional_cost_modal_branch ::= optional_cost_opening branch_optional_header NEWLINE "choose" "one" "." "if" "this" "spell's" "additional" "cost" "was" "paid" "," "choose" "both" "instead" "." NEWLINE conditional_two_modes
+
+/* The teamwork followup refers to the controller of the first effect's target. */
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:$teamwork_cast_cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$named_source_damage_target_creature}, Effect{result:@next, operation:$same_source_damage_target_controller}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$named_source_damage_target_creature}]}})} */
+spell_teamwork_controller_damage ::= teamwork_cast_cost NEWLINE named_source_damage_target_creature "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," same_source_damage_target_controller "."
+
+/* @sem Operation::DealDamage{source:Source, recipients:Players(One(ControllerOf(Target{slot:@last_slot, index:0}))), amount:$number, preventable:true} */
+same_source_damage_target_controller ::= "it" "also" "deals" number "damage" "to" "that" "creature's" "controller"
+
+/* The upgraded damage keeps the same target announcement. */
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:$teamwork_cast_cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One($target_object)), amount:$number_2, preventable:true}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One($target_object)), amount:$number, preventable:true}}]}})} */
+spell_teamwork_target_damage_upgrade ::= teamwork_cast_cost NEWLINE SELF_NAME "deals" number "damage" "to" target_object "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," "it" "deals" number "damage" "to" "that" "creature" "instead" "."
+
+/* The paid branch announces the new target, then gains the written life. */
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:$teamwork_cast_cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$exile_objects_2}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$exile_objects}]}})} */
+spell_teamwork_exile_target_upgrade ::= teamwork_cast_cost NEWLINE exile_objects "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," "instead" exile_objects "and" "you" "gain" number "life" "."
+
+/* The chosen card is the target of the active casting branch. */
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:$teamwork_cast_cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One($target_card_your_graveyard), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{}}}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One($target_card_qualified_after_your_graveyard), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{}}}}]}})} */
+spell_teamwork_target_reanimate ::= teamwork_cast_cost NEWLINE "choose" target_card_qualified_after_your_graveyard "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," "instead" "choose" target_card_your_graveyard "." "return" "the" "chosen" "card" "to" "the" "battlefield" "."
+
+/* Grammar-level casting branches retain the same announced spell target and
+   change only the amount paid to prevent its countering. */
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:$teamwork_cast_cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:PayCost{player:ControllerOf($target_stack_spell), cost:$counter_unless_cost_2, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(Target{slot:@next_slot,index:0}), destination:OwnersGraveyard(CardArrival{})}}]}, otherwise:Program{}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:PayCost{player:ControllerOf($target_stack_spell), cost:$counter_unless_cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(Target{slot:@next_slot,index:0}), destination:OwnersGraveyard(CardArrival{})}}]}, otherwise:Program{}}]}})} */
+spell_teamwork_counter_upgrade ::= teamwork_cast_cost NEWLINE "counter" target_stack_spell "unless" "its" "controller" "pays" counter_unless_cost "." "counter" "that" "spell" "unless" "its" "controller" "pays" counter_unless_cost "instead" "if" "this" "spell" "was" "cast" "using" "teamwork" "."
+
+/* The two amounts describe mutually exclusive resolutions. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition_cast_from_graveyard, then:Program{instructions:[Effect{result:@next, operation:$amass_action_2}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$amass_action}]}}]}} */
+spell_amass_cast_origin_override ::= amass_action "." "if" condition_cast_from_graveyard "," amass_action "instead" "." amass_goblins_variable_definition
+
+/* @sem () */
+amass_goblins_variable_definition ::= "(" "to" "amass" "Goblins" "X" "," "put" "X" "+" "1" "/" "+" "1" "counters" "on" "an" "Army" "you" "control" "." "it's" "also" "a" "Goblin" "." "if" "you" "don't" "control" "an" "Army" "," "create" "a" "0" "/" "0" "black" "Goblin" "Army" "creature" "token" "first" "." ")"
+
+/* Both casting branches observe the same library slice. They choose a different
+   number of cards from that observation and put the actual remainder away. */
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:$teamwork_cast_cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$reveal_top}, ...$dig_put_any, $dig_rest_put]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$reveal_top}, ...$dig_put_may_one, $dig_rest_put]}})} */
+spell_teamwork_reveal_multiple ::= teamwork_cast_cost NEWLINE reveal_top "." dig_put_may_one "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," dig_put_any "instead" "." dig_rest_put "."

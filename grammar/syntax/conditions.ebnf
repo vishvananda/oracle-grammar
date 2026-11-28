@@ -1,4 +1,4 @@
-condition ::= condition_scried_or_surveilled | condition_is_prepared | condition_isnt_prepared | condition_control_distinct_pair | condition_first_end_step | condition_other_hand_alternatives_shared | condition_one | condition_and | condition_or | condition_or_if | condition_control_three_alternatives | condition_event_player_conjunction | condition_control_except_and_hand_empty | condition_enduring_story
+condition ::= condition_controller_loyalty_history | condition_opponent_noncombat_damage | condition_scried_or_surveilled | condition_is_prepared | condition_isnt_prepared | condition_control_distinct_pair | condition_first_end_step | condition_other_hand_alternatives_shared | condition_one | condition_and | condition_or | condition_or_if | condition_control_three_alternatives | condition_event_player_conjunction | condition_control_except_and_hand_empty | condition_enduring_story
 
 /* @sem Condition::AllOf([$condition_one, $condition_one_2]) */
 condition_and ::= condition_one "and" condition_one
@@ -441,7 +441,7 @@ spent_or_more ::= number "or" "more"
 spent_type ::= mana_color_word | spent_colorless
 /* @sem ManaColor::Colorless */
 spent_colorless ::= "colorless"
-spent_spell ::= cast_it | cast_this_spell | named_spell | cast_her
+spent_spell ::= cast_event_spell | cast_it | cast_this_spell | named_spell | cast_her
 
 /* The player is a lexical antecedent, not necessarily a chosen opponent. */
 /* @sem Condition::Compare{left:CountObjects(Zone{scope:Players{zone:Hand, players:One(PlayerRef::@that_player_literal)}, kind:Card, filter:Any}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any})}} */
@@ -1189,7 +1189,7 @@ condition_control_unowned_count ::= "you" "control" value "or" "more" counted_pl
 condition_discard_history ::= history_discard_event card_count "this" "turn"
 
 /* The subject carries agreement and the spell phrase supplies its current filter. */
-condition_no_cast_subject ::= condition_no_cast_you | condition_no_cast_player
+condition_no_cast_subject ::= condition_no_cast_you | condition_no_cast_your_past | condition_no_cast_player
 
 /* @sem PlayerRef::AbilityController */
 condition_no_cast_you ::= "you" "haven't" "cast"
@@ -4380,3 +4380,31 @@ condition_isnt_prepared ::= object_ref "isn't" "prepared"
 
 /* @sem Condition::Compare{left:EventHistory{event:AnyOf([Player{event:Scries, players:One(AbilityController)}, Player{event:Surveils, players:One(AbilityController)}]), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:Greater, value:Constant(0)}} */
 condition_scried_or_surveilled ::= "you've" "scried" "or" "surveilled" "this" "turn"
+
+/* @sem Condition::Compare{left:EventHistory{event:$opponent_noncombat_damage, window:$noncombat_history_window, measure:Occurrences}, test:NumberTest::Compare{comparison:Greater, value:Constant(0)}} */
+condition_opponent_noncombat_damage ::= opponent_noncombat_damage noncombat_history_window
+
+/* @sem EventSpec::Damage{sources:Any, source_kind:Any, recipients:Players(OpponentsOf(AbilityController)), kind:Noncombat, grouping:SourceRecipient, subject:Recipient} */
+opponent_noncombat_damage ::= "an" "opponent" passive_damage_received "noncombat" "damage"
+
+passive_damage_received ::= damage_was_dealt | damage_has_been_dealt
+/* @sem () */
+damage_was_dealt ::= "was" "dealt"
+/* @sem () */
+damage_has_been_dealt ::= "has" "been" "dealt"
+
+noncombat_history_window ::= noncombat_this_turn | noncombat_last_turn
+/* @sem HistoryWindow::ThisTurn */
+noncombat_this_turn ::= "this" "turn"
+/* @sem HistoryWindow::LastTurn */
+noncombat_last_turn ::= "last" "turn"
+
+/* @sem Condition::Compare{left:EventHistory{event:Activated{players:One(AbilityController), abilities:$activated_loyalty_ability}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:Greater, value:Constant(0)}} */
+condition_controller_loyalty_history ::= "you've" "activated" activated_loyalty_ability "this" "turn"
+
+/* @sem PlayerRef::AbilityController */
+condition_no_cast_your_past ::= "you" "didn't" "cast"
+
+
+/* @sem ObjectRef::EventSubject */
+cast_event_spell ::= "that" "spell"
