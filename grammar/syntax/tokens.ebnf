@@ -2921,3 +2921,11 @@ token_zabu_landfall ::= "Zabu" "," counter_amount "legendary" token_stat "/" tok
 /* The written arrival states are part of the creation and apply to the full resulting batch. */
 /* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}}], entry:$populate_token_arrival_tapped_attacking})}] */
 instructions_copy_with_arrival_sentence ::= "create" "a" "token" "that's" "a" "copy" "of" object_ref "." populate_token_arrival_tapped_attacking
+
+/* The entering holder, rather than an arbitrary copy, supplies the token recipe. */
+/* @sem Ability::Triggered{event:ZoneChange{objects:$event_self, to:Battlefield}, intervening_if:ObjectMatches{object:Source, filter:Not(Token)}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$number_words, words:CreatingEffect, recipe:Copy{object:Source, exceptions:[RemoveSupertypes([Legendary])]}}], entry:BattlefieldArrival{}}}]}} */
+plural_nontoken_entry_self_copies ::= "when" event_self "enter" "," "if" "they're" "not" "a" "token" "," "create" number_words "tokens" "that" "are" "copies" "of" "them" "," "except" "the" "tokens" "aren't" "legendary" "."
+
+/* The created token receives copies of the departed event subject's last known counters. */
+/* @sem Instruction::[Effect{result:@mark, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{}})}, Effect{result:@next, operation:DuplicateCounters{from:CounterSource::On(Objects(One(@event_subject))), to:Objects(Created(@marked)), copies:All}}] */
+create_then_duplicate_departed_counters ::= "create" "a" token_recipe "," "then" "put" "this" "creature's" "counters" "on" "that" "token"

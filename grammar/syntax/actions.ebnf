@@ -15,10 +15,15 @@ mana_production ::= mana_generic_produced | mana_colors_among | mana_chosen_colo
 mana_could_produce_color ::= "one" "mana" "of" "any" "color" "that" ("a" | "an") filter_phrase "could" "produce"
 /* @sem ManaProduction::CouldProduce{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, colors_only:false} */
 mana_could_produce_type ::= "one" "mana" "of" "any" "type" "that" ("a" | "an") filter_phrase "could" "produce"
-/* The tapped permanent of a mana trigger names the mana it just produced. */
+/* A permanent is a valid reference for every mana producer in these triggers. */
+mana_same_type_produced ::= mana_same_type_permanent | mana_same_type_land
+
 /* @prefer always */
 /* @sem ManaProduction::SameTypeAsProduced */
-mana_same_type_produced ::= "one" "mana" "of" "any" "type" "that" ("land" | "permanent") "produced"
+mana_same_type_permanent ::= "one" "mana" "of" "any" "type" "that" "permanent" "produced"
+
+/* @sem ManaProduction::SameTypeAsProduced */
+mana_same_type_land ::= "one" "mana" "of" "any" "type" "that" "land" "produced"
 
 mana_bundle ::= mana_unit | mana_units
 
@@ -1994,7 +1999,7 @@ perpetual_prior_base_power ::= "its" "base" "power" "perpetually" "becomes" "equ
 /* @sem Operation::ChangeSpell{subject:One($object_ref), changes:$spell_changes} */
 change_spell_shared ::= object_ref spell_changes
 
-spell_changes ::= spell_gains_mechanic | spell_enters_extra_counters | spell_enters_additional_per_population | spell_becomes_two_types | spell_becomes_retained_type
+spell_changes ::= spell_enters_counters_cast_colors | spell_gains_mechanic | spell_enters_extra_counters | spell_enters_additional_per_population | spell_becomes_two_types | spell_becomes_retained_type
 
 /* @sem Change::[GrantAbility($spell_granted_mechanic)] */
 spell_gains_mechanic ::= "gains" spell_granted_mechanic
@@ -2621,7 +2626,7 @@ conjure_card_into_exile ::= "conjure" conjure_singular_amount conjured_exile_car
 /* @sem Expr::Constant(1) */
 conjure_singular_amount ::= "a"
 
-conjured_exile_card ::= conjured_duplicate | conjured_random_expansion_card
+conjured_exile_card ::= conjured_random_any_card | conjured_duplicate | conjured_random_expansion_card
 
 /* @sem ConjuredCard::Duplicate($affected) */
 conjured_duplicate ::= "duplicate" "of" affected
@@ -12142,7 +12147,7 @@ copy_branch_times ::= "copy" object_ref number "times"
 /* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:$planar_reveal_followup}}] */
 instructions_planar_reveal_until ::= "reveal" "cards" "from" "the" "top" "of" "your" "planar" "deck" "until" "you" "reveal" planar_reveal_followup
 
-planar_reveal_followup ::= planar_reveal_pair_walk | planar_reveal_many_walk | planar_reveal_one_chaos | planar_reveal_one_walk_without_leaving
+planar_reveal_followup ::= planar_reveal_pick_random | planar_reveal_pair_walk | planar_reveal_many_walk | planar_reveal_one_chaos | planar_reveal_one_walk_without_leaving
 
 /* @prefer always */
 /* @sem KeywordAction::PlanarDeckPlaneswalkToEach{amount:Constant(2)} */
@@ -18178,7 +18183,7 @@ exile_return_next_point ::= exile_return_next_attackers | returned_cards_next_en
 /* @sem TurnPoint::DeclareAttackersStepBegins */
 exile_return_next_attackers ::= "the" "declare" "attackers" "step"
 
-paid_x_callback ::= paid_x_return_counter_callback | paid_x_cast_graveyard_callback
+paid_x_callback ::= paid_x_move_source_counters | paid_x_return_counter_callback | paid_x_cast_graveyard_callback
 
 /* The target and exile replacement belong to this particular free cast. */
 /* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:One($paid_x_graveyard_target), count:Exactly(Constant(1)), cost:Free, into_exile:true}}]}}]} */
@@ -25073,3 +25078,58 @@ discarded_card_exile_leading_permission ::= "you" "may" discarded_card_exile_pay
 /* The untapped target is the same object pumped and conditionally equipped. */
 /* @sem Instruction::[Effect{result:@next, operation:SetTapped{objects:One(@remember_object($target_object)), tapped:false}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(@it)), changes:$singular_pump, duration:$duration, evaluation:Snapshot}}, ...$conditional_antecedent_attach_choice] */
 untap_pump_conditional_attachment ::= "untap" target_object "." "it" singular_pump duration "." conditional_antecedent_attach_choice
+
+/* Reveal to the count, choose a plane for the top, randomize the remainder. */
+/* @sem KeywordAction::PlanarDeckPickPlane{amount:$count_plural} */
+planar_reveal_pick_random ::= count_plural "plane" "cards" "." "put" "a" "plane" "card" "from" "among" "them" "on" "top" "of" "your" "planar" "deck" "," "then" "put" "the" "rest" "of" "the" "revealed" "cards" "on" "the" "bottom" "in" "a" "random" "order"
+
+/* The color count belongs to the triggering spell, not this ability holder. */
+/* @sem Change::[EntersWithCounters(_{kind:$counter_kind, amount:ManaSpent{object:EventSubject, filter:SpentManaFilter{}, aggregation:DistinctColors}})] */
+spell_enters_counters_cast_colors ::= "enters" "with" "X" "additional" counter_kind "counters" "on" "it" "," "where" "X" "is" "the" "number" "of" "colors" "of" "mana" "spent" "to" "cast" "it"
+
+/* The source owner shuffles the source and independently draws the stated cards. */
+/* @sem Instruction::[Effect{result:@next, operation:$named_owner_shuffles_him}, Effect{result:@next, operation:Draw{players:One(OwnerOf(Source)), amount:$card_count}}] */
+clause_source_owner_shuffle_draw ::= named_owner_shuffles_him "and" "draws" card_count
+
+/* Choose from the exact discard arrival receipt, independent of the discarder. */
+/* @sem Instruction::[Effect{result:@mark, operation:Discard{players:One($target_player), amount:$card_count, random:false}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:CardType(Land)}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true}}, qualifiers:[]}}] */
+discard_choose_land_battlefield ::= target_player "discards" card_count "." "put" "up" "to" "one" "land" "card" "discarded" "this" "way" "onto" "the" "battlefield" "tapped" "under" "your" "control"
+
+/* The selected target reads both current stats from the named source. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($other_target_up_to)), changes:$stat_pair_change, duration:$duration, evaluation:Snapshot}}] */
+choose_target_copy_base_stats ::= "choose" other_target_up_to "." "its" "base" "power" "and" "toughness" "become" stat_pair_change duration
+
+/* Each opponent contributes at most one target they control. */
+/* @sem Operation::Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:PerPlayer{players:OpponentsOf(AbilityController), each:UpTo(Constant(1))}, filter:@or($noun, $noun_2)})), destination:OwnersHand(CardArrival{}), qualifiers:[]} */
+return_each_opponent_target_union ::= "for" "each" "opponent" "," "return" "up" "to" "one" "target" noun "or" noun "that" "player" "controls" "to" "its" "owner's" "hand"
+
+/* Only a countered permanent spell is sent to exile; the permission uses that arrival. */
+/* @sem Instruction::[Effect{result:@mark, operation:Counter{objects:One($target_stack_spell), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, destination_when:$countered_permanent_spell}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any}, terms:_{cost:Free}})], duration:UntilCast(Result{result:@marked, phase:After, index:0}), evaluation:LiveObjects}}] */
+counter_permanent_exile_free_permission ::= "counter" target_stack_spell "." countered_permanent_spell "exile" "it" "instead" "of" "putting" "it" "into" "its" "owner's" "graveyard" "." "you" "may" "cast" "that" "card" "without" "paying" "its" "mana" "cost" "for" "as" "long" "as" "it" "remains" "exiled"
+
+/* @sem ObjectFilter::AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)]) */
+countered_permanent_spell ::= "if" "a" "permanent" "spell" "is" "countered" "this" "way" ","
+
+/* The random conjure has no expansion restriction. */
+/* @sem ConjuredCard::Random(Filter($filter_phrase)) */
+conjured_random_any_card ::= "random" filter_phrase "card"
+
+/* The created exile arrival is the only card granted free casting this turn. */
+/* @sem Instruction::[Effect{result:@next, operation:$conjure_card_into_exile}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), origins:CardPlayOrigins([Exile]), action:CastSpell, filter:Any}, terms:_{cost:Free}})], duration:$this_turn, evaluation:LiveObjects}}] */
+conjure_exile_this_turn_free_cast ::= conjure_card_into_exile "." "you" "may" "cast" "that" "card" this_turn "without" "paying" "its" "mana" "cost"
+
+/* The grant applies as the matching spell is cast, before its own cast triggers. */
+/* @sem Operation::ChangeSpell{subject:Next{spells:$next_spell_filter, player:AbilityController, this_turn:true}, changes:[GrantAbility($spell_mechanic)]} */
+next_spell_has_mechanic ::= "the" "next" next_spell_filter "you" "cast" "this" "turn" "has" spell_mechanic
+
+/* The perpetual grant follows the exact newly conjured hand arrival. */
+/* @sem Instruction::[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:$conjured_random_any_card, count:Constant(1), destination:Hand(CardArrival{})}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[GrantAbility($prismatic_casting_permission)]}}] */
+conjure_random_hand_perpetual ::= "conjure" "a" conjured_random_any_card "into" "your" "hand" "." "it" "perpetually" "gains" prismatic_casting_permission
+
+/* The replacement amount is selected before either draw occurs. */
+/* @sem Instruction::[If{condition:ObjectMatches{object:Source, filter:Not(Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}})}, then:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count_one}}]}}] */
+draw_cast_origin_instead ::= "draw" card_count_one "." "if" "this" "spell" "wasn't" "cast" "from" "your" "hand" "," "draw" card_count "instead"
+
+/* The paid X is retained by the reflexive trigger, whose target is announced then. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:MoveCounters{actor:One(AbilityController), from:One(Source), to:One($target_another), kind:$counter_kind, amount:Exactly(AnnouncedX)}}]} */
+paid_x_move_source_counters ::= "move" "X" counter_kind "counters" "from" "this" "creature" "onto" target_another
