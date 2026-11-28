@@ -63,6 +63,8 @@ pub enum Property {
     GenericManaInCost,
     /// Number of different colors a mana source could produce.
     ManaColorsCouldProduce,
+    /// Total counters of every kind on this object.
+    CounterCount,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

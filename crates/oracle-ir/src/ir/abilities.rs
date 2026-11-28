@@ -269,6 +269,8 @@ pub enum Ability {
         replacement: Box<Ability>,
         limit: ReplacementLimit,
     },
+    /// This player makes the game's starting-player choice during setup.
+    StartingPlayerChooser(PlayerRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -397,6 +399,11 @@ pub enum ActivationGrant {
     AsThoughNotActivated,
     /// Extends the total use allowance of each matching ability across its lifetime.
     AdditionalLifetimeUses(Expr),
+    /// Use an activated ability controlled by another player. If chosen, prior
+    /// use by that controller does not consume this permission.
+    OtherController {
+        allow_after_controller_use: bool,
+    },
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

@@ -138,6 +138,8 @@ pub const TIGHT_HYPHEN: char = '\u{2011}';
 
 /// An uninterrupted spaced ellipsis, written as three separately spaced dots.
 pub const SPACED_ELLIPSIS: char = '…';
+/// A closing double quote after a reminder sentence without an opening quote.
+pub const ORPHAN_REMINDER_QUOTE: char = '”';
 
 const MARKS: &str = ".,:;\"'()+-\u{2212}/\u{2022}\u{2014}{}[]|!?&∞=";
 
@@ -168,7 +170,7 @@ fn starts_sentence(before: &[Token]) -> bool {
         | Some(Token::Mark('.' | ':' | '\u{2022}' | '\u{2014}' | '\u{2015}' | '(' | '|')) => true,
         Some(Token::Mark(')')) => matches!(
             before.len().checked_sub(2).map(|i| &before[i]),
-            Some(Token::Mark('.'))
+            Some(Token::Mark('.' | ORPHAN_REMINDER_QUOTE))
         ),
         Some(Token::Mark(mark @ ('"' | '\''))) => {
             opens(before, *mark)
@@ -574,6 +576,13 @@ fn scan(
             continue;
         }
         match c {
+            '"' if rest.as_bytes().get(1) == Some(&b')')
+                && tokens.last() == Some(&Token::Mark('.'))
+                && !opens(&tokens, '"') =>
+            {
+                tokens.push(Token::Mark(ORPHAN_REMINDER_QUOTE));
+                at += 1;
+            }
             '.' if rest.starts_with(". . .") => {
                 tokens.push(Token::Mark(SPACED_ELLIPSIS));
                 at += ". . .".len();
@@ -678,7 +687,17 @@ pub fn agree_articles(tokens: &[Token]) -> Vec<Token> {
 fn glue_left(token: &Token) -> bool {
     matches!(
         token,
-        Token::Mark('.' | ',' | ':' | ';' | ')' | '!' | '?' | TIGHT_PLUS | TIGHT_HYPHEN)
+        Token::Mark(
+            '.' | ','
+                | ':'
+                | ';'
+                | ')'
+                | '!'
+                | '?'
+                | TIGHT_PLUS
+                | TIGHT_HYPHEN
+                | ORPHAN_REMINDER_QUOTE
+        )
     ) || matches!(token, Token::Word(word) if word == POSSESSIVE)
 }
 
@@ -726,6 +745,7 @@ fn spelled(mark: char) -> char {
         TIGHT_DASH => '\u{2014}',
         TIGHT_PLUS => '+',
         TIGHT_HYPHEN => '-',
+        ORPHAN_REMINDER_QUOTE => '"',
         other => other,
     }
 }

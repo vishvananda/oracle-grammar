@@ -640,4 +640,5 @@ pub enum SubType {
     Scotsman,
     Clashablanca,
     Explainer,
+    MindlessOne,
 }

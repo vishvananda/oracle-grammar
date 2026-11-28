@@ -1,5 +1,5 @@
 /* Card-characteristic explanations are separate from the card's abilities. */
-card_text ::= card_text_deck_identity_color | card_text_counted_power_example | card_text_transmute_value | card_text_retains_artifact_type | card_text_food_adventure_reminded | card_text_no_mana_cost | card_text_meld_with | card_text_embalm_reminder | card_text_eternalize_reminder | card_text_compleated | card_text_amplify | card_text_amplify_after_abilities | card_station_before_three_titled | card_station_raw | card_station_raw_before | card_station_plain | card_station_before | card_station_explicit | card_text_land | card_text_land_only | card_text_land_cost | card_text_cost_land | card_text_land_cost_only | card_text_cost_land_only | card_text_noted | card_text_notes_only | card_text_monocolored_hybrid | card_text_prowl | card_text_prowl_after_abilities | card_text_plain | card_text_adventure_reminder | card_text_land_adventure_reminder | card_text_room_reminder | card_text_siege_reminder | card_text_ongoing_scheme_reminder | card_text_omen_reminder | card_text_omen_also_shuffle | card_text_face_up_conspiracy | card_text_legendary_sorcery | card_text_assist | card_text_transforms_from
+card_text ::= card_station_raw_planet | card_text_deck_identity_color | card_text_counted_power_example | card_text_transmute_value | card_text_retains_artifact_type | card_text_food_adventure_reminded | card_text_no_mana_cost | card_text_meld_with | card_text_embalm_reminder | card_text_eternalize_reminder | card_text_compleated | card_text_amplify | card_text_amplify_after_abilities | card_station_before_three_titled | card_station_raw | card_station_raw_before | card_station_plain | card_station_before | card_station_explicit | card_text_land | card_text_land_only | card_text_land_cost | card_text_cost_land | card_text_land_cost_only | card_text_cost_land_only | card_text_noted | card_text_notes_only | card_text_monocolored_hybrid | card_text_prowl | card_text_prowl_after_abilities | card_text_plain | card_text_adventure_reminder | card_text_land_adventure_reminder | card_text_room_reminder | card_text_siege_reminder | card_text_ongoing_scheme_reminder | card_text_omen_reminder | card_text_omen_also_shuffle | card_text_face_up_conspiracy | card_text_legendary_sorcery | card_text_assist | card_text_transforms_from
 
 /* @sem CardSurface::CardSurface{notes:$cost_notes, abilities:$card} */
 card_text_noted ::= cost_notes NEWLINE card
@@ -172,8 +172,11 @@ station_explicit_abilities ::= "station" NEWLINE NUMBER "⁺" "|" station_row_ab
 station_source ::= station_source_animation | station_source_bare | station_source_nonanimating
 /* @sem StationSource::StationSource{} */
 station_source_bare ::= "station"
+station_source_nonanimating ::= station_source_spacecraft | station_source_planet
 /* @sem StationSource::StationSource{} */
-station_source_nonanimating ::= "station" "(" "tap" "another" "creature" "you" "control" ":" "put" "charge" "counters" "equal" "to" "its" "power" "on" "this" ("Spacecraft" | "Planet") "." "station" "only" "as" "a" "sorcery" "." ")"
+station_source_spacecraft ::= "station" "(" "tap" "another" "creature" "you" "control" ":" "put" "charge" "counters" "equal" "to" "its" "power" "on" "this" "Spacecraft" "." "station" "only" "as" "a" "sorcery" "." ")"
+/* @sem StationSource::StationSource{} */
+station_source_planet ::= "station" "(" "tap" "another" "creature" "you" "control" ":" "put" "charge" "counters" "equal" "to" "its" "power" "on" "this" "Planet" "." "station" "only" "as" "a" "sorcery" "." ")"
 
 /* The visible reminder's operand stays available to the inverse grammar. */
 /* @sem CardSurface::CardSurface{station:true, station_declaration:$station_visible_source, abilities:[WithPresentation{reminder:true, ability:Mechanic{mechanic:Station}}, ...$station_rows]} */
@@ -329,3 +332,10 @@ card_text_counted_power_example ::= named_possessive_ref "power" "is" "equal" "t
 /* The source cost supplies the symbol and its intrinsic color definition. */
 /* @sem $mana_rainbow */
 rainbow_cost_note ::= "(" mana_rainbow "is" "rainbow" "mana" "," "one" "mana" "from" "any" "source" "that" "could" "add" "two" "or" "more" "colors" "of" "mana" "." "this" "card" "is" "all" "colors" "." ")"
+
+/* A colon stage belongs to the Planet, while subsequent abilities remain outside the stage. */
+/* @sem CardSurface::CardSurface{station:true, station_declaration:$station_source_planet, abilities:[WithPresentation{reminder:true, ability:Mechanic{mechanic:Station}}, $station_planet_colon_row, ...$abilities]} */
+card_station_raw_planet ::= station_source_planet NEWLINE station_planet_colon_row NEWLINE abilities
+
+/* @sem Ability::CounterStages{counter:Named(ChargeCounter), stages:[_{minimum:$number, abilities:$line}]} */
+station_planet_colon_row ::= NUMBER "⁺" ":" line

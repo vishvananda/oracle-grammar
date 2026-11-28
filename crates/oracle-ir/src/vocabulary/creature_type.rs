@@ -368,4 +368,5 @@ pub enum CreatureType {
     Tribble,
     Trill,
     VauNAkat,
+    MindlessOne,
 }

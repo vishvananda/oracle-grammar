@@ -21,6 +21,7 @@ PLURALS = {
 
 
 SPELLINGS = {
+    "MindlessOne": "Mindless-One",
     "CityInABottle": "City in a Bottle",
     "ElAurian": "El-Aurian",
     "JemHadar": "Jem'Hadar",
