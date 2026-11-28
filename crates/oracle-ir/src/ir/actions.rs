@@ -204,7 +204,10 @@ pub enum NoteKind {
     },
     /// Numbers these in order starting from zero.
     Numbered(ObjectSet),
-    /// The most common creature type in these libraries.
+    /// The most common creature type in the specified library or libraries.
+    /// Select a library explicitly when there is one note per player. The
+    /// source text provides no policy for ties or a library with no type;
+    /// the host must handle an unresolved result rather than choose silently.
     MostCommonCreatureType(PlayerSet),
 }
 

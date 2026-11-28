@@ -397,7 +397,8 @@ pub enum CommanderPartner {
 }
 
 /// What a card says about building a deck, as Forge's `K:Partner` and
-/// `DeckHints` do. None of these changes a game in progress.
+/// `DeckHints` do. Some rules also establish a pregame card definition or
+/// describe the designation of a particular object created during the game.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DeckRule {
     CanBeCommander,
@@ -417,6 +418,28 @@ pub enum DeckRule {
         /// The text independently permits this card to be a commander.
         grants_source_eligibility: bool,
         partner: CommanderPartner,
+    },
+    /// Applies only when this card is a player's commander. That player's deck
+    /// may contain any number of cards with each listed name. Snapshot which
+    /// listed names are absent from that pregame deck before any substitutions.
+    /// For each absent name, that player may choose one distinct physical card
+    /// in that deck matching `eligible`; before the game begins, that single
+    /// card becomes the Oracle card of that name. The substituted definition
+    /// belongs to that card for the game, including across zone changes. One
+    /// choice never substitutes all other cards with the same basic land name.
+    CommanderNamedPregameSubstitution {
+        names: Vec<String>,
+        eligible: ObjectFilter,
+    },
+    /// This source can be your commander. If it is, the named token created
+    /// by its indicated chapter is also commander for the player whose commander
+    /// the source is. It follows that actual chapter-created object, not a catalog name,
+    /// unrelated same-named object, card in a deck, or preexisting token.
+    /// When multiple creations or copies make the singular reference ambiguous,
+    /// the source supplies no rule for assigning or propagating the designation.
+    CommanderWithCreatedToken {
+        name: String,
+        chapter: u32,
     },
 }
 

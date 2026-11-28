@@ -77,6 +77,9 @@ pub enum Protection {
     /// Behaves as separate keyword instances (702.16g-i / 702.11f-g), not
     /// one ability with a merged quality. Duplicate instances remain present.
     Each(Vec<Protection>),
+    /// A separate protection quality for each distinct creature type recorded
+    /// by the linked entry note for this source incarnation.
+    EachNotedCreatureType,
 }
 
 /// Defines the keyword abilities with one table, so the enum and the rows that

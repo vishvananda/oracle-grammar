@@ -432,6 +432,7 @@ impl<'a> Scope<'a> {
         match protection {
             Protection::Objects { filter, .. } => self.filter(filter),
             Protection::Players(players) => self.players(players),
+            Protection::EachNotedCreatureType => Ok(()),
             Protection::Each(qualities) => {
                 if qualities.len() < 2 {
                     return Err(

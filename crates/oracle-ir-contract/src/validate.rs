@@ -643,6 +643,30 @@ fn validate_ability_in_case_1(
             scope.objects(keeps)
         }
         Ability::DeckRule(rule) => match rule {
+            DeckRule::CommanderNamedPregameSubstitution { names, eligible } => {
+                if names.is_empty()
+                    || names.len() > 32
+                    || names.iter().any(|name| {
+                        name.is_empty() || name.len() > 128 || name.chars().any(char::is_control)
+                    })
+                    || names.iter().collect::<BTreeSet<_>>().len() != names.len()
+                {
+                    return Err("pregame substitution needs distinct nonempty bounded names".into());
+                }
+                scope.filter(eligible)
+            }
+            DeckRule::CommanderWithCreatedToken { name, chapter } => {
+                if *chapter == 0
+                    || name.is_empty()
+                    || name.len() > 128
+                    || name.chars().any(char::is_control)
+                {
+                    return Err(
+                        "a created commander needs a chapter and a bounded nonempty name".into(),
+                    );
+                }
+                Ok(())
+            }
             DeckRule::UpToCopies(count) => scope.expr(count),
             DeckRule::AnyCards(cards) | DeckRule::AnyCardsWithOneAdditionalColor(cards) => {
                 scope.filter(cards)
@@ -1226,3 +1250,6 @@ mod merch_at_tests;
 
 #[cfg(test)]
 mod loyalty_as_mana_tests;
+
+#[cfg(test)]
+mod commander_created_token_tests;

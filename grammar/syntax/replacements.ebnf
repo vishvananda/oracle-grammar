@@ -2779,7 +2779,7 @@ villainous_choice_repeat ::= "if" transform_player_choice "would" "face" "a" "vi
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_choice_body}) */
 entry_choice_ability ::= "as" object_ref "enters" "," entry_choice_body "."
 
-entry_choice_body ::= entry_choice_single | entry_choice_with_payment | entry_choice_optional
+entry_choice_body ::= entry_note_each_opponents_library | entry_choice_single | entry_choice_with_payment | entry_choice_optional
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_choice_operation}]} */
 entry_choice_single ::= entry_choice_operation
@@ -4600,3 +4600,7 @@ replacement_empower_to_controlled_jace ::= "if" "you" "would" "empower" "Jace" "
 /* Replace the original connive with a draw followed by that object's connive. */
 /* @sem Ability::Replacement{active:Battlefield, event:Object{event:Connives, objects:AllOf([$noun_creature, ControlledBy(One(AbilityController))])}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Constant(1)}}, Effect{result:@next, operation:Keyword{actor:One(ControllerOf(EventSubject)), action:KeywordAction::Connive{object:EventSubject}}}]}} */
 controlled_connive_draw_then_connive ::= "if" "a" noun_creature "you" "control" "would" "connive" "," "instead" "you" "draw" "a" "card" "," "then" "that" "creature" "connives" "."
+
+/* Each opponent's library contributes its own entry note. */
+/* @sem Program::Program{instructions:[ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:Program{instructions:[Effect{result:@next, operation:Note(MostCommonCreatureType(One(Bound(0))))}]}}]} */
+entry_note_each_opponents_library ::= "for" "each" "opponent" "," "note" "the" "most" "prevalent" "creature" "type" "in" "their" "library"
