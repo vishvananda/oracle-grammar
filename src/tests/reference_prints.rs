@@ -86,6 +86,11 @@ fn triggers_written_per_event_print_split_from_the_trigger_on_either() {
             "Creature",
             "Whenever another Detective you control enters and whenever a Detective you control is turned face up, this creature gets +1/+1 until end of turn.",
         ),
+        (
+            "Cryptid Inspector",
+            "Creature",
+            "Vigilance\nWhenever a face-down permanent you control enters and whenever this creature or another permanent you control is turned face up, put a +1/+1 counter on this creature.",
+        ),
     ] {
         assert_prints_as_written(name, types, text);
     }

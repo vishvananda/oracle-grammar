@@ -26,6 +26,7 @@ enum ResultKind {
     DamageReplacement,
     Fight,
     CounterPlacement,
+    CounterSelection,
     Mana,
     Coin,
     CoinBatch,

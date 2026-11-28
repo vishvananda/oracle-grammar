@@ -13,6 +13,7 @@ use std::sync::OnceLock;
 
 mod casting_grants;
 mod combat_pairs;
+mod counter_selections;
 mod damage_parts;
 mod entry;
 mod events;
@@ -42,6 +43,7 @@ mod player_life;
 mod player_rule_groups;
 mod programs;
 mod pump_untap;
+mod random_move;
 pub mod resolution_payments;
 #[cfg(test)]
 mod result_scopes;
@@ -58,12 +60,14 @@ mod spell_paragraphs;
 mod target_mill;
 mod target_pairs;
 mod target_stats;
+mod token_goad;
 mod trace;
 pub mod trigger_batches;
 mod trigger_branches;
 mod untap;
 mod visibility;
 mod walk;
+pub use counter_selections::print_views as counter_selection_print_views;
 pub use fixed_mana::literal as literal_mana;
 pub use immediate_views::print_views as immediate_parameter_print_views;
 use movement::groups as movement_groups;
@@ -749,6 +753,7 @@ impl Walker {
                 }
                 ("EventSpec", "AnyOf") if !self.keep_order => {
                     if let Some(Value::Array(events)) = value.get_mut("AnyOf") {
+                        events::join_fixed_face_up(events, self.tracing);
                         events.sort_by_cached_key(|v| trace::key(v, self.tracing));
                     }
                 }

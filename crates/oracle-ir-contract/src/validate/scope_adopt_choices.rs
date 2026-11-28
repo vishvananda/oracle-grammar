@@ -247,6 +247,11 @@ impl<'a> Scope<'a> {
                                 action: KeywordAction::Fight { .. },
                                 ..
                             } => ResultKind::Fight,
+                            Operation::PutCounters { placements }
+                                if matches!(placements.as_slice(), [placement] if placement.selection.is_some()) =>
+                            {
+                                ResultKind::CounterSelection
+                            }
                             Operation::PutCounters { .. } => ResultKind::CounterPlacement,
                             Operation::CreateReplacement { event, .. }
                                 if crate::semantics::replacement_bindings(event).damage =>

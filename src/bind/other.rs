@@ -170,7 +170,10 @@ fn paid_return(
         || instructions != "instructions"
         || effect_args != "args"
         || operation != "operation"
-        || !matches!(follow["kind"].as_str(), Some("Move" | "DealDamage"))
+        || !matches!(
+            follow["kind"].as_str(),
+            Some("Move" | "DealDamage" | "Destroy" | "CreateReplacement")
+        )
         || branch["kind"] != "If"
         || test["kind"] != "ObjectMatches"
         || !(checked["kind"] == "Source" || symbol_name(checked) == Some("self"))
@@ -190,13 +193,8 @@ fn paid_return(
     if symbol_name(moved) == Some("owner_return") {
         moved = moved["args"].get(0)?;
     }
-    if moved["kind"] != "Move" || moved["args"]["destination"].get("OwnersHand").is_none() {
-        return None;
-    }
-    let objects = &moved["args"]["objects"];
-    let reference = &objects["args"];
-    if objects["kind"] != "One" || reference["kind"] != "Target" || reference["args"]["index"] != 0
-    {
+    let reference = acted_target(moved, follow)?;
+    if reference["kind"] != "Target" || reference["args"]["index"] != 0 {
         return None;
     }
     let earlier =
@@ -210,6 +208,43 @@ fn paid_return(
         .filter_map(|item| item.other_target.as_deref())
         .any(matches)
         .then_some(earlier)
+}
+
+// These repeated actions name two single battlefield targets. A source's
+// absence does not make it the referent of "another" in the kicked clause.
+fn acted_target<'a>(first: &'a Value, following: &Value) -> Option<&'a Value> {
+    let args = &first["args"];
+    match first["kind"].as_str()? {
+        "Move" if args["destination"].get("OwnersHand").is_some() => {
+            (args["objects"]["kind"] == "One").then_some(&args["objects"]["args"])
+        }
+        "Destroy" if following["kind"] == "Destroy" => {
+            (args["objects"]["kind"] == "One").then_some(&args["objects"]["args"])
+        }
+        "CreateReplacement" if following["kind"] == "CreateReplacement" => {
+            let event = &args["event"]["Damage"];
+            let next = &following["args"]["event"]["Damage"];
+            if event["kind"] == "Combat"
+                && next["kind"] == "Combat"
+                && args["limit"] == "UntilExpired"
+                && following["args"]["limit"] == "UntilExpired"
+                && single_damage_source(&next["sources"]).is_some()
+            {
+                single_damage_source(&event["sources"])
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+fn single_damage_source(filter: &Value) -> Option<&Value> {
+    match filter["kind"].as_str()? {
+        "SameObject" => Some(&filter["args"]),
+        "InSet" if filter["args"]["kind"] == "One" => Some(&filter["args"]["args"]),
+        _ => None,
+    }
 }
 
 // For a matching arrival, "other" contrasts with that entering object.

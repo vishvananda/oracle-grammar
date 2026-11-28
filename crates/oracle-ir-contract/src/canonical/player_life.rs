@@ -226,8 +226,10 @@ pub(super) fn flatten(items: &mut [Value], path: &str, uses: &Uses, tracing: boo
         } else if let Some(offer) = optional_hand_entry(item, uses, tracing) {
             *item = offer;
             changed = true;
-        } else if let Some(draw) = redundant_optional_draw(item, uses, tracing) {
-            *item = draw;
+        } else if let Some(direct) = redundant_optional_draw(item, uses, tracing)
+            .or_else(|| rounded_half_loss(item, uses, tracing))
+        {
+            *item = direct;
             changed = true;
         }
     }
@@ -313,4 +315,48 @@ pub(super) fn counted_damage_recipient(value: &mut Value, tracing: bool) -> bool
     value["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["amount"]["args"]["args"]
         ["filter"]["args"][index]["args"]["args"] = bound;
     true
+}
+
+// This unsequenced player loop applies the same life-loss instruction to all
+// its participants at once. The batch amount evaluates with each recipient.
+fn rounded_half_loss(outer: &Value, uses: &Uses, tracing: bool) -> Option<Value> {
+    let args = &outer["args"];
+    if args["players"]["kind"] != "OpponentsOf"
+        || !args["starting_with"].is_null()
+        || args["in_chosen_direction"] != false
+    {
+        return None;
+    }
+    let [effect] = args["body"]["instructions"].as_array()?.as_slice() else {
+        return None;
+    };
+    let op = &effect["args"]["operation"];
+    let operands = &op["args"];
+    let amount = &operands["amount"];
+    let numerator = &amount["args"]["numerator"];
+    let bound = |player: &Value| {
+        player["kind"] == "Bound" && super::trace::same(&player["args"], &args["binding"], tracing)
+    };
+    let result = super::trace::number(&effect["args"]["result"])?;
+    if effect["kind"] != "Effect"
+        || op["kind"] != "LoseLife"
+        || operands["players"]["kind"] != "One"
+        || !bound(&operands["players"]["args"])
+        || amount["kind"] != "Divide"
+        || amount["args"]["denominator"] != json!({"kind":"Constant","args":2})
+        || !matches!(amount["args"]["rounding"].as_str(), Some("Up" | "Down"))
+        || numerator["kind"] != "PlayerNumber"
+        || numerator["args"]["number"] != "Life"
+        || !bound(&numerator["args"]["player"])
+        || uses.definitions.get(&result) != Some(&1)
+        || uses.total.get(&result) != Some(&1)
+        || lossless::<Instruction>(outer, tracing).is_none()
+    {
+        return None;
+    }
+    let mut direct = effect.clone();
+    let op = &mut direct["args"]["operation"]["args"];
+    op["players"] = args["players"].clone();
+    op["amount"]["args"]["numerator"]["args"]["player"] = json!({"kind":"Acting"});
+    Some(direct)
 }

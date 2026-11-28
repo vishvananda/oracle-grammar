@@ -286,7 +286,10 @@ pub(super) fn loses_distributed_recipient(ability: &Value) -> bool {
             Some("Source" | "EventSubject")
         )
         && amount["kind"] == "ObjectProperty"
-        && amount["args"]["property"] == "Power"
+        && matches!(
+            amount["args"]["property"].as_str(),
+            Some("Power" | "Toughness")
+        )
         && amount["args"]["object"]
             == json!({"kind":"Target","args":{"slot":target["slot"],"index":0}})
 }

@@ -154,6 +154,7 @@ impl Engine {
                 .into_iter()
                 .chain(written_populations)
                 .chain(written_optional_receipts)
+                .chain(canonical::counter_selection_print_views(item)?)
             {
                 for form in bind::unbind_ability(&view)
                     .into_iter()

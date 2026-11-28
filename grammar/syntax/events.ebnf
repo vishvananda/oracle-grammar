@@ -895,7 +895,9 @@ graveyard_suffix_plain ::= graveyard_suffix_header "," graveyard_suffix_body
 /* @sem Ability::Triggered{event:$graveyard_suffix_header, intervening_if:$condition, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_suffix_body} */
 graveyard_suffix_if ::= graveyard_suffix_header "," "if" condition "," graveyard_suffix_body
 
-graveyard_suffix_header ::= graveyard_suffix_turn | graveyard_suffix_cast | graveyard_suffix_conjure
+graveyard_suffix_header ::= graveyard_suffix_turn | graveyard_suffix_cast | graveyard_suffix_conjure | graveyard_suffix_death
+/* @sem $event_many_die */
+graveyard_suffix_death ::= "whenever" event_many_die
 /* @sem $graveyard_suffix_turn_event */
 graveyard_suffix_turn ::= "at" graveyard_suffix_turn_event
 graveyard_suffix_turn_event ::= turn_upkeep | turn_draw | turn_end | turn_combat | turn_combat_each | turn_second_main | turn_end_combat
@@ -7816,10 +7818,6 @@ paired_saddle_crew_referenced_event ::= "whenever" object_ref "saddles" "a" filt
 /* @sem Ability::Triggered{event:$paired_saddle_crew_referenced_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$paired_event_temporary_changes}]}} */
 triggered_paired_event_temporary_changes ::= paired_saddle_crew_referenced_event paired_event_temporary_changes "."
 
-/* The additional graveyard zone belongs to the single trigger. */
-/* @sem Ability::Scoped{zones:[Graveyard, Battlefield], ability:@scope(Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$graveyard_active_perpetual_effect}]}})} */
-graveyard_active_perpetual_trigger ::= event_clause "," graveyard_active_perpetual_effect "." "this" "ability" "also" "triggers" "if" "this" "card" "is" "in" "your" "graveyard" "."
-
 /* A spell or ability causes destruction of a filtered permanent you control. */
 /* @sem EventSpec::Object{event:Destroyed, objects:AllOf([$adjective_nontype, ControlledBy(One(AbilityController))])} */
 caused_destroy_controlled ::= "destroys" "a" adjective_nontype "permanent" "you" "control"
@@ -8674,7 +8672,7 @@ event_permanent_other_than_enters_h3 ::= "a" "permanent" "other" "than" "a" filt
 /* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Optional{decider:AbilityController, body:@optional_action_program(Program{instructions:$optional_turn_dependent})}]}} */
 triggered_turn_optional_h3 ::= "at" turn_event "," "you" "may" optional_turn_dependent "."
 
-optional_turn_dependent ::= flip_coin_win_or_lose | clash_if_you_win | clause_library_reorder | optional_turn_move_then_delayed
+optional_turn_dependent ::= flip_coin_win_or_lose | clash_if_you_win | clause_library_reorder | optional_turn_move_then_delayed | put_selected_owned_exile_into_hand
 
 /* Retain the immediate move's dependent effect and delayed result. */
 /* @sem Instruction::[Effect{result:@next,operation:$move_battlefield}, Effect{result:@next,operation:$continuous_snapshot_plain}, ...$clause_delayed_end_step_after] */
@@ -8695,10 +8693,6 @@ scoped_source_card ::= scoped_source_this_card | scoped_source_printed_name
 scoped_source_this_card ::= "this" "card"
 /* @sem () */
 scoped_source_printed_name ::= SELF_NAME
-
-/* The named-card spelling uses the same scoped death trigger as the card form. */
-/* @sem Ability::Scoped{zones:[Graveyard, Battlefield], ability:@scope(Ability::Triggered{event:$event_many_die, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$graveyard_active_perpetual_effect}]}})} */
-graveyard_named_death_perpetual_trigger ::= "whenever" event_many_die "," graveyard_active_perpetual_effect "." "this" "ability" "also" "triggers" "if" scoped_source_printed_name "is" "in" "your" "graveyard" "."
 
 /* @sem EventSpec::AnyOf([Damage(_{source_kind:Permanent, sources:AllOf([State(Equipped), CardType($perpetual_equipped_kind), ControlledBy(One(AbilityController))]), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}), Damage(_{source_kind:Permanent, sources:AllOf([State(Equipped), CardType($perpetual_equipped_kind), ControlledBy(One(AbilityController))]), recipients:Objects(CardType(Planeswalker)), kind:Combat, grouping:SourceRecipient, subject:Source})]) */
 equipped_combat_player_or_planeswalker ::= "whenever" "an" "equipped" perpetual_equipped_kind "you" "control" "deals" "combat" "damage" "to" "a" "player" "or" "planeswalker"

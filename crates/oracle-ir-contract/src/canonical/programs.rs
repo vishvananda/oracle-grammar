@@ -11,6 +11,8 @@ struct Needed {
     player_rule_groups: bool,
     hand_observation: bool,
     hand_choice: bool,
+    counter_selection: bool,
+    random_move: bool,
     native_payment: bool,
     pump_untap: bool,
     optional_receipt: bool,
@@ -49,6 +51,12 @@ impl Visit for Normalize {
                 && matches!(value["kind"].as_str(), Some("Reveal" | "LookAt"));
             needed.hand_choice |= matches!(ty, Ty::Named(name) if name == "Operation")
                 && value["kind"] == "ChooseObjects";
+            needed.counter_selection |= !self.keep_order
+                && matches!(ty, Ty::Named(name) if name == "Operation")
+                && super::counter_selections::may_need(value);
+            needed.random_move |= !self.keep_order
+                && matches!(ty, Ty::Named(name) if name == "Operation")
+                && super::random_move::may_need(value);
             needed.optional_receipt |= !self.keep_order
                 && matches!(ty, Ty::Named(name) if name == "Instruction")
                 && super::optional_receipts::may_need(value);
@@ -87,6 +95,7 @@ impl Visit for Normalize {
             self.changed |= super::observed_top::program(value, self.tracing)?;
             if !self.keep_order {
                 self.changed |= super::single_choices::program(value, self.tracing);
+                self.changed |= super::token_goad::recipient_goad(value, self.tracing);
                 if let Some(items) = value.get_mut("instructions").and_then(Value::as_array_mut) {
                     self.changed |= super::player_life::declined_target(items, self.tracing);
                 }
@@ -126,6 +135,8 @@ impl Visit for Normalize {
             && !needed.native_payment
             && !needed.optional_receipt
             && !needed.pump_untap
+            && !needed.counter_selection
+            && !needed.random_move
         {
             return Ok(());
         }
@@ -183,8 +194,14 @@ impl Visit for Normalize {
                 if needed.optional_receipt {
                     self.changed |= super::optional_receipts::program(items, &uses, self.tracing);
                 }
+                if needed.random_move {
+                    self.changed |= super::random_move::program(items, &uses, self.tracing);
+                }
                 if needed.pump_untap {
                     self.changed |= super::pump_untap::program(items, &uses, self.tracing);
+                }
+                if needed.counter_selection {
+                    self.changed |= super::counter_selections::program(items, &uses, self.tracing);
                 }
             }
         }

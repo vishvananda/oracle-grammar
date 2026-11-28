@@ -19,14 +19,18 @@ fn ordinary_instructions(value: &Value) -> Option<&Vec<Value>> {
 }
 
 fn continuation<'a>(left: &Value, right: &'a Value) -> Option<&'a Vec<Value>> {
-    ordinary_instructions(left)?;
     let left_label = &left["args"]["label"];
     let right_label = &right["args"]["label"];
-    if left_label.is_null() || right_label.is_null() || left_label == right_label {
-        ordinary_instructions(right)
-    } else {
-        None
+    if !left_label.is_null() && !right_label.is_null() && left_label != right_label {
+        return None;
     }
+    let tail = ordinary_instructions(right)?;
+    if let Some(program) = kicker_program(left) {
+        return (program["instructions"].as_array()?.len() < MAX_SPLIT_INSTRUCTIONS
+            && independent_kicker_tail(tail))
+        .then_some(tail);
+    }
+    ordinary_instructions(left).map(|_| tail)
 }
 
 pub(super) fn merge(items: Vec<Value>) -> Vec<Value> {
@@ -54,7 +58,12 @@ pub(super) fn merge(items: Vec<Value>) -> Vec<Value> {
             } else {
                 previous
             };
-            if let Some(list) = paragraph["args"]["body"]["instructions"].as_array_mut() {
+            let body = if kicker_program(paragraph).is_some() {
+                &mut paragraph["args"][1]["args"]["body"]
+            } else {
+                &mut paragraph["args"]["body"]
+            };
+            if let Some(list) = body["instructions"].as_array_mut() {
                 list.extend(more.iter().cloned());
                 continue;
             }
@@ -120,6 +129,25 @@ pub(super) fn written_splits(surfaces: &[Value]) -> Vec<Value> {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+    for surface in surfaces {
+        let Some(abilities) = surface.as_array() else {
+            continue;
+        };
+        for (index, ability) in abilities.iter().enumerate() {
+            let Some(parts) = written_kicker_suffix(ability) else {
+                continue;
+            };
+            let mut split = abilities.clone();
+            split.splice(index..=index, parts);
+            let view = Value::Array(split);
+            if !results.contains(&view) {
+                results.push(view);
+                if results.len() == MAX_SPLITS {
+                    return results;
                 }
             }
         }
@@ -191,4 +219,166 @@ pub(super) fn split_ascend(items: &[Value]) -> bool {
             && left["args"]["mechanic"] == "Ascend"
             && ordinary_instructions(&pair[1]).is_some()
     })
+}
+
+// A targetless, independent continuation resolves on both sides of the
+// kicker decision. Check the exact raw operand forms before sharing the frame.
+fn kicker_program(value: &Value) -> Option<&Value> {
+    let branch = unpresented(value);
+    (branch["$sym"] == "kicker_branch" && branch["args"][1]["kind"] == "Spell")
+        .then_some(&branch["args"][1]["args"]["body"])
+}
+
+fn constant(value: &Value) -> bool {
+    value["kind"] == "Constant" && value["args"].is_i64()
+}
+
+fn independent_kicker_tail(body: &[Value]) -> bool {
+    let [item] = body else { return false };
+    if item["kind"] != "Effect" {
+        return false;
+    }
+    let operation = &item["args"]["operation"];
+    let operation = if operation["$sym"] == "created_result" {
+        &operation["args"][0]
+    } else {
+        operation
+    };
+    let args = &operation["args"];
+    let you =
+        |player: &Value| player["kind"] == "One" && player["args"]["kind"] == "AbilityController";
+    match operation["kind"].as_str() {
+        Some("Draw") => you(&args["players"]) && constant(&args["amount"]),
+        Some("Move") => {
+            let objects = &args["objects"];
+            let actor = &objects["args"];
+            objects["kind"] == "One"
+                && (actor["kind"] == "Source"
+                    || matches!(actor["$sym"].as_str(), Some("self" | "named_source")))
+                && args["destination"]["Exile"]["visibility"] == "FaceUp"
+                && args["qualifiers"].as_array().is_some_and(Vec::is_empty)
+        }
+        Some("CreateContinuousEffect") => {
+            let subjects = &args["affected"]["Objects"];
+            let subjects = if subjects["$sym"] == "distributive_pump_subject" {
+                &subjects["args"][0]
+            } else {
+                subjects
+            };
+            subjects["kind"] == "Zone"
+                && subjects["args"]["scope"]["Shared"] == "Battlefield"
+                && subjects["args"]["kind"] == "Permanent"
+                && subjects["args"]["filter"] == json!({"kind":"CardType","args":"Creature"})
+                && args["evaluation"] == "Snapshot"
+                && args["duration"] == "EndOfTurn"
+                && args["changes"].as_array().is_some_and(|c| {
+                    matches!(c.as_slice(), [pump] if pump["kind"] == "Pump"
+                        && constant(&pump["args"]["power"]) && constant(&pump["args"]["toughness"]))
+                })
+        }
+        Some("CreateTokens") => {
+            you(&args["players"])
+                && args["tokens"].as_array().is_some_and(|tokens| {
+                    matches!(tokens.as_slice(), [token] if constant(&token["amount"])
+                    && token["recipe"]["Defined"]["name"] == "FromSubtypes"
+                    && token["recipe"]["Defined"]["abilities_of"].is_null())
+                })
+                && args["entry"]["controller"].is_null()
+                && args["entry"]["counters"]
+                    .as_array()
+                    .is_some_and(Vec::is_empty)
+        }
+        _ => false,
+    }
+}
+
+// A following "that creature enters with ..." describes the target of the
+// preceding reanimation. A replacement on the source would lose that target.
+pub(super) fn detached_entry(items: &[Value]) -> bool {
+    items.windows(2).any(|pair| {
+        let first = unpresented(&pair[0]);
+        let next = unpresented(&pair[1]);
+        let Some([instruction]) = ordinary_instructions(first).map(Vec::as_slice) else {
+            return false;
+        };
+        let move_card = &instruction["args"]["operation"];
+        let objects = &move_card["args"]["objects"];
+        let objects = if objects["$sym"] == "zone_members" {
+            &objects["args"][0]
+        } else {
+            objects
+        };
+        let target = &objects["args"];
+        let domain = &target["args"]["slot"]["args"][0];
+        let args = &next["args"];
+        let qualifier = &args["event"]["Enter"]["objects"];
+        let reference = &qualifier["args"];
+        let reference = if reference["$sym"] == "remember_operand" {
+            &reference["args"][0]
+        } else {
+            reference
+        };
+        let Some([branch]) = args["body"]["instructions"].as_array().map(Vec::as_slice) else {
+            return false;
+        };
+        let follow = &branch["args"]["then"]["instructions"];
+        instruction["kind"] == "Effect"
+            && move_card["kind"] == "Move"
+            && move_card["args"]["destination"]
+                .get("Battlefield")
+                .is_some()
+            && objects["kind"] == "One"
+            && target["kind"] == "Target"
+            && domain["kind"]["Object"]["zones"] == json!(["Graveyard"])
+            && domain["count"] == json!({"Exactly":{"kind":"Constant","args":1}})
+            && next["kind"] == "Replacement"
+            && args["active"] == "SourceEntering"
+            && qualifier["kind"] == "SameObject"
+            && reference["$sym"] == "qualified_object"
+            && reference["args"][1] == json!({"kind":"CardType","args":"Creature"})
+            && branch["kind"] == "If"
+            && branch["args"]["otherwise"]["instructions"] == json!([])
+            && follow.as_array().is_some_and(|actions| {
+                matches!(actions.as_slice(), [effect] if effect["kind"] == "Effect"
+                    && effect["args"]["operation"]["kind"] == "ModifyEvent"
+                    && !effect["args"]["operation"]["args"]["change"]["AddCounters"].is_null())
+            })
+    })
+}
+
+// Exact replay may place a shared final instruction in its own paragraph.
+// Parsing the split view binds the instruction back into both resolutions.
+fn written_kicker_suffix(ability: &Value) -> Option<[Value; 2]> {
+    let branch = unpresented(ability);
+    if branch["kind"] != "CostBranch" || branch["args"]["keyword"] != "Kicker" {
+        return None;
+    }
+    let paid = ordinary_instructions(&branch["args"]["paid"])?;
+    let unpaid = ordinary_instructions(&branch["args"]["unpaid"])?;
+    let last = paid.last()?;
+    let other = unpaid.last()?;
+    if paid.len() > MAX_SPLIT_INSTRUCTIONS
+        || unpaid.len() > MAX_SPLIT_INSTRUCTIONS
+        || !independent_kicker_tail(std::slice::from_ref(last))
+        || other["kind"] != "Effect"
+        || last["args"]["operation"] != other["args"]["operation"]
+    {
+        return None;
+    }
+    let mut first = ability.clone();
+    let args = if first["kind"] == "WithPresentation" {
+        &mut first["args"]["ability"]["args"]
+    } else {
+        &mut first["args"]
+    };
+    for side in ["paid", "unpaid"] {
+        args[side]["args"]["body"]["instructions"]
+            .as_array_mut()?
+            .pop();
+    }
+    let suffix = json!({"kind":"Spell","args":{
+        "announcement":{"targets":[],"modes":null},
+        "body":{"instructions":[last]}
+    }});
+    Some([first, suffix])
 }

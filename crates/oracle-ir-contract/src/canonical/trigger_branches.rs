@@ -242,6 +242,7 @@ pub(super) fn merge(items: &mut Vec<Value>, schema: &Schema, tracing: bool) {
     }
     for item in merged.iter_mut().filter(|item| item["kind"] == "Triggered") {
         if let Some(Value::Array(events)) = item["args"]["event"].get_mut("AnyOf") {
+            super::events::join_fixed_face_up(events, tracing);
             events.sort_by_key(|event| trace::key(event, tracing));
         }
     }

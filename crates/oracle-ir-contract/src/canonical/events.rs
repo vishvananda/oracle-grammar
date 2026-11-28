@@ -171,3 +171,53 @@ pub(super) fn controlled_face_up(value: &mut Value, tracing: bool) {
     value["Object"]["objects"]["args"] =
         json!([face_down,{"kind":"AnyOf","args":types},controlled]);
 }
+
+// The two disjoint face-up alternatives describe one object matcher. Rerender
+// the combined lexical description while preserving the other event arms.
+pub(super) fn join_fixed_face_up(events: &mut Vec<Value>, tracing: bool) {
+    use serde_json::json;
+    let state = json!({"kind":"State","args":"FaceDown"});
+    if events.len() != 3
+        || !events.iter().any(|event| {
+            let entry = &event["Player"];
+            let filter = &entry["objects"];
+            entry["event"] == "EntersUnderControl"
+                && filter["kind"] == "AllOf"
+                && filter["args"]
+                    .as_array()
+                    .is_some_and(|parts| parts.contains(&state))
+        })
+    {
+        return;
+    }
+    let source = json!({"kind":"SameObject","args":{"kind":"Source"}});
+    let other = json!({"kind":"Not","args":source});
+    let controlled =
+        json!({"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}});
+    let mut self_turn = None;
+    let mut controlled_turn = None;
+    for (index, event) in events.iter().enumerate() {
+        let object = &event["Object"];
+        let filter = &object["objects"];
+        if object["event"] != "TurnsFaceUp" {
+            continue;
+        }
+        if *filter == source && self_turn.replace(index).is_some() {
+            return;
+        }
+        if filter["kind"] == "AllOf"
+            && filter["args"].as_array().is_some_and(|parts| {
+                parts.len() == 2 && parts.contains(&other) && parts.contains(&controlled)
+            })
+            && controlled_turn.replace(index).is_some()
+        {
+            return;
+        }
+    }
+    if let (Some(own), Some(controlled)) = (self_turn, controlled_turn) {
+        let mut predicates = [source, events[controlled]["Object"]["objects"].clone()];
+        predicates.sort_by_cached_key(|value| super::trace::key(value, tracing));
+        events[controlled]["Object"]["objects"] = json!({"kind":"AnyOf","args":predicates});
+        events.remove(own);
+    }
+}

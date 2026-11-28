@@ -169,6 +169,14 @@ impl<'a> Scope<'a> {
                 self.player(participant)
             }
             ObjectSet::InZone { objects, .. } => self.objects(objects),
+            ObjectSet::Selected(result)
+                if matches!(
+                    self.results.get(&result.0),
+                    Some(ResultKind::CounterSelection)
+                ) =>
+            {
+                Ok(())
+            }
             ObjectSet::Selected(result) | ObjectSet::Unselected(result) => {
                 match self.results.get(&result.0) {
                     Some(ResultKind::Selection | ResultKind::Search) => Ok(()),
@@ -244,7 +252,7 @@ impl<'a> Scope<'a> {
             } => {
                 if !matches!(
                     self.results.get(&result.0),
-                    Some(ResultKind::CounterPlacement)
+                    Some(ResultKind::CounterPlacement | ResultKind::CounterSelection)
                 ) {
                     return Err("counter placements require a counter-placement result".into());
                 }

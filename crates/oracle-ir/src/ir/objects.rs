@@ -244,7 +244,9 @@ pub enum ObjectSet {
         objects: Box<ObjectSet>,
         zone: EventZone,
     },
-    /// Original object identities selected by a preceding choice or search.
+    /// Objects chosen by an earlier choice, search, or single counter
+    /// placement with a selection. A counter replacement can change what was
+    /// placed without changing the identities chosen for the placement.
     Selected(ResultId),
     /// Objects returned by a preceding token creation; distinct from a choice.
     Created(ResultId),
