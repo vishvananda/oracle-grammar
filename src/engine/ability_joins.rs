@@ -176,16 +176,18 @@ fn split_like(alone: &[Value], reduced: &Value) -> Option<Value> {
 }
 
 /// Each joined static split into one static per change, and at each single
-/// point, in order.
-pub(super) fn split_statics(abilities: &Value) -> Vec<Value> {
+/// point, in order. A written form can also group four changes across two
+/// boundaries, such as a single change, a pair, and a single change.
+pub(super) fn split_statics(abilities: &Value, written: bool) -> Vec<Value> {
     let Some(items) = abilities.as_array() else {
         return Vec::new();
     };
     let mut views = Vec::new();
+    let mut paired = Vec::new();
     for (index, item) in items.iter().enumerate() {
         let core = presentation::core(item);
         if core["kind"] == "Class" {
-            views.extend(split_levels(items, index, core));
+            views.extend(split_levels(items, index, core, written));
             continue;
         }
         let count = changes(item);
@@ -197,20 +199,26 @@ pub(super) fn split_statics(abilities: &Value) -> Vec<Value> {
         if count > 2 {
             views.extend(every.iter().map(|cut| split_at(items, index, &[*cut])));
         }
+        if written && count == 4 {
+            for cuts in [[1, 2], [1, 3], [2, 3]] {
+                paired.push(split_at(items, index, &cuts));
+            }
+        }
     }
+    views.extend(paired);
     views.truncate(SPLITS);
     views
 }
 
 /// A Class level holds its own abilities, and a static joined within one level
 /// splits the same way. Levels hold no Class, so this recursion ends.
-fn split_levels(items: &[Value], index: usize, class: &Value) -> Vec<Value> {
+fn split_levels(items: &[Value], index: usize, class: &Value, written: bool) -> Vec<Value> {
     let Some(levels) = class["args"]["levels"].as_array() else {
         return Vec::new();
     };
     let mut views = Vec::new();
     for (at, level) in levels.iter().enumerate() {
-        for split in split_statics(&level["abilities"]) {
+        for split in split_statics(&level["abilities"], written) {
             let mut view = items.to_vec();
             presentation::core_mut(&mut view[index])["args"]["levels"][at]["abilities"] = split;
             views.push(Value::Array(view));
@@ -362,7 +370,7 @@ mod tests {
     #[test]
     fn a_joined_static_splits_in_order() {
         let fixed = json!({"kind":"Static","args":{"affected":1,"changes":["a","b","c"]}});
-        let views = split_statics(&json!([fixed, "after"]));
+        let views = split_statics(&json!([fixed, "after"]), false);
         let changes = |view: &Value| -> Vec<Value> {
             view.as_array()
                 .unwrap()
@@ -383,7 +391,9 @@ mod tests {
             changes(&views[2]),
             vec![json!(["a", "b"]), json!(["c"]), Value::Null]
         );
-        assert!(split_statics(&json!([{"kind":"Static","args":{"changes":["a"]}}])).is_empty());
+        assert!(
+            split_statics(&json!([{"kind":"Static","args":{"changes":["a"]}}]), false).is_empty()
+        );
     }
 
     #[test]

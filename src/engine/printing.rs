@@ -107,7 +107,7 @@ impl Engine {
         let immediate_views = canonical::immediate_parameter_print_views(&abilities)?;
         views.extend(immediate_views.iter().cloned());
         views.extend(super::ability_joins::lowered_apart(lowered, &abilities));
-        views.extend(super::ability_joins::split_statics(&abilities));
+        views.extend(super::ability_joins::split_statics(&abilities, written));
         if written {
             views.extend(super::ability_joins::split_events(&abilities));
         }
