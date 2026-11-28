@@ -136,7 +136,7 @@ pub const TIGHT_PLUS: char = '\u{207A}';
 /// A hyphen tight against the number before it, as in `LEVEL 1-3` or `20-sided`.
 pub const TIGHT_HYPHEN: char = '\u{2011}';
 
-const MARKS: &str = ".,:;\"'()+-\u{2212}/\u{2022}\u{2014}{}[]|!?&∞";
+const MARKS: &str = ".,:;\"'()+-\u{2212}/\u{2022}\u{2014}{}[]|!?&∞=";
 
 /// The possessive of a card's own name, a token apart from the name.
 pub const POSSESSIVE: &str = "'s";
@@ -496,6 +496,18 @@ fn self_name_ends_sentence(after: &str, before: &[Token], vocabulary: &HashSet<S
     false
 }
 
+/// Numeric words in rule text are exact grammar terminals.
+fn numeric_literal(rest: &str, end: usize, vocabulary: &HashSet<String>) -> Option<usize> {
+    let length = rest
+        .find(|ch: char| !ch.is_alphanumeric())
+        .unwrap_or(rest.len());
+    let suffix = &rest[end..length];
+    if matches!(suffix, "st" | "nd" | "rd" | "th") {
+        return ordinal_literal(rest, end, vocabulary);
+    }
+    (length > end && vocabulary.contains(&rest[..length])).then_some(length)
+}
+
 /// Ordinals may be declared as exact grammar literals, never as words or numbers.
 fn ordinal_literal(rest: &str, end: usize, vocabulary: &HashSet<String>) -> Option<usize> {
     let digits = &rest[..end];
@@ -574,8 +586,8 @@ fn scan(
                     .find(|d: char| !d.is_ascii_digit())
                     .unwrap_or(rest.len());
                 let tail = rest[end..].chars().next();
-                if tail.is_some_and(char::is_alphabetic) {
-                    let length = ordinal_literal(rest, end, vocabulary)
+                if tail.is_some_and(char::is_alphanumeric) {
+                    let length = numeric_literal(rest, end, vocabulary)
                         .ok_or_else(|| format!("number glued to a word at {at}"))?;
                     tokens.push(Token::Word(rest[..length].to_owned()));
                     at += length;

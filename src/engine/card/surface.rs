@@ -249,6 +249,16 @@ pub(super) fn fixed_identity_color(context: &Characteristics) -> Result<ManaColo
                 (std::slice::from_ref(first), std::slice::from_ref(second))
             }
             ManaSymbol::Phyrexian(colors) => (colors, &[]),
+            ManaSymbol::Rainbow => (
+                &[
+                    ManaColor::White,
+                    ManaColor::Blue,
+                    ManaColor::Black,
+                    ManaColor::Red,
+                    ManaColor::Green,
+                ],
+                &[],
+            ),
             ManaSymbol::Generic(_) | ManaSymbol::Snow | ManaSymbol::X => (&[], &[]),
         };
         first.iter().chain(second)

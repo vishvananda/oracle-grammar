@@ -130,6 +130,7 @@ fn mana(mut text: &str) -> Result<Vec<ir::ManaSymbol>, String> {
         out.push(match parts.as_slice() {
             ["X"] => M::X,
             ["S"] => M::Snow,
+            ["Z"] => M::Rainbow,
             [n] if n.parse::<u32>().is_ok() => M::Generic(n.parse().map_err(|_| "mana number")?),
             [c] => M::Color(color(c)?),
             ["2", c] => M::MonocoloredHybrid(color(c)?),
@@ -198,6 +199,9 @@ fn printed_stat(value: &Value, field: &str) -> Result<Option<PrintedStat>, Strin
 }
 
 fn printed_stats(face: &Value) -> Result<PrintedPowerToughness, String> {
+    if face["power"] == "?" && face["toughness"] == "?" {
+        return Ok(PrintedPowerToughness::Indeterminate);
+    }
     match (
         printed_stat(&face["power"], "power")?,
         printed_stat(&face["toughness"], "toughness")?,

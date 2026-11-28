@@ -43,6 +43,8 @@ impl PrintedStat {
 pub enum PrintedPowerToughness {
     Unavailable,
     Absent,
+    /// The Oracle record prints ?/? without assigning numeric base values.
+    Indeterminate,
     Known {
         power: i32,
         toughness: i32,

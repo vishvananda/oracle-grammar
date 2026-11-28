@@ -135,4 +135,7 @@ pub enum ManaSymbol {
     Hybrid(ManaColor, ManaColor),
     Phyrexian(Vec<ManaColor>),
     MonocoloredHybrid(ManaColor),
+    /// {Z} requires mana from a source that could produce at least two colors.
+    /// A card with this symbol is all colors.
+    Rainbow,
 }

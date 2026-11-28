@@ -61,6 +61,8 @@ pub enum Property {
     BushidoValue,
     RegenerationsThisTurn,
     GenericManaInCost,
+    /// Number of different colors a mana source could produce.
+    ManaColorsCouldProduce,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

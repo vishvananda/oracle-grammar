@@ -115,6 +115,57 @@ fn source_identity_includes_record_and_face_position() {
 }
 
 #[test]
+fn superscript_draw_uses_a_typed_exponent() {
+    let engine = crate::test_support::engine();
+    let text = concat!(
+        "Target player draws 2ˣ cards. ",
+        "(2⁰ = 1, 2¹ = 2, 2² = 4, 2³ = 8, 2⁴ = 16, 2⁵ = 32, and so on.)"
+    );
+    let mut source = raw("power", "Exponential Example", text);
+    source["mana_cost"] = json!("{X}{U}");
+    let faces = scryfall(&[source.clone()]).unwrap();
+    let row = outcome(engine, &faces[0]);
+    assert_eq!(row["status"], "unique", "{}", row);
+    let spell = &row["readings"][0]["card"]["abilities"][0];
+    assert_eq!(
+        spell["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["amount"],
+        json!({"kind":"Exponentiate","args":[{"kind":"Constant","args":2},{"kind":"AnnouncedX"}]})
+    );
+    source["oracle_text"] = json!(text.replace("2ˣ", "3ˣ"));
+    assert_eq!(
+        outcome(engine, &scryfall(&[source]).unwrap()[0])["stage"],
+        "lexical"
+    );
+}
+
+#[test]
+fn rainbow_cost_note_checks_the_source_symbol() {
+    let engine = crate::test_support::engine();
+    let text = concat!(
+        "({Z} is rainbow mana, one mana from any source that could add ",
+        "two or more colors of mana. This card is all colors.)\nFlying"
+    );
+    let mut source = raw("rainbow", "Colored Example", text);
+    source["mana_cost"] = json!("{2}{Z}");
+    source["type_line"] = json!("Creature");
+    let row = outcome(engine, &scryfall(&[source.clone()]).unwrap()[0]);
+    assert_eq!(row["status"], "unique", "{}", row);
+    assert_eq!(
+        row["readings"][0]["card"]["characteristics"]["mana_cost"],
+        json!([{"Generic":2},"Rainbow"])
+    );
+    assert_eq!(
+        row["readings"][0]["notes"],
+        json!([{"kind":"ManaCost","args":{"slot":1}}])
+    );
+    source["mana_cost"] = json!("{2}{W}");
+    assert_eq!(
+        outcome(engine, &scryfall(&[source]).unwrap()[0])["stage"],
+        "binding"
+    );
+}
+
+#[test]
 fn native_export_validates_and_keeps_refusals_explicit() {
     let engine = crate::test_support::engine();
     let mut unsupported = raw("three", "Unsupported stats", "Flying");
