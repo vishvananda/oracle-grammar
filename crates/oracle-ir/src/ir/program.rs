@@ -86,6 +86,16 @@ pub enum Instruction {
         binding: LoopBinding,
         body: Program,
     },
+    /// Visit these players once in turn order, starting with the stated player
+    /// or at the active player if it is omitted. Each remaining participant
+    /// completes their body before the next participant makes any choice.
+    /// The binding and receipts stay local to that player's run.
+    ForEachPlayerInTurnOrder {
+        players: PlayerSet,
+        binding: LoopBinding,
+        starting_with: Option<PlayerRef>,
+        body: Program,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -410,6 +420,8 @@ pub enum Operation {
         separator: PlayerRef,
         chooser: PlayerRef,
         objects: ObjectSet,
+        /// When given, these are each pile's visibility during the choice.
+        visibility: Option<PileOrientations>,
     },
     /// Damage that reaches its recipients the way the rider says.
     DealDamageWith {
@@ -1034,6 +1046,18 @@ impl Operation {
 pub enum CoinProtocol {
     Called,
     Uncalled,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct PileOrientations {
+    pub first: PileVisibility,
+    pub second: PileVisibility,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PileVisibility {
+    FaceUp,
+    FaceDown,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

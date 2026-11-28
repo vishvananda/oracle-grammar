@@ -140,6 +140,19 @@ fn schema_195_preserves_published_ordinals_and_reviews_existing_payload_changes(
             assert_eq!(*old_type, Ty::Named("EventZone".into()));
             *field = "origins".into();
             *old_type = Ty::Named("CardPlayOrigins".into());
+        } else if name == "Operation" {
+            // Schema 201 adds a default-empty presentation operand at the end.
+            let (_, Fields::Named(fields)) = before
+                .iter_mut()
+                .find(|(variant, _)| variant == "SeparatePiles")
+                .unwrap()
+            else {
+                panic!("published SeparatePiles fields");
+            };
+            fields.push((
+                "visibility".into(),
+                Ty::Option(Box::new(Ty::Named("PileOrientations".into()))),
+            ));
         }
         assert_eq!(
             serde_json::to_value(&after[..before.len()]).unwrap(),

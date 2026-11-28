@@ -101,7 +101,7 @@ keyword_equip_three_types ::= "equip" equip_three_types keyword_payment
    in the activation announcement. The one-mana color rate is fixed. */
 /* @sem Ability::Activated{origin:Equip, cost:$keyword_payment, limits:_{sorcery:true, modifiers:[ActivationRule(Cost{modifier:Reduce{reductions:[_{amount:$equip_target_reduction}], spill_into_generic:true}})]}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), index:0}}}]}} */
 keyword_equip_target_reduction ::= "equip" keyword_payment "." equip_target_reduction
- equip_target_reduction ::= equip_target_stat_reduction | equip_target_color_reduction
+ equip_target_reduction ::= equip_target_stat_reduction | equip_target_color_reduction | equip_target_counter_reduction
 
 /* @sem Expr::ObjectProperty{object:Target{slot:0, index:0}, property:$stat, information:CurrentOrLastKnown} */
 equip_target_stat_reduction ::= "this" "ability" "costs" "{" "X" "}" "less" "to" "activate" "," "where" "X" "is" "the" stat "of" "the" "creature" "it" "targets" "."
@@ -155,3 +155,7 @@ shared_subtype_equip ::= "equip" subtype keyword_payment
 /* A compound printed target narrows the creature that equip can attach to. */
 /* @sem @and(ObjectFilter::CardType(Creature), $filter_type_prefix, ObjectFilter::ControlledBy(One(AbilityController))) */
 equip_target_compound ::= "equip" filter_type_prefix
+
+/* The generic discount reads the announced equip target's live counters. */
+/* @sem Expr::CountCounters{recipients:Objects(One(Target{slot:0, index:0})), kind:$counter_kind, information:CurrentOrLastKnown} */
+equip_target_counter_reduction ::= "this" "ability" "costs" "{" "1" "}" "less" "to" "activate" "for" "each" counter_kind "counter" "on" "the" "creature" "it" "targets" "."

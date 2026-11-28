@@ -822,7 +822,7 @@ entering_chosen_death_with_zone ::= "enters" battlefield_entry_zone "," entry_ch
 entering_tapped_unless ::= object_ref "enters" "tapped" "unless" condition "."
 
 /* Entering tapped unless a condition holds or you control a kind of permanent. */
-/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[If{condition:Not(AnyOf([$condition, Controls{player:AbilityController, filter:$filter_phrase, minimum:1}])), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}]}, otherwise:_{}}]}}) */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[If{condition:Not(AnyOf(@unordered([$condition, Controls{player:AbilityController, filter:$filter_phrase, minimum:1}]))), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}]}, otherwise:_{}}]}}) */
 entering_tapped_unless_or_control ::= object_ref "enters" "tapped" "unless" condition "or" "a" filter_phrase "."
 
 /* Entering tapped with counters. */
@@ -1743,7 +1743,7 @@ owned_token_event ::= "one" "or" "more" "tokens" "would" "be" "created" "under" 
 replacement_additional_token_group ::= "an" "additional" token_recipe
 /* @sem TokenSpec::TokenSpec{amount:Constant(1), words:Rules, recipe:$token_named_recipe} */
 replacement_additional_named_group ::= "an" "additional" token_named_recipe "token"
-replacement_extra_token_group ::= replacement_token_defined | replacement_additional_token_group | replacement_additional_named_group
+replacement_extra_token_group ::= replacement_one_token_group | replacement_token_defined | replacement_additional_token_group | replacement_additional_named_group
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1, tokens:[$replacement_extra_token_group]}}}]} */
 replacement_extra_token_outcome ::= "those" "tokens" "plus" replacement_extra_token_group "are" "created" "instead"
 /* @sem Ability::Replacement{active:Battlefield, event:$owned_token_event, body:$replacement_extra_token_outcome} */
@@ -4558,3 +4558,6 @@ replacement_prevent_attached_damage_counters ::= "if" "equipped" "creature" "wou
 /* Any creature as combat damage source, directed specifically at the controller. */
 /* @sem ReplacementEvent::Damage(DamageEvent{source_kind:Permanent, sources:$filter_phrase, recipients:Players(One(AbilityController)), kind:Combat, grouping:SourceRecipient, subject:Recipient}) */
 creature_combat_damage_you ::= "a" filter_phrase "would" "deal" "combat" "damage" "to" "you"
+
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe} */
+replacement_one_token_group ::= "a" token_recipe

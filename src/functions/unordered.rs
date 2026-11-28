@@ -4,7 +4,16 @@ use crate::pattern::{Bindings, Item, Pattern};
 use serde_json::Value;
 
 const MAX_WORK: usize = 4096;
+const MAX_SPLICED_WIDTH: usize = 4;
+const MAX_FIXED_WIDTH: usize = 6;
 const MAX_CANDIDATES: usize = 128;
+const MAX_WIDE_CANDIDATES: usize = 720;
+
+pub(super) fn supports(width: usize, splices: usize) -> bool {
+    (2..=MAX_FIXED_WIDTH).contains(&width)
+        && splices <= 1
+        && (splices == 0 || width <= MAX_SPLICED_WIDTH)
+}
 
 pub(crate) fn unify<'p, 'v>(
     args: &'p [Pattern],
@@ -17,19 +26,27 @@ pub(crate) fn unify<'p, 'v>(
     let Value::Array(values) = value else {
         return Vec::new();
     };
-    if !(2..=4).contains(&pieces.len())
-        || pieces
-            .iter()
-            .filter(|piece| matches!(piece, Item::Splice(..)))
-            .count()
-            > 1
-        || super::branch_bounds(value).is_err()
-    {
+    let splices = pieces
+        .iter()
+        .filter(|piece| matches!(piece, Item::Splice(..)))
+        .count();
+    if !supports(pieces.len(), splices) || super::branch_bounds(value).is_err() {
         return Vec::new();
     }
-    // The annotation never removes the old positional inverse for longer
-    // spliced lists. Only the additional commutative search is capped at four.
-    if !(2..=4).contains(&values.len()) {
+    // A long splice retains the positional inverse. Wider permutations are
+    // available only to rules with an explicitly fixed-size operand list.
+    let wide = pieces.len() > MAX_SPLICED_WIDTH;
+    let max_width = if wide {
+        MAX_FIXED_WIDTH
+    } else {
+        MAX_SPLICED_WIDTH
+    };
+    let max_candidates = if wide {
+        MAX_WIDE_CANDIDATES
+    } else {
+        MAX_CANDIDATES
+    };
+    if !(2..=max_width).contains(&values.len()) {
         return inner.unify(value, bindings);
     }
     // Enumerate every bijection of the actual list, then reuse ordinary list
@@ -65,7 +82,7 @@ pub(crate) fn unify<'p, 'v>(
         for found in inner.unify_made(&ordered, &bindings) {
             work += 1;
             // Reject the entire operation on overflow, never select a reading.
-            if work > MAX_WORK || solutions.len() == MAX_CANDIDATES {
+            if work > MAX_WORK || solutions.len() == max_candidates {
                 return Vec::new();
             }
             solutions.push(found);
@@ -150,7 +167,8 @@ mod tests {
         for text in [
             "@unordered()",
             "@unordered([Any])",
-            "@unordered([Any,Any,Any,Any,Any])",
+            "@unordered([Any,Any,Any,Any,Any,Any,Any])",
+            "@unordered([Any,Any,Any,Any,...$rest])",
             "@unordered([...$x,...$y])",
         ] {
             assert!(

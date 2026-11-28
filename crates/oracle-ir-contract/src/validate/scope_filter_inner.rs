@@ -111,7 +111,8 @@ impl<'a> Scope<'a> {
             ObjectFilter::Extreme { among, .. } => self.objects(among),
             ObjectFilter::ManaSpentFrom(sources) => self.filter(sources),
             ObjectFilter::TargetedBy(filter) => self.filter(filter),
-            ObjectFilter::ColorOutsideCommanderIdentity(player) => self.player(player),
+            ObjectFilter::ColorOutsideCommanderIdentity(player)
+            | ObjectFilter::CommanderOf(player) => self.player(player),
             ObjectFilter::SharesColorWithMana(_) | ObjectFilter::ManaCostPayableWith(_) => Ok(()),
             ObjectFilter::KickedWith(kicker) => {
                 kicker.iter().try_for_each(|operand| self.operand(operand))

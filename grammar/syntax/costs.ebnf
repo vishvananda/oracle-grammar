@@ -841,7 +841,7 @@ alternative_discard_filtered_and_another ::= "discard" ("a" | "an") filter_phras
 /* @sem Cost::Cost{parts:[Discard{count:Constant(1), filter:$filter_phrase}, Discard{count:$count_plural, filter:Any}]} */
 alternative_discard_filtered_and_others ::= "discard" ("a" | "an") filter_phrase "card" "and" count_plural "other" "cards"
 
-casting_reduction_count ::= count_each_card_type_population | casting_history_drawn_card | casting_history_sacrificed_permanent | count_each_life_history | count_each | count_each_controlled_and_zone
+casting_reduction_count ::= count_each_card_type_population | casting_history_drawn_card | casting_history_sacrificed_permanent | count_each_life_history | count_each | count_each_controlled_and_zone | cast_spells_outside_starting_deck
 
 /* Alternative complete payments retain each branch as its own cost. */
 /* @sem Cost::Cost{parts:[Choice([Cost::Cost{parts:$cost_parts}, Cost::Cost{parts:$cost_parts_2}])]} */
@@ -3247,3 +3247,15 @@ activated_counter_choice_permanent_or_suspended ::= activation_cost ":" "choose"
 /* The feminine reference names the same returned source. */
 /* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[[$counter_kind, $entry_counter_amount]], states:[]}}, qualifiers:[]} */
 self_return_battlefield_tapped_counter_her ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "tapped" "with" entry_counter_amount counter_kind "counter" "on" "her"
+
+/* The history counts cast spells, retaining the originating player's deck. */
+/* @sem Expr::EventHistory{event:Spell{event:Cast, players:One(AbilityController), spells:Not(InStartingDeck(One(AbilityController)))}, window:ThisGame, measure:Occurrences} */
+cast_spells_outside_starting_deck ::= "spell" "you've" "cast" "this" "game" "that" "wasn't" "from" "your" "starting" "deck"
+
+/* The substituted token amount uses the sacrifice as it existed before payment. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_sacrifice_another]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[If{condition:Compare{left:CountObjects(Matching{objects:CostObjects{payment:Activation, component:[0], view:Performed, phase:Before}, filter:$st_angel}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[0], view:Inputs, phase:Before}, index:0}, property:$receipt_stat, information:CurrentOrLastKnown}, words:CreatingEffect, recipe:$token_named_recipe_2}], entry:BattlefieldArrival{}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_named_recipe}], entry:BattlefieldArrival{}}}]}}]}} */
+activated_paid_subtype_token_quantity ::= cost_sacrifice_another ":" "create" "a" token_named_recipe "token" "." "if" "you" "sacrificed" "an" st_angel "this" "way" "," "create" "a" "number" "of" token_named_recipe "tokens" "equal" "to" "its" receipt_stat "instead" "."
+
+/* Counters accompany the arrival, and the type change concerns the resulting permanents. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $cost_sacrifice_many]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:Move{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$card_filter}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[[$counter_kind, Constant(1)]], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(InZone{objects:Transition{result:@marked, phase:After}, zone:Battlefield}), changes:$cross_named_types_add, duration:Indefinite, evaluation:Snapshot}}]}} */
+activated_return_graveyard_with_counters_add_types ::= cost_mana "," "↑" cost_sacrifice_many ":" "return" "each" card_filter "card" "from" "your" "graveyard" "to" "the" "battlefield" "with" "a" counter_kind "counter" "on" "it" "." "those" "creatures" "are" cross_named_types_add "."

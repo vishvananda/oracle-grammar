@@ -106,3 +106,60 @@ fn schema_190_extraction_preserves_json_binary_canonical_and_authoring_contracts
         }
     });
 }
+
+#[test]
+fn schema_200_upgrades_pile_visibility_and_preserves_play_restrictions() {
+    let packet: Value = serde_json::from_str(include_str!("fixtures/extraction-190.json")).unwrap();
+    let records = packet["records"].as_array().unwrap();
+    let current = |name: &str| {
+        let record = records
+            .iter()
+            .find(|record| record["name"] == name)
+            .unwrap();
+        let card = migrate::read_json(&record["card"].to_string()).unwrap();
+        serde_json::to_value(card).unwrap()
+    };
+    let as_200 = |mut value: Value| {
+        value["schema_version"] = serde_json::json!(200);
+        value["faces"][0]["schema_version"] = serde_json::json!(200);
+        value
+    };
+
+    let mut piles = current("Brainstorm");
+    piles["faces"][0]["abilities"] = serde_json::json!([{
+        "kind": "Spell", "args": {"announcement": {"targets": [], "modes": null},
+        "body": {"instructions": [{"kind": "Effect", "args": {"result": 0,
+        "operation": {"kind": "SeparatePiles", "args": {
+            "separator": {"kind": "AbilityController"},
+            "chooser": {"kind": "OneOf", "args": {"kind": "OpponentsOf", "args": {"kind": "AbilityController"}}},
+            "objects": {"kind": "Zone", "args": {"scope": {"Players": {"zone": "Library",
+                "players": {"kind": "One", "args": {"kind": "AbilityController"}}}},
+                "kind": "Card", "filter": {"kind": "Any"}}}, "visibility": null
+        }}}}]}}
+    }]);
+    let mut old_piles = as_200(piles.clone());
+    old_piles
+        .pointer_mut("/faces/0/abilities/0/args/body/instructions/0/args/operation/args")
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .remove("visibility");
+    let mut restricted = current("Evelyn, the Covetous");
+    let terms = concat!(
+        "/faces/0/abilities/2/args/changes/0/args/SpecialAction/body/args",
+        "/instructions/0/args/operation/args/terms/cast_filter"
+    );
+    *restricted.pointer_mut(terms).unwrap() =
+        serde_json::json!({"kind":"CardType", "args":"Creature"});
+    let permission = current("Conspicuous Snoop");
+    for (old, expected) in [
+        (old_piles, piles),
+        (as_200(restricted.clone()), restricted),
+        (as_200(permission.clone()), permission),
+    ] {
+        let mapped = migrate::mapped_read_json(&old.to_string()).unwrap();
+        assert_eq!(mapped.source_version, 200);
+        assert!(mapped.map.introduced.is_empty());
+        assert_eq!(serde_json::to_value(mapped.card).unwrap(), expected);
+    }
+}

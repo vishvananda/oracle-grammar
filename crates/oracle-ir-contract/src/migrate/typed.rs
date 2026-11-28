@@ -21,7 +21,7 @@ pub struct MappedMigration {
 pub fn mapped_read_json(input: &str) -> Result<MappedMigration, String> {
     let value = crate::json_input::value(input)?;
     match value["schema_version"].as_u64() {
-        Some(180..=199) => upgrade(value, true),
+        Some(v) if (180..u64::from(SCHEMA_VERSION)).contains(&v) => upgrade(value, true),
         Some(v) if v == u64::from(SCHEMA_VERSION) => {
             let card = super::checked(value.clone())?;
             let sites = binding_map::sites(
@@ -38,14 +38,16 @@ pub fn mapped_read_json(input: &str) -> Result<MappedMigration, String> {
                 },
             })
         }
-        _ => Err("mapped migration requires schema 180 through 199 or the current epoch".into()),
+        _ => Err(format!(
+            "mapped migration requires schema 180 through {SCHEMA_VERSION}"
+        )),
     }
 }
 pub(super) fn upgrade(mut value: Value, track: bool) -> Result<MappedMigration, String> {
     let version = value["schema_version"]
         .as_u64()
         .ok_or("legacy IR requires a schema version")? as u32;
-    if !matches!(version, 179..=199)
+    if !matches!(version, 179..SCHEMA_VERSION)
         || value["faces"]
             .as_array()
             .ok_or("legacy IR requires faces")?
@@ -171,7 +173,7 @@ impl Walker<'_> {
                         if matches!(name.as_str(), "Card" | "UnifiedCard") {
                             value["schema_version"] = json!(SCHEMA_VERSION);
                         }
-                        if name == "PlayTerms" {
+                        if self.version <= 194 && name == "PlayTerms" {
                             value["cast_filter"] = Value::Null;
                         }
                         if self.version <= 183 {
@@ -229,7 +231,10 @@ impl Walker<'_> {
                         let owner = format!("{name}::{variant}");
                         let at = args_path(path, *adjacent, &variant);
                         self.fields(fields, args, &at)?;
-                        if owner == "PlayerRule::PlayPermission" {
+                        if owner == "Operation::SeparatePiles" {
+                            args["visibility"] = Value::Null;
+                        }
+                        if self.version <= 194 && owner == "PlayerRule::PlayPermission" {
                             let fields = args.as_object_mut().ok_or("play permission fields")?;
                             let origin = fields.remove("from").ok_or("play permission origin")?;
                             fields.insert("origins".into(), Value::Array(vec![origin]));

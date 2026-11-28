@@ -277,6 +277,7 @@ impl<'a> Scope<'a> {
                 separator,
                 chooser,
                 objects,
+                ..
             } => {
                 self.player(separator)?;
                 self.player(chooser)?;

@@ -642,4 +642,5 @@ pub enum SubType {
     Explainer,
     MindlessOne,
     Rondvaartboot,
+    Dimension,
 }

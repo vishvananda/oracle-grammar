@@ -626,6 +626,9 @@ pub enum ObjectFilter {
     /// ability (CR 607). Tracks the assimilated permanent through changes of
     /// controller, type and counters, but a new zone incarnation is unrelated.
     AssimilatedWith(ObjectRef),
+    /// A card that the named player designated as one of their commanders.
+    /// The designation follows the card through zones and control changes.
+    CommanderOf(PlayerRef),
 }
 
 /// Something that happened to an object. See `ObjectFilter::History`.

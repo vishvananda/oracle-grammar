@@ -2853,13 +2853,21 @@ instructions_create_named_equipment_attach ::= "create" "a" named_equipment_toke
 /* @sem TokenRecipe::Defined{name:Explicit($named_equipment_token_name),colors:$token_colors,card_types:$token_types,subtypes:$token_subtypes,abilities:[@holder($equipment_token_quote_pump),$keyword_equip]} */
 named_equipment_token_pump ::= token_colors token_subtypes token_types "token" "named" named_equipment_token_name "with" '"' equipment_token_quote_pump '"' "and" keyword_equip
 
-named_equipment_token_name ::= named_equipment_neuroflux | named_equipment_axe | named_equipment_sturdy_shield
+named_equipment_token_name ::= named_equipment_wasteland_guide | named_equipment_neuroflux | named_equipment_axe | named_equipment_sturdy_shield
 
 /* @sem String::'Neuroflux Heirloom' */
 named_equipment_neuroflux ::= "Neuroflux" "Heirloom"
 
+equipment_token_quote_pump ::= equipment_quote_fixed_pump | equipment_quote_counter_pump
+
 /* @sem Ability::Static{kind:Ordinary,affected:Objects(One(AttachedTo(Source))),changes:[Pump{power:$signed,toughness:$signed_2}]} */
-equipment_token_quote_pump ::= "equipped" "creature" "gets" signed "/" signed
+equipment_quote_fixed_pump ::= "equipped" "creature" "gets" signed "/" signed
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[Pump{power:$equipment_quote_counter_population, toughness:$equipment_quote_counter_population}]} */
+equipment_quote_counter_pump ::= "equipped" "creature" "gets" "+" "1" "/" "+" "1" "for" "each" equipment_quote_counter_population
+
+/* @sem Expr::CountCounters{recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(AbilityController)))}), kind:$counter_kind, information:CurrentOrLastKnown} */
+equipment_quote_counter_population ::= counter_kind "counter" "among" filter_plural "you" "control"
 
 /* @sem String::'Cadet' */
 created_name_cadet ::= "Cadet"
@@ -2947,3 +2955,6 @@ token_statless_named_before_abilities ::= token_colors token_types "token" "name
 /* Each token carries its own triggered ability; its source is the copy. */
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One($target_player))])}, exceptions:[AddAbilities([Keyword(Haste), @scope(Ability::Triggered{event:Turn{point:EndStepBegins, players:All}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[If{condition:Not(Controls{player:AbilityController, filter:CardType(Planeswalker), minimum:1}), then:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One(Source)}}]}, otherwise:Program{}}]}})])]}}], entry:BattlefieldArrival{}}}]}} */
 face_copy_token_spell ::= "for" "each" "creature" target_player "controls" "," "create" "a" "token" "that's" "a" "copy" "of" "that" "creature" "," "except" "it" "has" "haste" "and" '"' "at" "the" "beginning" "of" "the" "end" "step" "," "if" "you" "don't" "control" "a" "planeswalker" "," "sacrifice" "this" "token" "." '"'
+
+/* @sem String::'Wasteland Survival Guide' */
+named_equipment_wasteland_guide ::= "Wasteland" "Survival" "Guide"

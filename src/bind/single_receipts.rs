@@ -32,8 +32,9 @@ struct Frame {
     activation_cards: Vec<Value>,
 }
 
-const LOOPS: [&str; 4] = [
+const LOOPS: &[&str] = &[
     "ForEachPlayer",
+    "ForEachPlayerInTurnOrder",
     "ForEachObject",
     "Repeatable",
     "RepeatableWithLimit",

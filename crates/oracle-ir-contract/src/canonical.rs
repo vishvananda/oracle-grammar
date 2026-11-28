@@ -966,6 +966,7 @@ impl Walker {
                             | "Instruction::Optional"
                             | "CostPart::PlayerAction"
                             | "Instruction::ForEachPlayer"
+                            | "Instruction::ForEachPlayerInTurnOrder"
                             | "Instruction::ForEachObject"
                             | "Instruction::RepeatableWithLimit"
                     ))
@@ -1001,6 +1002,7 @@ impl Walker {
                         | "EntryState::ExiledForWith"
                         | "ExileState::ExiledForWith"
                         | "Instruction::RepeatableWithLimit"
+                        | "Instruction::ForEachPlayerInTurnOrder"
                         | "CostPart::PlayerAction" => self.gathering_results = false,
                         _ => {}
                     }

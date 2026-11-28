@@ -151,11 +151,7 @@ impl<'a> Scope<'a> {
                 tokens: _,
                 entry: _,
             }
-            | Operation::SeparatePiles {
-                separator: _,
-                chooser: _,
-                objects: _,
-            }
+            | Operation::SeparatePiles { .. }
             | Operation::ChooseObjects {
                 player: _,
                 objects: _,

@@ -175,6 +175,12 @@ impl<'a> Scope<'a> {
                         starting_with,
                         body,
                         ..
+                    }
+                    | Instruction::ForEachPlayerInTurnOrder {
+                        players,
+                        binding,
+                        starting_with,
+                        body,
                     } => {
                         self.players(players)?;
                         if let Some(player) = starting_with {
@@ -185,7 +191,9 @@ impl<'a> Scope<'a> {
                             return Err(format!("duplicate player binding {}", binding.0));
                         }
                         each.program(body)?;
-                        self.adopt_choices(body, &each);
+                        if matches!(instruction, Instruction::ForEachPlayer { .. }) {
+                            self.adopt_choices(body, &each);
+                        }
                     }
                     Instruction::ChooseOne {
                         decider,

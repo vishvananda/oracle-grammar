@@ -3,6 +3,7 @@
 pub fn namespace(owner: &str) -> Option<&'static str> {
     match owner {
         "Instruction::ForEachPlayer"
+        | "Instruction::ForEachPlayerInTurnOrder"
         | "Condition::ExistsPlayer"
         | "PlayerSet::Matching"
         | "PlayerRef::Bound" => Some("player_binding"),

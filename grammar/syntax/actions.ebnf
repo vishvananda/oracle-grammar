@@ -1226,7 +1226,7 @@ card_name_kind ::= card_name_basic_land | card_name_type | card_name_nonbasic_la
 card_name_two_types ::= card_name_type "," card_name_type
 /* @sem Operand::Term{family:CardsInOracle, form:And, operands:[Term{family:CardsInOracle, form:IsNonSupertype, operands:[Vocabulary{family:SuperType, form:Basic}]}, Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Land}]}]} */
 card_name_nonbasic_land ::= "nonbasic" "land"
-card_name_type ::= conjured_oracle_artifact | card_name_creature | card_name_nonartifact | card_name_noncreature | card_name_nonland
+card_name_type ::= card_name_land | conjured_oracle_artifact | card_name_creature | card_name_nonartifact | card_name_noncreature | card_name_nonland
 
 /* @sem Operand::Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]} */
 card_name_creature ::= "creature"
@@ -15244,7 +15244,7 @@ distribute_counters_other_targets ::= "distribute" number_words counter_kind "co
 /* @sem Operation::PutCounters{placements:[$each_player_target_counter_placement]} */
 put_each_player_target_counters ::= "for" "each" "player" "," "put" each_player_target_counter_placement
 
-each_player_target_counter_placement ::= each_player_target_counter_one | each_player_target_counter_many
+each_player_target_counter_placement ::= each_player_target_counter_optional | each_player_target_counter_one | each_player_target_counter_many
 
 /* @sem CounterPlacement::CounterPlacement{recipients:Objects($each_player_distinct_controlled_target), kind:$counter_kind, amount:$counter_a} */
 each_player_target_counter_one ::= counter_a counter_kind "counter" "on" each_player_distinct_controlled_target
@@ -25156,3 +25156,39 @@ cast_graveyard_filtered_redirect ::= "you" "may" "cast" "an" "artifact" "," "ins
 /* The same devotion is read for conjuring and the subsequent team reward. */
 /* @sem Instruction::[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Named($referenced_card_name), count:$value_devotion, destination:Library{position:Random, arrival:CardArrival{}}}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}, If{condition:Compare{left:CountObjects(Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), test:Compare{comparison:Greater, value:PlayerNumber{player:AbilityController, number:StartingDeckSize}}}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), changes:[Pump{power:$value_devotion, toughness:$value_devotion}, GrantKeyword(Haste)], duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{}}] */
 conjure_devotion_library_reward ::= "conjure" "X" "cards" "named" referenced_card_name "into" "your" "library" "," "where" "X" "is" value_devotion "," "then" "shuffle" "." "then" "if" "there" "are" "more" "cards" "in" "your" "library" "than" "your" "starting" "deck" "," "creatures" "you" "control" "get" "+X/+X" "and" "gain" "haste" "until" "end" "of" "turn"
+
+
+
+
+
+/* Both exiles are one move; each resulting card's owner gets their own deadline. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Union([One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:Not(CardType(Land))}), index:0}), Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}]), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, ForEachObject{objects:InZone{objects:Transition{result:@marked, phase:After}, zone:Exile}, binding:0, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(OwnerOf(Bound(0)))), changes:[PlayerRule(PlayPermission{cards:One(Bound(0)), origins:CardPlayOrigins([Exile]), action:Either, filter:Any})], duration:UntilEndOfNextTurn(OwnerOf(Bound(0))), evaluation:LiveObjects}}]}}] */
+exile_pair_owners_next_play ::= "exile" "target" "nonland" "permanent" "and" "the" "top" "card" "of" "your" "library" "." "for" "each" "of" "those" "cards" "," "its" "owner" "may" "play" "it" "until" "the" "end" "of" "their" "next" "turn"
+
+/* The ability controller may omit each player's target independently. */
+/* @sem CounterPlacement::CounterPlacement{recipients:Objects(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:PerPlayer{players:All, each:UpTo(Constant(1))}, filter:$noun}))), kind:$counter_kind, amount:$counter_a} */
+each_player_target_counter_optional ::= counter_a counter_kind "counter" "on" "up" "to" "one" "target" noun "that" "player" "controls"
+
+
+/* A land name restricts the chosen oracle card's type. */
+/* @sem Operand::Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Land}]} */
+card_name_land ::= "land"
+
+/* The reflexive target count uses only nonland cards from this discard. */
+/* @sem Instruction::[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$number}}, Effect{result:@mark, operation:Discard{players:One(AbilityController), amount:$number_2}}, Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, condition:Compare{left:CountObjects(Matching{objects:Transition{result:@reflexive_performed, phase:Before}, filter:Not(CardType(Land))}), test:Compare{comparison:GreaterOrEqual, value:Constant(1)}}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:SetTapped{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(CountObjects(Matching{objects:Transition{result:@reflexive_performed, phase:Before}, filter:Not(CardType(Land))})), filter:CardType(Creature)})), tapped:true}}, Effect{result:@next, operation:PutCounters{placements:[CounterPlacement{recipients:Objects(Targets(@last_slot)), kind:Named(StunCounter), amount:Constant(1)}]}}]}})}] */
+draw_discard_nonland_stun_reflexive ::= "draw" number "cards" "," "then" "discard" number "cards" "." "when" "you" "discard" "one" "or" "more" "nonland" "cards" "this" "way" "," "tap" "up" "to" "that" "many" "target" "creatures" "and" "put" "a" "stun" "counter" "on" "each" "of" "them"
+
+/* The graveyard amount is evaluated after creating the marked token set. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:$token_groups, entry:BattlefieldArrival{}}}, If{condition:$condition_cast_from_graveyard, then:Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[CounterPlacement{recipients:Objects(Created(@marked)), kind:PowerToughness(1, 1), amount:$grouped_own_graveyard_count}]}}]}, otherwise:Program{}}] */
+create_graveyard_cast_grouped_counters ::= "create" token_groups "." "if" condition_cast_from_graveyard "," "put" "a" "+1/+1" "counter" "on" "each" "of" "them" grouped_own_graveyard_count
+
+/* Each iteration offers a fresh hand-entry payment. Choosing it draws before repeating. */
+/* @sem Instruction::[Repeatable{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$tapped_hand_entry_cost]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Constant(1)}}, Effect{result:@next, operation:RepeatProcess}]}, otherwise:Program{}}]}] */
+instructions_repeat_tapped_hand_entry_draw ::= "you" "may" tapped_hand_entry_cost "." "if" "you" "do" "," "draw" "a" "card" "and" "repeat" "this" "process"
+
+/* @sem CostPart::Move{selections:[_{objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$card_filter}, choose:Exactly(Constant(1))}], destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}} */
+tapped_hand_entry_cost ::= "put" "a" card_filter "card" "from" "your" "hand" "onto" "the" "battlefield" "tapped"
+
+/* Each opponent's own actual discard determines whether they contribute a draw. */
+/* @sem Instruction::[Effect{result:@mark, operation:Discard{players:OpponentsOf(AbilityController), amount:$number}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:CountPlayers(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:CountObjects(Matching{objects:MovedBy{result:@marked, phase:Before, player:Bound(0)}, filter:Not(CardType(Land))}), test:Compare{comparison:Less, value:$number_2}}}]))}}] */
+opponents_discard_filtered_draw ::= "each" "opponent" "discards" number "cards" "." "for" "each" "opponent" "who" "didn't" "discard" number "nonland" "cards" "this" "way" "," "you" "draw" "a" "card"

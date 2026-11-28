@@ -1080,17 +1080,12 @@ fn unordered_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Option<Pa
     let [Syntax::List(items)] = args else {
         return Err("@unordered requires one list argument".into());
     };
-    if !matches!(ty, Ty::Vec(_))
-        || !(2..=4).contains(&items.len())
-        || items
-            .iter()
-            .filter(|item| matches!(item, Syntax::Splice(_)))
-            .count()
-            > 1
-    {
-        return Err(
-            "@unordered requires a Vec list of two to four elements and at most one splice".into(),
-        );
+    let splices = items
+        .iter()
+        .filter(|item| matches!(item, Syntax::Splice(_)))
+        .count();
+    if !matches!(ty, Ty::Vec(_)) || !super::unordered::supports(items.len(), splices) {
+        return Err("@unordered requires a Vec list with two to six fixed elements or two to four elements with one splice".into());
     }
     Ok(Some(Pattern::Symbol(
         "unordered".into(),
