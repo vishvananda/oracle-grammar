@@ -297,6 +297,7 @@ impl<'a> Scope<'a> {
                                 ResultKind::DamageReplacement
                             }
                             Operation::GainLife { .. } if matches!(operation, Operation::GainLife { .. }) => ResultKind::LifeGain,
+                            Operation::JoinRavnicanGuildFromEventSpell { .. } => ResultKind::GuildJoin,
                             Operation::Surveil { .. } => ResultKind::Surveil,
                             Operation::Search { .. } => ResultKind::Search,
                             Operation::PayCost { .. } | Operation::PayRepeatedly { .. } => {
@@ -311,6 +312,7 @@ impl<'a> Scope<'a> {
                                 ResultKind::CoinBatch
                             }
                             Operation::ChooseObjects { .. }
+                            | Operation::ChooseFavoriteArt { .. }
                             | Operation::SeparatePiles { .. }
                             | Operation::NoteObjects { .. }
                             // Bolster chooses the creature it counters (701.39a).

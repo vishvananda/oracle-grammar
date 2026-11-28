@@ -1152,6 +1152,27 @@ pub enum Operation {
     BecomeHeadChef {
         player: PlayerRef,
     },
+    /// Join the Ravnican guild identified by the colors of the matched spell
+    /// at the event, retaining those colors even if the spell later changes or
+    /// leaves the stack. The guilds are Azorius (white-blue), Dimir (blue-black),
+    /// Rakdos (black-red), Gruul (red-green), Selesnya (green-white), Orzhov
+    /// (white-black), Izzet (blue-red), Golgari (black-green), Boros (red-white),
+    /// and Simic (green-blue); color order is immaterial.
+    /// A player has at most one Ravnican guild; membership is player-wide and
+    /// persists independently of this source and zones. If the event spell did
+    /// not have exactly two colors, no guild is joined. The receipt records
+    /// whether a different, previously joined Ravnican guild was left.
+    JoinRavnicanGuildFromEventSpell {
+        player: PlayerRef,
+    },
+    /// One eligible chooser selects the candidate card with their favorite art.
+    /// An outside-game chooser, when allowed, remains external to the game.
+    /// The result is empty if there is no eligible option or chooser.
+    ChooseFavoriteArt {
+        in_game_choosers: PlayerSet,
+        allow_outside_game: bool,
+        cards: ObjectSet,
+    },
 }
 
 #[derive(

@@ -3,6 +3,21 @@ use super::*;
 impl<'a> Scope<'a> {
     pub(super) fn operation_case_3(&self, operation: &Operation) -> Result {
         match operation {
+            Operation::ChooseFavoriteArt {
+                in_game_choosers,
+                cards,
+                ..
+            } => {
+                self.players(in_game_choosers)?;
+                self.objects(cards)
+            }
+            Operation::JoinRavnicanGuildFromEventSpell { player } => {
+                self.player(player)?;
+                if !self.event.spell {
+                    return Err("guild join requires a matched spell event".into());
+                }
+                Ok(())
+            }
             Operation::TurnFaceDownAs {
                 objects,
                 as_creature,

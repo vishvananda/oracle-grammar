@@ -49,6 +49,7 @@ enum ResultKind {
     StackSpellCopy,
     DamageReplacement,
     LifeGain,
+    GuildJoin,
     Fight,
     CounterPlacement,
     CounterSelection,

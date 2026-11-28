@@ -416,6 +416,8 @@ impl<'a> Scope<'a> {
                 as_creature: _,
             }
             | Operation::Exchange { .. }
+            | Operation::ChooseFavoriteArt { .. }
+            | Operation::JoinRavnicanGuildFromEventSpell { .. }
             | Operation::ChooseRevealThenJoinPlaneAffiliations { .. }
             | Operation::ChoosePlaneAffiliations { .. }
             | Operation::CollectPlayerSuggestions { .. }

@@ -423,6 +423,20 @@ impl<'a> Scope<'a> {
                 }
                 child.condition(condition)
             }
+            Condition::InRavnicanGuildColor { player, color } => {
+                self.player(player)?;
+                if matches!(color, ManaColor::Colorless | ManaColor::Chosen) {
+                    return Err("a guild color must be colored".into());
+                }
+                Ok(())
+            }
+            Condition::LeftRavnicanGuild(result) => match self.results.get(&result.0) {
+                Some(ResultKind::GuildJoin) => Ok(()),
+                _ => Err(format!(
+                    "result {} is not an available guild join",
+                    result.0
+                )),
+            },
             Condition::PaymentChosen(result) => match self.results.get(&result.0) {
                 Some(ResultKind::Payment) => Ok(()),
                 _ => Err(format!(

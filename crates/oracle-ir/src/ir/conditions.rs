@@ -195,6 +195,13 @@ pub enum Condition {
     /// True only when this play action actually cast a spell. A declined or
     /// impossible optional cast is false; later countering does not undo it.
     CastPerformed(ResultId),
+    /// True only for a visible guild-join receipt that left a different guild.
+    LeftRavnicanGuild(ResultId),
+    /// True when this player's current Ravnican guild contains this color.
+    InRavnicanGuildColor {
+        player: PlayerRef,
+        color: ManaColor,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
