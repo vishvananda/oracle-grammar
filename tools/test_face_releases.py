@@ -68,6 +68,15 @@ class FaceReleaseTests(unittest.TestCase):
         source['population']['oracle_ids'] = ['missing']
         with self.assertRaisesRegex(ValueError, 'missing'):
             faces.records(path, source)
+        source['population'] = {'kind': 'exclude_oracle_ids', 'policy': 'synthetic',
+                                'excluded_oracle_ids': ['two'], 'require_unique': True}
+        faces.source_config(source)
+        self.assertEqual(faces.records(path, source), values[:1])
+        for excluded, message in ((['missing'], 'missing'), (['one', 'two'], 'every source record'),
+                                  (['two', 'two'], 'distinct')):
+            source['population']['excluded_oracle_ids'] = excluded
+            with self.assertRaisesRegex(ValueError, message):
+                faces.records(path, source)
         source['sha256'] = '0'*64
         with self.assertRaisesRegex(ValueError, 'checksum'):
             faces.records(path, source)
@@ -135,6 +144,16 @@ class FaceReleaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'missing input face'):
                 faces.export(self.root/'incomplete', grammar_tag='grammar-v0.1.0', root=self.root)
             self.assertFalse((self.root/'incomplete').exists())
+
+    def test_unique_scope_rejects_a_refusal_before_writing_artifacts(self):
+        scope = {**self.source['population'], 'require_unique': True}
+        spec = {**self.source, 'population': scope}
+        row = {'identity': {'record_index': 0, 'face_index': 0}, 'format_version': 1,
+               'schema_version': 190, 'status': 'refused', 'readings': []}
+        out = self.root/'bundle'
+        with self.assertRaisesRegex(ValueError, 'unique parse for every face'):
+            releases.bundle(out, [row], self.meta, spec, 1)
+        self.assertFalse(out.exists())
 
     def test_source_asset_is_archived_without_rewriting(self):
         source = self.root/'original.gz'; source.write_bytes(b'original compressed fixture')

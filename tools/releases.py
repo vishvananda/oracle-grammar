@@ -235,6 +235,23 @@ def code(out, tag):
                      'build': {'locked': True, 'features': ['cli', 'embedded-grammar']}})
 
 
+def population_id_field(scope):
+    if not isinstance(scope, dict) or not isinstance(scope.get('policy'), str) or not scope['policy'].strip():
+        raise ValueError('explicit population policy required')
+    if not isinstance(scope.get('require_unique', False), bool):
+        raise ValueError('require_unique must be a boolean')
+    kind = scope.get('kind')
+    if kind == 'all':
+        return None
+    if kind not in ('oracle_ids', 'exclude_oracle_ids'):
+        raise ValueError('population must explicitly select all, oracle_ids or exclude_oracle_ids')
+    field = 'oracle_ids' if kind == 'oracle_ids' else 'excluded_oracle_ids'
+    ids = scope.get(field)
+    if not isinstance(ids, list) or not ids or any(not isinstance(i, str) or not i for i in ids) or len(ids) != len(set(ids)):
+        raise ValueError(f'{field} must be nonempty, distinct strings')
+    return field
+
+
 def source_spec(path, source):
     spec = json.loads(Path(path).read_text())
     if spec.get('format_version') != 1 or spec.get('provider') != 'scryfall':
@@ -242,15 +259,7 @@ def source_spec(path, source):
     slug(spec.get('snapshot_id'))
     if digest(source) != sha(spec.get('sha256')):
         raise ValueError('Oracle source checksum mismatch')
-    scope = spec.get('population', {})
-    if not isinstance(scope.get('policy'), str) or not scope['policy'].strip():
-        raise ValueError('explicit population policy required')
-    if scope.get('kind') not in ('all', 'oracle_ids'):
-        raise ValueError('population must explicitly select all or oracle_ids')
-    if scope['kind'] == 'oracle_ids':
-        ids = scope.get('oracle_ids')
-        if not isinstance(ids, list) or not ids or any(not isinstance(i, str) or not i for i in ids) or len(ids) != len(set(ids)):
-            raise ValueError('oracle_ids must be nonempty, distinct strings')
+    population_id_field(spec.get('population', {}))
     return spec
 
 
@@ -291,6 +300,10 @@ def bundle(out, rows, meta, spec, revision, exporter_commit=None, source=None):
         if status in ('refused', 'limit') and readings:
             raise ValueError('refusal cannot contain partial success')
         counts[status] += 1
+    if spec['population'].get('require_unique', False) and counts['unique'] != len(rows):
+        failures = ', '.join(f'{count} {status}' for status, count in counts.items()
+                             if status != 'unique' and count)
+        raise ValueError(f'population requires a unique parse for every face ({failures})')
     rows = sorted(rows, key=lambda row: (row['identity']['record_index'], row['identity']['face_index']))
     out = fresh(out)
     if source is not None:

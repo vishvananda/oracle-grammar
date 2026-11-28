@@ -10,9 +10,11 @@ rely on a second workflow being triggered by `GITHUB_TOKEN`'s tag creation.
 SHA-256, encoding, snapshot identity, export revision and allowed population.
 Update this pin deliberately when adopting a new source snapshot. Code releases
 reuse it; they never silently download whichever bulk snapshot is newest.
-The first pin is Scryfall's 2026-11-12 22:01:58 UTC snapshot, all 39,288 records.
-Original source bytes are included in each bundle so expiring provider URLs do
-not prevent downstream validation.
+The default population uses the reviewed Oracle ID exclusions from the
+coverage audit and requires a unique parse for every included face.
+Each bundle includes the full original source bytes so downstream validation
+can reproduce selection after the provider URL expires. See
+[the Oracle scope policy](../docs/releases.md#mtgish-compatible-oracle-scope).
 
 For a data-only release, commit `releases/faces/<TAG>.json`, then push that exact
 tag. It has the same fields as the default source specification, plus

@@ -19,15 +19,7 @@ def source_config(source):
         raise ValueError('source URL must use HTTPS')
     if source.get('encoding', 'json') not in ('json', 'jsonl-gzip'):
         raise ValueError('unsupported Oracle source encoding')
-    scope = source.get('population', {})
-    if not isinstance(scope.get('policy'), str) or not scope['policy'].strip():
-        raise ValueError('explicit population policy required')
-    if scope.get('kind') not in ('all', 'oracle_ids'):
-        raise ValueError('population must explicitly select all or oracle_ids')
-    if scope['kind'] == 'oracle_ids':
-        ids = scope.get('oracle_ids')
-        if not isinstance(ids, list) or not ids or any(not isinstance(i, str) or not i for i in ids) or len(ids) != len(set(ids)):
-            raise ValueError('oracle_ids must be nonempty, distinct strings')
+    releases.population_id_field(source.get('population', {}))
 
 
 def tag_for(spec, meta):
@@ -91,12 +83,19 @@ def records(source, spec):
         values = json.loads(Path(source).read_text())
     if not isinstance(values, list) or not values or any(not isinstance(r, dict) for r in values):
         raise ValueError('source must contain a nonempty Oracle record array')
-    if spec['population']['kind'] == 'oracle_ids':
-        wanted = set(spec['population']['oracle_ids'])
-        values = [r for r in values if r.get('oracle_id') in wanted]
-        if {r.get('oracle_id') for r in values} != wanted:
-            raise ValueError('population includes missing source records')
-    return values
+    scope = spec['population']
+    field = releases.population_id_field(scope)
+    if field is None:
+        return values
+    selected_ids = set(scope[field])
+    if not selected_ids.issubset(r.get('oracle_id') for r in values):
+        raise ValueError('population lists missing source records')
+    if scope['kind'] == 'oracle_ids':
+        return [r for r in values if r.get('oracle_id') in selected_ids]
+    remaining = [r for r in values if r.get('oracle_id') not in selected_ids]
+    if not remaining:
+        raise ValueError('population excludes every source record')
+    return remaining
 
 
 def export(out, *, tag=None, grammar_tag=None, root=releases.ROOT):

@@ -161,5 +161,7 @@ python3 tools/oracle_scope.py oracle.jsonl.gz .cache/oracle-scope/upstream-ignor
 
 Both hashes are verified before selection. Use the output's `population`
 object for an explicitly scoped export or to filter coverage counts. The
-default source pin and full release population remain independent of this
-audit scope.
+default release pins the same reviewed scope by listing the excluded
+`oracle_id` values from `ignored` in `excluded_oracle_ids`. The source
+checksum still covers the full original snapshot. A release with
+`require_unique` enabled fails if any included face lacks a unique parse.
