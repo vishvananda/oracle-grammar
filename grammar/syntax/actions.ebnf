@@ -7533,7 +7533,7 @@ discarded_card_exile_required ::= discarded_card_exile "."
 /* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$discarded_card_exile}]}}]} */
 discarded_card_exile_optional ::= "you" "may" discarded_card_exile "."
 
-discarded_card_exile_body ::= discarded_card_exile_required | discarded_card_exile_optional | discarded_card_exile_play_program
+discarded_card_exile_body ::= discarded_card_exile_leading_permission | discarded_card_exile_required | discarded_card_exile_optional | discarded_card_exile_play_program
 
 /* @sem Ability::Triggered{event:$discarded_card_event, limits:TriggerLimits{}, announcement:@announcement, body:$discarded_card_exile_body} */
 triggered_discarded_card_exile ::= "whenever" discarded_card_event "," discarded_card_exile_body
@@ -25065,3 +25065,11 @@ each_player_bottom_controlled_creatures ::= "each" "player" "puts" "all" "creatu
 /* Heads are counted from the immediately preceding flips, independently of wins. */
 /* @sem Instruction::[Effect{result:@mark, operation:$flip_counted_coins}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:TakeExtraTurn{times:CountCoinOutcomes{source:Receipt(@marked), outcome:Heads}}}}] */
 instructions_flip_heads_turns ::= flip_counted_coins "." "take" "an" "extra" "turn" "after" "this" "one" "for" "each" "coin" "that" "comes" "up" "heads"
+
+/* The leading duration qualifies only permission to play the paid exile receipt. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$discarded_card_exile_payment]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}), origins:CardPlayOrigins([Exile]), action:$discard_permission_action, filter:Any})], duration:$duration, evaluation:LiveObjects}}]}, otherwise:Program{}}]} */
+discarded_card_exile_leading_permission ::= "you" "may" discarded_card_exile_payment "." "if" "you" "do" "," duration "," "you" "may" discard_permission_action "that" "card" "."
+
+/* The untapped target is the same object pumped and conditionally equipped. */
+/* @sem Instruction::[Effect{result:@next, operation:SetTapped{objects:One(@remember_object($target_object)), tapped:false}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(@it)), changes:$singular_pump, duration:$duration, evaluation:Snapshot}}, ...$conditional_antecedent_attach_choice] */
+untap_pump_conditional_attachment ::= "untap" target_object "." "it" singular_pump duration "." conditional_antecedent_attach_choice

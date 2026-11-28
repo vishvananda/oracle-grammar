@@ -3396,8 +3396,13 @@ conditional_combat_state ::= adjective_attacking | adjective_blocking
 condition_you_sacrificed_this_turn ::= "you" "sacrificed" "a" filter_phrase "this" "turn"
 
 /* A card entering exile during this turn is a historical zone-change condition. */
+condition_card_exile_this_turn ::= condition_one_card_exile_this_turn | condition_cards_exile_this_turn
+
 /* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:Any, to:Exile}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
-condition_card_exile_this_turn ::= "a" "card" "was" "put" "into" "exile" "this" "turn"
+condition_one_card_exile_this_turn ::= "a" "card" "was" "put" "into" "exile" "this" "turn"
+
+/* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:Not(Token), to:Exile}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
+condition_cards_exile_this_turn ::= "one" "or" "more" "cards" "were" "put" "into" "exile" "this" "turn"
 
 /* The producer and its passive test are one contract, including on inverse printing. */
 /* @sem Instruction::[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}, Effect{result:@mark, operation:Discard{players:One(AbilityController), amount:$card_count_2, random:false}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:Before}, filter:$filter_phrase}), test:Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:$instructions}, otherwise:Program{}}] */
