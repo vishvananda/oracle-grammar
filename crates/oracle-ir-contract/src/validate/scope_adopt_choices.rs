@@ -269,6 +269,7 @@ impl<'a> Scope<'a> {
             }
         }
         let kind = match operation.action() {
+                            Operation::Keyword { action: KeywordAction::Blight { .. }, .. } => ResultKind::Blighted,
                             Operation::SearchPlanarDeck { .. } => ResultKind::PlanarSearch,
                             Operation::CollectPlayerSuggestions { .. } => ResultKind::PlayerSuggestions,
                             Operation::ChooseOracleDefinitionAtRandom { .. } => ResultKind::OracleDefinition,

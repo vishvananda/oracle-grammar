@@ -34,6 +34,7 @@ impl<'a> Scope<'a> {
             }
             ObjectSet::OracleCopies(result) => self.oracle_copy_result(result),
             ObjectSet::CounterRecipients(result) => self.counter_placement_result(result),
+            ObjectSet::Blighted(result) => self.blight_result(result),
             ObjectSet::Recorded(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectSet::Recorded(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectSet::DamageSources(filter)
@@ -221,6 +222,14 @@ impl<'a> Scope<'a> {
             Ok(())
         } else {
             Err("counter placements require a visible counter placement result".into())
+        }
+    }
+
+    fn blight_result(&self, result: &ResultId) -> Result {
+        if matches!(self.results.get(&result.0), Some(ResultKind::Blighted)) {
+            Ok(())
+        } else {
+            Err("blighted creature requires a visible Blight action result".into())
         }
     }
 

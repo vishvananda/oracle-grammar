@@ -21,6 +21,7 @@ impl<'a> Scope<'a> {
             | Operation::SearchPlanarDeck { .. }
             | Operation::ShufflePlanarDeck { .. }
             | Operation::PlaneswalkToSearchedPlane { .. }
+            | Operation::BecomeHeadChef { .. }
             | Operation::PlayCards { .. }
             | Operation::PlayWith { .. }
             | Operation::RemoveMarkedDamage { .. }

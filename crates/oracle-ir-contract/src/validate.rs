@@ -12,6 +12,8 @@ mod actor_untap_tests;
 #[cfg(test)]
 mod color_permission_tests;
 #[cfg(test)]
+mod deck_printing_tests;
+#[cfg(test)]
 mod event_departure_auras_tests;
 #[cfg(test)]
 mod event_group_departure_tests;
@@ -57,6 +59,7 @@ enum ResultKind {
     OracleDefinition,
     PlanarSearch,
     PlayerSuggestions,
+    Blighted,
     OracleCopies,
 }
 
@@ -346,6 +349,7 @@ fn validate_ability_in_dispatch_1(
         }
         | Ability::Companion(_)
         | Ability::CommanderDeckRule(_)
+        | Ability::DeckOnlyCards { .. }
         | Ability::Offering(_)
         | Ability::FlashIf(_)
         | Ability::Craft {
@@ -601,6 +605,7 @@ fn validate_ability_in_case_1(
             scope.player(player)
         }
         Ability::Companion(rule) | Ability::CommanderDeckRule(rule) => scope.operand(rule),
+        Ability::DeckOnlyCards { allowed, .. } => scope.filter(allowed),
         Ability::Offering(filter) => scope.filter(filter),
         Ability::FlashIf(condition) => scope.condition(condition),
         Ability::Craft {
@@ -1184,3 +1189,6 @@ mod planar_crime_counters_tests;
 
 #[cfg(test)]
 mod demo_printing_tests;
+
+#[cfg(test)]
+mod head_chef_blight_tests;

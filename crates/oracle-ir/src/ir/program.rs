@@ -1143,6 +1143,15 @@ pub enum Operation {
         options: Vec<String>,
         duration_player: PlayerRef,
     },
+    /// Make `player` the head chef, an independent designation rather than the
+    /// monarch. It follows the monarch protocol (including combat-damage
+    /// transfer, succession on leaving, and retained triggered ability
+    /// controller), except the designation's own end-step trigger creates one
+    /// Food token instead of drawing. The game may have both designations on
+    /// different players; becoming one does not change the other.
+    BecomeHeadChef {
+        player: PlayerRef,
+    },
 }
 
 #[derive(

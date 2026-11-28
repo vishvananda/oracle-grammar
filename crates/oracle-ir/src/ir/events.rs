@@ -754,6 +754,8 @@ pub enum PlayerState {
     ShuffledThisWay,
     /// No effect stops this player drawing cards.
     CanDraw,
+    /// The independent head-chef designation; distinct from Monarch.
+    HeadChef,
 }
 
 #[derive(

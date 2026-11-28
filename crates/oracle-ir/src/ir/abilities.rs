@@ -271,6 +271,22 @@ pub enum Ability {
     },
     /// This player makes the game's starting-player choice during setup.
     StartingPlayerChooser(PlayerRef),
+    /// A pregame deck restriction conditional on this card occupying the named
+    /// role. Each deck card must match `allowed` or qualify for the independent
+    /// `basic_lands` allowance, which permits basic lands of any color identity.
+    /// `any_color_identity` waives commander color identity for cards matching
+    /// `allowed`. Other deck-building restrictions still apply.
+    DeckOnlyCards {
+        roles: DeckSourceRoles,
+        allowed: ObjectFilter,
+        basic_lands: bool,
+        any_color_identity: bool,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DeckSourceRoles {
+    CommanderOrCompanion,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

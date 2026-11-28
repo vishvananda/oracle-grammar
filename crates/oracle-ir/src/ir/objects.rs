@@ -419,6 +419,11 @@ pub enum ObjectSet {
     /// incarnations even if their characteristics or controller later change;
     /// objects that leave their zone are not followed to a new incarnation.
     CounterRecipients(ResultId),
+    /// The creature chosen for this player's named Blight action (CR 701.68c).
+    /// It remains the chosen creature even when counter placement is prevented
+    /// or changed. No legal choice yields an empty set; a later new incarnation
+    /// is not included. It is not every creature that received counters.
+    Blighted(ResultId),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -537,6 +542,9 @@ pub enum ObjectFilter {
     BlockingObject(ObjectRef),
     /// The spell cast at `ordinal` among the `spells` cast in `scope`, by
     /// `by` when that is named. Counts earlier casts, not this ability's life.
+    /// For a matched cast-event subject, use its recorded ordinal at that cast;
+    /// it remains available if the spell later leaves the stack, and later
+    /// spells cannot change whether that event was the Nth one.
     NthCast {
         ordinal: Expr,
         spells: Box<ObjectFilter>,
@@ -815,6 +823,11 @@ pub enum PrintingFeature {
     /// An original Limited Edition Alpha printing. It has no expansion symbol;
     /// this predicate excludes Beta, other symbol-less printings and reprints.
     AlphaPrinting,
+    /// This actual printing belongs to a Mystery Booster set, including later
+    /// sets with that product branding. This is not a name-wide property.
+    MysteryBoosterSet,
+    /// This actual printing is a playtest card, independent of its set.
+    PlaytestCard,
 }
 
 #[derive(

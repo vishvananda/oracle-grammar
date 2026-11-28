@@ -487,6 +487,7 @@ impl<'a> Scope<'a> {
                     }
                 }
             }
+            Operation::BecomeHeadChef { player } => self.player(player),
             Operation::PlayCards {
                 actor,
                 cards,
