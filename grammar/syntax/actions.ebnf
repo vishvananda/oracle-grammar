@@ -25348,3 +25348,120 @@ instructions_opponents_mill_cast_graveyards ::= "each" "opponent" "mills" card_c
 
 /* @sem Instruction::ForEachPlayerInChosenOrder{players:OpponentsOf(AbilityController), binding:0, chooser:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Zone{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any}, count:UpTo(Constant(1)), cost:Free, into_exile:true}}]}} */
 cast_from_each_opponents_graveyard ::= "you" "may" "cast" "a" "spell" "from" "each" "opponent's" "graveyard" "without" "paying" "its" "mana" "cost" "." "if" "a" "spell" "cast" "this" "way" "would" "be" "put" "into" "a" "graveyard" "," "exile" "it" "instead"
+
+
+/* The measured name letters are fixed once for the damage and life gain. */
+/* @sem Instruction::[Effect{result:@mark, operation:BindValue{value:$name_letter_battlefield_count}},
+   Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One($counter_damage_target)), amount:BoundValue(@marked), preventable:true}},
+   Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:BoundValue(@marked)}}] */
+instructions_name_letter_damage_life ::= "this" "plane" "deals" "X" "damage" "to" counter_damage_target "and" "you" "gain" "X" "life" "," "where" "X" "is" name_letter_battlefield_count
+
+/* @sem Expr::CountNameLetter{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(AbilityController)))}, letter:$plural_name_letter} */
+name_letter_battlefield_count ::= "the" "number" "of" plural_name_letter "among" "names" "of" filter_plural "you" "control"
+
+plural_name_letter ::= name_count_letter_a | name_count_letter_b | name_count_letter_c | name_count_letter_d
+    | name_count_letter_e | name_count_letter_f | name_count_letter_g | name_count_letter_h
+    | name_count_letter_i | name_count_letter_j | name_count_letter_k | name_count_letter_l
+    | name_count_letter_m | name_count_letter_n | name_count_letter_o | name_count_letter_p
+    | name_count_letter_q | name_count_letter_r | name_count_letter_s | name_count_letter_t
+    | name_count_letter_u | name_count_letter_v | name_count_letter_w | name_count_letter_x
+    | name_count_letter_y | name_count_letter_z
+
+/* @sem String::'A' */
+name_count_letter_a ::= "As"
+
+/* @sem String::'B' */
+name_count_letter_b ::= "Bs"
+
+/* @sem String::'C' */
+name_count_letter_c ::= "Cs"
+
+/* @sem String::'D' */
+name_count_letter_d ::= "Ds"
+
+/* @sem String::'E' */
+name_count_letter_e ::= "Es"
+
+/* @sem String::'F' */
+name_count_letter_f ::= "Fs"
+
+/* @sem String::'G' */
+name_count_letter_g ::= "Gs"
+
+/* @sem String::'H' */
+name_count_letter_h ::= "Hs"
+
+/* @sem String::'I' */
+name_count_letter_i ::= "Is"
+
+/* @sem String::'J' */
+name_count_letter_j ::= "Js"
+
+/* @sem String::'K' */
+name_count_letter_k ::= "Ks"
+
+/* @sem String::'L' */
+name_count_letter_l ::= "Ls"
+
+/* @sem String::'M' */
+name_count_letter_m ::= "Ms"
+
+/* @sem String::'N' */
+name_count_letter_n ::= "Ns"
+
+/* @sem String::'O' */
+name_count_letter_o ::= "Os"
+
+/* @sem String::'P' */
+name_count_letter_p ::= "Ps"
+
+/* @sem String::'Q' */
+name_count_letter_q ::= "Qs"
+
+/* @sem String::'R' */
+name_count_letter_r ::= "Rs"
+
+/* @sem String::'S' */
+name_count_letter_s ::= "Ss"
+
+/* @sem String::'T' */
+name_count_letter_t ::= "Ts"
+
+/* @sem String::'U' */
+name_count_letter_u ::= "Us"
+
+/* @sem String::'V' */
+name_count_letter_v ::= "Vs"
+
+/* @sem String::'W' */
+name_count_letter_w ::= "Ws"
+
+/* @sem String::'X' */
+name_count_letter_x ::= "Xs"
+
+/* @sem String::'Y' */
+name_count_letter_y ::= "Ys"
+
+/* @sem String::'Z' */
+name_count_letter_z ::= "Zs"
+
+/* Save whether a creature could have been chosen before either return
+   destination can change the selected card's characteristics. */
+/* @sem Instruction::[
+   Effect{result:@next, operation:Mill{players:One(AbilityController), amount:$mill_source_power_amount}},
+   Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:$graveyard_prefix_choice, count:Exactly(Constant(1))}},
+   Effect{result:@next, operation:BindValue{value:CountObjects(Matching{objects:Union([Selected(@marked), Unselected(@marked)]), filter:CardType(Creature)})}},
+   Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Mana($mana_symbols)]}, optional:true}},
+   If{condition:PaymentChosen(@last_result),
+      then:Program{instructions:[Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{}}, qualifiers:[]}}]},
+      otherwise:Program{instructions:[Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{}), qualifiers:[]}}]}},
+   If{condition:Compare{left:BoundValue(@back(4)), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}},
+      then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:$token_groups, entry:BattlefieldArrival{}}}]}, otherwise:Program{}}
+   ] */
+instructions_mill_prefix_choice ::= "mill" "cards" "equal" "to" mill_source_power_amount "." "then" "choose" graveyard_prefix_choice "you" "may" "pay" mana_symbols "." "if" "you" "do" "," "return" "it" "to" "the" "battlefield" "." "if" "you" "don't" "," "return" "it" "to" "your" "hand" "." "if" "you" "can't" "choose" "a" "creature" "card" "this" "way" "," "create" token_groups
+
+/* @sem Expr::ObjectProperty{object:Source, property:Power, information:CurrentOrLastKnown} */
+mill_source_power_amount ::= "its" "power"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:@and($card_filter, $name_prefix_sentence_end)} */
+graveyard_prefix_choice ::= "a" card_filter "card" "in" "your" "graveyard" name_prefix_sentence_end

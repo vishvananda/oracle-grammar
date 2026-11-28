@@ -368,6 +368,13 @@ pub enum Expr {
     EventActivationCountersRemoved {
         kind: crate::counter::CounterKind,
     },
+    /// Count occurrences of a letter across the current rules names of these
+    /// objects, counting the names of distinct objects independently. Case is
+    /// immaterial, as with `NameMatch::Letter`.
+    CountNameLetter {
+        objects: Box<ObjectSet>,
+        letter: String,
+    },
 }
 
 /// Mana a number or filter reads that did not pay for a whole spell.

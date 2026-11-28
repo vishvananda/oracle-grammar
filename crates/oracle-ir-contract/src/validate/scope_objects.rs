@@ -358,6 +358,7 @@ impl<'a> Scope<'a> {
             Expr::BoundValue(_) | Expr::CountersRemoved(_) => self.expr_case_0(expression),
             Expr::AnnouncedX if self.definition => self.expr_case_0(expression),
             Expr::Aggregate { .. } | Expr::CountDistinct { .. } => self.expr_case_0(expression),
+            Expr::CountNameLetter { .. } => self.expr_case_0(expression),
             Expr::EventActivationCountersRemoved { .. } => self.expr_case_0(expression),
             Expr::EventActivationX if self.event.activation_x => self.expr_case_0(expression),
             Expr::EventActivationX => self.expr_case_0(expression),
@@ -546,6 +547,10 @@ impl<'a> Scope<'a> {
                 Err("characteristic definition cannot use an unrelated announced X".into())
             }
             Expr::Aggregate { objects, .. } | Expr::CountDistinct { objects, .. } => {
+                self.objects(objects)
+            }
+            Expr::CountNameLetter { objects, letter } => {
+                super::scope_filter_inner::validate_name_letter(letter)?;
                 self.objects(objects)
             }
             Expr::EventActivationCountersRemoved { .. } if self.event.activation_payment => Ok(()),

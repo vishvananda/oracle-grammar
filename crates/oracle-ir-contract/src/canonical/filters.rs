@@ -2,6 +2,28 @@
 use super::trace;
 use serde_json::{Value, json};
 
+/// Name queries ignore ASCII case. Leave the written forms available to the
+/// printer and normalize only for semantic comparison.
+pub(super) fn name_text(owner: &str, variant: &str, content: &mut Value) {
+    let value = match (owner, variant) {
+        ("NameMatch", "Prefix" | "Letter") => content,
+        ("Expr", "CountNameLetter") => {
+            let Some(letter) = content.get_mut("letter") else {
+                return;
+            };
+            letter
+        }
+        _ => return,
+    };
+    if let Value::String(text) = value {
+        if variant == "Prefix" {
+            text.make_ascii_lowercase();
+        } else {
+            text.make_ascii_uppercase();
+        }
+    }
+}
+
 /// `Not(Condition(c))` is `Condition(Not(c))`: both evaluate `c` once, with the
 /// candidate bound to the same object at the same point, and negate the answer.
 /// The negation moves inside, the form most records already use. Only comparison

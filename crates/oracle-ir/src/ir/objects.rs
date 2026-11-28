@@ -652,6 +652,17 @@ pub enum ObjectFilter {
     /// A card that the named player designated as one of their commanders.
     /// The designation follows the card through zones and control changes.
     CommanderOf(PlayerRef),
+    /// Any current rules name matches this text query. An unnamed object
+    /// does not match. Apply the usual English-name view (CR 201.2).
+    NameMatches(NameMatch),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum NameMatch {
+    /// Literal opening text, ignoring ASCII case, without a word boundary.
+    Prefix(String),
+    /// An English letter occurs at least once, irrespective of capitalization.
+    Letter(String),
 }
 
 /// Something that happened to an object. See `ObjectFilter::History`.

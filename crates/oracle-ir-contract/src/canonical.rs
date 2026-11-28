@@ -645,6 +645,9 @@ impl Walker {
         };
         if let Some(content) = content {
             self.fields(content, fields, &format!("{name}::{variant}"));
+            if !self.keep_order {
+                filters::name_text(name, &variant, content);
+            }
             if commutative(name, &variant) {
                 if let Value::Array(items) = content {
                     flatten(items, &variant);

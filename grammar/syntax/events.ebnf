@@ -9056,3 +9056,25 @@ countess_type_aside ::= "(" "the" "token" "isn't" "any" "of" "the" "spell's" "ot
 /* A departed creature retains its original Aura and Equipment attachment identities. */
 /* @sem Ability::Triggered{event:ZoneChange{objects:AnyOf([$event_self, AllOf([Not($event_self), $filter_phrase, ControlledBy(One(AbilityController))])]), from:Battlefield, to:Graveyard}, intervening_if:ObjectMatches{object:EventSubject, filter:AnyOf([State(Enchanted), State(Equipped)])}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:EventDepartureAuras, filter:AllOf([InZone(Players{zone:Graveyard, players:One(AbilityController)}), CouldEnchant(One($blocked_uses_damage_creature))])}, count:AnyNumber}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{states:[AttachedTo(Target{slot:@last_slot, index:0})]}}, qualifiers:[]}}, Effect{result:@next, operation:AttachChosen{actor:One(AbilityController), attachments:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Subtype(Equipment), WasAttachedTo(EventSubject)])}, count:AnyNumber, hosts:One(Target{slot:@last_slot, index:0})}}]}} */
 cass_departure_attachments ::= "whenever" event_self "or" "another" filter_phrase "you" "control" "dies" "," "if" "it" "was" "enchanted" "or" "equipped" "," "return" "any" "number" "of" "Aura" "cards" "that" "were" "attached" "to" "it" "from" "your" "graveyard" "to" "the" "battlefield" "attached" "to" blocked_uses_damage_creature "," "then" "attach" "any" "number" "of" "Equipment" "that" "were" "attached" "to" "it" "to" "that" "creature" "."
+
+/* The explanation defines the control and untap actions. Test the same
+   population after those actions and grant haste to the tokens actually made. */
+/* @sem Ability::WithPresentation{reminder:true, ability:Triggered{
+   event:$event_planeswalk_or_turn, limits:_{}, announcement:@announcement,
+   body:Program{instructions:[
+      Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:$fleem_creature_population, count:Exactly(Constant(1))}},
+      Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Selected(@marked)), changes:[SetController(AbilityController)], duration:Indefinite, evaluation:Snapshot}},
+      Effect{result:@next, operation:SetTapped{objects:Selected(@marked), tapped:false}},
+      If{condition:Compare{left:CountObjects($fleem_creature_population), test:NumberTest::Compare{comparison:Equal,value:Constant(0)}},
+         then:Program{instructions:[
+           Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:Rules, recipe:Named($fleem_token_full_name)}], entry:BattlefieldArrival{}}},
+           Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@prior)), changes:[GrantKeyword(Haste)], duration:Indefinite, evaluation:Snapshot}}]},
+         otherwise:Program{}}
+   ]}}} */
+trigger_planar_take_wake_make ::= "when" event_planeswalk_or_turn "," "take" "Fleem" "and" "wake" "Fleem" "." "if" "no" "Fleem" "," "make" "Fleem" "." "(" "gain" "control" "of" fleem_creature_population "." "untap" "it" "." "if" "no" "player" "controls" "one" "," "create" "a" fleem_token_full_name "token" "." "it" "gains" "haste" "." ")"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield),kind:Permanent,filter:AllOf([CardType(Creature),Name($fleem_token_full_name)])} */
+fleem_creature_population ::= "a" "creature" "named" fleem_token_full_name
+
+/* @sem String::'Fleem, Goben''s Creation' */
+fleem_token_full_name ::= "Fleem" "," "Goben's" "Creation"

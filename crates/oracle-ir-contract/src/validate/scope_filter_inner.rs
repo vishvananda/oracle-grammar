@@ -1,9 +1,32 @@
 //! Scoped validation of portable operands.
 use super::*;
+
+pub(super) fn validate_name_letter(letter: &str) -> Result {
+    let mut chars = letter.chars();
+    if chars.next().is_some_and(|c| c.is_ascii_alphabetic()) && chars.next().is_none() {
+        Ok(())
+    } else {
+        Err("name letter query requires exactly one letter".into())
+    }
+}
+
+fn validate_name_match(query: &NameMatch) -> Result {
+    let text = match query {
+        NameMatch::Letter(letter) => return validate_name_letter(letter),
+        NameMatch::Prefix(text) => text,
+    };
+    if text.is_empty() || text.len() > 256 || text.chars().any(char::is_control) {
+        Err("name text query requires nonempty bounded text".into())
+    } else {
+        Ok(())
+    }
+}
+
 impl<'a> Scope<'a> {
     pub(super) fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
             ObjectFilter::Noted(_) | ObjectFilter::NthChosen(_) => Ok(()),
+            ObjectFilter::NameMatches(query) => validate_name_match(query),
             ObjectFilter::MostCommonCreatureTypeIn(player) => self.player(player),
             ObjectFilter::TargetCount(_, value) => self.expr(value),
             ObjectFilter::ChosenBy { player, .. } => self.player(player),
