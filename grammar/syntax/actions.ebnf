@@ -25493,3 +25493,18 @@ activated_loyalty_x_counter_pair ::= loyalty_x_decrease_heading ":" "put" number
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($subtype, ObjectFilter::CardType(Planeswalker), ObjectFilter::ControlledBy(One(AbilityController)))} */
 objects_each_controlled_typed_walker ::= "each" subtype "planeswalker" "you" "control"
+
+/* Each color condition is tested independently. Keep both targets announced
+   while binding the hand observation to the second target alone. */
+/* @prefer always */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition_symbol_spent, then:Program{instructions:[Effect{result:@next, operation:$spent_return_owner_hand}]}, otherwise:Program{}}, If{condition:$condition_symbol_spent_2, then:Program{instructions:$clause_observed_single_discard}, otherwise:Program{}}]}} */
+spell_spent_return_and_discard ::= "if" condition_symbol_spent "," spent_return_owner_hand "." "if" condition_symbol_spent "," clause_observed_single_discard "."
+
+/* @sem Operation::@owner_return(Operation::Move{objects:@implicit_card_set($affected), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}) */
+spent_return_owner_hand ::= "return" affected "to" owner_possessive "hand"
+
+/* Draw before the discard. Its receipt remains local to the activated ability;
+   the subsequent reflexive trigger announces its own target. */
+/* @prefer always */
+/* @sem Ability::Activated{origin:Ordinary, cost:$activation_cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $draw_base)}, ...$discard_receipt_value_sequence]}} */
+activated_draw_discard_reflexive_mill ::= activation_cost ":" draw_base "," "then" discard_receipt_value_sequence "."

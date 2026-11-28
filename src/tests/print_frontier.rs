@@ -247,3 +247,34 @@ fn foil_mode_title_preserves_oracle_capitalization() {
         Some(text)
     );
 }
+
+#[test]
+fn separate_spent_colors_preserve_announcement_and_hand_observation() {
+    let name = "River's Grasp";
+    let text = "If {U} was spent to cast this spell, return up to one target creature to its owner's hand. If {B} was spent to cast this spell, target player reveals their hand, you choose a nonland card from it, then that player discards that card. (Do both if {U}{B} was spent.)";
+    let parsed = engine().parse(name, text).unwrap();
+    let [reading] = parsed.readings.as_slice() else {
+        panic!("expected one reading for the independent mana conditions");
+    };
+    let printed = engine()
+        .print_keyed(name, reading, &[], &[])
+        .unwrap()
+        .expect("the two conditional effects have a default print");
+    let expected = crate::engine::semantic_abilities(reading).unwrap();
+    assert!(
+        engine()
+            .parse(name, &printed)
+            .unwrap()
+            .readings
+            .iter()
+            .any(|reading| { crate::engine::semantic_abilities(reading).unwrap() == expected })
+    );
+    let trail = engine().trail_of(name, reading, text).unwrap().unwrap();
+    assert_eq!(
+        engine()
+            .print_trail(name, reading, &trail)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+}

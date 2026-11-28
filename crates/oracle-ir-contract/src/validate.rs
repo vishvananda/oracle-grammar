@@ -10,6 +10,8 @@ mod activation_payment_event_tests;
 #[cfg(test)]
 mod actor_untap_tests;
 #[cfg(test)]
+mod color_permission_tests;
+#[cfg(test)]
 mod event_departure_auras_tests;
 #[cfg(test)]
 mod event_group_departure_tests;

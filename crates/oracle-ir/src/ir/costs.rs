@@ -340,6 +340,30 @@ pub enum PlayLimit {
     EachTurn(i64),
     /// One card of each of these card types.
     OnePerCardType(TypeClass),
+    /// One successful cast per color per turn through this permission. For a
+    /// multicolored spell the caster chooses exactly one available color that
+    /// the announced spell has; colorless spells have no eligible slot. Other
+    /// permissions and attempted casts rolled back do not consume a slot.
+    OnePerColorEachTurn,
+}
+
+/// Effects of one exact cast made through its enclosing permission. The cast
+/// receipt is permission-instance specific: other graveyard casts and copies
+/// do not acquire it. These remain effects of the granting ability and apply
+/// only while that ability functions; they do not attach a new ability to the
+/// spell or survive as an unbounded delayed effect.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PermissionCastEffect {
+    /// Replace this spell's move from the stack to any graveyard only. Other
+    /// stack departures and a later permanent's departures are unaffected.
+    ReplaceStackGraveyard { destination: Destination },
+    /// Test `spell` on the announced spell at its completed cast. If that
+    /// exact cast actually becomes a battlefield permanent, add the specified
+    /// counters as it enters; no counter is put on a redirected move.
+    EnterBattlefieldWithCounters {
+        spell: ObjectFilter,
+        counters: Vec<(crate::counter::CounterKind, Expr)>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

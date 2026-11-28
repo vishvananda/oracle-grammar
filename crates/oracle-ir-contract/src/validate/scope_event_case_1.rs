@@ -520,8 +520,18 @@ impl<'a> Scope<'a> {
         }
     }
 
+    pub(super) fn valid_affiliation_label(label: &str) -> bool {
+        !label.is_empty() && label.len() <= 128 && !label.chars().any(char::is_control)
+    }
+
     pub(super) fn players(&self, players: &PlayerSet) -> Result {
         match players {
+            PlayerSet::PlaneAffiliation { plane, choice } => {
+                if !Self::valid_affiliation_label(choice) {
+                    return Err("invalid plane affiliation label".into());
+                }
+                self.object(plane)
+            }
             PlayerSet::Scoped => Ok(()),
             PlayerSet::Intersection(sets) => sets.iter().try_for_each(|s| self.players(s)),
             PlayerSet::Matching { binding, condition } => {

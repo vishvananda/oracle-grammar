@@ -216,6 +216,13 @@ pub enum PlayerRule {
         component: ManaPaymentComponent,
         uses: u32,
     },
+    /// A permission with effects tied to casts made through this instance.
+    /// The underlying rule must be a CastSpell play permission.
+    PlayPermissionWithCastEffects {
+        permission: Box<PlayerRule>,
+        terms: PlayTerms,
+        effects: Vec<PermissionCastEffect>,
+    },
 }
 
 /// Nonempty distinct card origins sharing one play permission and its limit.
@@ -408,6 +415,13 @@ pub enum PlayerSet {
     /// this direct GainLife result after replacement and prevention. Empty if
     /// no life was gained, including an attempted gain of zero (CR 119.9).
     GainedLifeBy(ResultId),
+    /// Players holding this affiliation in this exact plane's current face-up
+    /// visit. A face-down transition clears the frame; turning the plane face up
+    /// again never revives prior assignments. No assignment means no membership.
+    PlaneAffiliation {
+        plane: ObjectRef,
+        choice: String,
+    },
 }
 
 /// Something a player did or had done to them. See `Condition::PlayerDid`.
@@ -430,6 +444,9 @@ pub enum PlayerHistory {
     RolledDie(Comparison, Expr),
     WasMonarch,
     BentAllFour,
+    /// A vote actually cast for this option during the surrounding history window.
+    /// A player's ballot still qualifies if the player cast other votes as well.
+    VotedFor(VoteOption),
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

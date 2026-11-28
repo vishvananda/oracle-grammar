@@ -416,6 +416,7 @@ impl<'a> Scope<'a> {
                 as_creature: _,
             }
             | Operation::Exchange { .. }
+            | Operation::ChoosePlaneAffiliations { .. }
             | Operation::ChooseValue { .. }
             | Operation::RevealChoices { .. }
             | Operation::FlipCoinSeries { .. }

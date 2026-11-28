@@ -9117,14 +9117,36 @@ event_self_enters_or_controlled_dies ::= event_self "enters" "or" controlled_ent
 /* Both thresholds independently inspect the cast spell. The counter and
    final damage refer to this ability's source. */
 /* @prefer always */
-/* @sem Ability::Triggered{event:EventSpec::Spell{event:Cast, players:One(AbilityController), spells:CardType(Creature)}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$cast_counter_on_named_source}, If{condition:$cast_spell_power_at_least, then:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $draw_base)}]}, otherwise:Program{}}, If{condition:$cast_spell_power_at_least_2, then:Program{instructions:[Effect{result:@next, operation:$cast_threshold_source_power_damage}]}, otherwise:Program{}}]}} */
-triggered_cast_conditional_power_draw_and_damage ::= "whenever" "you" "cast" "a" "creature" "spell" "," cast_counter_on_named_source "." "if" cast_spell_power_at_least "," draw_base "." "if" cast_spell_power_at_least "," cast_threshold_source_power_damage "."
+/* @sem Ability::Triggered{event:EventSpec::Spell{event:Cast, players:One(AbilityController), spells:CardType(Creature)}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$put_counter_on_named_source}, If{condition:$cast_spell_power_at_least, then:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $draw_base)}]}, otherwise:Program{}}, If{condition:$cast_spell_power_at_least_2, then:Program{instructions:[Effect{result:@next, operation:$cast_threshold_source_power_damage}]}, otherwise:Program{}}]}} */
+triggered_cast_conditional_power_draw_and_damage ::= "whenever" "you" "cast" "a" "creature" "spell" "," put_counter_on_named_source "." "if" cast_spell_power_at_least "," draw_base "." "if" cast_spell_power_at_least "," cast_threshold_source_power_damage "."
 
 /* @sem Operation::PutCounters{placements:[CounterPlacement{recipients:Objects(One($self_ref_named)), kind:$counter_kind, amount:Constant(1)}]} */
-cast_counter_on_named_source ::= "put" "a" counter_kind "counter" "on" self_ref_named
+put_counter_on_named_source ::= "put" "a" counter_kind "counter" "on" self_ref_named
 
 /* @sem Condition::ObjectMatches{object:EventSubject, filter:Property{property:Power, test:Compare{comparison:GreaterOrEqual, value:$number}}} */
 cast_spell_power_at_least ::= "that" "spell's" "power" "is" number "or" "greater"
 
 /* @sem Operation::DealDamage{source:$self_ref_named, recipients:Players(OpponentsOf(AbilityController)), amount:ObjectProperty{object:$named_possessive_ref, property:Power, information:CurrentOrLastKnown}, preventable:true} */
 cast_threshold_source_power_damage ::= self_ref_named "deals" "damage" "equal" "to" named_possessive_ref "power" "to" "each" "opponent"
+
+/* The two player roles are plane-visit affiliations, not the plane controller. */
+/* @sem String::'Super Hero' */
+super_hero_role ::= "Super" "Hero"
+/* @sem String::'Super Villain' */
+super_villain_role ::= "Super" "Villain"
+super_affiliation ::= super_hero_role | super_villain_role
+
+/* @sem Ability::Triggered{event:$event_planeswalk_here, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:ChoosePlaneAffiliations{plane:Source, players:All, options:[$super_affiliation, $super_affiliation_2], secret:true, reveal:true}}]}} */
+super_plane_choices ::= "when" event_planeswalk_here "," "each" "player" "secretly" "chooses" "to" "be" "a" super_affiliation "or" "a" super_affiliation "for" "as" "long" "as" "this" "plane" "is" "face" "up" "," "then" "the" "choices" "are" "revealed" "."
+
+/* @sem Ability::Triggered{event:Attack{attackers:AllOf([CardType(Creature), ControlledBy(PlaneAffiliation{plane:Source, choice:$super_affiliation})]), defenders:Players(PlaneAffiliation{plane:Source, choice:$super_affiliation_2})}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(EventSubject)), changes:[Pump{power:$signed, toughness:$signed_2}, GrantKeyword($keyword_value)], duration:EndOfTurn, evaluation:Snapshot}}]}} */
+super_attack_trigger ::= "whenever" "a" "creature" "a" super_affiliation "controls" "attacks" "a" super_affiliation "," "it" "gets" signed "/" signed "and" "gains" keyword_value "until" "end" "of" "turn" "."
+
+/* @sem Ability::Triggered{event:Player{event:CommitsCrime, players:PlaneAffiliation{plane:Source, choice:$super_affiliation}}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:LoseLife{players:PlaneAffiliation{plane:Source, choice:$super_affiliation_2}, amount:$number}}]}} */
+super_crime_trigger ::= "whenever" "a" super_affiliation "commits" "a" "crime" "," "each" super_affiliation "loses" number "life" "."
+
+/* The entrant is excluded from the threshold, while the pump is aimed at a
+   separately announced controlled creature. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:$event_controlled_enters, intervening_if:$condition_control_at_least_other, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($copy_chosen_creature)), changes:[Pump{power:$signed, toughness:$signed_2}], duration:EndOfTurn, evaluation:Snapshot}}]}} */
+triggered_controlled_entry_other_threshold_pump ::= "whenever" event_controlled_enters "," "if" condition_control_at_least_other "," copy_chosen_creature "gets" signed "/" signed "until" "end" "of" "turn" "."

@@ -1110,6 +1110,20 @@ pub enum Operation {
         player: PlayerRef,
         search: ResultId,
     },
+    /// Each listed player independently chooses exactly one option. If secret,
+    /// no other player sees any choice before all have been made; when reveal
+    /// is true, all choices are revealed together. The assignments belong to
+    /// the exact face-up visit of `plane` and cease when it turns face down;
+    /// they do not carry to later visits or other copies. If it is already
+    /// face down, choices and any reveal still occur but no affiliation persists.
+    /// Players who enter later receive no assignment unless explicitly assigned.
+    ChoosePlaneAffiliations {
+        plane: ObjectRef,
+        players: PlayerSet,
+        options: Vec<String>,
+        secret: bool,
+        reveal: bool,
+    },
 }
 
 /// Tests only actual exile arrivals, using each card's characteristics as it

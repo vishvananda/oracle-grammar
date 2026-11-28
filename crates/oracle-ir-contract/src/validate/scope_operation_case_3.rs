@@ -20,6 +20,28 @@ impl<'a> Scope<'a> {
                 self.operand(second)?;
                 until.iter().try_for_each(|until| self.duration(until))
             }
+            Operation::ChoosePlaneAffiliations {
+                plane,
+                players,
+                options,
+                ..
+            } => {
+                if options.len() < 2
+                    || options.len() > 32
+                    || options
+                        .iter()
+                        .any(|label| !Self::valid_affiliation_label(label))
+                    || options
+                        .iter()
+                        .collect::<std::collections::HashSet<_>>()
+                        .len()
+                        != options.len()
+                {
+                    return Err("plane affiliations need 2 to 32 distinct valid labels".into());
+                }
+                self.object(plane)?;
+                self.players(players)
+            }
             Operation::ChooseValue {
                 choosers: actor,
                 terms,

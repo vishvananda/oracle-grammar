@@ -71,8 +71,15 @@ impl<'a> Scope<'a> {
     pub(super) fn player_rule(&self, rule: &PlayerRule) -> Result {
         match rule {
             PlayerRule::SpecialAction {
-                body, cost, during, ..
+                body,
+                cost,
+                during,
+                limit,
+                ..
             } => {
+                if matches!(limit, Some(PlayLimit::OnePerColorEachTurn)) {
+                    return Err("color-indexed limit requires a cast permission".into());
+                }
                 self.operand(body)?;
                 cost.iter().try_for_each(|c| self.operand(c))?;
                 during.iter().try_for_each(|p| self.players(p))
@@ -158,7 +165,12 @@ impl<'a> Scope<'a> {
                 self.filter(permanents)?;
                 self.operand(modifier)
             }
-            PlayerRule::DiceChange { cost, .. } => self.operand(cost),
+            PlayerRule::DiceChange { cost, limit, .. } => {
+                if matches!(limit, Some(PlayLimit::OnePerColorEachTurn)) {
+                    return Err("color-indexed limit requires a cast permission".into());
+                }
+                self.operand(cost)
+            }
             PlayerRule::CascadePut { filter, flags } => {
                 self.filter(filter)?;
                 self.operand(flags)
@@ -181,14 +193,24 @@ impl<'a> Scope<'a> {
             }
             PlayerRule::PlayPermissionWith { permission, terms } => {
                 self.player_rule(permission)?;
-                if terms.cast_filter.is_some() {
+                if terms.cast_filter.is_some()
+                    || matches!(terms.limit, Some(PlayLimit::OnePerColorEachTurn))
+                {
                     let PlayerRule::PlayPermission { action, .. } = permission.as_ref() else {
-                        return Err("a proposed-spell filter requires a play permission".into());
+                        return Err(
+                            "a proposed-spell filter or color limit requires a play permission"
+                                .into(),
+                        );
                     };
                     self.play_cast_filter(action, terms)?;
                 }
                 self.play_permission_terms(terms)
             }
+            PlayerRule::PlayPermissionWithCastEffects {
+                permission,
+                terms,
+                effects,
+            } => self.play_permission_with_cast_effects(permission, terms, effects),
             PlayerRule::Primitive { name, operands } => self.primitive(name, operands),
             PlayerRule::SpellsHaveAbilities {
                 spells,
@@ -283,7 +305,50 @@ impl<'a> Scope<'a> {
         }
     }
 
+    fn play_permission_with_cast_effects(
+        &self,
+        permission: &PlayerRule,
+        terms: &PlayTerms,
+        effects: &[PermissionCastEffect],
+    ) -> Result {
+        let PlayerRule::PlayPermission {
+            action: CardPlayAction::CastSpell,
+            ..
+        } = permission
+        else {
+            return Err("cast effects require a cast-spell play permission".into());
+        };
+        if effects.is_empty() {
+            return Err("cast permission effects cannot be empty".into());
+        }
+        self.player_rule(permission)?;
+        self.play_cast_filter(&CardPlayAction::CastSpell, terms)?;
+        self.play_permission_terms(terms)?;
+        for effect in effects {
+            match effect {
+                PermissionCastEffect::ReplaceStackGraveyard { destination } => {
+                    self.destination(destination)?
+                }
+                PermissionCastEffect::EnterBattlefieldWithCounters { spell, counters } => {
+                    self.filter(spell)?;
+                    if counters.is_empty() {
+                        return Err("entry counters cannot be empty".into());
+                    }
+                    for (_, amount) in counters {
+                        self.count(&Count::Exactly(amount.clone()))?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn play_cast_filter(&self, action: &CardPlayAction, terms: &PlayTerms) -> Result {
+        if matches!(terms.limit, Some(PlayLimit::OnePerColorEachTurn))
+            && !matches!(action, CardPlayAction::CastSpell)
+        {
+            return Err("color-indexed limit requires a cast-only permission".into());
+        }
         let Some(filter) = &terms.cast_filter else {
             return Ok(());
         };
@@ -437,8 +502,20 @@ impl<'a> Scope<'a> {
     pub(super) fn spell_cost_modifier(&self, modifier: &SpellCostModifier) -> Result {
         match modifier {
             SpellCostModifier::Increase(cost) => self.cost(cost),
-            SpellCostModifier::Alternate { cost, .. } => self.play_cost(cost),
-            SpellCostModifier::AlternateDuring { cost, during, .. } => {
+            SpellCostModifier::Alternate { cost, limit } => {
+                if matches!(limit, Some(PlayLimit::OnePerColorEachTurn)) {
+                    return Err("color-indexed limit requires a cast permission".into());
+                }
+                self.play_cost(cost)
+            }
+            SpellCostModifier::AlternateDuring {
+                cost,
+                during,
+                limit,
+            } => {
+                if matches!(limit, Some(PlayLimit::OnePerColorEachTurn)) {
+                    return Err("color-indexed limit requires a cast permission".into());
+                }
                 self.players(during)?;
                 self.play_cost(cost)
             }

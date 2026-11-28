@@ -357,30 +357,7 @@ impl<'a> Scope<'a> {
                 window,
             } => {
                 self.player(player)?;
-                match event {
-                    PlayerHistory::AttackedWithTotalPower(_, value)
-                    | PlayerHistory::PaidOrLostEnergy(_, value)
-                    | PlayerHistory::RolledDie(_, value) => self.expr(value)?,
-                    PlayerHistory::AttackedBy(filter)
-                    | PlayerHistory::AttackedWith(filter)
-                    | PlayerHistory::AttackedDefender(filter)
-                    | PlayerHistory::CastSpell(filter)
-                    | PlayerHistory::PlayedFromExile(filter)
-                    | PlayerHistory::PermanentEntered(filter) => self.filter(filter)?,
-                    PlayerHistory::AttackedPlayer(other) => self.player(other)?,
-                    PlayerHistory::Cycled(_, value, filter) => {
-                        self.expr(value)?;
-                        self.filter(filter)?
-                    }
-                    _ => {}
-                }
-                match window {
-                    ObjectWindow::LastTurnOf(player)
-                    | ObjectWindow::SinceLastUpkeepOf(player)
-                    | ObjectWindow::SinceLastTurnOf(player)
-                    | ObjectWindow::LastCombatOf(player) => self.player(player),
-                    _ => Ok(()),
-                }
+                self.player_did(event, window)
             }
             Condition::ValueChosen(_) => Ok(()),
             Condition::Primitive { name, operands } => self.primitive(name, operands),
@@ -485,6 +462,34 @@ impl<'a> Scope<'a> {
                 self.player(player)?;
                 self.filter(filter)
             }
+        }
+    }
+
+    fn player_did(&self, event: &PlayerHistory, window: &ObjectWindow) -> Result {
+        match event {
+            PlayerHistory::AttackedWithTotalPower(_, value)
+            | PlayerHistory::PaidOrLostEnergy(_, value)
+            | PlayerHistory::RolledDie(_, value) => self.expr(value)?,
+            PlayerHistory::AttackedBy(filter)
+            | PlayerHistory::AttackedWith(filter)
+            | PlayerHistory::AttackedDefender(filter)
+            | PlayerHistory::CastSpell(filter)
+            | PlayerHistory::PlayedFromExile(filter)
+            | PlayerHistory::PermanentEntered(filter) => self.filter(filter)?,
+            PlayerHistory::AttackedPlayer(other) => self.player(other)?,
+            PlayerHistory::VotedFor(option) => self.vote_option(option)?,
+            PlayerHistory::Cycled(_, value, filter) => {
+                self.expr(value)?;
+                self.filter(filter)?
+            }
+            _ => {}
+        }
+        match window {
+            ObjectWindow::LastTurnOf(player)
+            | ObjectWindow::SinceLastUpkeepOf(player)
+            | ObjectWindow::SinceLastTurnOf(player)
+            | ObjectWindow::LastCombatOf(player) => self.player(player),
+            _ => Ok(()),
         }
     }
 
