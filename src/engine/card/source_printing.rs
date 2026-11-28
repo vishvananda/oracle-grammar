@@ -44,6 +44,25 @@ impl Engine {
         }
         let types = self.card_context(&context.characteristics)?;
         let verify = |text: &str| self.reads_as_card_with_source(name, text, &wanted, context);
+        let independent = wanted.notes.is_empty()
+            && wanted
+                .abilities
+                .as_array()
+                .is_some_and(|items| (2..=8).contains(&items.len()));
+        let tried_apart = independent
+            && key.is_empty()
+            && types.iter().any(|ty| ty == "Planeswalker")
+            && wanted
+                .abilities
+                .as_array()
+                .is_some_and(|items| items.iter().all(|ability| ability["kind"] == "Activated"));
+        if tried_apart
+            && let Some(text) =
+                self.verified_apart(name, &wanted.abilities, &types, 8, key, None)?
+            && verify(&text)
+        {
+            return Ok(Some(text));
+        }
         let surfaces = self.card_surfaces_with_source(&wanted, context, !key.is_empty())?;
         let printed = self.verify_card_surfaces(name, &types, &surfaces, key, verify)?;
         if printed.is_some() || !key.is_empty() {
@@ -58,12 +77,7 @@ impl Engine {
         }
         // Independently printable abilities can exhaust a shared candidate
         // beam. Recheck the combined text with the original source context.
-        if wanted.notes.is_empty()
-            && wanted
-                .abilities
-                .as_array()
-                .is_some_and(|items| (2..=8).contains(&items.len()))
-        {
+        if independent && !tried_apart {
             let text = self.verified_apart(name, &wanted.abilities, &types, 8, key, None)?;
             return Ok(text.filter(|text| verify(text)));
         }
