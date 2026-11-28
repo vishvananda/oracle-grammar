@@ -4,6 +4,9 @@
 use rustc_hash::FxHashSet as HashSet;
 use serde::{Deserialize, Serialize};
 
+mod spacing;
+pub(crate) use spacing::{restore_spacing, spacing_changes};
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Token {
     /// A word, in the case a mid-sentence occurrence has.
@@ -417,7 +420,7 @@ pub(crate) fn tokenize_with_headings(
     let labels = if text.contains(" — ") { labels } else { &[] };
     let tokens = scan(text, names, vocabulary, labels)?;
     let rendered = detokenize(&tokens, names);
-    if rendered == text || oracle_sentence_spacing(text, &rendered) {
+    if rendered == text || spacing::matches_sentence_spacing(text, &rendered, |_| {}) {
         crate::print_trace::tokens(&tokens);
         Ok(tokens)
     } else {
@@ -440,34 +443,6 @@ pub(crate) fn presentation_heading<'a>(
                     && label.to_lowercase() == known.to_lowercase())
         }))
     .then_some((heading, body))
-}
-
-/// Oracle sometimes omits the gap before a sentence's reminder or prints a
-/// gap before an ellipsis. The lexer keeps the same tokens and printer
-/// spelling for both forms. All other spacing and case must still agree.
-fn oracle_sentence_spacing(text: &str, rendered: &str) -> bool {
-    let mut actual = text.as_bytes();
-    let mut expected = rendered.as_bytes();
-    while let (Some(&input), Some(&output)) = (actual.first(), expected.first()) {
-        let prefix = &rendered.as_bytes()[..rendered.len() - expected.len()];
-        if input == output {
-            actual = &actual[1..];
-            expected = &expected[1..];
-        } else if input == b'('
-            && expected.starts_with(b" (")
-            && (prefix.ends_with(b".") || prefix.ends_with(b".\""))
-        {
-            expected = &expected[1..];
-        } else if actual.starts_with(b" ...")
-            && expected.starts_with(b"...")
-            && prefix.last().is_some_and(u8::is_ascii_alphanumeric)
-        {
-            actual = &actual[1..];
-        } else {
-            return false;
-        }
-    }
-    actual.is_empty() && expected.is_empty()
 }
 
 /// A card name ending in `!` or `?` absorbs a sentence-ending period in Oracle text

@@ -61,6 +61,7 @@ pub enum LayoutReminder {
     OngoingScheme,
     FaceUpConspiracy,
     LegendarySorcery,
+    LegendaryInstant,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]

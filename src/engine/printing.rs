@@ -17,6 +17,8 @@ const SPELLING: &str = "@name.";
 /// Marks a number of an ordered key, by its place among the text's numbers, that is
 /// written with thousands separators.
 const GROUPED: &str = "@grouped.";
+/// Marks a noncanonical gap at an allowed sentence-spacing site.
+const GAP: &str = "@gap.";
 /// Beam widths to try in turn, as multiples of the cap, until a text reads back.
 const WIDTHS: [usize; 2] = [4, 16];
 /// How many failed texts of a card are read as text even when their trees say no.
@@ -716,6 +718,10 @@ impl Engine {
                     .map(|(rule, index)| self.step_name(*rule, *index))
                     .collect();
                 if ordered {
+                    let rendered = tokens::detokenize(&target, &names);
+                    let gaps = tokens::spacing_changes(text, &rendered)
+                        .ok_or("key target disagrees with its lexical spelling")?;
+                    key.extend(gaps.into_iter().map(|gap| format!("{GAP}{gap}")));
                     key.extend(target.iter().filter_map(|token| match token {
                         tokens::Token::SelfName(index) => Some(format!("{SPELLING}{index}")),
                         _ => None,
@@ -980,6 +986,7 @@ struct PrintTrail {
     steps: Vec<(u32, usize)>,
     spellings: Vec<u8>,
     grouped: Vec<usize>,
+    gaps: Vec<usize>,
 }
 
 impl PrintTrail {
@@ -988,9 +995,12 @@ impl PrintTrail {
             steps: Vec::new(),
             spellings: Vec::new(),
             grouped: Vec::new(),
+            gaps: Vec::new(),
         };
         for step in trail {
-            if let Some(grouped) = step.strip_prefix(GROUPED) {
+            if let Some(gap) = step.strip_prefix(GAP) {
+                plan.gaps.push(gap.parse().ok()?);
+            } else if let Some(grouped) = step.strip_prefix(GROUPED) {
                 plan.grouped.push(grouped.parse().ok()?);
             } else if let Some(spelling) = step.strip_prefix(SPELLING) {
                 plan.spellings.push(spelling.parse().ok()?);
@@ -1006,7 +1016,8 @@ impl PrintTrail {
     fn render(&self, engine: &Engine, root: u32, value: &Value, names: &Names) -> Option<String> {
         let mut printed = Replay::run(&engine.grammar, root, value, &self.steps, &self.spellings)?;
         group_numbers(&mut printed, &self.grouped);
-        Some(tokens::detokenize(&tokens::agree_articles(&printed), names))
+        let rendered = tokens::detokenize(&tokens::agree_articles(&printed), names);
+        tokens::restore_spacing(rendered, &self.gaps)
     }
 }
 

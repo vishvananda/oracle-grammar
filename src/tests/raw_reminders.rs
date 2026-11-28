@@ -717,6 +717,17 @@ fn legendary_sorcery_explanation_requires_both_printed_types() {
 }
 
 #[test]
+fn legendary_instant_explanation_checks_the_written_spell_type() {
+    let mut context = empty_card_characteristics();
+    context.card_types = vec![CardType::Instant];
+    context.supertypes = vec![SuperType::Legendary];
+    let text = "(You may cast a legendary instant only if you control a legendary creature or planeswalker.)\nDraw a card.";
+    exact_roundtrip(text, &context);
+    context.card_types = vec![CardType::Sorcery];
+    assert!(super::engine().parse_card(NAME, text, &context).is_err());
+}
+
+#[test]
 fn awaken_explanation_checks_both_payment_and_counter_amount() {
     let context = empty_card_characteristics();
     let text = "Draw a card.\nAwaken 4—{4}{W} (If you cast this spell for {4}{W}, also put four +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)";
@@ -1221,5 +1232,28 @@ fn replacement_shuffle_identifies_the_written_library_player() {
     assert_eq!(
         change(&owner_reading)["SetDestination"],
         "OwnersLibraryShuffled"
+    );
+}
+
+#[test]
+fn ordered_key_preserves_an_admitted_reminder_gap() {
+    let context = empty_card_characteristics();
+    let text = "Equipped creature gets +0/+1 and has ward {2}.(Whenever equipped creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nEquip {1}";
+    let reading = exact_roundtrip(text, &context);
+    let engine = super::engine();
+    let key = engine
+        .card_key_of(NAME, &reading, &context, text, true)
+        .unwrap()
+        .unwrap();
+    assert!(key.iter().any(|step| step == "@gap.0"));
+    let spaced = text.replace(".(", ". (");
+    assert_eq!(exact_roundtrip(&spaced, &context), reading);
+    let mut invalid = key;
+    invalid.push("@gap.99".into());
+    assert!(
+        engine
+            .print_card_trail(NAME, &reading, &context, &invalid)
+            .unwrap()
+            .is_none()
     );
 }

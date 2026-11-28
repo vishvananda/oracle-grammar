@@ -122,15 +122,17 @@ impl LayoutReminder {
                 .card_types
                 .iter()
                 .any(|ty| matches!(ty, CardType::Conspiracy)),
-            Self::LegendarySorcery => {
-                context
-                    .card_types
+            Self::LegendarySorcery | Self::LegendaryInstant => {
+                context.card_types.iter().any(|ty| {
+                    matches!(
+                        (self, ty),
+                        (Self::LegendarySorcery, CardType::Sorcery)
+                            | (Self::LegendaryInstant, CardType::Instant)
+                    )
+                }) && context
+                    .supertypes
                     .iter()
-                    .any(|ty| matches!(ty, CardType::Sorcery))
-                    && context
-                        .supertypes
-                        .iter()
-                        .any(|ty| matches!(ty, SuperType::Legendary))
+                    .any(|ty| matches!(ty, SuperType::Legendary))
             }
         };
         matches
