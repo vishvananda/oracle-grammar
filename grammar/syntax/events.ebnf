@@ -9113,3 +9113,18 @@ bloom_cast_cost_entry ::= "as" "an" "additional" "cost" "to" "cast" noun_creatur
 /* Entry of the holder and death of a controlled object are independent events. */
 /* @sem EventSpec::@either_event(EventSpec::ZoneChange{objects:$event_self, to:Battlefield}, EventSpec::ZoneChange{objects:$controlled_entrant_a, from:Battlefield, to:Graveyard}) */
 event_self_enters_or_controlled_dies ::= event_self "enters" "or" controlled_entrant_a "dies"
+
+/* Both thresholds independently inspect the cast spell. The counter and
+   final damage refer to this ability's source. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:EventSpec::Spell{event:Cast, players:One(AbilityController), spells:CardType(Creature)}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$cast_counter_on_named_source}, If{condition:$cast_spell_power_at_least, then:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $draw_base)}]}, otherwise:Program{}}, If{condition:$cast_spell_power_at_least_2, then:Program{instructions:[Effect{result:@next, operation:$cast_threshold_source_power_damage}]}, otherwise:Program{}}]}} */
+triggered_cast_conditional_power_draw_and_damage ::= "whenever" "you" "cast" "a" "creature" "spell" "," cast_counter_on_named_source "." "if" cast_spell_power_at_least "," draw_base "." "if" cast_spell_power_at_least "," cast_threshold_source_power_damage "."
+
+/* @sem Operation::PutCounters{placements:[CounterPlacement{recipients:Objects(One($self_ref_named)), kind:$counter_kind, amount:Constant(1)}]} */
+cast_counter_on_named_source ::= "put" "a" counter_kind "counter" "on" self_ref_named
+
+/* @sem Condition::ObjectMatches{object:EventSubject, filter:Property{property:Power, test:Compare{comparison:GreaterOrEqual, value:$number}}} */
+cast_spell_power_at_least ::= "that" "spell's" "power" "is" number "or" "greater"
+
+/* @sem Operation::DealDamage{source:$self_ref_named, recipients:Players(OpponentsOf(AbilityController)), amount:ObjectProperty{object:$named_possessive_ref, property:Power, information:CurrentOrLastKnown}, preventable:true} */
+cast_threshold_source_power_damage ::= self_ref_named "deals" "damage" "equal" "to" named_possessive_ref "power" "to" "each" "opponent"

@@ -1071,6 +1071,45 @@ pub enum Operation {
         actor: PlayerRef,
         selection: ResultId,
     },
+    /// Reveal the acting player's planar deck from the top until `planes`
+    /// distinct plane-card occurrences have been revealed or it is exhausted.
+    /// Simultaneously planeswalk to all revealed plane cards, putting each
+    /// previously face-up plane or phenomenon on the bottom of its owner's
+    /// planar deck once, then return all other revealed cards to the revealing
+    /// player's same deck bottom in `return_order` (CR 701.31b).
+    /// Before the simultaneous move, install `destination_trigger_rule` for
+    /// the actual destination plane incarnations, so it applies to their own
+    /// planeswalk-to triggers. It applies to abilities of each such plane,
+    /// while that incarnation remains the same object, independently of the
+    /// other destination. Include its own planeswalk-away triggers as it leaves,
+    /// using event-time information; a later new incarnation is not linked.
+    /// The rule is an effect of this operation, not a granted ability of either plane.
+    PlanarRevealAndPlaneswalk {
+        player: PlayerRef,
+        planes: Expr,
+        return_order: PlanarReturnOrder,
+        destination_trigger_rule: Option<TriggerRule>,
+    },
+    /// Search the indicated planar deck for up to one plane satisfying the
+    /// predicate. The receipt records the actual choice and its deck; it is
+    /// empty if none was chosen. It retains the selected plane through an
+    /// intervening shuffle without inventing a physical-copy identity rule.
+    SearchPlanarDeck {
+        searcher: PlayerRef,
+        deck: PlanarDeckSelector,
+        eligibility: PlanarPlaneEligibility,
+    },
+    /// Shuffle the indicated planar deck, independently of search success.
+    ShufflePlanarDeck {
+        deck: PlanarDeckSelector,
+    },
+    /// Planeswalk to the selected plane of this visible planar search receipt.
+    /// If the receipt selected no plane, there is no destination action. Old
+    /// face-up planes and phenomena go to their respective owners' decks.
+    PlaneswalkToSearchedPlane {
+        player: PlayerRef,
+        search: ResultId,
+    },
 }
 
 /// Tests only actual exile arrivals, using each card's characteristics as it
@@ -1140,4 +1179,38 @@ pub enum CoinRepetition {
     EachObject(ObjectSet),
     UpTo { extent: CoinExtent, stop: CoinStop },
     Until(CoinStop),
+}
+
+/// How the owner orders the returned non-destination planar cards.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlanarReturnOrder {
+    Chosen,
+    Random,
+}
+
+/// Which planar deck is meant, without conflating shared and personal decks.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlanarDeckSelector {
+    /// In a shared-deck game use the shared deck; otherwise use this player's
+    /// own planar deck. The same resolution is used for search and shuffle.
+    ApplicableTo(PlayerRef),
+}
+
+/// An explicitly scoped personal-history condition on candidate plane cards.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlanarPlaneEligibility {
+    Any,
+    NeverPlaneswalkedTo {
+        traveler: PlayerRef,
+        history: PersonalVisitWindow,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PersonalVisitWindow {
+    /// The named real player's history across games, including the current
+    /// one, supplied by an external personal visit record. Plane identity and
+    /// comparison come from that record; no physical-card or name inference is
+    /// implied. Missing history is unknown, not an empty visit history.
+    Lifetime,
 }

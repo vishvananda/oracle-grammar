@@ -549,4 +549,10 @@ pub enum Duration {
     /// effect is created. An upkeep already in progress is not that next
     /// upkeep; skipped upkeeps do not consume it. Additional upkeeps count.
     UntilEndOfNextUpkeep(PlayerRef),
+    /// While this particular plane incarnation is face up and is one of the
+    /// planes the game is on. It ends immediately when the game leaves that
+    /// plane, not when it leaves a different simultaneous plane; if it has
+    /// already left when an exile-until effect would start, no exile occurs.
+    /// A later face-up incarnation is not the same plane object (CR 311.6).
+    WhileFaceUpPlane(ObjectRef),
 }

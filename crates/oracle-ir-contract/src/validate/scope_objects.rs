@@ -32,14 +32,8 @@ impl<'a> Scope<'a> {
             ObjectSet::Earlier { by, .. } => {
                 by.iter().try_for_each(|players| self.players(players))
             }
-            ObjectSet::OracleCopies(result)
-                if matches!(self.results.get(&result.0), Some(ResultKind::OracleCopies)) =>
-            {
-                Ok(())
-            }
-            ObjectSet::OracleCopies(_) => {
-                Err("Oracle copies require a visible Oracle copy result".into())
-            }
+            ObjectSet::OracleCopies(result) => self.oracle_copy_result(result),
+            ObjectSet::CounterRecipients(result) => self.counter_placement_result(result),
             ObjectSet::Recorded(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectSet::Recorded(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectSet::DamageSources(filter)
@@ -211,6 +205,25 @@ impl<'a> Scope<'a> {
         }
     }
 
+    fn oracle_copy_result(&self, result: &ResultId) -> Result {
+        if matches!(self.results.get(&result.0), Some(ResultKind::OracleCopies)) {
+            Ok(())
+        } else {
+            Err("Oracle copies require a visible Oracle copy result".into())
+        }
+    }
+
+    fn counter_placement_result(&self, result: &ResultId) -> Result {
+        if matches!(
+            self.results.get(&result.0),
+            Some(ResultKind::CounterPlacement | ResultKind::CounterSelection)
+        ) {
+            Ok(())
+        } else {
+            Err("counter placements require a visible counter placement result".into())
+        }
+    }
+
     fn cost_objects(
         &self,
         payment: &PaymentRef,
@@ -300,12 +313,7 @@ impl<'a> Scope<'a> {
                 by,
                 ..
             } => {
-                if !matches!(
-                    self.results.get(&result.0),
-                    Some(ResultKind::CounterPlacement | ResultKind::CounterSelection)
-                ) {
-                    return Err("counter placements require a counter-placement result".into());
-                }
+                self.counter_placement_result(result)?;
                 self.filter(objects)?;
                 self.player(by)
             }
@@ -365,7 +373,9 @@ impl<'a> Scope<'a> {
             } => self.expr_case_0(expression),
             Expr::BoundValue(_) | Expr::CountersRemoved(_) => self.expr_case_0(expression),
             Expr::AnnouncedX if self.definition => self.expr_case_0(expression),
-            Expr::Aggregate { .. } | Expr::CountDistinct { .. } => self.expr_case_0(expression),
+            Expr::Aggregate { .. }
+            | Expr::CountDistinct { .. }
+            | Expr::CountDistinctCreatureTypesFrom { .. } => self.expr_case_0(expression),
             Expr::CountNameLetter { .. } => self.expr_case_0(expression),
             Expr::EventActivationCountersRemoved { .. } => self.expr_case_0(expression),
             Expr::EventActivationX if self.event.activation_x => self.expr_case_0(expression),
@@ -553,6 +563,12 @@ impl<'a> Scope<'a> {
             }
             Expr::AnnouncedX if self.definition => {
                 Err("characteristic definition cannot use an unrelated announced X".into())
+            }
+            Expr::CountDistinctCreatureTypesFrom { objects, allowed } => {
+                if allowed.len() > 256 {
+                    return Err("creature-type set exceeds limit".into());
+                }
+                self.objects(objects)
             }
             Expr::Aggregate { objects, .. } | Expr::CountDistinct { objects, .. } => {
                 self.objects(objects)

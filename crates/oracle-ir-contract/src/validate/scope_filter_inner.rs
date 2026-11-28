@@ -33,6 +33,8 @@ impl<'a> Scope<'a> {
         match filter {
             ObjectFilter::Noted(_) | ObjectFilter::NthChosen(_) => Ok(()),
             ObjectFilter::NameMatches(query) => validate_name_match(query),
+            ObjectFilter::RepresentsCharacter(name) if !name.trim().is_empty() => Ok(()),
+            ObjectFilter::RepresentsCharacter(_) => Err("character name must be nonempty".into()),
             ObjectFilter::MostCommonCreatureTypeIn(player) => self.player(player),
             ObjectFilter::TargetCount(_, value) => self.expr(value),
             ObjectFilter::ChosenBy { player, .. } => self.player(player),
@@ -139,6 +141,13 @@ impl<'a> Scope<'a> {
             ObjectFilter::AttachedToPlayer(player) => self.player(player),
             ObjectFilter::Extreme { among, .. } => self.objects(among),
             ObjectFilter::ManaSpentFrom(sources) => self.filter(sources),
+            ObjectFilter::CastPaymentParticipant {
+                participant,
+                actions,
+            } => self.cast_payment_participant(participant, actions),
+            ObjectFilter::HasUnsharedCreatureTypeFrom { allowed, others } => {
+                self.unshared_creature_types(allowed, others)
+            }
             ObjectFilter::TargetedBy(filter) => self.filter(filter),
             ObjectFilter::ColorOutsideCommanderIdentity(player)
             | ObjectFilter::CommanderOf(player) => self.player(player),
@@ -185,6 +194,7 @@ impl<'a> Scope<'a> {
             | ObjectFilter::IsCard
             | ObjectFilter::Name(_)
             | ObjectFilter::Token
+            | ObjectFilter::PrintingHas(_)
             | ObjectFilter::Modified
             | ObjectFilter::Tapped
             | ObjectFilter::Attacking
@@ -213,6 +223,33 @@ impl<'a> Scope<'a> {
             ObjectFilter::Property { test, .. } => self.number_test(test),
             ObjectFilter::Counters { value, .. } => self.expr(value),
         }
+    }
+
+    fn cast_payment_participant(
+        &self,
+        participant: &ObjectFilter,
+        actions: &[CastPaymentAction],
+    ) -> Result {
+        if actions.is_empty()
+            || actions
+                .iter()
+                .enumerate()
+                .any(|(i, action)| actions[..i].contains(action))
+        {
+            return Err("cast payment action list must be nonempty and unique".into());
+        }
+        self.filter(participant)
+    }
+
+    fn unshared_creature_types(
+        &self,
+        allowed: &[crate::mtg_types::CreatureType],
+        others: &ObjectSet,
+    ) -> Result {
+        if allowed.len() > 256 {
+            return Err("creature-type set exceeds limit".into());
+        }
+        self.objects(others)
     }
 
     pub(super) fn number_test(&self, test: &NumberTest) -> Result {

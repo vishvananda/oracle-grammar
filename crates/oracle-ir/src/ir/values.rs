@@ -375,6 +375,12 @@ pub enum Expr {
         objects: Box<ObjectSet>,
         letter: String,
     },
+    /// Distinct allowed creature types appearing among these objects. Each type
+    /// is counted once even on several objects; unlisted types never count.
+    CountDistinctCreatureTypesFrom {
+        objects: Box<ObjectSet>,
+        allowed: Vec<CreatureType>,
+    },
 }
 
 /// Mana a number or filter reads that did not pay for a whole spell.

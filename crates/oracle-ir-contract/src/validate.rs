@@ -53,6 +53,7 @@ enum ResultKind {
     CoinBatch,
     Other,
     OracleDefinition,
+    PlanarSearch,
     OracleCopies,
 }
 
@@ -1166,3 +1167,14 @@ mod oracle_copy_receipts_tests;
 
 #[cfg(test)]
 mod oracle_name_word_tests;
+
+#[cfg(test)]
+mod planar_walk_tests;
+
+#[cfg(test)]
+mod cast_payment_participant_tests;
+#[cfg(test)]
+mod planar_search_tests;
+
+#[cfg(test)]
+mod planar_crime_counters_tests;

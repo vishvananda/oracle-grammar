@@ -17,6 +17,10 @@ impl<'a> Scope<'a> {
             }
             | Operation::ChooseOracleDefinitionAtRandom { .. }
             | Operation::CopyOracleDefinition { .. }
+            | Operation::PlanarRevealAndPlaneswalk { .. }
+            | Operation::SearchPlanarDeck { .. }
+            | Operation::ShufflePlanarDeck { .. }
+            | Operation::PlaneswalkToSearchedPlane { .. }
             | Operation::PlayCards { .. }
             | Operation::PlayWith { .. }
             | Operation::RemoveMarkedDamage { .. }

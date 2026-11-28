@@ -435,9 +435,9 @@ impl<'a> Scope<'a> {
             | Duration::UntilEndOfNextUpkeep(player)
             | Duration::DuringNextUntapStep(player)
             | Duration::DuringNextTurn(player) => self.player(player),
-            Duration::WhileOnBattlefield(object) | Duration::WhileExiled(object) => {
-                self.object(object)
-            }
+            Duration::WhileOnBattlefield(object)
+            | Duration::WhileExiled(object)
+            | Duration::WhileFaceUpPlane(object) => self.object(object),
             Duration::WhileControlled { player, object } => {
                 self.player(player)?;
                 self.object(object)

@@ -132,3 +132,118 @@ fn a_modal_label_keeps_sentence_initial_capitalization_in_exact_output() {
         Some(text),
     );
 }
+
+#[test]
+fn long_subtype_population_preserves_oracle_order_and_prints_current_operands() {
+    let name = "Spider-Ham, Peter Porker";
+    let text = "Animal May-Ham — Other Spiders, Boars, Bats, Bears, Birds, Cats, Dogs, Frogs, Jackals, Lizards, Mice, Otters, Rabbits, Raccoons, Rats, Squirrels, Turtles, and Wolves you control get +1/+1.";
+    let parsed = engine().parse(name, text).unwrap();
+    let [reading] = parsed.readings.as_slice() else {
+        panic!("expected one reading for the subtype population");
+    };
+    let printed = engine()
+        .print_keyed(name, reading, &[], &[])
+        .unwrap()
+        .expect("the subtype population has a default print");
+    assert!(
+        engine()
+            .parse(name, &printed)
+            .unwrap()
+            .readings
+            .contains(reading)
+    );
+
+    let trail = engine()
+        .trail_of(name, reading, text)
+        .unwrap()
+        .expect("Oracle order has an exact trail");
+    assert_eq!(
+        engine()
+            .print_trail(name, reading, &trail)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+
+    let edited_text = text.replace("Bats", "Apes");
+    let edited = engine().parse(name, &edited_text).unwrap();
+    let [edited_reading] = edited.readings.as_slice() else {
+        panic!("expected one reading after changing a subtype");
+    };
+    assert_ne!(edited_reading, reading);
+    let edited_print = engine()
+        .print_keyed(name, edited_reading, &[], &[])
+        .unwrap()
+        .expect("the current subtype population has a default print");
+    assert!(edited_print.contains("Apes"));
+    assert!(
+        engine()
+            .parse(name, &edited_print)
+            .unwrap()
+            .readings
+            .contains(edited_reading)
+    );
+    let edited_trail = engine()
+        .trail_of(name, edited_reading, &edited_text)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine()
+            .print_trail(name, edited_reading, &edited_trail)
+            .unwrap()
+            .as_deref(),
+        Some(edited_text.as_str())
+    );
+}
+
+#[test]
+fn cast_spell_power_thresholds_print_independently() {
+    let name = "Eshki, Temur's Roar";
+    let text = "Whenever you cast a creature spell, put a +1/+1 counter on Eshki. If that spell's power is 4 or greater, draw a card. If that spell's power is 6 or greater, Eshki deals damage equal to Eshki's power to each opponent.";
+    for text in [
+        text.to_string(),
+        text.replace("6 or greater", "7 or greater"),
+    ] {
+        let parsed = engine().parse(name, &text).unwrap();
+        let [reading] = parsed.readings.as_slice() else {
+            panic!("expected one reading for the two spell power thresholds");
+        };
+        let printed = engine()
+            .print_keyed(name, reading, &[], &[])
+            .unwrap()
+            .unwrap();
+        assert!(
+            engine()
+                .parse(name, &printed)
+                .unwrap()
+                .readings
+                .contains(reading)
+        );
+        let exact = engine().trail_of(name, reading, &text).unwrap().unwrap();
+        assert_eq!(
+            engine()
+                .print_trail(name, reading, &exact)
+                .unwrap()
+                .as_deref(),
+            Some(text.as_str())
+        );
+    }
+}
+
+#[test]
+fn foil_mode_title_preserves_oracle_capitalization() {
+    let name = "You Find the Villains' Lair";
+    let text = "Choose one —\n• Foil Their Scheme — Counter target spell.\n• Learn Their Secrets — Draw two cards, then discard two cards.";
+    let parsed = engine().parse(name, text).unwrap();
+    let [reading] = parsed.readings.as_slice() else {
+        panic!("expected one reading for the named modes");
+    };
+    let trail = engine().trail_of(name, reading, text).unwrap().unwrap();
+    assert_eq!(
+        engine()
+            .print_trail(name, reading, &trail)
+            .unwrap()
+            .as_deref(),
+        Some(text)
+    );
+}

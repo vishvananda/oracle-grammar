@@ -412,6 +412,13 @@ pub enum ObjectSet {
     EventDepartureAuras,
     /// Ephemeral copies made by a visible CopyOracleDefinition receipt.
     OracleCopies(ResultId),
+    /// The actual pre-placement recipient identities of the named PutCounters
+    /// instruction, snapshotted before applying counter replacements. This
+    /// includes recipients where all placements were prevented, and excludes
+    /// things that became eligible only afterwards. Reads the same live object
+    /// incarnations even if their characteristics or controller later change;
+    /// objects that leave their zone are not followed to a new incarnation.
+    CounterRecipients(ResultId),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -657,6 +664,29 @@ pub enum ObjectFilter {
     /// Any current rules name matches this text query. An unnamed object
     /// does not match. Apply the usual English-name view (CR 201.2).
     NameMatches(NameMatch),
+    /// The character represented by this object's current card or token form.
+    /// Character identity comes from the rules catalog for that form.
+    RepresentsCharacter(String),
+    /// A property of the physical or digital card printing across zones.
+    /// Copies use their own origin and never inherit printing properties.
+    PrintingHas(PrintingFeature),
+    /// An actual completed cast whose payment included a matching participant
+    /// in any selected action. Match the original object's pre-action view,
+    /// preserving creature type and controller even when sacrifice moved it.
+    /// TapForManaSpent requires that this object was actually tapped for the
+    /// mana action and that its produced mana paid for this exact cast. Planned
+    /// inputs, prevented actions, unspent mana, and copied spells do not match.
+    CastPaymentParticipant {
+        participant: Box<ObjectFilter>,
+        actions: Vec<CastPaymentAction>,
+    },
+    /// The candidate has at least one allowed creature type that no object in
+    /// `others` currently has. Types are sets: a candidate may also share other
+    /// types with the population and still match. Empty allowed lists never match.
+    HasUnsharedCreatureTypeFrom {
+        allowed: Vec<CreatureType>,
+        others: Box<ObjectSet>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -759,4 +789,20 @@ impl ObjectSet {
             _ => None,
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PrintingFeature {
+    Foil,
+    /// This edition came from a Secret Lair product.
+    SecretLair,
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum CastPaymentAction {
+    TapForCost,
+    TapForManaSpent,
+    SacrificeForCost,
 }

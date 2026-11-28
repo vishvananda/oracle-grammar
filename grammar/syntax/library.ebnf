@@ -10098,3 +10098,24 @@ dig_look_entry_optional_transform ::= look_top "." "you" "may" "put" a_card "fro
 /* The compound subject distributes the search, arrival, and shuffle by player. */
 /* @sem Instruction::[ForEachPlayer{players:Union(@unordered([One(AbilityController), One($target_opponent)])), binding:0, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:Bound(0), library_owner:Bound(0), choices:[$player_search_one_choice]}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Battlefield{controller:Player(Bound(0)), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}] */
 controller_and_opponent_each_search ::= "you" "and" target_opponent "each" "search" "your" "library" "for" player_search_one_choice "," "put" "it" search_option_entry "," "then" "shuffle"
+
+/* The written definition is shared across the three printing effects. */
+/* @sem ObjectFilter::AnyOf([PrintingHas(Foil), PrintingHas(SecretLair)]) */
+shiny_printing_filter ::= "shiny"
+
+/* @sem Ability::WithPresentation{reminder:true, ability:Triggered{event:$event_planeswalk_here, limits:_{}, announcement:@announcement, body:Program{instructions:[ForEachPlayer{players:All, binding:0, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:Bound(0), library_owner:Bound(0), choices:[SearchChoice{filter:$shiny_printing_filter, count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}]}}} */
+triggered_planeswalk_each_printing_search ::= "when" event_planeswalk_here "," "each" "player" "searches" "their" "library" "for" "a" shiny_printing_filter "card" "," "reveals" "it" "," "puts" "it" "into" "their" "hand" "," "then" "shuffles" "." "(" "foil" "cards" "and" "Secret" "Lair" "cards" "are" "shiny" "." ")"
+
+/* Protection names the source's card printing even when it is a spell. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(AnyZone($shiny_printing_filter)), changes:[GrantKeyword(Protection(Objects{kind:Card, filter:$nonshiny_printing_filter}))]} */
+static_printing_protection ::= shiny_printing_filter "cards" "have" "protection" "from" nonshiny_printing_filter "cards" "."
+
+/* @sem ObjectFilter::Not(AnyOf([PrintingHas(Foil), PrintingHas(SecretLair)])) */
+nonshiny_printing_filter ::= "non-shiny"
+
+/* The one matching revealed card is retained separately from the rest. */
+/* @sem Ability::Triggered{event:$event_chaos_ensues, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:RevealUntil{library:AbilityController, filter:$shiny_nonland_card_filter, count:Constant(1)}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Observed(0), filter:$shiny_nonland_card_filter}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Selected(1), count:UpTo(Constant(1)), cost:Free}}, If{condition:Not(CastPerformed(2)), then:Program{instructions:[Effect{result:@next, operation:Move{objects:Selected(1), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:Program{}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(0), excluding:Selected(1)}, zone:Library}, end:Bottom, order:Random}}]}} */
+triggered_chaos_reveal_printing_cast ::= "whenever" event_chaos_ensues "," "reveal" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "reveal" "a" shiny_nonland_card_filter "." "you" "may" "cast" "it" "without" "paying" "its" "mana" "cost" "." "if" "you" "don't" "," "put" "it" "into" "your" "hand" "." "put" "the" "other" "revealed" "cards" "on" "the" "bottom" "of" "your" "library" "in" "a" "random" "order" "."
+
+/* @sem ObjectFilter::@and($shiny_printing_filter, ObjectFilter::Not(CardType(Land))) */
+shiny_nonland_card_filter ::= shiny_printing_filter "nonland" "card"

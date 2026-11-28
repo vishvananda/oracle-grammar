@@ -401,6 +401,38 @@ impl<'a> Scope<'a> {
                     _ => Err("Oracle copy requires a visible definition selection".into()),
                 }
             }
+            Operation::PlanarRevealAndPlaneswalk { player, planes, .. } => {
+                self.player(player)?;
+                self.expr(planes)
+            }
+            Operation::SearchPlanarDeck {
+                searcher,
+                deck,
+                eligibility,
+            } => {
+                self.player(searcher)?;
+                let PlanarDeckSelector::ApplicableTo(player) = deck;
+                self.player(player)?;
+                match eligibility {
+                    PlanarPlaneEligibility::Any => Ok(()),
+                    PlanarPlaneEligibility::NeverPlaneswalkedTo { traveler, .. } => {
+                        self.player(traveler)
+                    }
+                }
+            }
+            Operation::ShufflePlanarDeck { deck } => {
+                let PlanarDeckSelector::ApplicableTo(player) = deck;
+                self.player(player)
+            }
+            Operation::PlaneswalkToSearchedPlane { player, search } => {
+                self.player(player)?;
+                match self.results.get(&search.0) {
+                    Some(ResultKind::PlanarSearch) => Ok(()),
+                    _ => {
+                        Err("planeswalk destination requires a visible planar search result".into())
+                    }
+                }
+            }
             Operation::PlayCards {
                 actor,
                 cards,

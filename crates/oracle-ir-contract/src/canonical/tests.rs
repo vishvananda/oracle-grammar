@@ -317,3 +317,23 @@ fn same_property_any_of_filters_merge_into_property_number_test_any_of() {
         "AnyOf"
     );
 }
+
+#[test]
+fn cast_payment_action_set_is_canonical_but_distinct_actions_stay_distinct() {
+    fn action_filter(actions: Value) -> Value {
+        json!([{"kind":"Triggered","args":{
+            "event":{"Spell":{"event":"Cast","players":{"kind":"One","args":{"kind":"AbilityController"}},
+                "spells":{"kind":"CastPaymentParticipant","args":{"participant":{"kind":"CardType","args":"Creature"},"actions":actions}}}},
+            "intervening_if":null,"limits":{"per_turn":null,"total":null},
+            "announcement":{"targets":[],"modes":null},"body":{"instructions":[]}
+        }}])
+    }
+    let mut first = action_filter(json!(["TapForCost", "TapForManaSpent", "SacrificeForCost"]));
+    let mut reordered = action_filter(json!(["SacrificeForCost", "TapForCost", "TapForManaSpent"]));
+    let mut different = action_filter(json!(["TapForCost", "SacrificeForCost"]));
+    canonical::abilities(&mut first).unwrap();
+    canonical::abilities(&mut reordered).unwrap();
+    canonical::abilities(&mut different).unwrap();
+    assert_eq!(first, reordered);
+    assert_ne!(first, different);
+}

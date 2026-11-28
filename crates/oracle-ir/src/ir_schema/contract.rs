@@ -297,3 +297,56 @@ fn schema_207_appends_player_visits_and_event_receipts() {
         assert_eq!(new.last().unwrap().0, added);
     }
 }
+
+#[test]
+fn schema_215_appends_receipts_and_filters_without_moving_wire_ordinals() {
+    fn frozen(epoch: u32) -> Schema {
+        let descriptor: serde_json::Value =
+            serde_json::from_str(super::frozen_json(epoch).unwrap()).unwrap();
+        serde_json::from_value(descriptor["schema"].clone()).unwrap()
+    }
+
+    let previous = frozen(214);
+    let next = frozen(215);
+    for (name, added) in [
+        (
+            "ObjectFilter",
+            &[
+                "PrintingHas",
+                "CastPaymentParticipant",
+                "HasUnsharedCreatureTypeFrom",
+            ][..],
+        ),
+        (
+            "Operation",
+            &[
+                "SearchPlanarDeck",
+                "ShufflePlanarDeck",
+                "PlaneswalkToSearchedPlane",
+            ][..],
+        ),
+        ("Expr", &["CountDistinctCreatureTypesFrom"][..]),
+    ] {
+        let super::TypeDef::Enum {
+            variants: before, ..
+        } = &previous.types[name]
+        else {
+            panic!("{name} must be an enum");
+        };
+        let super::TypeDef::Enum {
+            variants: after, ..
+        } = &next.types[name]
+        else {
+            panic!("{name} must be an enum");
+        };
+        assert_eq!(
+            serde_json::to_value(&after[..before.len()]).unwrap(),
+            serde_json::to_value(before).unwrap()
+        );
+        let appended: Vec<_> = after[before.len()..]
+            .iter()
+            .map(|(variant, _)| variant.as_str())
+            .collect();
+        assert_eq!(appended, added);
+    }
+}

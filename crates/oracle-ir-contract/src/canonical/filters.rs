@@ -204,3 +204,38 @@ pub(super) fn excluded_types(value: &mut Value, tracing: bool) {
     tests.sort_by_cached_key(|test| trace::key(test, tracing));
     *value = json!({"kind":"AllOf","args":tests});
 }
+
+pub(super) fn cast_payment_actions(name: &str, variant: &str, content: &mut Value) {
+    if name != "ObjectFilter" || variant != "CastPaymentParticipant" {
+        return;
+    }
+    let Some(actions) = content.get_mut("actions").and_then(Value::as_array_mut) else {
+        return;
+    };
+    let rank = |value: &Value| match value.as_str() {
+        Some("TapForCost") => 0,
+        Some("TapForManaSpent") => 1,
+        Some("SacrificeForCost") => 2,
+        _ => 3,
+    };
+    actions.sort_by_key(rank);
+}
+
+/// These restricted creature-type operands denote sets. Their source order is
+/// preserved by the printer's ordered form.
+pub(super) fn allowed_creature_types(
+    name: &str,
+    variant: &str,
+    content: &mut Value,
+    tracing: bool,
+) {
+    if matches!(
+        (name, variant),
+        ("ObjectFilter", "HasUnsharedCreatureTypeFrom")
+            | ("Expr", "CountDistinctCreatureTypesFrom")
+    ) && let Some(allowed) = content.get_mut("allowed").and_then(Value::as_array_mut)
+    {
+        allowed.sort_by_cached_key(|item| trace::key(item, tracing));
+        allowed.dedup();
+    }
+}

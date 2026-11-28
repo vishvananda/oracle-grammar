@@ -240,6 +240,14 @@ pub enum PlayerAction {
     CastOutside(EventZone),
     /// Attacking these defenders.
     AttackDefender(AttackDefenders),
+    /// Committing a crime under CR 700.13: this player casts a spell,
+    /// activates an ability, or puts a triggered ability on the stack with a
+    /// target that is their opponent, an opponent-controlled permanent, spell
+    /// or ability, or a card in an opponent's graveyard. For a prohibition,
+    /// evaluate that player's own opponent relation during announcement; do not
+    /// make the opposing objects globally untargetable or include later changes
+    /// to targets that are not a crime event.
+    CommitCrime,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
