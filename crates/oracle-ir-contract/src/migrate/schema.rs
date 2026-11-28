@@ -9,6 +9,21 @@ fn load_180() -> Schema {
     assert_eq!(value["schema_version"], 180);
     serde_json::from_value(value["schema"].clone()).expect("typed schema-180 descriptors")
 }
+const FIRST_FROZEN_EPOCH: u32 = 194;
+const FROZEN_EPOCH_COUNT: usize = (crate::ir::SCHEMA_VERSION - FIRST_FROZEN_EPOCH) as usize;
+
+fn frozen_input(version: u32) -> &'static Schema {
+    static INPUTS: [OnceLock<Schema>; FROZEN_EPOCH_COUNT] =
+        [const { OnceLock::new() }; FROZEN_EPOCH_COUNT];
+    INPUTS[(version - FIRST_FROZEN_EPOCH) as usize].get_or_init(|| {
+        let text = crate::ir_schema::frozen_json(version).expect("frozen descriptor exists");
+        let value: serde_json::Value =
+            serde_json::from_str(text).expect("frozen schema descriptor");
+        assert_eq!(value["schema_version"], version);
+        serde_json::from_value(value["schema"].clone()).expect("typed frozen schema descriptor")
+    })
+}
+
 pub(super) fn input(version: u32) -> Result<&'static Schema, String> {
     static OLD: OnceLock<Schema> = OnceLock::new();
     static NAMED_TURNS: OnceLock<Schema> = OnceLock::new();
@@ -26,11 +41,6 @@ pub(super) fn input(version: u32) -> Result<&'static Schema, String> {
     static CURRENT: OnceLock<Schema> = OnceLock::new();
     static RECEIPTS_192: OnceLock<Schema> = OnceLock::new();
     static MANA_REPLACEMENTS_193: OnceLock<Schema> = OnceLock::new();
-    static PLAYER_RECORDS_194: OnceLock<Schema> = OnceLock::new();
-    static PLAY_ORIGINS_195: OnceLock<Schema> = OnceLock::new();
-    static VOCABULARY_196: OnceLock<Schema> = OnceLock::new();
-    static VOCABULARY_197: OnceLock<Schema> = OnceLock::new();
-    static VOCABULARY_198: OnceLock<Schema> = OnceLock::new();
     match version {
         180 => Ok(OLD.get_or_init(load_180)),
         181 => Ok(COPY.get_or_init(|| {
@@ -160,46 +170,7 @@ pub(super) fn input(version: u32) -> Result<&'static Schema, String> {
             .expect("frozen schema-193 descriptors");
             serde_json::from_value(value["schema"].clone()).expect("typed schema-193 descriptors")
         })),
-        194 => Ok(PLAYER_RECORDS_194.get_or_init(|| {
-            let value: serde_json::Value = serde_json::from_str(
-                crate::ir_schema::frozen_json(194).expect("frozen descriptor exists"),
-            )
-            .expect("frozen schema-194 descriptors");
-            assert_eq!(value["schema_version"], 194);
-            serde_json::from_value(value["schema"].clone()).expect("typed schema-194 descriptors")
-        })),
-        195 => Ok(PLAY_ORIGINS_195.get_or_init(|| {
-            let value: serde_json::Value = serde_json::from_str(
-                crate::ir_schema::frozen_json(195).expect("frozen descriptor exists"),
-            )
-            .expect("frozen schema-195 descriptors");
-            assert_eq!(value["schema_version"], 195);
-            serde_json::from_value(value["schema"].clone()).expect("typed schema-195 descriptors")
-        })),
-        196 => Ok(VOCABULARY_196.get_or_init(|| {
-            let value: serde_json::Value = serde_json::from_str(
-                crate::ir_schema::frozen_json(196).expect("frozen descriptor exists"),
-            )
-            .expect("frozen schema-196 descriptors");
-            assert_eq!(value["schema_version"], 196);
-            serde_json::from_value(value["schema"].clone()).expect("typed schema-196 descriptors")
-        })),
-        197 => Ok(VOCABULARY_197.get_or_init(|| {
-            let value: serde_json::Value = serde_json::from_str(
-                crate::ir_schema::frozen_json(197).expect("frozen descriptor exists"),
-            )
-            .expect("frozen schema-197 descriptors");
-            assert_eq!(value["schema_version"], 197);
-            serde_json::from_value(value["schema"].clone()).expect("typed schema-197 descriptors")
-        })),
-        198 => Ok(VOCABULARY_198.get_or_init(|| {
-            let value: serde_json::Value = serde_json::from_str(
-                crate::ir_schema::frozen_json(198).expect("frozen descriptor exists"),
-            )
-            .expect("frozen schema-198 descriptors");
-            assert_eq!(value["schema_version"], 198);
-            serde_json::from_value(value["schema"].clone()).expect("typed schema-198 descriptors")
-        })),
+        FIRST_FROZEN_EPOCH.. if version < crate::ir::SCHEMA_VERSION => Ok(frozen_input(version)),
         version if version == crate::ir::SCHEMA_VERSION => {
             Ok(CURRENT.get_or_init(|| Schema::of_ir().expect("current IR descriptors")))
         }

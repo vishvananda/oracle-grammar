@@ -561,6 +561,8 @@ pub enum ObjectFilter {
     NameFirstPrintedIn(FirstPrinting),
     InStartingDeck(PlayerSet),
     /// Every target it could choose matches.
+    /// Every declared target domain is restricted to this population, including
+    /// domains in unchosen modes. Requires at least one target domain.
     CanTargetOnly(Box<ObjectFilter>),
     /// Resolving it would destroy a permanent that matches.
     WouldDestroy(Box<ObjectFilter>),

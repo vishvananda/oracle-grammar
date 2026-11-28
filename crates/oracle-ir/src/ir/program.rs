@@ -41,8 +41,12 @@ pub enum Instruction {
     Repeatable(Program),
     /// Each player, as `binding`, does `body`: choices in APNAP order, and the
     /// actions then happen together (101.4). A choice made in `body` can be read
-    /// after the loop as a set of every player's picks. The binding is local to
-    /// the body; this is not the single-action `Operation::EachPlayer` wrapper.
+    /// after the loop as a set of every player's picks. An immediate observation
+    /// exports the union of the observed cards. Each player's contribution
+    /// preserves its original card incarnations and order. Empty observations
+    /// add no cards and the union carries no cross-player order. A single
+    /// `Operation::Together` in the body joins every player's actions in the
+    /// same simultaneous phase. The binding stays local to the body.
     ForEachPlayer {
         players: PlayerSet,
         binding: LoopBinding,
@@ -147,9 +151,9 @@ pub enum Operation {
     Reveal {
         objects: ObjectSet,
     },
-    /// Reveal from the top of `library` through the first card matching `filter`.
-    /// The result is every revealed card in order, or the whole library if none
-    /// matched; the match is the only card in it passing `filter`.
+    /// Reveal from the top of `library` until `count` cards match `filter`, the
+    /// optional reveal cap is reached, or the library runs out. The observation
+    /// preserves the revealed cards in order, including any matching cards.
     RevealUntil {
         library: PlayerRef,
         filter: ObjectFilter,
@@ -186,8 +190,9 @@ pub enum Operation {
         amount: Expr,
     },
     /// CR 701.25: privately look at N top cards, move any number to the graveyard,
-    /// and reorder the rest on top. Surveil 0 emits no surveil event. Replacements
-    /// apply to actual movements; this is not drawing or revealing those cards.
+    /// and reorder the rest on top. Surveil 0 emits no surveil event. Its result
+    /// keeps the top count and the actual zone transitions for cards moved from
+    /// the library, including a replacement destination.
     Surveil {
         players: PlayerSet,
         amount: Expr,

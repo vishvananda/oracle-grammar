@@ -181,7 +181,7 @@ token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_
 /* @sem TokenSpec::TokenSpec{amount:$count_each_other, words:Rules, recipe:$token_named_recipe} */
 token_named_other_tapped ::= "a" "tapped" token_named_recipe "token" "for" "each" count_each_other
 
-token_recipe ::= named_equipment_token_pump | named_snow_artifact_recipe | token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors | token_recipe_basic_land_named | token_recipe_basic_land_named_plural | token_recipe_life_paid_entry | token_recipe_unlocked_doors | token_recipe_named_statless_with | token_recipe_statless_keyword_defining | token_recipe_equal_stats | token_named_before_abilities
+token_recipe ::= token_statless_named_before_abilities | token_artifact_stats_implicit_color_with | named_equipment_token_pump | named_snow_artifact_recipe | token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors | token_recipe_basic_land_named | token_recipe_basic_land_named_plural | token_recipe_life_paid_entry | token_recipe_unlocked_doors | token_recipe_named_statless_with | token_recipe_statless_keyword_defining | token_recipe_equal_stats | token_named_before_abilities
 
 token_recipe_base ::= token_recipe_named_subtyped_statless | token_recipe_named_subtyped_land | token_recipe_statless_named | token_recipe_statless_named_plural | token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
 
@@ -451,7 +451,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_doombot | created_name_stoneforged_blade | created_name_new_planet | card_name_wolves_of_the_hunt | created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | card_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite | created_name_sword | created_name_cloud_sprite | created_name_koma_coil | card_name_ornithopter | created_name_twin | created_name_cordyceps_infected | card_name_lightning_rager | created_name_goldmeadow_harrier | created_name_cadet | created_name_stone_boulder | created_name_phantasmal_angel
+created_token_name ::= created_name_lotus | created_name_doombot | created_name_stoneforged_blade | created_name_new_planet | card_name_wolves_of_the_hunt | created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | card_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite | created_name_sword | created_name_cloud_sprite | created_name_koma_coil | card_name_ornithopter | created_name_twin | created_name_cordyceps_infected | card_name_lightning_rager | created_name_goldmeadow_harrier | created_name_cadet | created_name_stone_boulder | created_name_phantasmal_angel
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -2929,3 +2929,21 @@ plural_nontoken_entry_self_copies ::= "when" event_self "enter" "," "if" "they'r
 /* The created token receives copies of the departed event subject's last known counters. */
 /* @sem Instruction::[Effect{result:@mark, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{}})}, Effect{result:@next, operation:DuplicateCounters{from:CounterSource::On(Objects(One(@event_subject))), to:Objects(Created(@marked)), copies:All}}] */
 create_then_duplicate_departed_counters ::= "create" "a" token_recipe "," "then" "put" "this" "creature's" "counters" "on" "that" "token"
+
+/* An artifact token without stated colors is colorless; its abilities belong to it. */
+/* @sem TokenRecipe::Defined{ name:FromSubtypes, colors:[], card_types:[Artifact], subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2], abilities:$token_abilities } */
+token_artifact_stats_implicit_color_with ::= token_stat "/" token_stat token_subtypes "artifact" "token" "with" token_abilities
+
+/* Counters are placed on the exact token just created. */
+/* @sem Instruction::[Effect{result:@next, operation:$create_one_defined}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@prior)), kind:$counter_kind, amount:$number}]}}] */
+create_and_put_counters ::= create_one_defined "and" "put" number counter_kind "counters" "on" "it"
+
+/* @sem String::'Lotus' */
+created_name_lotus ::= "Lotus"
+
+/* @sem TokenRecipe::Defined(_{name:Explicit($created_token_name), colors:$token_colors, card_types:$token_types, abilities:$token_abilities}) */
+token_statless_named_before_abilities ::= token_colors token_types "token" "named" created_token_name "with" token_abilities
+
+/* Each token carries its own triggered ability; its source is the copy. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One($target_player))])}, exceptions:[AddAbilities([Keyword(Haste), @scope(Ability::Triggered{event:Turn{point:EndStepBegins, players:All}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[If{condition:Not(Controls{player:AbilityController, filter:CardType(Planeswalker), minimum:1}), then:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One(Source)}}]}, otherwise:Program{}}]}})])]}}], entry:BattlefieldArrival{}}}]}} */
+face_copy_token_spell ::= "for" "each" "creature" target_player "controls" "," "create" "a" "token" "that's" "a" "copy" "of" "that" "creature" "," "except" "it" "has" "haste" "and" '"' "at" "the" "beginning" "of" "the" "end" "step" "," "if" "you" "don't" "control" "a" "planeswalker" "," "sacrifice" "this" "token" "." '"'

@@ -1164,7 +1164,7 @@ conditional_damage_as_long ::= "as" "long" "as" condition "," conditional_damage
 /* @sem Ability::Conditional{condition:$static_turn_window, then:[$conditional_damage_replacement]} */
 conditional_damage_during ::= static_turn_window "," conditional_damage_replacement
 
-conditional_damage_replacement ::= replacement_controlled_source_double | replacement_redirect_filtered_damage | replacement_redirect_unblocked_combat | replacement_controller_infect | replacement_unblocked_to_controller | replacement_other_controlled_entry_counter | replacement_controlled_noncombat_bonus | replacement_draw_one_or_more_extra | replacement_draw_search_hand | replacement_prevent_all | replacement_prevent_targeting_spells | replacement_prevent_banded | replacement_leave_loyalty
+conditional_damage_replacement ::= replacement_prevent_some | replacement_controlled_source_double | replacement_redirect_filtered_damage | replacement_redirect_unblocked_combat | replacement_controller_infect | replacement_unblocked_to_controller | replacement_other_controlled_entry_counter | replacement_controlled_noncombat_bonus | replacement_draw_one_or_more_extra | replacement_draw_search_hand | replacement_prevent_all | replacement_prevent_targeting_spells | replacement_prevent_banded | replacement_leave_loyalty
 
 /* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Spell, sources:TargetsAny(Objects(One($object_ref_2))), recipients:Objects(SameObject($object_ref)), kind:Any, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
 replacement_prevent_targeting_spells ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" object_ref "by" "spells" "that" "target" object_ref "."
@@ -4024,7 +4024,7 @@ replacement_creature_damage_less ::= "it" "deals" "that" "much" "damage" "minus"
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_creature_damage_event, body:$replacement_creature_damage_less} */
 replacement_creature_damage_adjusted ::= "if" replacement_creature_damage_event "," replacement_creature_damage_less "."
 
-partial_prevention_event ::= damage_event | permanent_damage_event
+partial_prevention_event ::= creature_combat_damage_you | damage_event | permanent_damage_event
 
 /* The cause, counter population, and replacement amount remain independently scoped. */
 /* @sem ReplacementEvent::Caused{cause:AllOf([OnStack(Triggered), OnStack(Keyword(Modular))]), event:Counters(_{kind:PowerToughness(1, 1), objects:$counter_replacement_population})} */
@@ -4554,3 +4554,7 @@ planar_replace_walk_with_chaos ::= "if" "a" "player" "would" "planeswalk" "while
 /* The counter placement uses the amount from the same pending damage event. */
 /* @sem Ability::Replacement{active:Battlefield, event:Damage{source_kind:Any, sources:Any, recipients:Objects(SameObject(AttachedTo(Source))), kind:Any, grouping:SourceRecipient, subject:Recipient}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(EventSubject)), kind:$counter_kind, amount:EventAmount}]}}]}} */
 replacement_prevent_attached_damage_counters ::= "if" "equipped" "creature" "would" "be" "dealt" "damage" "," "prevent" "that" "damage" "and" "put" "that" "many" counter_kind "counters" "on" "it" "."
+
+/* Any creature as combat damage source, directed specifically at the controller. */
+/* @sem ReplacementEvent::Damage(DamageEvent{source_kind:Permanent, sources:$filter_phrase, recipients:Players(One(AbilityController)), kind:Combat, grouping:SourceRecipient, subject:Recipient}) */
+creature_combat_damage_you ::= "a" filter_phrase "would" "deal" "combat" "damage" "to" "you"

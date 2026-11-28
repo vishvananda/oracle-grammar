@@ -121,6 +121,9 @@ pub fn singular(part: &CostPart) -> bool {
     }
     match part {
         CostPart::Constrained { part, .. } => singular(part),
+        CostPart::Mill {
+            count: Expr::Constant(0..=1),
+        } => true,
         CostPart::Discard {
             count: Expr::Constant(0..=1),
             ..
@@ -198,5 +201,25 @@ pub fn casting_cost(ability: &Ability) -> Option<&Cost> {
             ..
         }) => Some(cost),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod mill_singleton_tests {
+    use super::*;
+
+    #[test]
+    fn only_fixed_zero_or_one_mill_is_singular() {
+        for n in [0, 1] {
+            assert!(singular(&CostPart::Mill {
+                count: Expr::Constant(n)
+            }));
+        }
+        assert!(!singular(&CostPart::Mill {
+            count: Expr::Constant(2)
+        }));
+        assert!(!singular(&CostPart::Mill {
+            count: Expr::AnnouncedX
+        }));
     }
 }

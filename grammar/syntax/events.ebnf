@@ -2000,7 +2000,7 @@ retrigger_cause_holder ::= retrigger_cause_holder_a | destroyed_receipt_an
 /* @sem Ability::TriggerRule{abilities:$retrigger_ability_population, rule:TriggersAgain} */
 additional_trigger_for_population ::= "if" "a" "triggered" "ability" "of" retrigger_ability_population "triggers" "," "that" "ability" "triggers" "an" "additional" "time" "."
 
-retrigger_ability_population ::= retrigger_ability_union | retrigger_colorless_population | retrigger_object_or_attached
+retrigger_ability_population ::= retrigger_equipped_holder | retrigger_ability_union | retrigger_colorless_population | retrigger_object_or_attached
 
 /* @sem ObjectFilter::AbilityOf(AllOf([AnyOf([$filter_phrase, AllOf([Not(SameObject(Source)), $filter_phrase_2])]), ControlledBy(One(AbilityController))])) */
 retrigger_ability_union ::= "a" filter_phrase "or" "another" filter_phrase "you" "control"
@@ -8857,3 +8857,11 @@ condition_other_player_lost_life_this_turn ::= "a" "player" "other" "than" "you"
 
 /* @sem Ability::Triggered{event:Turn{point:EndStepBegins, players:All}, limits:_{}, announcement:@announcement, body:_{instructions:[@resolution(Instruction::If{condition:$condition_other_player_lost_life_this_turn, then:_{instructions:[Optional{decider:EventSubject, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(EventSubject), amount:$card_count_one}}]}}]}, otherwise:_{}})]}} */
 triggered_end_step_other_player_life_loss ::= "at" "the" "beginning" "of" "each" "player's" "end" "step" "," "that" "player" "may" "draw" card_count_one "if" condition_other_player_lost_life_this_turn "."
+
+/* The repeated ability belongs to the currently equipped object. */
+/* @sem ObjectFilter::AbilityOf(SameObject(AttachedTo(Source))) */
+retrigger_equipped_holder ::= "equipped" "creature"
+
+/* A standalone entry conjure has no subsequent pronoun to bind. */
+/* @sem Ability::Triggered{event:$event_self_enters, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$excess_named_conjure}]}} */
+triggered_entry_named_conjure ::= "when" event_self_enters "," excess_named_conjure "."

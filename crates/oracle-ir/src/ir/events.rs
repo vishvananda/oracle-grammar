@@ -654,7 +654,10 @@ pub enum ObjectState {
     FirstLandPlayedThisTurn,
     HadToAttack,
     CouldntAttack,
+    /// Tied for the highest positive total in the resolution's completed ballot.
+    /// That ballot's tally survives later movement of its choices.
     MostVotes,
+    /// Received at least one vote in the resolution's completed ballot.
     ReceivedAVote,
     ManaSpentBelowManaValue,
     SnowManaOfOwnColorSpent,

@@ -336,7 +336,7 @@ activated_exile_self_after_limited ::= cost_parts "," "↑" "exile" scoped_sourc
 activated_self_graveyard_return ::= cost ":" self_graveyard_return "."
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_graveyard_return}]}})} */
 activated_self_graveyard_return_limited ::= cost ":" self_graveyard_return "." activation_limits "."
-self_graveyard_return ::= self_return_card_battlefield_tapped_attacking | self_return_battlefield_tapped_attacking | self_return_battlefield_tapped_attacking_counter | self_return_and_optional_card | local_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter | self_return_battlefield_tapped_counters | self_return_battlefield_transformed | self_return_battlefield_face_choice | self_return_with_target_tapped
+self_graveyard_return ::= self_return_battlefield_tapped_counter_her | self_return_card_battlefield_tapped_attacking | self_return_battlefield_tapped_attacking | self_return_battlefield_tapped_attacking_counter | self_return_and_optional_card | local_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter | self_return_battlefield_tapped_counters | self_return_battlefield_transformed | self_return_battlefield_face_choice | self_return_with_target_tapped
 
 /* @prefer always */
 /* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
@@ -841,7 +841,7 @@ alternative_discard_filtered_and_another ::= "discard" ("a" | "an") filter_phras
 /* @sem Cost::Cost{parts:[Discard{count:Constant(1), filter:$filter_phrase}, Discard{count:$count_plural, filter:Any}]} */
 alternative_discard_filtered_and_others ::= "discard" ("a" | "an") filter_phrase "card" "and" count_plural "other" "cards"
 
-casting_reduction_count ::= casting_history_drawn_card | casting_history_sacrificed_permanent | count_each_life_history | count_each | count_each_controlled_and_zone
+casting_reduction_count ::= count_each_card_type_population | casting_history_drawn_card | casting_history_sacrificed_permanent | count_each_life_history | count_each | count_each_controlled_and_zone
 
 /* Alternative complete payments retain each branch as its own cost. */
 /* @sem Cost::Cost{parts:[Choice([Cost::Cost{parts:$cost_parts}, Cost::Cost{parts:$cost_parts_2}])]} */
@@ -3243,3 +3243,7 @@ target_controlled_permanent_or_owned_suspended ::= "target" "permanent" "you" "c
    optional branch, and the option to place another has the same condition. */
 /* @sem Ability::Activated{origin:Ordinary, cost:$activation_cost, limits:_{}, announcement:@announcement, body:_{instructions:[If{condition:ObjectMatches{object:$target_controlled_permanent_or_owned_suspended, filter:Counters{kind:Named(TimeCounter), comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[ChooseOne{decider:AbilityController, options:[_{instructions:[Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One(Target{slot:@last_slot, index:0})), kind:Named(TimeCounter), amount:Count(Exactly(Constant(1)))}]}}]}, _{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:@last_slot, index:0})), kind:Named(TimeCounter), amount:Constant(1)}]}}]}]}]}}]}, otherwise:_{}}]}} */
 activated_counter_choice_permanent_or_suspended ::= activation_cost ":" "choose" target_controlled_permanent_or_owned_suspended "." "if" "that" "permanent" "or" "card" "has" "a" "time" "counter" "on" "it" "," "you" "may" "remove" "a" "time" "counter" "from" "it" "or" "put" "another" "time" "counter" "on" "it" "."
+
+/* The feminine reference names the same returned source. */
+/* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[[$counter_kind, $entry_counter_amount]], states:[]}}, qualifiers:[]} */
+self_return_battlefield_tapped_counter_her ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "tapped" "with" entry_counter_amount counter_kind "counter" "on" "her"

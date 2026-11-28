@@ -136,12 +136,12 @@ impl<'a> Scope<'a> {
                     );
                 }
                 match self.results.get(&result.0) {
-                    Some(ResultKind::ObjectTransition) => Ok(()),
+                    Some(ResultKind::ObjectTransition | ResultKind::Surveil) => Ok(()),
                     _ => Err("constrained transition requires an object-transition result".into()),
                 }
             }
             ObjectSet::Transition { result, .. } => match self.results.get(&result.0) {
-                Some(ResultKind::ObjectTransition) => Ok(()),
+                Some(ResultKind::ObjectTransition | ResultKind::Surveil) => Ok(()),
                 _ => Err("transition set requires an object-transition result".into()),
             },
             ObjectSet::MovedBy { result, player, .. } => {

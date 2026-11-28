@@ -1856,7 +1856,7 @@ exile_target_players_graveyard ::= "exile" "target" "player's" "graveyard"
 /* @sem Operation::Move{objects:Zone(_{scope:Players{zone:Graveyard, players:One($player_possessive)}, kind:Card, filter:$card_filter}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
 exile_all_graveyard_cards ::= "exile" "all" card_filter "cards" "from" player_possessive "graveyard"
 /* @sem Operation::Move{objects:Zone(_{scope:Players{zone:Hand, players:One($player_possessive)}, kind:Card, filter:Any}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
-exile_all_hand_cards ::= "exile" "all" "cards" "from" player_possessive "hand"
+exile_all_hand_cards ::= "exile" "all" "the"? "cards" "from" player_possessive "hand"
 /* "Exile all cards from your hand face down": only the imperative's own hand; other
    players exile theirs with "exiles all cards from their hand face down". */
 /* @sem Operation::Move{objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any}), destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
@@ -9636,7 +9636,10 @@ chosen_arrival_single ::= "target" card_filter "card" "in" "your" "graveyard" "t
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}), ObjectFilter::ArrivedThisTurn{from:Battlefield})}), index:0} */
 chosen_arrival_optional ::= "up" "to" "one" "target" card_filter "card" "in" "your" "graveyard" "that" "was" "put" "there" "from" "the" "battlefield" "this" "turn"
 
-chosen_arrival_one ::= chosen_arrival_single | chosen_arrival_optional
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}), ObjectFilter::ArrivedThisTurn{})}), index:0} */
+chosen_arrival_anywhere ::= "target" card_filter "card" "in" "your" "graveyard" "that" "was" "put" "there" "from" "anywhere" "this" "turn"
+
+chosen_arrival_one ::= chosen_arrival_single | chosen_arrival_optional | chosen_arrival_anywhere
 
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number), filter:@and($noun, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}), ObjectFilter::ArrivedThisTurn{from:Battlefield})})) */
 chosen_arrivals ::= "up" "to" number "target" noun "cards" "in" "your" "graveyard" "that" "were" "put" "there" "from" "the" "battlefield" "this" "turn"
@@ -25133,3 +25136,23 @@ draw_cast_origin_instead ::= "draw" card_count_one "." "if" "this" "spell" "wasn
 /* The paid X is retained by the reflexive trigger, whose target is announced then. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:MoveCounters{actor:One(AbilityController), from:One(Source), to:One($target_another), kind:$counter_kind, amount:Exactly(AnnouncedX)}}]} */
 paid_x_move_source_counters ::= "move" "X" counter_kind "counters" "from" "this" "creature" "onto" target_another
+
+/* Private-zone ownership identifies the target player's library and graveyard. */
+/* @sem Instruction::[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:EventHistory{event:ZoneChange{objects:OwnedBy(One($target_possessive)), from:Library, to:Graveyard}, window:ThisTurn, measure:Occurrences}}}] */
+draw_target_library_graveyard_history ::= "draw" "X" "cards" "," "where" "X" "is" "the" "number" "of" "cards" "that" "were" "put" "into" target_possessive "graveyard" "from" "their" "library" "this" "turn"
+
+/* Excess is measured against the original target; play consumes the exile arrival. */
+/* @sem Instruction::[Effect{result:@mark, operation:DealDamage{source:$self_ref_named, recipients:Objects(One($unregenerable_target)), amount:$value_colors_spent, preventable:true}}, Effect{result:@mark, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:ExcessDamage{result:@prior, to:SameObject(Target{slot:0, index:0})}, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:InZone{objects:Transition{result:@marked, phase:After}, zone:Exile}, origins:CardPlayOrigins([Exile]), action:Either, filter:Any})], duration:$until_end_of_your_next_turn, evaluation:LiveObjects}}] */
+damage_excess_exile_play ::= self_ref_named "deals" "X" "damage" "to" unregenerable_target "," "where" "X" "is" value_colors_spent "." "exile" "cards" "from" "the" "top" "of" "your" "library" "equal" "to" "the" "excess" "damage" "dealt" "to" "that" "creature" "this" "way" "." "you" "may" "play" "those" "cards" until_end_of_your_next_turn
+
+/* Uncalled flips record actual heads; each result skips a turn for the target. */
+/* @sem Instruction::[Effect{result:@mark, operation:FlipCoins{players:One(AbilityController), count:$number, protocol:Uncalled}}, Effect{result:@next, operation:Repeat{times:CountCoinOutcomes{source:Receipt(@marked), outcome:Heads}, body:Keyword{actor:One($target_opponent), action:Skip{part:Turn}}}}] */
+coin_heads_skip_turns ::= "flip" number "coins" "." target_opponent "skips" "their" "next" "X" "turns" "," "where" "X" "is" "the" "number" "of" "coins" "that" "came" "up" "heads"
+
+/* The replacement follows the cast receipt and applies only to instant or sorcery spells. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AnyOf([CardType(Artifact), CardType(Instant), CardType(Sorcery)])}, count:UpTo(Constant(1)), terms:PlayTerms{cost:Normal}}}, Effect{result:@next, operation:CreateReplacement{event:ZoneChange{objects:AllOf([InSet(Transition{result:@marked, phase:After}), AnyOf([CardType(Instant), CardType(Sorcery)]), OwnedBy(One(AbilityController))]), from:Stack, to:Graveyard}, limit:UntilExpired, duration:Indefinite, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}}}]}}] */
+cast_graveyard_filtered_redirect ::= "you" "may" "cast" "an" "artifact" "," "instant" "," "or" "sorcery" "spell" "from" "your" "graveyard" "." "if" "an" "instant" "or" "sorcery" "spell" "cast" "this" "way" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead"
+
+/* The same devotion is read for conjuring and the subsequent team reward. */
+/* @sem Instruction::[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Named($referenced_card_name), count:$value_devotion, destination:Library{position:Random, arrival:CardArrival{}}}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}, If{condition:Compare{left:CountObjects(Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), test:Compare{comparison:Greater, value:PlayerNumber{player:AbilityController, number:StartingDeckSize}}}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), changes:[Pump{power:$value_devotion, toughness:$value_devotion}, GrantKeyword(Haste)], duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{}}] */
+conjure_devotion_library_reward ::= "conjure" "X" "cards" "named" referenced_card_name "into" "your" "library" "," "where" "X" "is" value_devotion "," "then" "shuffle" "." "then" "if" "there" "are" "more" "cards" "in" "your" "library" "than" "your" "starting" "deck" "," "creatures" "you" "control" "get" "+X/+X" "and" "gain" "haste" "until" "end" "of" "turn"

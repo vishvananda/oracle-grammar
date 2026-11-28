@@ -82,7 +82,8 @@ impl<'a> Scope<'a> {
                 match grant {
                     ActivationGrant::InstantSpeedDuring(players) => self.players(players),
                     ActivationGrant::AdditionalTimes(times)
-                    | ActivationGrant::AdditionalLifetimeUses(times) => self.expr(times),
+                    | ActivationGrant::AdditionalLifetimeUses(times)
+                    | ActivationGrant::AtLeastEachTurn(times) => self.expr(times),
                     _ => Ok(()),
                 }
             }

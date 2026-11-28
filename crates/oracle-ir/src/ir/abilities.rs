@@ -404,6 +404,9 @@ pub enum ActivationGrant {
     OtherController {
         allow_after_controller_use: bool,
     },
+    /// Raises the per-turn allowance to this minimum. Overlapping grants take
+    /// the maximum permitted count.
+    AtLeastEachTurn(Expr),
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

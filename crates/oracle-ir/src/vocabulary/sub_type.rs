@@ -641,4 +641,5 @@ pub enum SubType {
     Clashablanca,
     Explainer,
     MindlessOne,
+    Rondvaartboot,
 }

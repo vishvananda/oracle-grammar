@@ -398,6 +398,7 @@ fn measurement(value: &Value) -> Option<(&'static str, &Value)> {
                     let topic = match amass["creature_type"].as_str()? {
                         "Zombie" => "AmassZombies",
                         "Orc" => "AmassOrcs",
+                        "Goblin" => "AmassGoblins",
                         _ => return None,
                     };
                     return Some((topic, amass.get("amount")?));
