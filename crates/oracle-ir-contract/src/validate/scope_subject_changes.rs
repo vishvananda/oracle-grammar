@@ -691,6 +691,9 @@ impl<'a> Scope<'a> {
                 CostPart::Mana(_) | CostPart::TapSymbol => {}
                 CostPart::Life(amount) => self.count(&Count::Exactly(amount.clone()))?,
                 CostPart::Loyalty(delta) | CostPart::Energy(delta) => self.expr(delta)?,
+                CostPart::SpendPrintedResource { amount, .. } => {
+                    self.count(&Count::Exactly(amount.clone()))?
+                }
                 CostPart::Draw { count } | CostPart::Mill { count } => {
                     self.count(&Count::Exactly(count.clone()))?
                 }

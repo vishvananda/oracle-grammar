@@ -602,6 +602,11 @@ pub enum CostPart {
         mana: Vec<ManaSymbol>,
         x: Expr,
     },
+    /// Spend the payer's own units of this exact printed resource as a cost.
+    SpendPrintedResource {
+        resource: PrintedResource,
+        amount: Expr,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

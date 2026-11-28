@@ -152,7 +152,7 @@ pub const SPACED_ELLIPSIS: char = '…';
 /// A closing double quote after a reminder sentence without an opening quote.
 pub const ORPHAN_REMINDER_QUOTE: char = '”';
 
-const MARKS: &str = ".,:;\"'()+-\u{2212}/\u{2022}\u{2014}{}[]|!?&∞=";
+const MARKS: &str = ".,:;\"'()+-\u{2212}/\u{2022}\u{2014}{}[]|!?&∞=❖";
 
 /// The possessive of a card's own name, a token apart from the name.
 pub const POSSESSIVE: &str = "'s";

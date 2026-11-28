@@ -1186,6 +1186,23 @@ pub enum Operation {
         actor: PlayerRef,
         on_winner: Program,
     },
+    /// The giver may choose one of their eligible cards outside the game and
+    /// one recipient, then give that person physical ownership of the card.
+    /// The transfer persists independently of the game and can be changed by
+    /// another gift. Only a completed gift emits GivesGift and runs `on_gift`.
+    GiftOutsideCard {
+        giver: PlayerRef,
+        recipients: PlayerSet,
+        eligible: ObjectFilter,
+        on_gift: Program,
+    },
+    /// Adds units of a printed symbol resource to each listed player. The
+    /// resource is player-held, distinct from mana, counters, and other symbols.
+    GainPrintedResource {
+        players: PlayerSet,
+        resource: PrintedResource,
+        amount: Expr,
+    },
 }
 
 #[derive(

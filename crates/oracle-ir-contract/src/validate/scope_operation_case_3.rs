@@ -3,6 +3,21 @@ use super::*;
 impl<'a> Scope<'a> {
     pub(super) fn operation_case_3(&self, operation: &Operation) -> Result {
         match operation {
+            Operation::GiftOutsideCard {
+                giver,
+                recipients,
+                eligible,
+                on_gift,
+            } => {
+                self.player(giver)?;
+                self.players(recipients)?;
+                self.filter(eligible)?;
+                let mut child = self.clone();
+                child.open_searches.clear();
+                child.join_groups.clear();
+                child.outside_gift = true;
+                child.program(on_gift)
+            }
             Operation::ChooseFavoriteArt {
                 in_game_choosers,
                 cards,
@@ -662,6 +677,12 @@ impl<'a> Scope<'a> {
                     }
                 }
                 Ok(())
+            }
+            Operation::GainPrintedResource {
+                players, amount, ..
+            } => {
+                self.players(players)?;
+                self.count(&Count::Exactly(amount.clone()))
             }
             Operation::ExileLibraryUntil {
                 actor,

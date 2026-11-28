@@ -36,6 +36,7 @@ impl<'a> Scope<'a> {
             ObjectSet::CounterRecipients(result) => self.counter_placement_result(result),
             ObjectSet::Blighted(result) => self.blight_result(result),
             ObjectSet::ClashWinningCard => self.clash_winning_card(),
+            ObjectSet::OutsideGiftedCard => self.outside_gifted_card(),
             ObjectSet::Recorded(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectSet::Recorded(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectSet::DamageSources(filter)
@@ -223,6 +224,14 @@ impl<'a> Scope<'a> {
             Ok(())
         } else {
             Err("counter placements require a visible counter placement result".into())
+        }
+    }
+
+    fn outside_gifted_card(&self) -> Result {
+        if self.outside_gift {
+            Ok(())
+        } else {
+            Err("gifted card requires an outside-game gift callback".into())
         }
     }
 

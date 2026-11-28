@@ -282,6 +282,13 @@ pub enum Ability {
         basic_lands: bool,
         any_color_identity: bool,
     },
+    /// A required cost of playing this source as a land, in addition to the
+    /// normal land-play rules and allowances. It neither grants permission to
+    /// play the land nor turns it into a spell or puts it on the stack. The
+    /// player pays this cost as part of the land-play special action.
+    LandPlayCost {
+        cost: Cost,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

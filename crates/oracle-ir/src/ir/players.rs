@@ -223,6 +223,10 @@ pub enum PlayerRule {
         terms: PlayTerms,
         effects: Vec<PermissionCastEffect>,
     },
+    /// The affected player may spend this resource only on that player's turn.
+    PrintedResourceOwnTurnOnly {
+        resource: PrintedResource,
+    },
 }
 
 /// Nonempty distinct card origins sharing one play permission and its limit.
@@ -291,6 +295,12 @@ pub enum PlayerNumber {
     /// interprets ambiguous reporting; unavailable information is unknown,
     /// never implicitly zero. This is not a duration in the game.
     HoursSleptLastNight,
+    /// Distinct pieces of Super Hero media consumed by this actual player in
+    /// the stated last month. This is external real-world history, not game
+    /// events. The host determines work identity, qualifying media and the
+    /// precise month boundary from the players' context; repeated consumption
+    /// of the same work counts once. Unknown history is not silently zero.
+    SuperHeroMediaConsumedLastMonth,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -500,4 +510,13 @@ pub enum ManaPaymentComponent {
     /// Only the spell's mana cost. Additional and alternative costs retain
     /// ordinary payment rules; this scope is valid only for spell payments.
     ManaCost,
+}
+
+/// Identity of an explicitly printed player resource, distinct from mana and counters.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum PrintedResource {
+    /// The exact symbol ❖, distinct from all other printed symbols.
+    Diamond,
 }

@@ -89,3 +89,15 @@ fn single_stage_bare_station_animates_while_multi_stage_bare_station_refuses() {
             .is_err()
     );
 }
+
+#[test]
+fn printed_resource_symbol_is_a_distinct_spaced_mark() {
+    let names = Names::of("Example");
+    let text = "❖ ❖ — Draw two cards.";
+    let words = vocab(&["draw", "two", "cards"]);
+    let tokens = tokenize(text, &names, &words).unwrap();
+    assert_eq!(tokens[0], Token::Mark('❖'));
+    assert_eq!(tokens[1], Token::Mark('❖'));
+    assert_eq!(detokenize(&tokens, &names), text);
+    assert!(tokenize("❖❖ — Draw two cards.", &names, &words).is_err());
+}

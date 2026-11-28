@@ -278,3 +278,48 @@ fn separate_spent_colors_preserve_announcement_and_hand_observation() {
         Some(text)
     );
 }
+
+#[test]
+fn exact_default_card_wording_can_replay_without_derivation_choices() {
+    use crate::engine::PrintedPowerToughness;
+    use crate::model::ir::{Characteristics, ManaColor, ManaSymbol};
+    use crate::model::mtg_types::CardType;
+
+    let name = "Call to Glory";
+    let text = "Untap all creatures you control. Samurai creatures you control get +1/+1 until end of turn.";
+    let characteristics = Characteristics {
+        card_types: vec![CardType::Instant],
+        subtypes: Vec::new(),
+        supertypes: Vec::new(),
+        mana_cost: Some(vec![
+            ManaSymbol::Generic(1),
+            ManaSymbol::Color(ManaColor::White),
+        ]),
+        color_indicator: Vec::new(),
+        power_toughness: None,
+        loyalty: None,
+        defense: None,
+    };
+    let context = engine()
+        .card_input_context(name, text, &characteristics, PrintedPowerToughness::Absent)
+        .unwrap();
+    let parsed = engine()
+        .parse_card_with_source(name, text, &context)
+        .unwrap();
+    let [reading] = parsed.readings.as_slice() else {
+        panic!("expected one reading for the two spell clauses");
+    };
+    let trail = engine()
+        .card_key_of_with_source(name, reading, &context, text, true)
+        .unwrap()
+        .unwrap();
+    for choices in [&trail[..], &[]] {
+        assert_eq!(
+            engine()
+                .print_card_trail_with_source(name, reading, &context, choices)
+                .unwrap()
+                .as_deref(),
+            Some(text)
+        );
+    }
+}

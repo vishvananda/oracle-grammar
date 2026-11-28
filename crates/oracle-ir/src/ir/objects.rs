@@ -428,6 +428,8 @@ pub enum ObjectSet {
     /// the clash placement. Later reorders in the same library preserve that
     /// incarnation (CR 400.7). A subsequent zone change ends the link.
     ClashWinningCard,
+    /// The exact card transferred by the active outside-game gift callback.
+    OutsideGiftedCard,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

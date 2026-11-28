@@ -22,6 +22,8 @@ mod event_group_departure_tests;
 #[cfg(test)]
 mod exile_until_tests;
 #[cfg(test)]
+mod land_play_cost_tests;
+#[cfg(test)]
 mod life_gain_receipt_tests;
 #[cfg(test)]
 mod movement_receipt_tests;
@@ -119,6 +121,7 @@ struct Scope<'a> {
     /// Inside `Operation::Clash`, where `PlayerRef::ClashOpponent` has a value.
     clashing: bool,
     clash_winner: bool,
+    outside_gift: bool,
     search_libraries: BTreeMap<u32, PlayerRef>,
     event: crate::semantics::EventBindings,
     affected: bool,
@@ -355,6 +358,7 @@ fn validate_ability_in_dispatch_1(
         | Ability::Companion(_)
         | Ability::CommanderDeckRule(_)
         | Ability::DeckOnlyCards { .. }
+        | Ability::LandPlayCost { .. }
         | Ability::Offering(_)
         | Ability::FlashIf(_)
         | Ability::Craft {
@@ -611,6 +615,12 @@ fn validate_ability_in_case_1(
         }
         Ability::Companion(rule) | Ability::CommanderDeckRule(rule) => scope.operand(rule),
         Ability::DeckOnlyCards { allowed, .. } => scope.filter(allowed),
+        Ability::LandPlayCost { cost } => {
+            if cost.parts.is_empty() {
+                return Err("land-play cost cannot be empty".into());
+            }
+            scope.cost(cost)
+        }
         Ability::Offering(filter) => scope.filter(filter),
         Ability::FlashIf(condition) => scope.condition(condition),
         Ability::Craft {
@@ -1200,3 +1210,9 @@ mod head_chef_blight_tests;
 
 #[cfg(test)]
 mod clash_each_tests;
+
+#[cfg(test)]
+mod outside_gift_tests;
+
+#[cfg(test)]
+mod omega_media_tests;

@@ -67,6 +67,7 @@ impl<'a> Scope<'a> {
                 count: _,
                 at_most: _,
             }
+            | Operation::GainPrintedResource { .. }
             | Operation::ExileLibraryUntil { .. }
             | Operation::RevealUntilGroup {
                 library: _,

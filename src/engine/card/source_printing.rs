@@ -121,7 +121,14 @@ impl Engine {
             self.card_root()?,
             self.card_surfaces_with_source(reading, context, true)?,
         );
-        self.surface_key_types(root, surfaces, (name, &types), text, ordered)
+        let key = self.surface_key_types(root, surfaces, (name, &types), text, ordered)?;
+        if key.is_some() || !ordered {
+            return Ok(key);
+        }
+        // Exact default wording needs no derivation choices. The default
+        // printer has already verified this text against the current reading.
+        let default = self.print_card_keyed_with_source(name, reading, context, &[])?;
+        Ok((default.as_deref() == Some(text)).then(Vec::new))
     }
 
     pub fn print_card_trail_with_source(
@@ -133,6 +140,9 @@ impl Engine {
     ) -> Result<Option<String>, String> {
         if name.len() > 4096 {
             return Err("card name byte limit".into());
+        }
+        if trail.is_empty() {
+            return self.print_card_keyed_with_source(name, reading, context, &[]);
         }
         let wanted = reading.canonical()?;
         let types = self.card_context(&context.characteristics)?;
