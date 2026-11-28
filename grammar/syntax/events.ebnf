@@ -8736,3 +8736,14 @@ activated_loyalty_any ::= "a" "loyalty" "ability"
 
 /* @sem EventSpec::Activated{players:$event_player, abilities:$activated_loyalty_ability} */
 event_other_loyalty ::= event_player "activates" activated_loyalty_ability
+
+/* The last two instructions stand on their own even if the source has left. */
+/* @sem Ability::Triggered{event:$event_nth_counter_source, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[$nth_sacrifice_source, Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $draw_base)}, Effect{result:@next, operation:$put_counters}]}} */
+nth_counter_sacrifice_draw_place ::= "when" event_nth_counter_source "," nth_sacrifice_source "," draw_base "," "and" put_counters "."
+
+/* @sem Instruction::Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One(Source)}} */
+nth_sacrifice_source ::= "sacrifice" "it"
+
+/* Both life totals use the same bound count of the source's attachments. */
+/* @sem Ability::Triggered{event:Object{event:Attacks, objects:SameObject(Source)}, limits:TriggerLimits{}, intervening_if:ObjectMatches{object:Source, filter:State(Equipped)}, announcement:Announcement{}, body:Program{instructions:[Effect{result:@next, operation:LoseLife{players:OpponentsOf(AbilityController), amount:$count_attached_to_him}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$count_attached_to_him}}]}} */
+attack_equipped_attached_life ::= "whenever" SELF_NAME "attacks" "," "if" "he's" "equipped" "," "each" "opponent" "loses" "X" "life" "and" "you" "gain" "X" "life" "," "where" "X" "is" "the" "number" "of" count_attached_to_him "."
