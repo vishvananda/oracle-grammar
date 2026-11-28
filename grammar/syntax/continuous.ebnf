@@ -2014,11 +2014,11 @@ plural_kind ::= plural_kind_existing | spell_instant | spell_sorcery
 cast_any_spells ::= "spells"
 /* @sem $plural_kind */
 cast_kind_spells ::= plural_kind "spells"
-/* @sem ObjectFilter::AnyOf([$spell_adjective, $spell_adjective_2]) */
+/* @sem ObjectFilter::AnyOf(@unordered([$spell_adjective, $spell_adjective_2])) */
 cast_kind_pair_spells ::= spell_adjective "and" spell_adjective "spells"
 /* @sem ObjectFilter::AnyOf([...$noun_commas, $noun]) */
 cast_kind_list_spells ::= noun_commas union_and noun "spells"
-/* @sem ObjectFilter::AnyOf([$plural_kind, $plural_kind_2]) */
+/* @sem ObjectFilter::AnyOf(@unordered([$plural_kind, $plural_kind_2])) */
 cast_two_kinds_spells ::= plural_kind "spells" "and" plural_kind "spells"
 /* @sem $modifiers */
 cast_modified_spells ::= "spells" modifiers
@@ -8156,7 +8156,7 @@ until_end_of_combat_next_turn ::= "until" "end" "of" "combat" "on" "your" "next"
 /* Singular cast-spell subjects carry their filter independently of the rule. */
 spell_cast_singular_filter ::= tap_event_singular_a | spell_cast_color_pair | spell_cast_exact_colors
 
-/* @sem ObjectFilter::AnyOf([$adjective_color, $adjective_color_2]) */
+/* @sem ObjectFilter::AnyOf(@unordered([$adjective_color, $adjective_color_2])) */
 spell_cast_color_pair ::= adjective_color "or" adjective_color
 
 /* @sem ObjectFilter::Property{property:ColorCount, test:NumberTest::Compare{comparison:Equal, value:$value}} */
@@ -13191,6 +13191,10 @@ static_assigns_positive_power ::= self_ref_named "assigns" "combat" "damage" "as
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:[...$change_becomes_subtype_an, ...$cross_all_colors], duration:Indefinite, evaluation:Snapshot} */
 continuous_subtype_becomes_all_colors ::= object_ref change_becomes_subtype_an "that's" cross_all_colors
 
+/* Type and color changes both apply to the referenced object indefinitely. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:[...$change_becomes_subtype_an, ...$cross_all_colors], duration:Indefinite, evaluation:Snapshot} */
+continuous_subtype_becomes_all_colors ::= object_ref change_becomes_subtype_an "that's" cross_all_colors
+
 /* The controller can take this special action while they have priority on
    their own turn. No use limit is imposed. */
 /* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpecialAction{body:Program{instructions:[Effect{result:@next, operation:$forage_action}]}, during:One(AbilityController), instant_speed:true})]} */
@@ -13198,3 +13202,7 @@ static_forage_special_action ::= "you" "may" forage_action "during" "your" "turn
 
 /* @sem () */
 repeated_forage_playtest_aside ::= "(" "to" "forage" "," "exile" "three" "cards" "from" "your" "graveyard" "or" "sacrifice" "a" "Food" "." "you" "can" "do" "this" "as" "many" "times" "as" "you" "want" "." "there's" "no" "benefit" "," "really" "," "but" "this" "l'il" "guy" "sure" "appreciates" "it" "." "he'd" "probably" "like" "it" "if" "you" "drew" "him" "," "too" "." ")"
+
+/* Grant the self-referential static ability; evaluate its value while it exists. */
+/* @sem Instruction::[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Constant(1)}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($self_ref_named)), changes:[GrantAbility(@scope(Ability::Static{kind:Ordinary, affected:Objects(One($self_possessive)), changes:[SetPower($value)]}))], duration:$duration, evaluation:Snapshot}}] */
+draw_then_grant_named_base_power ::= "draw" "a" "card" "." duration "," self_ref_named "gains" '"' self_possessive "base" "power" "is" "equal" "to" value

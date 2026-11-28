@@ -353,6 +353,7 @@ impl<'a> Scope<'a> {
             Expr::BoundValue(_) | Expr::CountersRemoved(_) => self.expr_case_0(expression),
             Expr::AnnouncedX if self.definition => self.expr_case_0(expression),
             Expr::Aggregate { .. } | Expr::CountDistinct { .. } => self.expr_case_0(expression),
+            Expr::EventActivationCountersRemoved { .. } => self.expr_case_0(expression),
             Expr::EventActivationX if self.event.activation_x => self.expr_case_0(expression),
             Expr::EventActivationX => self.expr_case_0(expression),
             _ => self.expr_dispatch_1(expression),
@@ -541,6 +542,10 @@ impl<'a> Scope<'a> {
             }
             Expr::Aggregate { objects, .. } | Expr::CountDistinct { objects, .. } => {
                 self.objects(objects)
+            }
+            Expr::EventActivationCountersRemoved { .. } if self.event.activation_payment => Ok(()),
+            Expr::EventActivationCountersRemoved { .. } => {
+                Err("event activation payment used outside a matched activation".into())
             }
             Expr::EventActivationX if self.event.activation_x => Ok(()),
             Expr::EventActivationX => Err("event activation X used outside a cycling event".into()),

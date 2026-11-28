@@ -33,10 +33,83 @@ pub(crate) fn unify_token_abilities<'p, 'v>(
         .collect()
 }
 
+/// Append abilities while preserving the exact intrinsic prefix. Bounded split
+/// enumeration keeps every supported inverse rather than choosing a first fit.
+pub(crate) fn append_token_abilities(base: &Value, added: &Value) -> Result<Value, String> {
+    let mut recipe = base.clone();
+    let field = recipe
+        .pointer_mut("/Defined/abilities")
+        .ok_or("abilities require a defined token")?;
+    let prefix = field
+        .as_array_mut()
+        .ok_or("token abilities must be a list")?;
+    let suffix = added.as_array().ok_or("added abilities must be a list")?;
+    if prefix.len().saturating_add(suffix.len()) > 16 {
+        return Err("too many token abilities".into());
+    }
+    prefix.extend(suffix.iter().cloned());
+    Ok(recipe)
+}
+
+pub(crate) fn unify_appended_token_abilities<'p, 'v>(
+    args: &'p [Pattern],
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    let [base, added] = args else {
+        return Vec::new();
+    };
+    let Some(list) = value
+        .pointer("/Defined/abilities")
+        .and_then(Value::as_array)
+    else {
+        return Vec::new();
+    };
+    if list.len() > 16 {
+        return Vec::new();
+    }
+    let mut found = Vec::new();
+    for split in 0..=list.len() {
+        let mut prefix = value.clone();
+        prefix["Defined"]["abilities"] = Value::Array(list[..split].to_vec());
+        let suffix = Value::Array(list[split..].to_vec());
+        for matched in base.unify_made(&prefix, &bindings) {
+            found.extend(added.unify_made(&suffix, &matched));
+        }
+    }
+    found
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::ir_schema::Ty;
+
+    #[test]
+    fn appended_abilities_keep_the_exact_intrinsic_prefix() {
+        let base = json!({"Defined":{"abilities":[{"kind":"IntrinsicFood"}],"subtypes":["Food"]}});
+        let suffix = json!([{"kind":"Vanishing"}, {"kind":"Triggered"}]);
+        let value = append_token_abilities(&base, &suffix).unwrap();
+        let args = [
+            Pattern::Value(base.clone()),
+            Pattern::Hole("added".into(), Ty::Opaque),
+        ];
+        let found = unify_appended_token_abilities(&args, &value, Bindings::new());
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].get("added"), Some(&suffix));
+        let mut changed = value.clone();
+        changed["Defined"]["abilities"][0] = json!({"kind":"Other"});
+        assert!(unify_appended_token_abilities(&args, &changed, Bindings::new()).is_empty());
+        assert!(append_token_abilities(&base, &json!(vec![0; 16])).is_err());
+        assert!(
+            unify_appended_token_abilities(
+                &args,
+                &json!({"Defined":{"abilities":vec![0; 17]}}),
+                Bindings::new()
+            )
+            .is_empty()
+        );
+    }
 
     #[test]
     fn attaching_and_extracting_abilities_are_inverses() {

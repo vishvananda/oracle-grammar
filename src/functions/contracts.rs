@@ -42,7 +42,9 @@ pub(crate) fn checked_call(
         "named_source" | "named_object" | "current_it" | "current_named_object" | "next_slot" => {
             Some(0)
         }
-        "token_abilities" | "qualified_object" | "group_reference" => Some(2),
+        "token_abilities" | "token_abilities_append" | "qualified_object" | "group_reference" => {
+            Some(2)
+        }
         "qualified_members" | "last_exiled" | "last_exiled_creature" => Some(1),
         "either_event" | "agree" | "payment_cost" | "announced_cost" => Some(2),
         "kicker_branch" | "additional_branch" | "gift_branch" | "overload_branch" => Some(2),

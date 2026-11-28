@@ -142,3 +142,34 @@ fn sorcery_and_state_restrictions_compose_without_an_ignored_quantity() {
             .is_err()
     );
 }
+
+#[test]
+fn the_attachment_receipt_captures_the_host_before_the_damage_target() {
+    let name = "Thorin, Mountain-king";
+    let text = "Trample\nWhen Thorin enters, attach any number of target Equipment you control to target creature you control. When one or more Equipment become attached to that creature this way, that creature deals damage equal to its power to up to one target creature.";
+    let parsed = engine().parse(name, text).unwrap();
+    assert_eq!(parsed.readings.len(), 1);
+    let reading = &parsed.readings[0];
+    let instructions = &reading[1]["args"]["body"]["instructions"];
+    let attach = &instructions[0]["args"];
+    let host = &attach["operation"]["args"]["host"];
+    let callback = &instructions[1]["args"]["operation"]["args"];
+    assert_eq!(callback["performed"], attach["result"]);
+    let damage = &callback["body"]["instructions"][0]["args"]["operation"]["args"];
+    assert_eq!(damage["source"], *host);
+    assert_eq!(damage["amount"]["args"]["object"], *host);
+    let target = &callback["announcement"]["targets"][0]["slot"];
+    assert_eq!(
+        damage["recipients"],
+        json!({"kind":"Objects","args":{"kind":"Targets","args":target}})
+    );
+    assert_ne!(host["args"]["slot"], *target);
+    let trail = engine().trail_of(name, reading, text).unwrap().unwrap();
+    assert_eq!(
+        engine()
+            .print_trail(name, reading, &trail)
+            .unwrap()
+            .as_deref(),
+        Some(text),
+    );
+}

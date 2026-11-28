@@ -56,7 +56,10 @@ pub(crate) use events::{either_event, unify_either_event};
 pub(crate) use keywords::{keyword_list, keyword_list_type, unify_keyword_list};
 pub(crate) use objects::{unify_zone, zone_card_members, zone_members};
 pub(crate) use repeated::{agreed, unify_agree};
-pub(crate) use tokens::{unify_token_abilities, with_token_abilities};
+pub(crate) use tokens::{
+    append_token_abilities, unify_appended_token_abilities, unify_token_abilities,
+    with_token_abilities,
+};
 
 pub(crate) fn conjuncts(value: Value, out: &mut Vec<Value>) {
     match value.get("kind").and_then(Value::as_str) {

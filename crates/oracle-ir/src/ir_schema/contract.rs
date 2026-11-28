@@ -223,7 +223,8 @@ fn schema_204_appends_sequential_exile_variants() {
 fn schema_205_appends_shared_modal_variants() {
     let before: serde_json::Value = serde_json::from_str(super::frozen_json(204).unwrap()).unwrap();
     let before: Schema = serde_json::from_value(before["schema"].clone()).unwrap();
-    let after = Schema::of_ir().unwrap();
+    let after: serde_json::Value = serde_json::from_str(super::frozen_json(205).unwrap()).unwrap();
+    let after: Schema = serde_json::from_value(after["schema"].clone()).unwrap();
     for (name, added) in [
         ("ObjectSet", "ChosenModeTargets"),
         ("ModeMechanism", "AnnouncedShared"),
@@ -237,6 +238,60 @@ fn schema_205_appends_shared_modal_variants() {
         assert_eq!(
             serde_json::to_value(&new[..old.len()]).unwrap(),
             serde_json::to_value(old).unwrap()
+        );
+        assert_eq!(new.len(), old.len() + 1);
+        assert_eq!(new.last().unwrap().0, added);
+    }
+}
+
+#[test]
+fn schema_206_appends_actor_and_placement_variants() {
+    let before: serde_json::Value = serde_json::from_str(super::frozen_json(205).unwrap()).unwrap();
+    let before: Schema = serde_json::from_value(before["schema"].clone()).unwrap();
+    let after: serde_json::Value = serde_json::from_str(super::frozen_json(206).unwrap()).unwrap();
+    let after: Schema = serde_json::from_value(after["schema"].clone()).unwrap();
+    for (name, added) in [
+        ("PlayerEvent", "UntapsPermanent"),
+        ("Condition", "MovedToOwnersLibrary"),
+    ] {
+        let super::TypeDef::Enum { variants: old, .. } = &before.types[name] else {
+            panic!("{name} must be an enum");
+        };
+        let super::TypeDef::Enum { variants: new, .. } = &after.types[name] else {
+            panic!("{name} must be an enum");
+        };
+        assert_eq!(
+            serde_json::to_value(&new[..old.len()]).unwrap(),
+            serde_json::to_value(old).unwrap(),
+            "{name}: existing ordinal or operand changed",
+        );
+        assert_eq!(new.len(), old.len() + 1);
+        assert_eq!(new.last().unwrap().0, added);
+    }
+}
+
+#[test]
+fn schema_207_appends_player_visits_and_event_receipts() {
+    let before: serde_json::Value = serde_json::from_str(super::frozen_json(206).unwrap()).unwrap();
+    let before: Schema = serde_json::from_value(before["schema"].clone()).unwrap();
+    let after: serde_json::Value = serde_json::from_str(super::frozen_json(207).unwrap()).unwrap();
+    let after: Schema = serde_json::from_value(after["schema"].clone()).unwrap();
+    for (name, added) in [
+        ("Instruction", "ForEachPlayerInChosenOrder"),
+        ("PlayerSet", "GainedLifeBy"),
+        ("Expr", "EventActivationCountersRemoved"),
+        ("ReplacedPlayerEvent", "EmpowerJace"),
+    ] {
+        let super::TypeDef::Enum { variants: old, .. } = &before.types[name] else {
+            panic!("{name} must be an enum");
+        };
+        let super::TypeDef::Enum { variants: new, .. } = &after.types[name] else {
+            panic!("{name} must be an enum");
+        };
+        assert_eq!(
+            serde_json::to_value(&new[..old.len()]).unwrap(),
+            serde_json::to_value(old).unwrap(),
+            "{name}: existing ordinal or operand changed",
         );
         assert_eq!(new.len(), old.len() + 1);
         assert_eq!(new.last().unwrap().0, added);

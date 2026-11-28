@@ -183,6 +183,15 @@ pub enum Condition {
     /// recorded choice fact, never the player's current Ring-bearer or its live
     /// characteristics. False when no creature was chosen.
     RingBearerChosen(ObjectFilter),
+    /// Whether this singular Move actually placed its input at `end` of its
+    /// owner's library. Reads the resolved placement from that receipt, not
+    /// the proposed destination or the library's later current order. False
+    /// when the move was declined, prevented, or replaced to another destination.
+    /// Only a visible single-object `Operation::Move` result is accepted.
+    MovedToOwnersLibrary {
+        result: ResultId,
+        end: SequenceEnd,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

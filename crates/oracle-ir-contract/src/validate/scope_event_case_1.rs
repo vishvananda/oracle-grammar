@@ -4,8 +4,13 @@ impl<'a> Scope<'a> {
     pub(super) fn event_case_1(&self, event: &EventSpec) -> Result {
         match event {
             EventSpec::Player {
-                players, objects, ..
+                event: player_event,
+                players,
+                objects,
             } => {
+                if matches!(player_event, PlayerEvent::UntapsPermanent) && objects.is_none() {
+                    return Err("untap event requires a permanent filter".into());
+                }
                 let mut scoped = self.clone();
                 scoped.event = crate::semantics::with_event(&self.event, event);
                 scoped.players(players)?;
@@ -539,6 +544,10 @@ impl<'a> Scope<'a> {
             PlayerSet::One(p) | PlayerSet::OpponentsOf(p) | PlayerSet::OthersThan(p) => {
                 self.player(p)
             }
+            PlayerSet::GainedLifeBy(result) => match self.results.get(&result.0) {
+                Some(ResultKind::LifeGain) => Ok(()),
+                _ => Err("life-gain beneficiaries require a visible direct GainLife result".into()),
+            },
             PlayerSet::DamagedBy(result) if self.results.contains_key(&result.0) => Ok(()),
             PlayerSet::DamagedBy(result) => Err(format!("result {} is unavailable", result.0)),
             PlayerSet::Targets(slot) => self.target(slot, None, TargetKind::Player),

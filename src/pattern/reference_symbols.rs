@@ -19,7 +19,13 @@ pub(super) fn selection<'p, 'v>(
 pub(super) fn is_context(name: &str) -> bool {
     matches!(
         name,
-        "card_name" | "group_reference" | "that_much" | "that_many" | "discard_event_amount"
+        "card_name"
+            | "group_reference"
+            | "that_much"
+            | "that_many"
+            | "discard_event_amount"
+            | "selection_id"
+            | "reflexive_performed"
     )
 }
 
@@ -28,11 +34,16 @@ pub(super) fn context<'p, 'v>(
     value: &'v Value,
     mut bindings: Bindings<'p, 'v>,
 ) -> Vec<Bindings<'p, 'v>> {
-    if name == "card_name" {
-        bindings.insert(super::CARD_NAME, Cow::Borrowed(value));
-        vec![bindings]
-    } else {
-        unify(name, value, bindings)
+    match name {
+        "card_name" => {
+            bindings.insert(super::CARD_NAME, Cow::Borrowed(value));
+            vec![bindings]
+        }
+        "selection_id" | "reflexive_performed" => value
+            .as_u64()
+            .filter(|id| *id <= u64::from(u32::MAX))
+            .map_or_else(Vec::new, |_| vec![bindings]),
+        _ => unify(name, value, bindings),
     }
 }
 

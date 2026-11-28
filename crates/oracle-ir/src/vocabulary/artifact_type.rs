@@ -25,4 +25,5 @@ pub enum ArtifactType {
     Vehicle,
     Vibranium,
     Communicator,
+    Nail,
 }

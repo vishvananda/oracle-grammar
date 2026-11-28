@@ -146,6 +146,11 @@ pub enum ReplacedPlayerEvent {
     ReduceLifeTotal,
     /// The step's turn-based untap (CR 502.3), whatever it untaps.
     UntapPermanents,
+    /// One pending empower-Jace action, retaining its actor and requested
+    /// counter amount before any token creation or counter placement. The
+    /// bound amount remains available throughout the replacement body, even
+    /// after that pending action is canceled.
+    EmpowerJace,
 }
 
 #[derive(
@@ -881,6 +886,9 @@ pub enum PlayerEvent {
     Guesses,
     /// Separated cards or permanents into piles.
     GroupsIntoPiles,
+    /// The player actually untaps one matching permanent. This is one event
+    /// per permanent, irrespective of control or whose turn or step it is.
+    UntapsPermanent,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

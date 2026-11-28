@@ -196,6 +196,22 @@ impl<'a> Scope<'a> {
         }
     }
 
+    fn move_placement_receipt(&self, result: &ResultId) -> Result {
+        if self.single_move_results.contains(&result.0)
+            && matches!(
+                self.results.get(&result.0),
+                Some(ResultKind::ObjectTransition)
+            )
+        {
+            Ok(())
+        } else {
+            Err(format!(
+                "result {} is not a visible singular move receipt",
+                result.0
+            ))
+        }
+    }
+
     pub(super) fn condition(&self, condition: &Condition) -> Result {
         match condition {
             Condition::ChoseNth { player, .. } => self.player(player),
@@ -332,6 +348,7 @@ impl<'a> Scope<'a> {
                     Err(format!("result {} is unavailable", result.0))
                 }
             }
+            Condition::MovedToOwnersLibrary { result, .. } => self.move_placement_receipt(result),
             Condition::Searched(result) => match self.results.get(&result.0) {
                 Some(ResultKind::Search) => Ok(()),
                 _ => Err("searched condition requires an available search result".into()),

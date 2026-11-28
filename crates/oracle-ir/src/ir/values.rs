@@ -361,6 +361,13 @@ pub enum Expr {
         objects: Box<ObjectFilter>,
         by: PlayerRef,
     },
+    /// Counters of this kind actually removed to pay for the exact matched
+    /// activation event, summed across its cost components after replacement.
+    /// Captured at that activation; zero if none were removed. This never reads
+    /// the printed loyalty cost, current counters, or this ability's own cost.
+    EventActivationCountersRemoved {
+        kind: crate::counter::CounterKind,
+    },
 }
 
 /// Mana a number or filter reads that did not pay for a whole spell.

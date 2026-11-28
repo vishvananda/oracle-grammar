@@ -31,6 +31,8 @@ pub struct EventBindings {
     pub discard: bool,
     pub discarded: bool,
     pub activation_x: bool,
+    /// The exact matched activation retains its actual cost-payment facts.
+    pub activation_payment: bool,
     pub block_pair: bool,
     pub group: bool,
     /// A grouped zone change captures its pre-departure object views.
@@ -731,6 +733,7 @@ impl EventBindings {
             discard: a.discard && b.discard,
             discarded: a.discarded && b.discarded,
             activation_x: a.activation_x && b.activation_x,
+            activation_payment: a.activation_payment && b.activation_payment,
         }
     }
 }

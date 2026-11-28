@@ -95,6 +95,15 @@ impl<'a> Scope<'a> {
             .collect()
     }
 
+    fn bound_player_program(&self, binding: &LoopBinding, body: &Program) -> Result<Self> {
+        let mut each = self.clone();
+        if !each.players.insert(binding.0) {
+            return Err(format!("duplicate player binding {}", binding.0));
+        }
+        each.program(body)?;
+        Ok(each)
+    }
+
     pub(super) fn program(&mut self, program: &Program) -> Result {
         for (i, instruction) in program.instructions.iter().enumerate() {
             let checked: Result = (|| {
@@ -193,14 +202,20 @@ impl<'a> Scope<'a> {
                         if let Some(player) = starting_with {
                             self.player(player)?;
                         }
-                        let mut each = self.clone();
-                        if !each.players.insert(binding.0) {
-                            return Err(format!("duplicate player binding {}", binding.0));
-                        }
-                        each.program(body)?;
+                        let each = self.bound_player_program(binding, body)?;
                         if matches!(instruction, Instruction::ForEachPlayer { .. }) {
                             self.adopt_choices(body, &each);
                         }
+                    }
+                    Instruction::ForEachPlayerInChosenOrder {
+                        players,
+                        binding,
+                        chooser,
+                        body,
+                    } => {
+                        self.players(players)?;
+                        self.player(chooser)?;
+                        self.bound_player_program(binding, body)?;
                     }
                     Instruction::ChooseOne {
                         decider,
@@ -254,6 +269,7 @@ impl<'a> Scope<'a> {
             }
         }
         let kind = match operation.action() {
+                            op if single_move_producer(op) => ResultKind::ObjectTransition,
                             Operation::ExileLibraryUntil { stop: ExileLibraryStop::Matching { .. }, .. } => ResultKind::ExileUntilMatching,
                             Operation::ExileLibraryUntil { stop: ExileLibraryStop::CumulativeAtLeast { .. }, .. } => ResultKind::ExileUntilThreshold,
                             Operation::LookAt { .. }
@@ -275,6 +291,7 @@ impl<'a> Scope<'a> {
                             {
                                 ResultKind::DamageReplacement
                             }
+                            Operation::GainLife { .. } if matches!(operation, Operation::GainLife { .. }) => ResultKind::LifeGain,
                             Operation::Surveil { .. } => ResultKind::Surveil,
                             Operation::Search { .. } => ResultKind::Search,
                             Operation::PayCost { .. } | Operation::PayRepeatedly { .. } => {
@@ -344,6 +361,9 @@ impl<'a> Scope<'a> {
         }
         if self.results.insert(result.0, kind).is_some() {
             return Err(format!("duplicate result {}", result.0));
+        }
+        if single_move_producer(operation) {
+            self.single_move_results.insert(result.0);
         }
         if matches!(
             operation,

@@ -6,9 +6,19 @@ use crate::movement::legacy::{EntrySpec, EntryState};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[cfg(test)]
+mod activation_payment_event_tests;
+#[cfg(test)]
+mod actor_untap_tests;
+#[cfg(test)]
 mod event_group_departure_tests;
 #[cfg(test)]
 mod exile_until_tests;
+#[cfg(test)]
+mod life_gain_receipt_tests;
+#[cfg(test)]
+mod movement_receipt_tests;
+#[cfg(test)]
+mod ordered_player_visits_tests;
 
 mod arrival;
 mod bounds;
@@ -32,6 +42,7 @@ enum ResultKind {
     CreatedObjects,
     StackSpellCopy,
     DamageReplacement,
+    LifeGain,
     Fight,
     CounterPlacement,
     CounterSelection,
@@ -43,6 +54,29 @@ enum ResultKind {
 
 type Result<T = ()> = std::result::Result<T, String>;
 
+// The actor-aware one-player wrapper retains the same singular move receipt.
+pub(crate) fn single_move_producer(operation: &Operation) -> bool {
+    match operation.action() {
+        Operation::Move {
+            objects: ObjectSet::One(_),
+            ..
+        } => true,
+        Operation::EachPlayer {
+            players: PlayerSet::One(_),
+            action,
+        } => {
+            matches!(
+                action.action(),
+                Operation::Move {
+                    objects: ObjectSet::One(_),
+                    ..
+                }
+            )
+        }
+        _ => false,
+    }
+}
+
 #[derive(Clone, Default)]
 struct Scope<'a> {
     slots: BTreeMap<u16, &'a TargetSpec>,
@@ -50,6 +84,8 @@ struct Scope<'a> {
     allow_shared_mode_announcement: bool,
     prepared: BTreeMap<u32, Option<Vec<EventZone>>>,
     results: BTreeMap<u32, ResultKind>,
+    /// Receipts originating from direct movement, distinct from generic transitions.
+    single_move_results: BTreeSet<u32>,
     /// Receipts visible only to an explicit join after mutually exclusive branches.
     join_groups: Vec<BTreeSet<u32>>,
     result_zones: BTreeMap<u32, Vec<EventZone>>,

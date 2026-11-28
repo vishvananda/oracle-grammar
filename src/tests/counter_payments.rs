@@ -88,3 +88,24 @@ fn another_counter_payer_keeps_the_separate_recipient_and_decline_test() {
         printed_types(reading, &["Sorcery"]);
     }
 }
+
+#[test]
+fn an_optional_counter_instruction_does_not_shadow_a_counter_payment() {
+    let name = "Chisei, Heart of Oceans";
+    let text = "Flying\nAt the beginning of your upkeep, sacrifice Chisei unless you remove a counter from a permanent you control.";
+    let parsed = engine().parse(name, text).unwrap();
+    assert_eq!(parsed.readings.len(), 1);
+    let reading = &parsed.readings[0];
+    let payment = &reading[1]["args"]["body"]["instructions"][0]["args"]["operation"];
+    assert_eq!(payment["kind"], "PayCost");
+    assert_eq!(payment["args"]["optional"], true);
+    assert!(payment["args"]["cost"]["parts"][0]["RemoveCounters"].is_object());
+    let trail = engine().trail_of(name, reading, text).unwrap().unwrap();
+    assert_eq!(
+        engine()
+            .print_trail(name, reading, &trail)
+            .unwrap()
+            .as_deref(),
+        Some(text),
+    );
+}

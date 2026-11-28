@@ -96,6 +96,15 @@ pub enum Instruction {
         starting_with: Option<PlayerRef>,
         body: Program,
     },
+    /// Visit each eligible player once, in the order selected by `chooser`.
+    /// Each visit finishes before the next one begins. The player binding and
+    /// receipts made within a visit are local to that visit.
+    ForEachPlayerInChosenOrder {
+        players: PlayerSet,
+        binding: LoopBinding,
+        chooser: PlayerRef,
+        body: Program,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -301,6 +310,9 @@ pub enum Operation {
     RemoveCounters {
         removals: Vec<CounterRemoval>,
     },
+    /// Attach the legal members of the set to this host. A successful receipt
+    /// records actual new attachments. An illegal or unchanged attachment does
+    /// not trigger a reflexive follow-up that reads this operation's result.
     Attach {
         attachments: ObjectSet,
         host: ObjectRef,
@@ -556,7 +568,10 @@ pub enum Operation {
         won: Vec<Program>,
         lost: Vec<Program>,
     },
-    /// Draft a card from a named card's spellbook, `times` times, into hand.
+    /// Draft a card from the identified spellbook, `times` times, into hand.
+    /// `spellbook` is its explicit book key: either a card-associated book or
+    /// a named book such as Beleren. Its contents come from the reviewed book
+    /// catalog; the key is never silently replaced by the source card's name.
     DraftFromSpellbook {
         actor: PlayerSet,
         spellbook: String,

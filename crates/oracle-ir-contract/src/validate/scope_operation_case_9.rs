@@ -560,21 +560,26 @@ impl<'a> Scope<'a> {
             match instruction {
                 Instruction::Effect { result, operation } => {
                     let operation = operation.action();
+                    if single_move_producer(operation) {
+                        self.single_move_results.insert(result.0);
+                    }
                     if crate::semantics::singular_operation(operation, |r| {
                         self.singular.contains(&r.0)
                     }) {
                         self.singular.insert(result.0);
                     }
-                    if matches!(
-                        operation,
-                        Operation::Move { .. }
-                            | Operation::Destroy { .. }
-                            | Operation::Sacrifice { .. }
-                            | Operation::Discard { .. }
-                            | Operation::DiscardObjects { .. }
-                            | Operation::DiscardAllBut { .. }
-                            | Operation::Mill { .. }
-                    ) {
+                    if single_move_producer(operation)
+                        || matches!(
+                            operation,
+                            Operation::Move { .. }
+                                | Operation::Destroy { .. }
+                                | Operation::Sacrifice { .. }
+                                | Operation::Discard { .. }
+                                | Operation::DiscardObjects { .. }
+                                | Operation::DiscardAllBut { .. }
+                                | Operation::Mill { .. }
+                        )
+                    {
                         self.results.insert(result.0, ResultKind::ObjectTransition);
                     }
                     if let Operation::ExileLibraryUntil { stop, .. } = operation {

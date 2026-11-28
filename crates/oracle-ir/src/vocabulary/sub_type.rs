@@ -643,4 +643,5 @@ pub enum SubType {
     MindlessOne,
     Rondvaartboot,
     Dimension,
+    Nail,
 }

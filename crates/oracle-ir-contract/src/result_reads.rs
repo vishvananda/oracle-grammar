@@ -39,6 +39,13 @@ impl Visitor for Reader {
     fn ability(&mut self, _: &Ability) -> bool {
         false
     }
+    fn condition(&mut self, condition: &Condition) -> bool {
+        if matches!(condition, Condition::MovedToOwnersLibrary { result, .. } if result.0 == self.result)
+        {
+            self.reads.objects = true;
+        }
+        true
+    }
     fn object_filter(&mut self, filter: &ObjectFilter) -> bool {
         if filter.named_result().is_some_and(|r| r.0 == self.result) {
             self.reads.membership = true;

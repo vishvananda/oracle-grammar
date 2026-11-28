@@ -8994,6 +8994,19 @@ rad_playtest_aside ::= "(" "Yeah" "," "we" "have" "to" "double" "check" "how" "r
 /* @sem Ability::Triggered{event:Object{event:Attacks, objects:SameObject($self_ref_named)}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Transform{object:$self_ref_named}}}]}, otherwise:Program{}}]}} */
 triggered_attack_pay_transform_her ::= "whenever" self_ref_named "attacks" "," "you" "may" payment "." "if" "you" "do" "," "transform" "her" "."
 
+/* One actual player-caused untap, plus independently grouped mill and entry events. */
+event_player_untap_mill_enter ::= event_controller_untap_mill_enter | event_opponent_untap_mill_enter
+/* @sem EventSpec::AnyOf(@unordered([$event_controller_filtered_untap, Batch{event:Player{event:MillsCard, players:One(AbilityController), objects:Any}, per:Whole}, $event_many_controlled_creatures_enter])) */
+event_controller_untap_mill_enter ::= event_controller_filtered_untap "," "mill" "one" "or" "more" "cards" "," "or" event_many_controlled_creatures_enter
+/* @sem EventSpec::AnyOf(@unordered([$event_opponent_filtered_untap, Batch{event:Player{event:MillsCard, players:One(AbilityController), objects:Any}, per:Whole}, $event_many_controlled_creatures_enter])) */
+event_opponent_untap_mill_enter ::= event_opponent_filtered_untap "," "you" "mill" "one" "or" "more" "cards" "," "or" event_many_controlled_creatures_enter
+/* @sem EventSpec::Filtered{event:Player{event:UntapsPermanent, players:One(AbilityController), objects:AllOf(@unordered([Not(SameObject(Source)), Not(Subtype(Food))]))}, condition:Not(AllOf([Window(UntapStep), PlayerIsActive(AbilityController)]))} */
+event_controller_filtered_untap ::= "you" "untap" "another" "non-Food" "permanent" "outside" "of" "your" "untap" "step"
+/* @sem EventSpec::Filtered{event:Player{event:UntapsPermanent, players:OpponentsOf(AbilityController), objects:AllOf(@unordered([Not(SameObject(Source)), Not(Subtype(Food))]))}, condition:Not(AllOf([Window(UntapStep), PlayerIsActive(AbilityController)]))} */
+event_opponent_filtered_untap ::= "an" "opponent" "untaps" "another" "non-Food" "permanent" "outside" "of" "your" "untap" "step"
+/* @sem Ability::Triggered{event:$event_player_untap_mill_enter, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:SetTapped{objects:One($self_explicit_ref), tapped:false}}]}} */
+triggered_player_untap_mill_enter ::= "whenever" event_player_untap_mill_enter "," "untap" self_explicit_ref "."
+
 /* The locally introduced noun remains the lexical antecedent of the numeric
    clause. Ordinary card receipts keep their existing inverse paths. */
 /* @prefer always */
@@ -9019,3 +9032,23 @@ triggered_opponent_attacks_lower_life ::= "whenever" opponent_attacks_lower_life
 
 /* @sem EventSpec::Filtered{event:Batch{event:Attack{attackers:Any, by:OpponentsOf(AbilityController), defenders:Players(All)}, per:Defender}, condition:Compare{left:PlayerNumber{player:DefendingPlayer, number:Life}, test:Compare{comparison:Less, value:PlayerNumber{player:AttackingPlayer, number:Life}}}} */
 opponent_attacks_lower_life ::= "an" "opponent" "attacks" "a" "player" "with" "a" "lower" "life" "total" "than" "them"
+
+/* Only actual beneficiaries of this gain, not the attempted player or amount,
+   can satisfy the follow-up. The turn's opponent life loss is a live history. */
+/* @sem Ability::Triggered{event:$turn_end, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:GainLife{players:One($life_gain_receipt_target), amount:$life_lost_by_opponents}}, If{condition:Compare{left:CountPlayers(Intersection(@unordered([GainedLifeBy(@marked), OthersThan(AbilityController)]))), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $draw_base)}]}, otherwise:Program{}}]}} */
+triggered_life_gain_other_draw ::= "at" turn_end "," life_gain_receipt_target "gains" "life" "equal" "to" life_lost_by_opponents "." "if" "a" "player" "other" "than" "you" "gains" "life" "this" "way" "," draw_base "."
+/* @sem Expr::EventHistory{event:Player{event:LosesLife, players:OpponentsOf(AbilityController)}, window:ThisTurn, measure:TotalAmount} */
+life_lost_by_opponents ::= "the" "total" "amount" "of" "life" "lost" "by" "your" "opponents" "this" "turn"
+
+life_gain_receipt_target ::= target_player | target_opponent
+
+/* The opted-in counter action is a resolution cost. Copy the triggering
+   stack object, including its last known copiable values after it leaves. */
+/* @sem Ability::Triggered{event:$event_cast, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$counter_event_spell_payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:EventSubject, exceptions:[SetTypes{card_types:[Artifact], subtypes:[Nail]}]}}], entry:BattlefieldArrival{}}}]}, otherwise:Program{}}]}} */
+triggered_cast_counters_spell_into_artifact ::= "whenever" event_cast "," "you" "may" counter_event_spell_payment "." "if" "you" "do" "," "create" "a" "token" "that's" "a" "copy" "of" "it" "," "except" "the" "token" "is" "a" "Nail" "artifact" "." countess_type_aside?
+
+/* @sem Cost::Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(EventSubject), destination:OwnersGraveyard(CardArrival{}), destination_when:None}}]}}]} */
+counter_event_spell_payment ::= "counter" "it"
+
+/* @sem () */
+countess_type_aside ::= "(" "the" "token" "isn't" "any" "of" "the" "spell's" "other" "types" "." ")"

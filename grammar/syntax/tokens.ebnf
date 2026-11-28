@@ -3017,3 +3017,19 @@ redwing_token_name ::= redwing_token_words
 
 /* @sem () */
 redwing_token_words ::= "Redwing"
+
+/* Append vanishing and a holder-local trigger to the intrinsic Food ability. */
+/* @sem TokenRecipe::@token_abilities_append($tn_food, $food_extra_abilities) */
+food_vanishing_trigger_recipe ::= tn_food "token" "with" food_extra_abilities
+/* @sem Ability::[$food_vanishing, $food_last_counter_trigger] */
+food_extra_abilities ::= food_vanishing "and" '"' food_last_counter_trigger '"'
+/* @sem Ability::Mechanic{mechanic:VanishingEnters, amount:$number_digits} */
+food_vanishing ::= "vanishing" number_digits
+/* @sem Ability::@scope(Ability::Triggered{event:Counters{change:LastRemoved, kind:$counter_kind, objects:SameObject(Source)}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:$number}}, Effect{result:@next, operation:PutCounters{placements:[CounterPlacement{recipients:Players(One(AbilityController)), kind:Named(PoisonCounter), amount:$food_poison_amount}]}}]}}) */
+food_last_counter_trigger ::= "when" "the" "last" counter_kind "counter" "is" "removed" "from" "this" "Food" "," "you" "lose" number "life" "and" "get" food_poison_amount "."
+
+food_poison_amount ::= food_poison_one | food_poison_plural
+/* @sem Expr::Constant(1) */
+food_poison_one ::= "a" "poison" "counter"
+/* @sem $count_plural */
+food_poison_plural ::= count_plural "poison" "counters"

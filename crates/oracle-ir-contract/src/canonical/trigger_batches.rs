@@ -38,6 +38,7 @@ fn event_read(value: &Value, work: &mut usize, depth: usize) -> Result<bool, Str
                 | "EventGroup"
                 | "EventAmount"
                 | "EventActivationX"
+                | "EventActivationCountersRemoved"
                 | "Damage"
                 | "DamageRecipients"
                 | "DamagedByEvent"

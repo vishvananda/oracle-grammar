@@ -81,6 +81,7 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
                     | ReplacedPlayerEvent::Mill
                     | ReplacedPlayerEvent::Scry
                     | ReplacedPlayerEvent::DrawCards
+                    | ReplacedPlayerEvent::EmpowerJace
             ),
             ..Default::default()
         },

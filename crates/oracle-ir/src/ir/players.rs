@@ -404,6 +404,10 @@ pub enum PlayerSet {
         attacker: PlayerRef,
         window: super::HistoryWindow,
     },
+    /// Distinct players who actually gained a positive amount of life from
+    /// this direct GainLife result after replacement and prevention. Empty if
+    /// no life was gained, including an attempted gain of zero (CR 119.9).
+    GainedLifeBy(ResultId),
 }
 
 /// Something a player did or had done to them. See `Condition::PlayerDid`.

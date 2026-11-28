@@ -57,6 +57,7 @@ pub(super) fn event_bindings_case_2(
                 discard: false,
                 discarded: false,
                 activation_x: false,
+                activation_payment: false,
             }
         }
         EventSpec::Spell { .. } => EventBindings {
@@ -66,6 +67,7 @@ pub(super) fn event_bindings_case_2(
             ..EventBindings::default()
         },
         EventSpec::Activated { .. } => EventBindings {
+            activation_payment: true,
             object: true,
             permanent: true,
             player: true,

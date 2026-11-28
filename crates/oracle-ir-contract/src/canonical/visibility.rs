@@ -17,6 +17,7 @@ fn collect(body: &Program, choices: bool, path: &str, out: &mut Vec<(u64, String
         match instruction {
             Instruction::Effect { result, operation } => {
                 if choices
+                    || crate::validate::single_move_producer(operation)
                     || matches!(
                         operation.action(),
                         Operation::Move { .. }
@@ -99,7 +100,8 @@ pub fn branch_sites(value: &Value) -> Vec<(u64, String)> {
                 }
                 Instruction::Repeatable(body) => collect(body, true, &at, out),
                 Instruction::RepeatableWithLimit { .. }
-                | Instruction::ForEachPlayerInTurnOrder { .. } => {}
+                | Instruction::ForEachPlayerInTurnOrder { .. }
+                | Instruction::ForEachPlayerInChosenOrder { .. } => {}
             }
         }
     }

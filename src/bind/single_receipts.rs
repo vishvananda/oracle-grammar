@@ -35,6 +35,7 @@ struct Frame {
 const LOOPS: &[&str] = &[
     "ForEachPlayer",
     "ForEachPlayerInTurnOrder",
+    "ForEachPlayerInChosenOrder",
     "ForEachObject",
     "Repeatable",
     "RepeatableWithLimit",

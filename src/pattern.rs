@@ -4,11 +4,11 @@
 use crate::functions::relative_modifiers;
 use crate::functions::target_scopes::unify as unify_targets;
 use crate::functions::{
-    agreed, applied, conjunction, contextual_reminder, continuous_parts, either_event, entering,
-    incremented, negated, product, saga_chapters, subtype_name, unify_agree, unify_and,
-    unify_apply, unify_continuous_parts, unify_either_event, unify_negate, unify_plus_one,
-    unify_subtype_name, unify_times, unify_token_abilities, unify_zone, with_token_abilities,
-    zone_card_members,
+    agreed, append_token_abilities, applied, conjunction, contextual_reminder, continuous_parts,
+    either_event, entering, incremented, negated, product, saga_chapters, subtype_name,
+    unify_agree, unify_and, unify_appended_token_abilities, unify_apply, unify_continuous_parts,
+    unify_either_event, unify_negate, unify_plus_one, unify_subtype_name, unify_times,
+    unify_token_abilities, unify_zone, with_token_abilities, zone_card_members,
 };
 use crate::model::ir_schema::{Fields, Schema, Ty, TypeDef};
 use serde_json::{Map, Value};
@@ -720,6 +720,9 @@ impl Pattern {
                     ("token_abilities", [base, abilities]) => {
                         return with_token_abilities(base, abilities);
                     }
+                    ("token_abilities_append", [base, abilities]) => {
+                        return append_token_abilities(base, abilities);
+                    }
                     ("length", [Value::Array(items)]) => {
                         return Ok(serde_json::json!({"kind": "Constant", "args": items.len()}));
                     }
@@ -858,10 +861,6 @@ impl Pattern {
             "single_player" => {
                 return args[0]
                     .unify_made(&serde_json::json!({"kind":"One","args":value}), &bindings);
-            }
-            "selection_id" | "reflexive_performed" => {
-                let id = value.as_u64().filter(|id| *id <= u64::from(u32::MAX));
-                return id.map_or_else(Vec::new, |_| vec![bindings]);
             }
             "return_ref" => return reference_symbols::return_ref(args, value, bindings),
             "selection" => return reference_symbols::selection(args, value, bindings),
@@ -1011,6 +1010,9 @@ impl Pattern {
                 );
             }
             "token_abilities" => return unify_token_abilities(args, value, bindings),
+            "token_abilities_append" => {
+                return unify_appended_token_abilities(args, value, bindings);
+            }
             "negate" => return unify_negate(args, value, bindings),
             "subtype_name" => return unify_subtype_name(args, value, bindings),
             "reflexive" => return unify_reflexive(args, value, bindings),

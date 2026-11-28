@@ -450,6 +450,15 @@ pub(super) fn event_bindings_case_1(
     allow_discard_destination: bool,
 ) -> EventBindings {
     match event {
+        EventSpec::Player {
+            event: PlayerEvent::UntapsPermanent,
+            ..
+        } => EventBindings {
+            object: true,
+            permanent: true,
+            player: true,
+            ..EventBindings::default()
+        },
         EventSpec::Player { event, .. } => PLAYER_EVENTS
             .iter()
             .find(|(_, row)| row == event)
