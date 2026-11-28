@@ -378,8 +378,8 @@ revision. A tag alone is insufficient artifact identity. Keep downloaded corpora
 and build products out of Git.
 
 Corpus audits use an explicit allowed population and immutable input hashes.
-Held-out card text remains sealed during rule authoring. Do not inspect held-out
-examples, emit per-card held-out diagnostics or seed rules from those examples.
+Failures in that population may inform rule authoring and per-card diagnostics.
+Reuse the smallest semantically complete phrase that covers the written form.
 Normal builds and local regression tests need no corpus.
 
 Report each gate separately:

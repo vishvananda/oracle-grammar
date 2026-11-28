@@ -77,7 +77,7 @@ compile the frontend incrementally; `build --optimized` does not.
 `ORACLE_GRAMMAR_THREADS` raises the library default of two worker threads for
 inspection and scoring; `dev.py test`, `families` and `check` default to up to 16.
 
-`tools/corpus.py` scores cohorts of an explicit unsealed population against a
+`tools/corpus.py` scores cohorts of an explicit allowed population against a
 baseline. Its inputs and their SHA-256 checksums are named in the ignored local
 manifest `.cache/corpus/inputs.json`; `slice`, `score`, `audit`, `queue` and
 `accept` compare by occurrence and refuse lost matches, lost parses or limits.
@@ -118,8 +118,8 @@ preserves schema 190; see [the ownership migration](docs/owned-ir-crates.md).
 
 MTGish reference data has a separate lock. Moving its reference revision does
 not move the model or change the compiler inputs. See the
-[adapter contract](adapters/mtgish/README.md) for independently versioned reference artifacts and schema compatibility. Full corpora and held-out data are not
-bundled in this repository.
+[adapter contract](adapters/mtgish/README.md) for independently versioned reference
+artifacts and schema compatibility. Full corpora live outside this repository.
 
 ## Verification
 

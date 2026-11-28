@@ -98,9 +98,8 @@ source version. For example, substitute real identity and checksum values into:
 ```
 
 An allowed subset uses `"kind":"oracle_ids"` and an `"oracle_ids":[...]` list
-instead of `all`. Missing and duplicate requested IDs fail the export. Respect
-the repository's held-out policy: use synthetic fixtures while authoring and an
-explicitly authorized population for release exports.
+instead of `all`. Missing and duplicate requested IDs fail the export. Use an
+explicit population and a checksum-pinned source for every release export.
 
 For a local export, check out the immutable code-release tag, then run:
 

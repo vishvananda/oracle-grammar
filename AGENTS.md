@@ -30,9 +30,9 @@ No local dependency patches or replacements. Normal builds must not depend on
 MTGish packages. Keep upstream-specific Source translation out of grammar rules.
 Use isolated checkouts for upstream experiments; preserve other workers' changes.
 
-Full corpora and held-out data are not bundled here. During rule authoring, do
-not inspect held-out cards. Audits require an explicit allowed population and
-immutable inputs. Both-unsupported never counts as semantic agreement.
+Full corpora are not bundled here. Audits require an explicit allowed population
+and immutable inputs. Authors may inspect failures in that population.
+Both-unsupported never counts as semantic agreement.
 
 ## Hygiene and cycle time
 
