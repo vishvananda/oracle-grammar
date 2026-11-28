@@ -246,6 +246,11 @@ pub enum CounterName {
     PeaceCounter,
     DontCounter,
     StyleCounter,
+    SinCounter,
+    RecordingCounter,
+    GravyCounter,
+    DeceitCounter,
+    TransformationCounter,
 }
 
 #[inline]
@@ -501,6 +506,11 @@ fn lower_dispatch_2(value: &CounterType) -> CounterKind {
         | CounterType::WishCounter
         | CounterType::WreckCounter
         | CounterType::ShieldCounter
+        | CounterType::SinCounter
+        | CounterType::RecordingCounter
+        | CounterType::GravyCounter
+        | CounterType::DeceitCounter
+        | CounterType::TransformationCounter
         | CounterType::StunCounter => lower_case_2(value),
         _ => unreachable!("all current variants were dispatched"),
     }
@@ -759,6 +769,13 @@ fn lower_case_2(value: &CounterType) -> CounterKind {
         CounterType::WreckCounter => CounterKind::Named(CounterName::WreckCounter),
         CounterType::ShieldCounter => CounterKind::Named(CounterName::ShieldCounter),
         CounterType::StunCounter => CounterKind::Named(CounterName::StunCounter),
+        CounterType::SinCounter => CounterKind::Named(CounterName::SinCounter),
+        CounterType::RecordingCounter => CounterKind::Named(CounterName::RecordingCounter),
+        CounterType::GravyCounter => CounterKind::Named(CounterName::GravyCounter),
+        CounterType::DeceitCounter => CounterKind::Named(CounterName::DeceitCounter),
+        CounterType::TransformationCounter => {
+            CounterKind::Named(CounterName::TransformationCounter)
+        }
         _ => unreachable!("validated dispatch"),
     }
 }

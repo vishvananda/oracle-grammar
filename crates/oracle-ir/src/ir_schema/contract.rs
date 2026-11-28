@@ -173,3 +173,22 @@ fn schema_195_preserves_published_ordinals_and_reviews_existing_payload_changes(
         serde_json::to_value(&previous.types["PlayTerms"]).unwrap()
     );
 }
+
+#[test]
+fn schema_203_preserves_object_set_ordinals() {
+    let before: serde_json::Value = serde_json::from_str(super::frozen_json(202).unwrap()).unwrap();
+    let before: Schema = serde_json::from_value(before["schema"].clone()).unwrap();
+    let after = Schema::of_ir().unwrap();
+    let super::TypeDef::Enum { variants: old, .. } = &before.types["ObjectSet"] else {
+        panic!("ObjectSet must remain an enum")
+    };
+    let super::TypeDef::Enum { variants: new, .. } = &after.types["ObjectSet"] else {
+        panic!("ObjectSet must remain an enum")
+    };
+    assert_eq!(
+        serde_json::to_value(&new[..old.len()]).unwrap(),
+        serde_json::to_value(old).unwrap()
+    );
+    assert_eq!(new.len(), old.len() + 1);
+    assert_eq!(new.last().unwrap().0, "EventGroupDeparture");
+}

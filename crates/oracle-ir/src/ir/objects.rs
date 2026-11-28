@@ -387,6 +387,10 @@ pub enum ObjectSet {
         slot: TargetSlot,
         participant: PlayerRef,
     },
+    /// Pre-move identities and their event-time last-known characteristics for
+    /// every actual transition in a grouped zone-departure event. This snapshot
+    /// stays available to the triggered ability after the objects change zones.
+    EventGroupDeparture,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

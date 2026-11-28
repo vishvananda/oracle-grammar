@@ -135,11 +135,15 @@ banding_blocking_words ::= "if" "any" "creatures" "with" "banding" "you" "contro
 
 /* @sem $mechanic_banding */
 banding_reminded_text ::= mechanic_banding "(" banding_rule_explanation ")"
-banding_rule_explanation ::= banding_controller_explanation | banding_player_explanation
+banding_rule_explanation ::= banding_controller_words | banding_player_words
 /* @sem String::'Banding' */
-banding_controller_explanation ::= banding_attack_rules "if" "any" "creatures" "with" "banding" "you" "control" "are" "blocking" "or" "being" "blocked" "by" "a" "creature" "," "you" "divide" "that" "creature's" "combat" "damage" "," "not" "its" "controller" "," "among" "any" "of" "the" "creatures" "it's" "being" "blocked" "by" "or" "is" "blocking" "."
+banding_controller_explanation ::= banding_controller_words
+/* @sem () */
+banding_controller_words ::= banding_attack_rules "if" "any" "creatures" "with" "banding" "you" "control" "are" "blocking" "or" "being" "blocked" "by" "a" "creature" "," "you" "divide" "that" "creature's" "combat" "damage" "," "not" "its" "controller" "," "among" "any" "of" "the" "creatures" "it's" "being" "blocked" "by" "or" "is" "blocking" "."
 /* @sem String::'Banding' */
-banding_player_explanation ::= banding_attack_rules "if" "any" "creatures" "with" "banding" "a" "player" "controls" "are" "blocking" "or" "being" "blocked" "by" "a" "creature" "," "that" "player" "divides" "that" "creature's" "combat" "damage" "," "not" "its" "controller" "," "among" "any" "of" "the" "creatures" "it's" "being" "blocked" "by" "or" "is" "blocking" "."
+banding_player_explanation ::= banding_player_words
+/* @sem () */
+banding_player_words ::= banding_attack_rules "if" "any" "creatures" "with" "banding" "a" "player" "controls" "are" "blocking" "or" "being" "blocked" "by" "a" "creature" "," "that" "player" "divides" "that" "creature's" "combat" "damage" "," "not" "its" "controller" "," "among" "any" "of" "the" "creatures" "it's" "being" "blocked" "by" "or" "is" "blocking" "."
 /* @sem () */
 banding_attack_rules ::= "any" "creatures" "with" "banding" "," "and" "up" "to" "one" "without" "," "can" "attack" "in" "a" "band" "." "bands" "are" "blocked" "as" "a" "group" "."
 
@@ -1052,7 +1056,7 @@ craft_exactly ::= "craft" "with" value craft_materials kicker_operands
 /* @sem Ability::Craft{materials:Term{family:Craftable, form:AnyCard}, count:[GreaterOrEqual, $value], cost:List($kicker_operands)} */
 craft_at_least_any ::= "craft" "with" value "or" "more" kicker_operands
 craft_material ::= craft_artifact | craft_creature | craft_land_type | craft_type_list
-craft_materials ::= craft_artifacts | craft_creatures | craft_creature_types | craft_nonlands_activated | craft_shared_card_type
+craft_materials ::= craft_spell_card_materials | craft_artifacts | craft_creatures | craft_creature_types | craft_nonlands_activated | craft_shared_card_type
 /* @sem Operand::Term{family:Craftable, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Artifact}]} */
 craft_artifact ::= "artifact"
 /* @sem Operand::Term{family:Craftable, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]} */
@@ -1518,7 +1522,7 @@ tier_mode_meteor_strikes ::= "•" "Meteor" "Strikes" "—" cost "—" double_po
 tier_mode_final_heaven ::= "•" "Final" "Heaven" "—" cost "—" triple_target_characteristics "."
 
 /* These reminders repeat the mechanic’s printed amount. */
-valued_mechanic_reminded_text ::= craft_implicit_materials_exact_reminded | craft_implicit_materials_minimum_reminded | craft_implicit_four_types_reminded | soulshift_reminded_text | saddle_reminded_text | dredge_reminded_text | graft_reminded_text | modular_reminded_text | rampage_reminded_text
+valued_mechanic_reminded_text ::= craft_spell_card_materials_reminded | craft_implicit_materials_exact_reminded | craft_implicit_materials_minimum_reminded | craft_implicit_four_types_reminded | soulshift_reminded_text | saddle_reminded_text | dredge_reminded_text | graft_reminded_text | modular_reminded_text | rampage_reminded_text
 
 /* @sem Ability::Mechanic{mechanic:Soulshift, amount:Expr::@agree($number_digits, $number_digits_2)} */
 soulshift_reminded_text ::= "soulshift" number_digits "(" "when" "this" "creature" "dies" "," "you" "may" "return" "target" "Spirit" "card" "with" "mana" "value" number_digits "or" "less" "from" "your" "graveyard" "to" "your" "hand" "." ")"
@@ -1768,3 +1772,10 @@ storied_reminded_text ::= mechanic_storied "(" "if" "you" "control" "three" "or"
 
 /* @sem Ability::Mechanic{mechanic:$unvalued_increment} */
 increment_reminded_text ::= unvalued_increment "(" "whenever" "you" "cast" "a" "spell" "," "if" "the" "amount" "of" "mana" "you" "spent" "is" "greater" "than" "this" "creature's" "power" "or" "toughness" "," "put" "a" "+" "1" "/" "+" "1" "counter" "on" "this" "creature" "." ")"
+
+/* The color applies to both spell types. The repeated cost and minimum agree. */
+/* @sem Operand::Filter(AllOf([$adjective_color, AnyOf(@unordered([$spell_instant, $spell_sorcery]))])) */
+craft_spell_card_materials ::= adjective_color spell_instant "and/or" spell_sorcery "cards"
+
+/* @sem Ability::@agree(Craft{materials:$craft_spell_card_materials, count:[GreaterOrEqual, $value], cost:List($kicker_operands)}, Craft{materials:$craft_spell_card_materials, count:[GreaterOrEqual, $number_words], cost:List($kicker_operands_2)}) */
+craft_spell_card_materials_reminded ::= "craft" "with" value "or" "more" craft_spell_card_materials kicker_operands "(" kicker_operands craft_exile_source "the" number_words "or" "more" "from" "your" "graveyard" craft_explain_result ")"

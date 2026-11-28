@@ -8,7 +8,7 @@ impl<'a> Scope<'a> {
             match instruction {
                 Instruction::Effect {
                     result,
-                    operation: Operation::ChooseObjects { .. },
+                    operation: Operation::ChooseObjects { .. } | Operation::Search { .. },
                 } => {
                     self.results.insert(result.0, ResultKind::Selection);
                     self.gathered.insert(result.0);

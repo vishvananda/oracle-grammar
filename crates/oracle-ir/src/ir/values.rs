@@ -153,8 +153,10 @@ pub enum Expr {
         objects: Box<ObjectSet>,
         colors: Vec<ManaColor>,
     },
-    /// Aggregate current numeric properties. Empty inputs yield zero;
-    /// maximum/minimum do not clamp negative nonempty inputs at zero.
+    /// Aggregate numeric properties of the selected views. Live sets use current
+    /// properties; captured views such as EventGroupDeparture use their recorded
+    /// event-time last-known properties. Empty inputs yield zero; maximum/minimum
+    /// do not clamp negative nonempty inputs at zero.
     Aggregate {
         objects: Box<ObjectSet>,
         property: Property,

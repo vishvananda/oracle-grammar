@@ -102,45 +102,98 @@ impl Engine {
         &self,
         card: &ir::UnifiedCard,
     ) -> Result<Option<(String, String)>, String> {
+        self.print_sticker_sheet_with_trail(card, None)
+    }
+
+    /// Save grammatical choices for each rules row of the given Oracle sheet.
+    /// The result contains no sticker values or printed source text.
+    pub fn sticker_sheet_trail_of(
+        &self,
+        card: &ir::UnifiedCard,
+        name: &str,
+        text: &str,
+    ) -> Result<Option<Vec<Vec<String>>>, String> {
+        if text.len() > MAX_TEXT_BYTES || name.len() > 4096 {
+            return Err("sticker sheet byte limit".into());
+        }
         let card = canonical::unified(card)?;
-        let [
-            ir::Field {
-                value: ir::Operand::Stickers(stickers),
-                ..
-            },
-        ] = card.data.as_slice()
-        else {
-            return Err("expected sticker sheet metadata".into());
-        };
-        if card.layout != ir::Layout::StickerSheet || stickers.len() > MAX_STICKERS {
-            return Err("invalid sticker sheet layout".into());
+        let (printed_name, rules) = sheet_parts(&card)?;
+        let lines: Vec<_> = text.split('\n').take(MAX_STICKERS + 1).collect();
+        if printed_name != name || lines.len() != rules.len() {
+            return Ok(None);
         }
-        let [
-            ir::Sticker::Name(first),
-            ir::Sticker::Name(second),
-            ir::Sticker::Name(third),
-            rules @ ..,
-        ] = stickers.as_slice()
-        else {
-            return Err("expected three name stickers".into());
-        };
-        if ![first, second, third]
-            .iter()
-            .all(|word| valid_name_sticker(word))
-        {
-            return Err("invalid printed name sticker".into());
+        let mut trail = Vec::with_capacity(rules.len());
+        for (sticker, line) in rules.iter().zip(lines) {
+            let Some((cost, body)) = line.split_once(" — ") else {
+                return Ok(None);
+            };
+            let cost = ticket_cost(cost).ok();
+            match sticker {
+                ir::Sticker::Abilities { tickets, abilities } if cost == Some(*tickets) => {
+                    let abilities = serde_json::to_value(abilities).map_err(|e| e.to_string())?;
+                    let Some(row) = self.trail_of("", &abilities, body)? else {
+                        return Ok(None);
+                    };
+                    trail.push(row);
+                }
+                ir::Sticker::PowerToughness {
+                    tickets,
+                    power,
+                    toughness,
+                } if cost == Some(*tickets) && body == format!("{power}/{toughness}") => {
+                    trail.push(Vec::new());
+                }
+                _ => return Ok(None),
+            }
         }
-        let name = format!("{first} {second} {third}");
+        let replayed = self.print_sticker_sheet_trail(&card, &trail)?;
+        Ok(replayed
+            .is_some_and(|(written_name, written)| written_name == name && written == text)
+            .then_some(trail))
+    }
+
+    /// Replay row choices using the current sticker operands, then verify the sheet.
+    pub fn print_sticker_sheet_trail(
+        &self,
+        card: &ir::UnifiedCard,
+        trail: &[Vec<String>],
+    ) -> Result<Option<(String, String)>, String> {
+        self.print_sticker_sheet_with_trail(card, Some(trail))
+    }
+
+    fn print_sticker_sheet_with_trail(
+        &self,
+        card: &ir::UnifiedCard,
+        trail: Option<&[Vec<String>]>,
+    ) -> Result<Option<(String, String)>, String> {
+        let card = canonical::unified(card)?;
+        let (name, rules) = sheet_parts(&card)?;
+        if trail.is_some_and(|rows| rows.len() != rules.len()) {
+            return Ok(None);
+        }
         let mut rows = Vec::new();
-        for sticker in rules {
+        for (index, sticker) in rules.iter().enumerate() {
+            let row_trail = trail.map(|rows| rows[index].as_slice());
             let (tickets, text) = match sticker {
                 ir::Sticker::PowerToughness {
                     tickets,
                     power,
                     toughness,
-                } => (*tickets, format!("{power}/{toughness}")),
+                } => {
+                    if row_trail.is_some_and(|row| !row.is_empty()) {
+                        return Ok(None);
+                    }
+                    (*tickets, format!("{power}/{toughness}"))
+                }
                 ir::Sticker::Abilities { tickets, abilities } => {
-                    let Some(text) = self.print_sticker_abilities(abilities)? else {
+                    let text = if let Some(row) = row_trail {
+                        let value = serde_json::to_value(abilities).map_err(|e| e.to_string())?;
+                        self.print_trail("", &value, row)?
+                            .filter(|text| !text.contains('\n'))
+                    } else {
+                        self.print_sticker_abilities(abilities)?
+                    };
+                    let Some(text) = text else {
                         return Ok(None);
                     };
                     (*tickets, text)
@@ -186,6 +239,37 @@ impl Engine {
             .into_iter()
             .find(|text| verifies(text)))
     }
+}
+
+fn sheet_parts(card: &ir::UnifiedCard) -> Result<(String, &[ir::Sticker]), String> {
+    let [
+        ir::Field {
+            value: ir::Operand::Stickers(stickers),
+            ..
+        },
+    ] = card.data.as_slice()
+    else {
+        return Err("expected sticker sheet metadata".into());
+    };
+    if card.layout != ir::Layout::StickerSheet || stickers.len() > MAX_STICKERS {
+        return Err("invalid sticker sheet layout".into());
+    }
+    let [
+        ir::Sticker::Name(first),
+        ir::Sticker::Name(second),
+        ir::Sticker::Name(third),
+        rules @ ..,
+    ] = stickers.as_slice()
+    else {
+        return Err("expected three name stickers".into());
+    };
+    if ![first, second, third]
+        .iter()
+        .all(|word| valid_name_sticker(word))
+    {
+        return Err("invalid printed name sticker".into());
+    }
+    Ok((format!("{first} {second} {third}"), rules))
 }
 
 fn valid_name_sticker(word: &str) -> bool {

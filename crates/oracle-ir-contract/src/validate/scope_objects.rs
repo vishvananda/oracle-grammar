@@ -96,6 +96,8 @@ impl<'a> Scope<'a> {
             }
             ObjectSet::Damage(DamageSubject::Source) if self.event.damage => Ok(()),
             ObjectSet::Damage(DamageSubject::Recipient) if self.event.damage_objects => Ok(()),
+            ObjectSet::EventGroupDeparture if self.event.departure_group => Ok(()),
+            ObjectSet::EventGroupDeparture => Err("this event groups no zone departures".into()),
             ObjectSet::EventGroup if self.event.group => Ok(()),
             ObjectSet::EventGroup => Err("this event groups no objects".into()),
             ObjectSet::Damage(_) => Err("damage event does not bind this object collection".into()),

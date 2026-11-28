@@ -188,6 +188,7 @@ pub(super) fn with_bindings(outer: &EventBindings, row: &EventBindings) -> Event
         amount: outer.amount || row.amount,
         block_pair: outer.block_pair || row.block_pair,
         group: outer.group || row.group,
+        departure_group: outer.departure_group || row.departure_group,
         stack_object: outer.stack_object || row.stack_object,
         other: outer.other || row.other,
         other_player: outer.other_player || row.other_player,
@@ -549,6 +550,15 @@ pub(super) fn event_bindings_case_1(
                 // "One or more creatures" names the other half of a pair.
                 group: !matches!(per, BatchPer::Subject)
                     || matches!(**event, EventSpec::Pair { .. }),
+                departure_group: !matches!(per, BatchPer::Subject)
+                    && matches!(
+                        **event,
+                        EventSpec::ZoneChange { .. }
+                            | EventSpec::Object {
+                                event: ObjectEvent::LeavesGraveyard,
+                                ..
+                            }
+                    ),
                 ..inner
             }
         }

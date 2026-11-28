@@ -5,6 +5,9 @@ use crate::ir::*;
 use crate::movement::legacy::{EntrySpec, EntryState};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[cfg(test)]
+mod event_group_departure_tests;
+
 mod arrival;
 mod bounds;
 mod copying;

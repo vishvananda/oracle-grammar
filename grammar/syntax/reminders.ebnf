@@ -194,7 +194,7 @@ reminder_skulk_clause ::= reminder_subject "can't" "be" "blocked" "by" "creature
 /* Repeated costs and qualities must agree, including when printing edited IR. */
 /* @sem Keyword::WithReminder{keyword:@agree($ward_reminder_head, $ward_reminder_body), reminder:true} */
 reminded_ward ::= ward_reminder_head "(" ward_reminder_body ")"
-ward_reminder_head ::= keyword_ward | keyword_ward_tight
+ward_reminder_head ::= keyword_ward | keyword_ward_tight | keyword_ward_discard_or_mana
 
 /* @sem $ward_reminder_clause */
 ward_reminder_body ::= ward_reminder_clause "."
@@ -207,7 +207,7 @@ ward_grant_recipient ::= "whenever" "it" ward_reminder_effect "."
 ward_grant_equipped ::= "whenever" "equipped" "creature" ward_reminder_effect "."
 /* @sem $ward_reminder_payment */
 ward_reminder_effect ::= "becomes" "the" "target" "of" "a" "spell" "or" "ability" "an" "opponent" "controls" "," "counter" "it" "unless" "that" "player" ward_reminder_payment
-ward_reminder_payment ::= ward_reminder_evidence | ward_reminder_mana | ward_reminder_life | third_discard_cost
+ward_reminder_payment ::= ward_reminder_discard_or_mana | ward_reminder_evidence | ward_reminder_mana | ward_reminder_life | third_discard_cost
 /* @sem Cost::Cost{parts:[Mana($mana_symbols)]} */
 ward_reminder_mana ::= "pays" mana_symbols
 /* @sem Cost::Cost{parts:[Life($number)]} */
@@ -739,7 +739,9 @@ token_copy_spell_rule_context_explanation ::= permanent_spell_copy_rule_words
 permanent_spell_copy_rule_words ::= "a" "copy" "of" "a" "permanent" "spell" "becomes" "a" "token" "."
 
 /* @sem String::'PermanentSpellCopy' */
-token_copy_permanent_context_explanation ::= "the" "copy" "becomes" "a" "token" "."
+token_copy_permanent_context_explanation ::= token_copy_permanent_words
+/* @sem () */
+token_copy_permanent_words ::= "the" "copy" "becomes" "a" "token" "."
 
 /* @sem String::'EncounteredPhenomenon' */
 phenomenon_leave_context_explanation ::= "then" "planeswalk" "away" "from" "this" "phenomenon" "."
@@ -848,3 +850,6 @@ lander_rule_body ::= "{" "2" "}" "," "{" "T" "}" "," "↑" "sacrifice" "this" "t
 
 /* @sem String::'LanderToken' */
 lander_unopened_quote_explanation ::= "it's" "an" "artifact" "with" lander_rule_body "”"
+
+/* @sem Cost::Cost{parts:[Choice([$third_discard_cost, $ward_reminder_mana])]} */
+ward_reminder_discard_or_mana ::= third_discard_cost "or" ward_reminder_mana

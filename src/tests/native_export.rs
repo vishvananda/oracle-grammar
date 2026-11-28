@@ -26,6 +26,14 @@ fn sticker_sheet_export_preserves_costs_abilities_and_stats() {
         engine.print_sticker_sheet(&card).unwrap(),
         Some((name.into(), text.into()))
     );
+    let trail = engine
+        .sticker_sheet_trail_of(&card, name, text)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        engine.print_sticker_sheet_trail(&card, &trail).unwrap(),
+        Some((name.into(), text.into()))
+    );
     let ir::Operand::Stickers(stickers) = &mut card.data[0].value else {
         panic!("expected sticker metadata");
     };
@@ -36,6 +44,16 @@ fn sticker_sheet_export_preserves_costs_abilities_and_stats() {
     assert_eq!(
         engine.print_sticker_sheet(&card).unwrap(),
         Some((name.into(), text.replace("4/5", "6/5")))
+    );
+    assert_eq!(
+        engine.print_sticker_sheet_trail(&card, &trail).unwrap(),
+        Some((name.into(), text.replace("4/5", "6/5")))
+    );
+    assert!(
+        engine
+            .sticker_sheet_trail_of(&card, name, text)
+            .unwrap()
+            .is_none()
     );
     assert!(
         engine

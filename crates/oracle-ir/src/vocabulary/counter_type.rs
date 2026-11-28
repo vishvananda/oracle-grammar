@@ -251,4 +251,9 @@ pub enum CounterType {
     PeaceCounter,
     DontCounter,
     StyleCounter,
+    SinCounter,
+    RecordingCounter,
+    GravyCounter,
+    DeceitCounter,
+    TransformationCounter,
 }

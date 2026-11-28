@@ -45,6 +45,7 @@ pub(super) fn event_bindings_case_2(
                 damage_any_recipient: recipient,
                 block_pair: false,
                 group: false,
+                departure_group: false,
                 stack_object: false,
                 other: false,
                 other_player: false,

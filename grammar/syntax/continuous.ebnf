@@ -13132,3 +13132,12 @@ static_walkers_grant_loyalty_damage_life ::= "planeswalkers" "you" "control" "ha
 /* Each matching land gains an independently activated mana ability. */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Land), Chosen(CardName)])}), changes:[GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:Cost{parts:[TapSymbol]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production}}]}}))]} */
 chosen_lands_grant_mana ::= "lands" "with" "the" "chosen" "name" "have" '"' "{" "T" "}" ":" "add" mana_production "." '"' "."
+
+/* Both subtypes select a single population, including creatures with both. */
+/* @prefer always */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf(@unordered([CardType(Creature), AnyOf(@unordered([$creature_subtype, $creature_subtype_2])), ControlledBy(One(AbilityController)), Not(SameObject(Source))]))}), changes:$plural_private_pump} */
+static_other_controlled_two_subtypes_pump ::= "other" creature_subtype "and" creature_subtype "creatures" "you" "control" plural_private_pump "."
+
+/* Reduction applies to abilities activated by this player. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(ActivationCost{abilities:OnStack(Keyword(Ninjutsu)), change:Reduce(Term{family:CostReductionSymbol, form:CostReduceGeneric, operands:[Integer($number)]})})]}) */
+static_you_activate_ninjutsu_reduction ::= "ninjutsu" "abilities" "you" "activate" "cost" "{" NUMBER "}" "less" "to" "activate" "."

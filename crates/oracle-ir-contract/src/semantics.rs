@@ -33,6 +33,8 @@ pub struct EventBindings {
     pub activation_x: bool,
     pub block_pair: bool,
     pub group: bool,
+    /// A grouped zone change captures its pre-departure object views.
+    pub departure_group: bool,
     pub stack_object: bool,
     pub other: bool,
     pub other_player: bool,
@@ -708,6 +710,7 @@ impl EventBindings {
             ring_choice: a.ring_choice && b.ring_choice,
             block_pair: a.block_pair && b.block_pair,
             group: a.group && b.group,
+            departure_group: a.departure_group && b.departure_group,
             stack_object: a.stack_object && b.stack_object,
             other: a.other && b.other,
             other_player: a.other_player && b.other_player,
