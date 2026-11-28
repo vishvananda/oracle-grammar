@@ -1,6 +1,25 @@
 //! Scoped validation of portable operands.
 use super::*;
 impl<'a> Scope<'a> {
+    pub(super) fn replacement_limit(
+        &self,
+        event: &ReplacementEvent,
+        limit: &ReplacementLimit,
+    ) -> Result {
+        match limit {
+            ReplacementLimit::UntilExpired | ReplacementLimit::NextOccurrence => Ok(()),
+            ReplacementLimit::TotalDamage(amount) | ReplacementLimit::DamageToEach(amount) => {
+                self.count(&Count::Exactly(amount.clone()))
+            }
+            ReplacementLimit::FirstDamageEachTurn(amount) => {
+                if !matches!(event, ReplacementEvent::Damage(_)) {
+                    return Err("a recurring damage allowance needs a damage event".into());
+                }
+                self.count(&Count::Exactly(amount.clone()))
+            }
+        }
+    }
+
     pub(super) fn operation_case_9(&self, operation: &Operation) -> Result {
         match operation {
             Operation::ModifyEvent { change } => {
@@ -147,11 +166,7 @@ impl<'a> Scope<'a> {
                 body,
             } => {
                 self.duration(duration)?;
-                if let ReplacementLimit::TotalDamage(amount)
-                | ReplacementLimit::DamageToEach(amount) = limit
-                {
-                    self.count(&Count::Exactly(amount.clone()))?;
-                }
+                self.replacement_limit(event, limit)?;
                 self.replacement_event(event)?;
                 let mut child = self.clone();
                 child.replacement = true;

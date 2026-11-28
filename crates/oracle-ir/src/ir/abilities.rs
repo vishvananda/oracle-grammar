@@ -262,6 +262,13 @@ pub enum Ability {
         reminder: bool,
         ability: Box<Ability>,
     },
+    /// Sets the source controller’s starting life total during game setup.
+    StartingLife(Expr),
+    /// A finite or recurring limit applied to an existing replacement.
+    LimitedReplacement {
+        replacement: Box<Ability>,
+        limit: ReplacementLimit,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -388,6 +395,8 @@ pub enum ActivationGrant {
     /// This many more activations each turn than the rules allow.
     AdditionalTimes(Expr),
     AsThoughNotActivated,
+    /// Extends the total use allowance of each matching ability across its lifetime.
+    AdditionalLifetimeUses(Expr),
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

@@ -172,6 +172,8 @@ pub enum ReplacementLimit {
     TotalDamage(Expr),
     /// A shield on each recipient: used up once it has replaced this much.
     DamageToEach(Expr),
+    /// The first qualifying damage points, with a fresh allowance on each turn.
+    FirstDamageEachTurn(Expr),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

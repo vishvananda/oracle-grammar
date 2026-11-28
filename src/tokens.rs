@@ -136,6 +136,9 @@ pub const TIGHT_PLUS: char = '\u{207A}';
 /// A hyphen tight against the number before it, as in `LEVEL 1-3` or `20-sided`.
 pub const TIGHT_HYPHEN: char = '\u{2011}';
 
+/// An uninterrupted spaced ellipsis, written as three separately spaced dots.
+pub const SPACED_ELLIPSIS: char = '…';
+
 const MARKS: &str = ".,:;\"'()+-\u{2212}/\u{2022}\u{2014}{}[]|!?&∞=";
 
 /// The possessive of a card's own name, a token apart from the name.
@@ -571,6 +574,10 @@ fn scan(
             continue;
         }
         match c {
+            '.' if rest.starts_with(". . .") => {
+                tokens.push(Token::Mark(SPACED_ELLIPSIS));
+                at += ". . .".len();
+            }
             ' ' => at += 1,
             '\n' => {
                 tokens.push(Token::Newline);
@@ -686,6 +693,7 @@ pub fn detokenize(tokens: &[Token], names: &Names) -> String {
         }
         match token {
             Token::Mark(CAPITAL | LOWER) => {}
+            Token::Mark(SPACED_ELLIPSIS) => out.push_str(". . ."),
             Token::Mark('.') if matches!(previous, Some(Token::SelfName(idx)) if name_ends_sentence(names, *idx)) =>
                 {}
             Token::Word(word)

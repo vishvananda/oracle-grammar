@@ -81,7 +81,8 @@ impl<'a> Scope<'a> {
                 self.filter(abilities)?;
                 match grant {
                     ActivationGrant::InstantSpeedDuring(players) => self.players(players),
-                    ActivationGrant::AdditionalTimes(times) => self.expr(times),
+                    ActivationGrant::AdditionalTimes(times)
+                    | ActivationGrant::AdditionalLifetimeUses(times) => self.expr(times),
                     _ => Ok(()),
                 }
             }

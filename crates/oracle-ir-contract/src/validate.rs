@@ -281,6 +281,8 @@ fn validate_ability_in_dispatch_1(
             ability: _,
         }
         | Ability::StartingHandSize(_)
+        | Ability::StartingLife(_)
+        | Ability::LimitedReplacement { .. }
         | Ability::VillainousChoiceTwice(_)
         | Ability::ExilesSearchedCards {
             searching: _,
@@ -528,7 +530,14 @@ fn validate_ability_in_case_1(
             scope.cost(cost)?;
             validate_ability_in(ability, zones, casting_costs)
         }
-        Ability::StartingHandSize(size) => scope.expr(size),
+        Ability::StartingHandSize(size) | Ability::StartingLife(size) => scope.expr(size),
+        Ability::LimitedReplacement { replacement, limit } => {
+            let Ability::Replacement { event, .. } = replacement.as_ref() else {
+                return Err("a replacement limit needs one underlying replacement".into());
+            };
+            scope.replacement_limit(event, limit)?;
+            validate_ability_in(replacement, zones, casting_costs)
+        }
         Ability::VillainousChoiceTwice(players) => scope.players(players),
         Ability::ExilesSearchedCards { searching, player } => {
             scope.players(searching)?;

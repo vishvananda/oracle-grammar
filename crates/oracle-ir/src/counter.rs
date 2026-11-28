@@ -244,6 +244,8 @@ pub enum CounterName {
     ShieldCounter,
     StunCounter,
     PeaceCounter,
+    DontCounter,
+    StyleCounter,
 }
 
 #[inline]
@@ -432,6 +434,8 @@ fn lower_dispatch_1(value: &CounterType) -> CounterKind {
         | CounterType::PreyCounter
         | CounterType::PupaCounter
         | CounterType::PeaceCounter
+        | CounterType::DontCounter
+        | CounterType::StyleCounter
         | CounterType::QuestCounter
         | CounterType::RallyCounter
         | CounterType::RefineCounter
@@ -688,6 +692,8 @@ fn lower_case_1(value: &CounterType) -> CounterKind {
         CounterType::PreyCounter => CounterKind::Named(CounterName::PreyCounter),
         CounterType::PupaCounter => CounterKind::Named(CounterName::PupaCounter),
         CounterType::PeaceCounter => CounterKind::Named(CounterName::PeaceCounter),
+        CounterType::DontCounter => CounterKind::Named(CounterName::DontCounter),
+        CounterType::StyleCounter => CounterKind::Named(CounterName::StyleCounter),
         CounterType::QuestCounter => CounterKind::Named(CounterName::QuestCounter),
         CounterType::RallyCounter => CounterKind::Named(CounterName::RallyCounter),
         CounterType::RefineCounter => CounterKind::Named(CounterName::RefineCounter),

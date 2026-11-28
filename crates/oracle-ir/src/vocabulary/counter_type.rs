@@ -249,4 +249,6 @@ pub enum CounterType {
     ShieldCounter,
     StunCounter,
     PeaceCounter,
+    DontCounter,
+    StyleCounter,
 }
