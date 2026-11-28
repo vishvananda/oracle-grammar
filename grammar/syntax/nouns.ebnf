@@ -368,7 +368,7 @@ filter_phrase_without_other ::= filter_two_heads_two_colors | filter_stated_stat
 /* @sem @and($quality, ObjectFilter::AnyOf([$noun, $noun_2, $noun_3]), $modifier) */
 filter_quality_list ::= quality noun "," noun "," "and" noun modifier
 
-filter_plain ::= filter_nonattacking_comma_quality | filter_subtype_head | filter_subtype_typed | filter_tail | filter_adjectives | filter_adjectives_comma | filter_type_prefix
+filter_plain ::= sea_monster_creature_filter | filter_nonattacking_comma_quality | filter_subtype_head | filter_subtype_typed | filter_tail | filter_adjectives | filter_adjectives_comma | filter_type_prefix
 
 /* Non-noun qualities retain their shared scope. A noun prefix describes one
    compound head before a following bare `or` head (artifact creature or Vehicle). */
@@ -493,7 +493,7 @@ union_or ::= "or" | "and" "/" "or"
 /* @sem () */
 union_and ::= "and" | "and" "/" "or"
 
-noun ::= noun_atomic | noun_equipped
+noun ::= noun_sea_monster_expanded | noun_sea_monster | noun_atomic | noun_equipped
 noun_atomic ::= noun_creature | noun_noncreature
 
 /* @sem @and($adjective_equipped, $noun_equipped_head) */
@@ -713,7 +713,7 @@ modifiers ::= modifier | modifiers_more
 /* @sem ObjectFilter::@relative_modifiers($modifier_nonattachment, $modifiers) */
 modifiers_more ::= modifier_nonattachment modifiers
 
-modifier ::= modifier_matches_source_either_stat | self_toughness_greater_power | modifier_enchanted_by_plural | modifier_has_attachment | modifier_nonattachment | modifier_attached_to | modifier_attached_to_a | modifier_enchanted_by_aura | except_plural_filter | modifier_were_attached_to
+modifier ::= modifier_matches_source_either_stat | modifier_enchanted_by_plural | modifier_has_attachment | modifier_nonattachment | modifier_attached_to | modifier_attached_to_a | modifier_enchanted_by_aura | except_plural_filter | modifier_were_attached_to
 
 modifier_nonattachment ::= modifier_mana_value_pair | modifier_nonnumeric | modifier_stat | modifier_stat_x | modifier_base_stat
 
@@ -5453,3 +5453,12 @@ objects_each_controlled_five_subtypes ::= "each" five_subtype_and_union "you" "c
 /* The permanent alternative is limited to creatures; players remain eligible. */
 /* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:CardType(Creature), players:All})) */
 recipients_target_creature_or_player ::= "target" "creature" "or" "player"
+
+/* @sem ObjectFilter::AnyOf([Subtype(Kraken), Subtype(Leviathan), Subtype(Octopus), Subtype(Serpent), Subtype(Whale)]) */
+noun_sea_monster ::= "sea" "monster"
+/* @sem @and($noun_sea_monster, ObjectFilter::CardType(Creature)) */
+sea_monster_creature_filter ::= noun_sea_monster "creature"
+
+/* @prefer always */
+/* @sem ObjectFilter::AnyOf([Subtype(Kraken), Subtype(Leviathan), Subtype(Octopus), Subtype(Serpent), Subtype(Whale)]) */
+noun_sea_monster_expanded ::= "Kraken" "," "Leviathan" "," "Octopus" "," "Serpent" "," "or" "Whale"

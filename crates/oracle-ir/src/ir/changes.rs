@@ -84,7 +84,11 @@ pub enum Change {
     ActivationRule(ActivationRule),
     LosesAbility(Box<Operand>),
     SetLandType(Box<Operand>),
-    /// Copiable values come from `object`, with these copy-time exceptions.
+    /// Copiable values come from the referenced object, with these copy-time
+    /// exceptions. For a reference expected in a public zone, application
+    /// reads current copiable values there, or its last-known copiable values
+    /// if it has left. This retains the referenced incarnation and never
+    /// follows a later zone change; an unassigned reference supplies no model.
     CopyOf {
         object: ObjectRef,
         exceptions: Vec<CopyException>,

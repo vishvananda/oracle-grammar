@@ -241,6 +241,9 @@ pub enum ObjectSet {
         phase: ObjectPhase,
     },
     One(ObjectRef),
+    /// Targets legal at the start of this resolution, retaining their
+    /// announced incarnations for later instructions without rechecking
+    /// targeting restrictions as the resolving effect changes the game.
     Targets(TargetSlot),
     /// Intersect a reference/result set with current zone membership. A saved
     /// object reference alone does not imply the object is still on the field.

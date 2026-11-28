@@ -348,7 +348,9 @@ pub enum PlayCost {
     Additional(Operand),
     /// By this keyword's cost and its other rules.
     Using(CostedKeyword),
-    /// For its mana cost less this.
+    /// Apply this reduction during the normal total casting-cost calculation
+    /// (CR 601.2f), after additional costs and increases. Other legal cost
+    /// choices are preserved; this is not a replacement or alternative cost.
     Reduced(Operand),
 }
 

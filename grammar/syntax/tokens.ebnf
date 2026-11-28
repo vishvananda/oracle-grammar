@@ -3003,3 +3003,17 @@ camera_token_name ::= "Camera"
 
 /* @sem Ability::Triggered{event:Object{event:Attacks, objects:SameObject(AttachedTo(Source))}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Surveil{players:One(AbilityController), amount:$number}}]}} */
 equipment_token_attack_surveillance ::= "whenever" "equipped" "creature" "attacks" "," "surveil" number
+
+/* Both the type test and animation consume the created-token receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Mana($mana_symbols)]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:EventSubject, exceptions:[]}}], entry:BattlefieldArrival{}}}, If{condition:Compare{left:CountObjects(Matching{objects:Created(@marked), filter:Not(CardType(Creature))}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Matching{objects:Created(@marked), filter:Not(CardType(Creature))}), changes:[SetBasePowerToughness{power:$token_stat, toughness:$token_stat_2}, CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature)], duration:Indefinite, evaluation:Snapshot}}]}, otherwise:Program{}}]}, otherwise:Program{}}] */
+optional_paid_copy_then_noncreature_animation ::= "you" "may" "pay" mana_symbols "." "if" "you" "do" "," "create" "a" "token" "that's" "a" "copy" "of" "it" "." "if" "the" "token" "isn't" "a" "creature" "," "it" "becomes" "a" token_stat "/" token_stat becomes_types "creature" "in" "addition" "to" "its" "other" "types"
+
+/* @prefer always */
+/* @sem Ability::Triggered{event:$event_self_enters, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:Explicit($redwing_token_name), supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:[Keyword($keyword_value), @scope(Ability::Triggered{event:Object{event:Attacks, objects:SameObject(Source)}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Surveil{players:One(AbilityController), amount:$number_digits}}]}})]}}], entry:BattlefieldArrival{}}}]}} */
+triggered_named_token_attack_surveillance ::= "when" event_self_enters "," "create" redwing_token_name "," "a" "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" "with" keyword_value "and" '"' "whenever" redwing_token_words "attacks" "," "surveil" number_digits "." '"'
+
+/* @sem String::'Redwing' */
+redwing_token_name ::= redwing_token_words
+
+/* @sem () */
+redwing_token_words ::= "Redwing"

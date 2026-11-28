@@ -123,11 +123,15 @@ controlled_entrant_a ::= ("a" | "an") controlled_entry_filter
 /* @sem ObjectFilter::@and(ObjectFilter::Not(SameObject(Source)), $controlled_entry_filter) */
 controlled_entrant_another ::= "another" controlled_entry_filter
 
-controlled_entry_filter ::= controlled_entry_plain | controlled_entry_modified | controlled_entry_double_faced
+controlled_entry_filter ::= controlled_entry_plain | controlled_entry_modified | controlled_entry_double_faced | controlled_entry_self_comparison
 /* @sem ObjectFilter::@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController))) */
 controlled_entry_plain ::= filter_phrase "you" "control"
 /* @sem ObjectFilter::@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)), $modifiers) */
 controlled_entry_modified ::= filter_phrase "you" "control" modifiers
+
+/* The singular entrant owns both compared statistics. */
+/* @sem ObjectFilter::@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)), $self_toughness_greater_power) */
+controlled_entry_self_comparison ::= filter_phrase "you" "control" self_toughness_greater_power
 
 /* @sem EventSpec::Batch{event:Attack{attackers:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_plural), by:One(PlayerRef::AbilityController), defenders:Any}, per:Whole} */
 event_attack_with_others ::= "you" "attack" "with" "one" "or" "more" "other" filter_plural
@@ -3131,8 +3135,11 @@ triggered_activation_copy ::= activation_copy_event "," activation_copy_program
 event_referenced_or_another_controlled ::= object_ref "or" "another" controlled_entry_filter singular_object_action
 
 /* A command-zone trigger is active where its own explicit subject is located. */
+condition_self_in_command ::= condition_self_in_the_command | condition_self_in_your_command
 /* @sem Condition::ObjectMatches{object:$self_explicit_ref, filter:InZone(Shared(Command))} */
-condition_self_in_command ::= self_explicit_ref "is" "in" "the" "command" "zone"
+condition_self_in_the_command ::= self_explicit_ref "is" "in" "the" "command" "zone"
+/* @sem Condition::ObjectMatches{object:$self_explicit_ref, filter:InZone(Shared(Command))} */
+condition_self_in_your_command ::= self_explicit_ref "is" "in" "your" "command" "zone"
 
 /* @sem Ability::Scoped{zones:[Command], ability:@scope(Ability::Triggered{event:$turn_event, intervening_if:$condition_self_in_command, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence})} */
 triggered_turn_self_in_command ::= "at" turn_event "," "if" condition_self_in_command "," program_sentence
@@ -8959,3 +8966,56 @@ enchanted_blocked_optional_damage ::= "you" "may" "have" "it" "deal" "damage" "e
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot,kind:Object(ObjectDomain{kind:Permanent,zones:[Battlefield]}),count:Exactly(Constant(1)),filter:CardType(Creature)}),index:0} */
 blocked_uses_damage_creature ::= "target" "creature"
+
+/* The counter happens before the resolving ability tests whether its source is
+   still attacking. The damage may be from any source. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:$event_named_source_dealt_damage,limits:TriggerLimits{},announcement:@announcement,body:Program{instructions:[Effect{result:@next,operation:PutCounters{placements:[_{recipients:Objects(One(Source)),kind:$counter_kind,amount:$counter_amount}]}},If{condition:ObjectMatches{object:Source,filter:Attacking},then:Program{instructions:[Effect{result:@next,operation:SetTapped{objects:One(Source),tapped:false}},Effect{result:@next,operation:$extra_combat_after_this_phase}]},otherwise:Program{}}]}} */
+triggered_him_damage_counter_combat ::= "whenever" event_named_source_dealt_damage "," "put" counter_amount counter_kind "counter" "on" "him" "." "if" "he's" "attacking" "," "untap" "him" "and" extra_combat_after_this_phase "."
+
+/* @sem EventSpec::Damage{source_kind:Any, sources:Any, recipients:Objects(SameObject($self_ref_named)), kind:Any, grouping:Recipient, subject:Recipient} */
+event_named_source_dealt_damage ::= self_ref_named "is" "dealt" "damage"
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::AdditionalPhase{phases:$current_combat_phase_reference}} */
+extra_combat_after_this_phase ::= "there" "is" "an" "additional" "combat" "phase" "after" current_combat_phase_reference
+
+/* The counter test and the controller use the permanent just before it left. */
+/* @sem EventSpec::ZoneChange{objects:Counters{kind:$counter_kind, comparison:Greater, value:Constant(0)}, from:Battlefield, to:Graveyard} */
+event_countered_permanent_dies ::= "a" "permanent" "with" "a" counter_kind "counter" "on" "it" "dies"
+
+/* @sem Ability::Triggered{event:$event_countered_permanent_dies, limits:TriggerLimits{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Players(One(ControllerOf(EventSubject))), kind:$cn_rad, amount:CountCounters{recipients:Objects(One(EventSubject)), kind:$counter_kind, information:CurrentOrLastKnown}}]}}]}} */
+triggered_departure_counters_to_controller ::= "whenever" event_countered_permanent_dies "," "its" "controller" "gets" "a" cn_rad "counter" "for" "each" counter_kind "counter" "it" "had" "on" "it" "." rad_playtest_aside?
+
+/* This playtest production aside supplies no additional game action. */
+/* @sem () */
+rad_playtest_aside ::= "(" "Yeah" "," "we" "have" "to" "double" "check" "how" "rad" "works" "too" "." ")"
+
+/* The explicitly named attacker is also the object of the paid transform. */
+/* @sem Ability::Triggered{event:Object{event:Attacks, objects:SameObject($self_ref_named)}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Transform{object:$self_ref_named}}}]}, otherwise:Program{}}]}} */
+triggered_attack_pay_transform_her ::= "whenever" self_ref_named "attacks" "," "you" "may" payment "." "if" "you" "do" "," "transform" "her" "."
+
+/* The locally introduced noun remains the lexical antecedent of the numeric
+   clause. Ordinary card receipts keep their existing inverse paths. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:$event_cast, limits:TriggerLimits{}, announcement:@announcement, body:$program_cast_subject_measure} */
+triggered_cast_subject_measure ::= "whenever" event_cast "," program_cast_subject_measure "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:@where(Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_explicit_ref)), changes:$event_measured_numeric_changes, duration:$duration, evaluation:Snapshot}, Expr::ObjectProperty{object:EventSubject, property:ManaValue, information:CurrentOrLastKnown})}]} */
+program_cast_subject_measure ::= self_explicit_ref event_measured_numeric_changes duration "," "where" "X" "is" "that" "spell's" "mana" "value"
+
+event_measured_numeric_changes ::= change_gets_defined_power | static_numeric_changes
+
+/* @prefer always */
+/* @sem Ability::Triggered{event:$event_controlled_enters, limits:TriggerLimits{}, announcement:@announcement, body:$program_entrant_power_measure} */
+triggered_entrant_power_measure ::= "whenever" event_controlled_enters "," program_entrant_power_measure "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:@where(Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_explicit_ref)), changes:$change_gets_defined_power, duration:$duration, evaluation:Snapshot}, Expr::ObjectProperty{object:EventSubject, property:Power, information:CurrentOrLastKnown})}]} */
+program_entrant_power_measure ::= self_explicit_ref change_gets_defined_power duration "," "where" "X" "is" "that" "creature's" "power"
+
+/* A distinct attacked player supplies the lower life total. The player who
+   declared the attack, not that defender, loses life. */
+/* @sem Ability::Triggered{event:$opponent_attacks_lower_life, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:LoseLife{players:One(AttackingPlayer), amount:$number_digits}}, Effect{result:@next, operation:$proliferate_once_action}]}} */
+triggered_opponent_attacks_lower_life ::= "whenever" opponent_attacks_lower_life "," "the" "attacking" "player" "loses" number_digits "life" "and" "you" proliferate_once_action "."
+
+/* @sem EventSpec::Filtered{event:Batch{event:Attack{attackers:Any, by:OpponentsOf(AbilityController), defenders:Players(All)}, per:Defender}, condition:Compare{left:PlayerNumber{player:DefendingPlayer, number:Life}, test:Compare{comparison:Less, value:PlayerNumber{player:AttackingPlayer, number:Life}}}} */
+opponent_attacks_lower_life ::= "an" "opponent" "attacks" "a" "player" "with" "a" "lower" "life" "total" "than" "them"
