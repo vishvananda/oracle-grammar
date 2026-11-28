@@ -530,6 +530,17 @@ pub enum EventSpec {
         event: Box<EventSpec>,
         object: ObjectRef,
     },
+    /// A real opportunity for a player to pay this exact optional cost has
+    /// closed without payment, whether declined, impossible, or attempted
+    /// unsuccessfully. The player is the one offered that payment, retained
+    /// as EventSubject. One event is emitted per closed opportunity; required
+    /// costs and hypothetical opportunities do not match. This occurs at the
+    /// decision boundary; triggered abilities wait for the normal opportunity
+    /// to be put onto the stack (CR 603.3), even during another action.
+    OptionalCostUnpaid {
+        players: PlayerSet,
+        cost: Cost,
+    },
 }
 
 #[derive(

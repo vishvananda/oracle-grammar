@@ -402,7 +402,8 @@ impl<'a> Scope<'a> {
             Expr::AnnouncedX if self.definition => self.expr_case_0(expression),
             Expr::Aggregate { .. }
             | Expr::CountDistinct { .. }
-            | Expr::CountDistinctCreatureTypesFrom { .. } => self.expr_case_0(expression),
+            | Expr::CountDistinctCreatureTypesFrom { .. }
+            | Expr::CountCreatureTypeMatching { .. } => self.expr_case_0(expression),
             Expr::CountNameLetter { .. } => self.expr_case_0(expression),
             Expr::EventActivationCountersRemoved { .. } => self.expr_case_0(expression),
             Expr::EventActivationX if self.event.activation_x => self.expr_case_0(expression),
@@ -591,7 +592,8 @@ impl<'a> Scope<'a> {
             Expr::AnnouncedX if self.definition => {
                 Err("characteristic definition cannot use an unrelated announced X".into())
             }
-            Expr::CountDistinctCreatureTypesFrom { objects, allowed } => {
+            Expr::CountDistinctCreatureTypesFrom { objects, allowed }
+            | Expr::CountCreatureTypeMatching { objects, allowed } => {
                 if allowed.len() > 256 {
                     return Err("creature-type set exceeds limit".into());
                 }

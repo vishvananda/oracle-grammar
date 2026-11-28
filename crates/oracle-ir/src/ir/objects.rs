@@ -195,6 +195,16 @@ pub enum ObjectRef {
         aura: Box<ObjectRef>,
         host: Box<ObjectRef>,
     },
+    /// The actual arrival in `zone` from one direct singular movement receipt.
+    /// A move prevented or redirected elsewhere gives no object. This preserves
+    /// that arrival incarnation and permits current or last-known information;
+    /// it never follows the object into a later incarnation. If there is no
+    /// arrival, or the requested characteristic has no value, the read is
+    /// undefined: it does not use the pre-move object or silently become zero.
+    MoveArrivalAt {
+        result: ResultId,
+        zone: EventZone,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -730,6 +740,11 @@ pub enum ObjectFilter {
     /// the actual representation. Missing data is indeterminate, including
     /// under negation, and must be obtained before deciding the predicate.
     HasReminderText,
+    /// The current object has at least one of these creature types; empty
+    /// allowed sets match nothing. This reads types, not represented animals.
+    MatchesAnyCreatureType {
+        allowed: Vec<CreatureType>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

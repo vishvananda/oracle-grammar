@@ -5854,7 +5854,7 @@ instructions_mill_any_hand_none ::= mill_hand_origin "." mill_hand_choices "." "
 /* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}] */
 mill_hand_origin ::= "you" "mill" card_count
 
-/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:AnyOf([$quality_unscoped, $filter_phrase])}, count:AnyNumber, constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:AnyOf(@unordered([$quality_unscoped, $filter_phrase]))}, count:AnyNumber, constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
 mill_hand_choices ::= "you" "may" "put" "any" "number" "of" quality_unscoped "and" "/" "or" filter_phrase "cards" "from" "among" "them" "into" "your" "hand"
 
 /* @sem Condition::Compare{left:CountObjects(Transition{result:@last_result, phase:Before}), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}} */
@@ -6704,8 +6704,8 @@ search_basic_pair_choice ::= "a" "basic" subtype "card"
 clause_search_pair_those ::= search_library_basic_pair "," search_those_reveal_hand_follow
 
 /* The play permission consumes the immediately preceding library-exile receipt. */
-/* @sem Instruction::[Effect{result:@mark, operation:$exile_top_permission_producer}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@marked, phase:After}, origins:CardPlayOrigins([Exile]), action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects}}] */
-clause_top_exile_play_those ::= exile_top_permission_producer "." duration "," "you" "may" "play" "those" "cards"
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_top_permission_producer}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@marked, phase:After}, origins:CardPlayOrigins([Exile]), action:Either, filter:Any})], duration:$exiled_cards_play_duration, evaluation:LiveObjects}}] */
+clause_top_exile_play_those ::= exile_top_permission_producer "." exiled_cards_play_duration
 
 exile_top_permission_producer ::= exile_top_cards_of_your_library | exile_top_defined_library
 /* @sem Operation::Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:$value, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
@@ -7112,7 +7112,7 @@ look_put_ordered ::= look_top "." look_put_split_ordered
 look_put_more ::= look_put_ordered "." clause_you_life
 
 /* Each alternative independently describes the same single card. */
-/* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2, $card_filter_3]) */
+/* @sem ObjectFilter::AnyOf(@unordered([$card_filter, $card_filter_2, $card_filter_3])) */
 search_filter_three_repeated ::= card_filter "card" "," "a" card_filter "card" "," "or" "a" card_filter "card"
 
 /* @sem SearchChoice::SearchChoice{filter:$filter_phrase, count:AnyNumber, constraints:[TotalProperty{property:ManaValue, comparison:LessOrEqual, amount:$value}]} */
@@ -10123,3 +10123,11 @@ shiny_nonland_card_filter ::= shiny_printing_filter "nonland" "card"
 /* The observed library supplies the omitted destination owner. */
 /* @sem Instruction::[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$spell_filter}, count:UpTo(Constant(1)), terms:_{cost:Free}}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, end:Bottom, order:$library_order}}] */
 look_cast_split_implicit_bottom ::= "you" "may" "cast" spell_filter "from" "among" "them" "without" "paying" "its" "mana" "cost" "." "put" "the" "rest" "on" "the" "bottom" library_order
+
+exiled_cards_play_duration ::= exiled_cards_play_before | exiled_cards_play_after
+
+/* @sem Duration::$duration */
+exiled_cards_play_before ::= duration "," "you" "may" "play" "those" "cards"
+
+/* @sem Duration::$duration */
+exiled_cards_play_after ::= "you" "may" "play" "those" "cards" duration

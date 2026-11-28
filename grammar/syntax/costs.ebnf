@@ -1470,7 +1470,7 @@ cost_sacrifice_description ::= "sacrifice" ("a" | "an") sacrifice_description
 /* @sem Ability::[Casting(ReduceForEachPaid{reductions:[_{amount:$braced_amount}], cost:_{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$paired_sacrifice_population}, choose:Exactly(Constant(1))}]}}), Casting(ReduceCost([_{amount:Multiply([$braced_amount_2, EventHistory{event:Player{event:Sacrifices, players:One(AbilityController), objects:$noun_either}, window:ThisTurn, measure:Occurrences}])}]))] */
 casting_paired_sacrifice_reductions ::= optional_cost_opening "sacrifice" "any" "number" "of" paired_sacrifice_population reduce_for_each_opening braced_amount "less" "to" "cast" "for" "each" "permanent" "sacrificed" "this" "way" "and" braced_amount "less" "to" "cast" "for" "each" "other" noun_either "you've" "sacrificed" "this" "turn" "."
 
-/* @sem ObjectFilter::AnyOf([$plural_2, $plural]) */
+/* @sem ObjectFilter::AnyOf(@unordered([$plural_2, $plural])) */
 paired_sacrifice_population ::= plural "and" "/" "or" plural
 
 /* The mana and source exile are the two actual cost components. Both uses
@@ -2016,7 +2016,7 @@ sacrificed_type_count_condition ::= "there" "were" condition_at_least second_sac
 second_sacrifice_card_type_count ::= "card" "types" "among" "the" "sacrificed" "permanents"
 
 /* The defending player chooses whether to pay the sacrifice cost. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:DefendingPlayerOf(EventSubject), cost:_{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$noun}, choose:Exactly(Constant(1))}]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[GrantAbility(Static(_{kind:Ordinary, affected:Objects(One(Source)), changes:[Rule(Prohibit(BeBlocked(Any)))]}))], duration:$duration, evaluation:Snapshot}}]}, otherwise:_{}}]} */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:DefendingPlayerOf(Source), cost:_{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$noun}, choose:Exactly(Constant(1))}]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[GrantAbility(Static(_{kind:Ordinary, affected:Objects(One(Source)), changes:[Rule(Prohibit(BeBlocked(Any)))]}))], duration:$duration, evaluation:Snapshot}}]}, otherwise:_{}}]} */
 shared_defender_sacrifice_evasion ::= "it" "gains" '"' "↓" "this" "creature" "can't" "be" "blocked" '"' duration "unless" "defending" "player" "sacrifices" "a" noun "of" "their" "choice"
 
 /* @sem Ability::Triggered{event:Object{event:Attacks, objects:$event_self}, limits:TriggerLimits{}, announcement:@announcement, body:$shared_defender_sacrifice_evasion} */
@@ -3278,3 +3278,10 @@ activation_cost_choice_left ::= activation_cost_one | activation_cost_symbol_pai
 activation_cost_symbol_pair ::= cost_symbols "," cost_symbols
 /* @sem CostPart::Choice([Cost{parts:[$cost_sacrifice]}, Cost{parts:[$cost_discard_filtered]}]) */
 cost_sacrifice_or_discard_choice ::= cost_sacrifice "or" cost_discard_filtered
+
+/* X is local to the quoted activation and measures its actual holder. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost{parts:[Mana($mana_symbols), Move{selections:[_{objects:One(Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, limits:$limit_sorcery, announcement:@announcement, body:@where(Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{}}}]}, $holder_card_stat)})} */
+graveyard_exile_holder_stat_activation ::= mana_symbols "," "↑" "exile" "this" "card" "from" "your" "graveyard" ":" "create" "an" token_recipe "," "where" "X" "is" holder_card_stat "." limit_sorcery "."
+
+/* @sem Expr::ObjectProperty{object:Source, property:$stat, information:CurrentOrLastKnown} */
+holder_card_stat ::= "this" "card's" stat

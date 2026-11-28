@@ -645,4 +645,6 @@ pub enum SubType {
     Dimension,
     Nail,
     Note,
+    Clamfolk,
+    Shrimp,
 }

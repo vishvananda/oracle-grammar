@@ -267,6 +267,21 @@ impl<'a> Scope<'a> {
     #[inline]
     pub(super) fn operation(&self, operation: &Operation) -> Result {
         match operation {
+            Operation::GrantSubtypeSetsWhileCounter {
+                placement,
+                creature_types,
+                ..
+            } => {
+                if self.results.get(&placement.0) != Some(&ResultKind::CounterPlacement) {
+                    return Err("subtype effect requires the actual counter placement".into());
+                }
+                if let CreatureTypeSet::Listed(types) = creature_types
+                    && types.len() > 256
+                {
+                    return Err("creature-type set exceeds limit".into());
+                }
+                Ok(())
+            }
             Operation::InOrder(_)
             | Operation::WithSelections {
                 steps: _,

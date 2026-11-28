@@ -232,7 +232,9 @@ pub(super) fn allowed_creature_types(
     if matches!(
         (name, variant),
         ("ObjectFilter", "HasUnsharedCreatureTypeFrom")
+            | ("ObjectFilter", "MatchesAnyCreatureType")
             | ("Expr", "CountDistinctCreatureTypesFrom")
+            | ("Expr", "CountCreatureTypeMatching")
     ) && let Some(allowed) = content.get_mut("allowed").and_then(Value::as_array_mut)
     {
         allowed.sort_by_cached_key(|item| trace::key(item, tracing));

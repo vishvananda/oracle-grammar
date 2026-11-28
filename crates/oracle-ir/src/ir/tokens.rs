@@ -54,6 +54,20 @@ pub enum TokenRecipe {
     CopyAtRandom {
         cards: Operand,
     },
+    /// A new token, not a copy: it has the referenced object's name and colors
+    /// read with `information`, exactly the supplied types, and the abilities
+    /// selected by the visible direct `ability_draft` receipt. Each drafted
+    /// ability gets a fresh token-local holder and announcement scope. It has
+    /// no other inherited characteristics or abilities. If the referenced
+    /// arrival or required characteristics do not exist, this recipe's outcome
+    /// is unresolved rather than inventing a name, color, or token.
+    DraftedAbilitiesWithObjectNameAndColors {
+        characteristics: ObjectRef,
+        information: Information,
+        ability_draft: ResultId,
+        supertypes: Vec<SuperType>,
+        card_types: Vec<CardType>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

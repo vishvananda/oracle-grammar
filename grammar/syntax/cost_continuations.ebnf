@@ -288,7 +288,7 @@ hand_battlefield_paid_spell ::= "you" "may" hand_battlefield_payment "." hand_ba
 /* @sem Cost::Cost{parts:[Move{selections:[_{objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}, choose:Exactly($counter_a)}], destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
 hand_battlefield_payment ::= "put" counter_a filter_phrase "card" "from" "your" "hand" "onto" "the" "battlefield"
 
-hand_battlefield_followup ::= hand_battlefield_unless_mana | hand_battlefield_granted_triggers | hand_battlefield_perpetual_then_sacrifice
+hand_battlefield_followup ::= hand_battlefield_holder_triggers | hand_battlefield_unless_mana | hand_battlefield_granted_triggers | hand_battlefield_perpetual_then_sacrifice
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[ManaCostReduced{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}, reduction:$generic_reduction_symbols}]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0})}}]}, otherwise:Program{}}]} */
 hand_battlefield_unless_mana ::= "if" "you" "do" "," "sacrifice" "it" "unless" "you" "pay" "its" "mana" "cost" "reduced" "by" generic_reduction_symbols "."
@@ -370,3 +370,17 @@ cost_exile_self_creature ::= "exile" "this" "creature"
 /* The continuation is conditional on the same optional reveal payment. */
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Reveal{count:Exactly(Constant(1)), filter:$subtype}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$clause_you_life}, otherwise:Program{}}] */
 instructions_optional_reveal_hand_life ::= "you" "may" "reveal" "a" subtype "card" "from" "your" "hand" "." "if" "you" "do" "," clause_you_life
+
+/* Holder-local triggers preserve the identity of the permanent granted them. */
+/* @sem EventSpec::Object{event:LeavesBattlefield, objects:SameObject(Source)} */
+hand_holder_leaves ::= "when" "this" "permanent" "leaves" "the" "battlefield"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), amount:ObjectProperty{object:Source, property:$receipt_stat, information:CurrentOrLastKnown}, preventable:true}}]} */
+hand_holder_damage ::= "it" "deals" "damage" "equal" "to" "its" receipt_stat "to" "each" filter_phrase
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One(Source)}}]} */
+hand_holder_sacrifice ::= "sacrifice" "this" "permanent"
+
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0})), changes:[GrantKeyword($keyword_value), GrantAbility(@scope(Ability::Triggered{event:$hand_holder_leaves, limits:_{}, announcement:@announcement, body:$hand_holder_damage})), GrantAbility(@scope(Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$hand_holder_sacrifice}))], duration:Indefinite, evaluation:Snapshot}}]} */
+hand_battlefield_holder_triggers ::= "that" "permanent" "gains" keyword_value "," '"' hand_holder_leaves "," hand_holder_damage "," '"' "and" '"' "at" turn_event "," hand_holder_sacrifice "." '"'

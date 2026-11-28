@@ -240,6 +240,37 @@ impl<'a> Scope<'a> {
                             self.copy_exceptions(exceptions)?;
                             continue;
                         }
+                        TokenRecipe::DraftedAbilitiesWithObjectNameAndColors {
+                            characteristics,
+                            information,
+                            ability_draft,
+                            supertypes,
+                            card_types,
+                        } => {
+                            self.object(characteristics)?;
+                            if !matches!(information, Information::CurrentOrLastKnown) {
+                                return Err(
+                                    "draft token requires current or last-known characteristics"
+                                        .into(),
+                                );
+                            }
+                            if !matches!(
+                                self.results.get(&ability_draft.0),
+                                Some(ResultKind::ExternalAbilityDraft)
+                            ) {
+                                return Err(format!(
+                                    "result {} is not a visible direct ability draft",
+                                    ability_draft.0
+                                ));
+                            }
+                            if supertypes.len() > 16
+                                || card_types.is_empty()
+                                || card_types.len() > 16
+                            {
+                                return Err("draft token needs bounded explicit types".into());
+                            }
+                            continue;
+                        }
                         TokenRecipe::CopyAtRandom { cards } => {
                             self.operand(cards)?;
                             continue;

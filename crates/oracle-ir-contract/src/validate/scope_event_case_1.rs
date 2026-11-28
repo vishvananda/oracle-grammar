@@ -183,6 +183,16 @@ impl<'a> Scope<'a> {
 
     pub(super) fn object(&self, object: &ObjectRef) -> Result {
         match object {
+            ObjectRef::MoveArrivalAt { result, .. } => {
+                if self.single_move_results.contains(&result.0) {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "result {} is not a visible direct singular move",
+                        result.0
+                    ))
+                }
+            }
             ObjectRef::Scoped => Ok(()),
             ObjectRef::RingBearer(player) => self.player(player),
             ObjectRef::HauntedBy(object) => self.object(object),

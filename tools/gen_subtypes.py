@@ -10,7 +10,7 @@ PLURALS = {
     "Fish": "Fish", "Sheep": "Sheep", "Elk": "Elk", "Ox": "Oxen", "Mouse": "Mice",
     "Fungus": "Fungi", "Cyclops": "Cyclopes", "Sphinx": "Sphinxes", "Fox": "Foxes",
     "Lich": "Liches", "Golem": "Golems", "Djinn": "Djinn", "Efreet": "Efreet",
-    "Merfolk": "Merfolk", "Kor": "Kor", "Kithkin": "Kithkin", "Nightstalker": "Nightstalkers",
+    "Merfolk": "Merfolk", "Clamfolk": "Clamfolk", "Shrimp": "Shrimp", "Kor": "Kor", "Kithkin": "Kithkin", "Nightstalker": "Nightstalkers",
     "Homunculus": "Homunculi", "Moonfolk": "Moonfolk", "Vedalken": "Vedalken",
     "Aetherborn": "Aetherborn", "Treefolk": "Treefolk", "Volver": "Volvers",
     "Myr": "Myr", "Eldrazi": "Eldrazi", "Samurai": "Samurai", "Aurochs": "Aurochs",

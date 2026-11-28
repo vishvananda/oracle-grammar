@@ -130,6 +130,12 @@ impl<'a> Scope<'a> {
                 participant,
                 actions,
             } => self.cast_payment_participant(participant, actions),
+            ObjectFilter::MatchesAnyCreatureType { allowed } => {
+                if allowed.len() > 256 {
+                    return Err("creature-type set exceeds limit".into());
+                }
+                Ok(())
+            }
             ObjectFilter::HasUnsharedCreatureTypeFrom { allowed, others } => {
                 self.unshared_creature_types(allowed, others)
             }

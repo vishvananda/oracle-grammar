@@ -887,7 +887,7 @@ defending_attack_requirement ::= defending_attack_controls | defending_attack_co
 /* @sem Condition::Controls{player:Bound(0), filter:$filter_phrase, minimum:1} */
 defending_attack_controls ::= "defending" "player" "controls" ("a" | "an") filter_phrase
 
-/* @sem Condition::AnyOf([Controls{player:Bound(0), filter:$filter_phrase, minimum:1}, Controls{player:Bound(0), filter:$filter_phrase_2, minimum:1}]) */
+/* @sem Condition::AnyOf(@unordered([Controls{player:Bound(0), filter:$filter_phrase, minimum:1}, Controls{player:Bound(0), filter:$filter_phrase_2, minimum:1}])) */
 defending_attack_controls_either ::= "defending" "player" "controls" ("a" | "an") filter_phrase "or" ("a" | "an") filter_phrase
 
 /* @sem Condition::Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}} */
@@ -10313,7 +10313,7 @@ lost_protection_color ::= "protection" "from" choice_color
 chosen_card_prefix_copy ::= duration "," affected "becomes" "a" "copy" "of" "it" "," "except" copy_exceptions_plain
 
 /* A named source's anaphor carries the same source through the condition and changes. */
-/* @sem Ability::Conditional{condition:AllOf([$window_your_turn, $named_source_positive_counters_him]), then:[Static(_{kind:Ordinary, affected:Objects(One(Source)), changes:$named_source_creature_and_keyword})]} */
+/* @sem Ability::Conditional{condition:AllOf(@unordered([$window_your_turn, $named_source_positive_counters_him])), then:[Static(_{kind:Ordinary, affected:Objects(One(Source)), changes:$named_source_creature_and_keyword})]} */
 turn_named_source_creature ::= window_your_turn "," "as" "long" "as" named_source_positive_counters_him "," "he's" named_source_creature_and_keyword "."
 
 /* @sem Change::[...$indefinite_plain_creature_animation, GrantKeyword($keyword_value)] */
@@ -11607,12 +11607,12 @@ linked_exile_look_and_play_base ::= look_at_linked_exile_cards "," "and" "you" "
 
 /* Adjacent controller rules remain separate sentences after static merging. */
 /* @sem Change::[...$linked_exile_look_and_play_base, ...$controller_rule_followups] */
-linked_exile_look_and_play_followed ::= linked_exile_look_and_play_base "." controller_rule_followups
+linked_exile_look_and_play_followed ::= linked_exile_look_and_play_base controller_rule_separator controller_rule_followups
 
 controller_rule_followups ::= controller_rule_followup | controller_rule_followup_pair
 
 /* @sem Change::[...$controller_rule_followup, ...$controller_rule_followup_2] */
-controller_rule_followup_pair ::= controller_rule_followup "." controller_rule_followup
+controller_rule_followup_pair ::= controller_rule_followup controller_rule_separator controller_rule_followup
 
 controller_rule_followup ::= controller_skip_draw_followup | controller_player_rule_followup
 
@@ -12640,7 +12640,7 @@ scaled_excluded_type_population ::= "then" "each" filter_phrase "that" "isn't" "
 counted_controlled_type_union ::= filter_phrase "you" "control" "that's" "an" four_kind_union
 
 /* Both populations retain their own controller constraint. */
-/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([AllOf([$controlled_pair_subtype, ControlledBy(One(AbilityController))]), AllOf([$controlled_pair_subtype_2, ControlledBy(One(AbilityController))])])} */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf(@unordered([AllOf(@unordered([$controlled_pair_subtype, ControlledBy(One(AbilityController))])), AllOf(@unordered([$controlled_pair_subtype_2, ControlledBy(One(AbilityController))]))]))} */
 controlled_subtype_pair_subject ::= controlled_pair_subtype "you" "control" "and" controlled_pair_subtype "you" "control"
 
 controlled_pair_subtype ::= plural_goblins_lower | subtype_plural
@@ -13259,3 +13259,6 @@ graveyard_flashback_bare_generic ::= NUMBER
 /* Both abilities apply to the same graveyard cards for the written duration. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$card_filter_and}), changes:[GrantAbility(@holder($graveyard_flashback)), GrantAbility($bare_storm)], duration:$duration, evaluation:Snapshot}}]} */
 loyalty_graveyard_flashback_storm ::= duration "," card_filter_and "cards" "in" "your" "graveyard" "gain" graveyard_flashback "and" bare_storm "."
+
+/* @sem () */
+controller_rule_separator ::= "." | "." NEWLINE

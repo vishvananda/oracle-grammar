@@ -704,6 +704,38 @@ impl<'a> Scope<'a> {
                 self.players(players)?;
                 self.count(&Count::Exactly(amount.clone()))
             }
+            Operation::ActivateMatchingAbilitiesInResolution {
+                actor,
+                holders,
+                written_cost,
+                ..
+            } => {
+                self.player(actor)?;
+                self.objects(holders)?;
+                self.cost(written_cost)
+            }
+            Operation::DraftExternalLoyaltyAbilities {
+                actor,
+                catalog,
+                costs,
+            } => {
+                self.player(actor)?;
+                match catalog {
+                    ExternalAbilityDraftCatalog::SourcePrintingAbility { source, .. } => {
+                        self.object(source)?
+                    }
+                }
+                if costs.is_empty() || costs.len() > 16 {
+                    return Err("ability draft needs 1 to 16 loyalty costs".into());
+                }
+                for cost in costs {
+                    if !matches!(cost, Expr::Constant(_)) {
+                        return Err("ability draft requires fixed loyalty costs".into());
+                    }
+                    self.expr(cost)?;
+                }
+                Ok(())
+            }
             Operation::ExileLibraryUntil {
                 actor,
                 library,

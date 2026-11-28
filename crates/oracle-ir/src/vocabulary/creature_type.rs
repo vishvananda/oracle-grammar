@@ -369,4 +369,6 @@ pub enum CreatureType {
     Trill,
     VauNAkat,
     MindlessOne,
+    Clamfolk,
+    Shrimp,
 }

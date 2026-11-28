@@ -381,6 +381,15 @@ pub enum Expr {
         objects: Box<ObjectSet>,
         allowed: Vec<CreatureType>,
     },
+    /// Maximum cardinality of a one-to-one assignment from distinct current
+    /// objects to distinct allowed creature types they actually have. One
+    /// object can fill at most one type, and one type at most one object.
+    /// Multitype objects may use any one matching type; duplicate inputs and
+    /// duplicate allowed types do not increase the result. Empty input is zero.
+    CountCreatureTypeMatching {
+        objects: Box<ObjectSet>,
+        allowed: Vec<CreatureType>,
+    },
 }
 
 /// Mana a number or filter reads that did not pay for a whole spell.

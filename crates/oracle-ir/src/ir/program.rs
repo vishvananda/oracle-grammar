@@ -1219,6 +1219,47 @@ pub enum Operation {
         agreement: Option<PlayerSet>,
         retain_in_main: Vec<ObjectRef>,
     },
+    /// During resolution, instruct `actor` to activate the abilities of the
+    /// selected `holders` whose written activation cost exactly matches
+    /// `written_cost`. This is an activation, not a copy or direct execution:
+    /// each actual activation has its own holder, activator, announced choices,
+    /// stack identity, and normally calculated and paid modified total cost.
+    /// The resolving instruction supplies the action opportunity; it does not
+    /// grant a general priority window or waive other activation restrictions.
+    /// `policy` makes source-unspecified execution details explicit rather than
+    /// treating failed attempts or selected sources as successful activations.
+    ActivateMatchingAbilitiesInResolution {
+        actor: PlayerRef,
+        holders: ObjectSet,
+        written_cost: Cost,
+        policy: InstructedActivationPolicy,
+    },
+    /// Ask the host-defined Arena draft protocol for exactly one actual ability
+    /// for each requested loyalty cost, in request order. The catalog and offer
+    /// protocol come from the exact source printing and ability, not an assumed
+    /// pool of existing planeswalker abilities or a card spellbook. The result
+    /// contains those selected abilities, preserving their costs and bodies.
+    /// If the catalog/protocol is unavailable, the draft is unresolved; never
+    /// invent offers, fabricate a choice, or silently skip a requested cost.
+    DraftExternalLoyaltyAbilities {
+        actor: PlayerRef,
+        catalog: ExternalAbilityDraftCatalog,
+        costs: Vec<Expr>,
+    },
+    /// Give each actual recipient of this placement the specified subtype sets
+    /// while its current incarnation retains a counter of this kind. The
+    /// creature set applies to a creature that isn't a land, and the land set
+    /// to a land that isn't a creature. No effect starts on objects that did
+    /// not receive this placement. Once the recipient loses its last counter of
+    /// this kind, the effect ends. A missing dual-type policy records what
+    /// the wording leaves open for an object that is both.
+    GrantSubtypeSetsWhileCounter {
+        placement: ResultId,
+        counter: crate::counter::CounterKind,
+        creature_types: CreatureTypeSet,
+        land_types: LandTypeScope,
+        dual_type: Option<DualSubtypePolicy>,
+    },
 }
 
 #[derive(
@@ -1330,4 +1371,49 @@ pub enum PersonalVisitWindow {
     /// comparison come from that record; no physical-card or name inference is
     /// implied. Missing history is unknown, not an empty visit history.
     Lifetime,
+}
+
+/// Unspecified parts of a multi-ability activation instruction. These are
+/// unresolved source policy, not permission to choose an arbitrary answer.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct InstructedActivationPolicy {
+    pub ordering: InstructedActivationOrdering,
+    pub multiple_matches: InstructedAbilityMultiplicity,
+    pub unpayable: InstructedActivationFailure,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum InstructedActivationOrdering {
+    UnspecifiedBySource,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum InstructedAbilityMultiplicity {
+    UnspecifiedBySource,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum InstructedActivationFailure {
+    /// Perform as much of the instruction as possible (CR 608.2c); the
+    /// source leaves selection and ordering among competing payable activations
+    /// unspecified when resources cannot cover every matching activation.
+    AsMuchAsPossibleSelectionUnspecified,
+}
+
+/// The source-defined external Arena ability catalog and offer protocol.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ExternalAbilityDraftCatalog {
+    /// The actual source printing, its zero-based printed ability and the
+    /// zero-based instruction within that ability. Host provenance is required
+    /// even if the source is a copy; absent provenance remains unresolved.
+    SourcePrintingAbility {
+        source: ObjectRef,
+        ability_index: u16,
+        instruction_index: u16,
+    },
+}
+
+/// Which subtype sets apply when an object is both a creature and a land.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DualSubtypePolicy {
+    Both,
+    LandOnly,
 }

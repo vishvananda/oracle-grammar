@@ -68,6 +68,8 @@ impl<'a> Scope<'a> {
                 at_most: _,
             }
             | Operation::GainPrintedResource { .. }
+            | Operation::ActivateMatchingAbilitiesInResolution { .. }
+            | Operation::DraftExternalLoyaltyAbilities { .. }
             | Operation::ExileLibraryUntil { .. }
             | Operation::RevealUntilGroup {
                 library: _,

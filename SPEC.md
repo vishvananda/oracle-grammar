@@ -123,11 +123,24 @@ with ordinary singleton movement receipts; U0034 normalizes the two reference
 records that used sums over those singletons. See
 [copiable abilities and actions](docs/copiable-abilities-and-actions.md).
 
+An optional-cost unpaid event occurs only when a presented opportunity to pay
+the matching cost closes unpaid, including a declined, impossible, or unsuccessful
+payment. The event binds the offered player and excludes compulsory costs and
+hypothetical offers. Triggered abilities wait for the usual opportunity to
+be put onto the stack, even if the decision occurs during another action.
+
 Counter placements offered as resolution payments use the native counter cost
 and the actual payment receipt. Payer and counter recipient remain independent;
 ordinary optional placements retain their separate program form. The shared
 cost composes with retained animations and prints their current operands. See
 [counter payments](docs/counter-payments.md).
+
+Bagel Valley applies its subtype effect to the permanent that actually receives
+its everything counter, while that permanent retains an everything counter.
+When the recipient is both a creature and a land, this grammar models the land
+branch only, following the distinction on Omo, Queen of Vesuva. This is an
+implementation choice for the event card's parenthetical. Printing preserves
+its original wording.
 
 Shared-subject static clauses have two to five arms. A scalar self or
 attached subject fills only each arm's immediate affected-object slot. Each

@@ -41,7 +41,7 @@ condition_top_graveyard_card_kind ::= ordered_top_graveyard_card "is" ("a" | "an
 condition_linked_card ::= "a" "card" "exiled" "with" self_holder_text "is" "a" "creature" "card"
 
 /* Alternatives test the same explicitly stated subject. */
-/* @sem Condition::ObjectMatches{object:$object_ref, filter:AnyOf([$filter_phrase, $filter_phrase_2])} */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:AnyOf(@unordered([$filter_phrase, $filter_phrase_2]))} */
 condition_object_is_either_kind ::= object_ref ("is" | "was") ("a" | "an") filter_phrase "or" ("a" | "an") filter_phrase
 
 /* @sem Condition::ObjectMatches{object:$object_ref, filter:ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:$bound, value:$number}}} */
@@ -3610,7 +3610,7 @@ condition_same_name_battlefield_a ::= "a" filter_phrase "with" "the" "same" "nam
 condition_same_name_battlefield_an ::= "an" filter_phrase "with" "the" "same" "name" "is" "on" "the" "battlefield"
 
 /* @prefer always */
-/* @sem Condition::AnyOf([$condition_same_name_graveyard, $condition_same_name_battlefield]) */
+/* @sem Condition::AnyOf(@unordered([$condition_same_name_graveyard, $condition_same_name_battlefield])) */
 condition_same_name_zones ::= condition_same_name_graveyard "or" condition_same_name_battlefield
 
 condition_same_name_battlefield ::= condition_same_name_battlefield_a | condition_same_name_battlefield_an
@@ -3759,7 +3759,7 @@ past_first_land_played_this_turn ::= "the" "first" "land" "you" "played" "this" 
 condition_not_possessive_phase ::= "it" "isn't" zone_your possessive_phase_state
 
 /* The counted objects must themselves be lands, independently of their qualifiers. */
-/* @sem Expr::CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Land), AnyOf([Supertype(Basic), $filter_phrase, $filter_phrase_2]), ControlledBy(One(AbilityController))])}, property:Names} */
+/* @sem Expr::CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf(@unordered([CardType(Land), AnyOf(@unordered([Supertype(Basic), $filter_phrase, $filter_phrase_2])), ControlledBy(One(AbilityController))]))}, property:Names} */
 battlefield_among_distinct_land_names ::= "lands" "with" "different" "names" "among" "the" "basic" "," filter_phrase "," "and" filter_phrase "lands" "you" "control"
 
 /* Every member of the named extreme population must be controlled by you. */
@@ -3921,7 +3921,7 @@ discard_one_color_conditional_program ::= "discard" "a" "card" "." "if" "a" adje
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Loyalty($loyalty_heading)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:$discard_one_color_conditional_program} */
 activated_discard_one_color_conditional ::= loyalty_heading ":" discard_one_color_conditional_program "."
 
-/* @sem ObjectFilter::AnyOf([$adjective_color, $adjective_color_2]) */
+/* @sem ObjectFilter::AnyOf(@unordered([$adjective_color, $adjective_color_2])) */
 condition_color_and_or ::= adjective_color "and" "/" "or" adjective_color
 
 /* @sem Condition::ObjectMatches{object:@it, filter:$condition_color_and_or} */
@@ -3969,7 +3969,7 @@ condition_holder_not_entered_this_turn ::= self_ref_holder "didn't" "enter" "the
 
 /* Historical land entry in the audited event-player convention. */
 /* @prefer always */
-/* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:AllOf([Not(SameObject(EventSubject)), ControlledBy(One($player_ref))]), to:Battlefield}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
+/* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:AllOf([Not(SameObject(EventSubject)), CardType(Land), ControlledBy(One($player_ref))]), to:Battlefield}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
 condition_event_player_prior_land_entry ::= player_ref "had" "another" "land" "enter" "the" "battlefield" "under" "their" "control" "this" "turn"
 
 /* Other cards exclude the ability source; the named restriction compares names. */
@@ -4306,7 +4306,7 @@ condition_control_each_basic_shared ::= "you" "control" "a" filter_phrase "of" "
 /* @sem Condition::Compare{left:CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, ObjectFilter::ControlledBy(One(AbilityController)))}, property:Colors}, test:NumberTest::Compare{comparison:Equal, value:Constant(5)}} */
 condition_each_color_continuation_shared ::= "a" filter_phrase "of" "each" "color"
 
-/* @sem Condition::AllOf([$condition_control_each_basic_shared, $condition_each_color_continuation_shared]) */
+/* @sem Condition::AllOf(@unordered([$condition_control_each_basic_shared, $condition_each_color_continuation_shared])) */
 condition_control_distinct_pair ::= condition_control_each_basic_shared "and" condition_each_color_continuation_shared
 
 /* The comparison applies to the subject of the enclosing event. */

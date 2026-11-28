@@ -229,6 +229,10 @@ pub(super) fn event_bindings_in(
     allow_discard_destination: bool,
 ) -> EventBindings {
     match event {
+        EventSpec::OptionalCostUnpaid { .. } => EventBindings {
+            player: true,
+            ..EventBindings::default()
+        },
         EventSpec::SagaChapter(_)
         | EventSpec::FirstEachTurn(_)
         | EventSpec::FirstForObjectEachTurn(_)

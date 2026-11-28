@@ -298,6 +298,7 @@ impl<'a> Scope<'a> {
                             }
                             Operation::GainLife { .. } if matches!(operation, Operation::GainLife { .. }) => ResultKind::LifeGain,
                             Operation::JoinRavnicanGuildFromEventSpell { .. } => ResultKind::GuildJoin,
+                            Operation::DraftExternalLoyaltyAbilities { .. } if matches!(operation, Operation::DraftExternalLoyaltyAbilities { .. }) => ResultKind::ExternalAbilityDraft,
                             Operation::Surveil { .. } => ResultKind::Surveil,
                             Operation::Search { .. } => ResultKind::Search,
                             Operation::PayCost { .. } | Operation::PayRepeatedly { .. } => {

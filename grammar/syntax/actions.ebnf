@@ -2166,7 +2166,7 @@ damage_group_subject ::= affected | damage_group_two_targets | damage_team_targe
 damage_group_two_to_objects ::= damage_group_two_targets "each" "deal" "damage" "equal" "to" "their" stat "to" affected
 
 /* Selection and movement share the current filter and selection result. */
-/* @sem ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2]) */
+/* @sem ObjectFilter::AnyOf(@unordered([$filter_phrase, $filter_phrase_2])) */
 graveyard_return_alternative ::= "a" filter_phrase "card" "or" "a" filter_phrase "card"
 
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$graveyard_return_alternative}, count:Exactly(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
@@ -13486,7 +13486,7 @@ counter_vote_total ::= "equal" "to" "the" "number" "of" vote_word "votes"
 
 /* The announced union target is shared by all three continuous effects; the
    duration names the object that must remain on the battlefield. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([AnyOf([$subtype, $noun]), ControlledBy(OpponentsOf(AbilityController))])}), index:0})), changes:[SetController(AbilityController)], duration:$while_on_battlefield, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@last_slot, index:0})), changes:[RemoveAllAbilities], duration:$while_on_battlefield, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@last_slot, index:0})), changes:[Rule(Prohibit(Attack(Any))), Rule(Prohibit(Block(Any)))], duration:$while_on_battlefield, evaluation:LiveObjects}}]} */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([AnyOf(@unordered([$subtype, $noun])), ControlledBy(OpponentsOf(AbilityController))])}), index:0})), changes:[SetController(AbilityController)], duration:$while_on_battlefield, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@last_slot, index:0})), changes:[RemoveAllAbilities], duration:$while_on_battlefield, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@last_slot, index:0})), changes:[Rule(Prohibit(Attack(Any))), Rule(Prohibit(Block(Any)))], duration:$while_on_battlefield, evaluation:LiveObjects}}]} */
 program_choose_opponent_union_control_disable ::= "choose" "target" subtype "or" noun "an" "opponent" "controls" "." while_on_battlefield "," "gain" "control" "of" "that" "permanent" "," "it" "loses" "all" "abilities" "," "and" "it" "can't" "attack" "or" "block" "."
 
 /* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$program_choose_opponent_union_control_disable} */
@@ -15433,7 +15433,7 @@ program_conditional_turn_boon ::= "you" "get" "a" "one-time" "boon" "with" '"' "
 /* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$program_conditional_turn_boon} */
 triggered_conditional_turn_boon ::= event_clause "," program_conditional_turn_boon
 
-/* @sem Operation::Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, $population_exception])}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+/* @sem Operation::Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf(@unordered([$filter_plural, $population_exception]))}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
 return_population_with_exceptions ::= "return" "all" filter_plural "to" "their" "owners'" "hands" population_exception
 
 /* Keep the comparison scoped to the immediately preceding shared discard. */
@@ -23089,7 +23089,7 @@ opponent_graveyard_chosen_targets ::= "up" "to" "one" "target" noun "card" "in" 
 return_arrived_graveyard_cards_battlefield ::= "return" "to" "the" "battlefield" graveyard_cards_arrived_this_turn
 
 /* The two damage instructions have distinct sources, recipients, and properties. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:EventSubject, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$entrant_damage_creature, ControlledBy(OpponentsOf(AbilityController))])}), index:0})), amount:ObjectProperty{object:EventSubject, property:$stat, information:CurrentOrLastKnown}, preventable:true}}, Effect{result:@next, operation:DealDamage{source:Target{slot:0, index:0}, recipients:Objects(One(Source)), amount:ObjectProperty{object:Target{slot:0, index:0}, property:$stat_2, information:CurrentOrLastKnown}, preventable:true}}]} */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$entrant_damage_creature, ControlledBy(OpponentsOf(AbilityController))])}), index:0})), amount:ObjectProperty{object:Source, property:$stat, information:CurrentOrLastKnown}, preventable:true}}, Effect{result:@next, operation:DealDamage{source:Target{slot:0, index:0}, recipients:Objects(One(Source)), amount:ObjectProperty{object:Target{slot:0, index:0}, property:$stat_2, information:CurrentOrLastKnown}, preventable:true}}]} */
 entrant_exchange_damage_program ::= "it" "deals" "damage" "equal" "to" "its" stat "to" "target" entrant_damage_creature "an" "opponent" "controls" "and" "that" "creature" "deals" "damage" "equal" "to" "its" stat "to" "this" "creature"
 
 entrant_damage_creature ::= noun_creature | enchanted_creature_adjective

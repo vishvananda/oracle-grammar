@@ -333,6 +333,10 @@ impl<'a> Scope<'a> {
     #[inline]
     pub(super) fn event(&self, event: &EventSpec) -> Result {
         match event {
+            EventSpec::OptionalCostUnpaid { players, cost } => {
+                self.players(players)?;
+                self.cost(cost)
+            }
             EventSpec::Primitive {
                 name: _,
                 operands: _,

@@ -229,24 +229,36 @@ fn split_levels(items: &[Value], index: usize, class: &Value, written: bool) -> 
 
 /// Triggers on at most this many events are offered split.
 const EVENTS: usize = 3;
+const EVENT_SPLITS: usize = 12;
 
-/// The groups a trigger's events split into: each event alone, in the order
-/// held and, for two, the other way round; and for three, the first two
-/// together or the last two.
+/// Offer the orders of up to three event clauses, and the two-clause forms
+/// which combine two events into one phrase.
 fn event_groups(cases: &[Value]) -> Vec<Vec<Vec<Value>>> {
     let single = |order: &[Value]| order.iter().map(|case| vec![case.clone()]).collect();
     let mut groups = vec![single(cases)];
     match cases {
         [first, second] => groups.push(single(&[second.clone(), first.clone()])),
         [first, second, third] => {
-            groups.push(vec![
-                vec![first.clone(), second.clone()],
-                vec![third.clone()],
-            ]);
-            groups.push(vec![
-                vec![first.clone()],
-                vec![second.clone(), third.clone()],
-            ]);
+            for (index, singleton) in cases.iter().enumerate().rev() {
+                let pair: Vec<_> = cases
+                    .iter()
+                    .enumerate()
+                    .filter(|(at, _)| *at != index)
+                    .map(|(_, case)| case.clone())
+                    .collect();
+                let singleton = vec![singleton.clone()];
+                groups.push(vec![pair.clone(), singleton.clone()]);
+                groups.push(vec![singleton, pair]);
+            }
+            for order in [
+                [first, third, second],
+                [second, first, third],
+                [second, third, first],
+                [third, first, second],
+                [third, second, first],
+            ] {
+                groups.push(order.into_iter().map(|event| vec![event.clone()]).collect());
+            }
         }
         _ => {}
     }
@@ -295,7 +307,7 @@ pub(super) fn split_events(abilities: &Value) -> Vec<Value> {
             views.push(Value::Array(out));
         }
     }
-    views.truncate(SPLITS);
+    views.truncate(EVENT_SPLITS);
     views
 }
 
@@ -421,11 +433,20 @@ mod tests {
         assert_eq!(views[0][0]["args"]["body"], 1);
         joined["args"]["event"] = json!({"AnyOf":[event("a"), event("b"), event("c")]});
         let views = split_events(&json!([joined]));
-        assert_eq!(views.len(), 3);
+        assert_eq!(views.len(), EVENT_SPLITS);
         assert_eq!(
             events(&views[1]),
             vec![json!({"AnyOf":[event("a"), event("b")]}), event("c")]
         );
+        assert_eq!(
+            events(&views[2]),
+            vec![event("c"), json!({"AnyOf":[event("a"), event("b")]})]
+        );
+        assert_eq!(
+            events(&views[3]),
+            vec![json!({"AnyOf":[event("a"), event("c")]}), event("b")]
+        );
+        assert_eq!(events(&views[9]), vec![event("b"), event("c"), event("a")]);
         assert!(split_events(&json!([trigger("Blocks", 1)])).is_empty());
     }
 }

@@ -28,6 +28,8 @@ mod life_gain_receipt_tests;
 #[cfg(test)]
 mod movement_receipt_tests;
 #[cfg(test)]
+mod optional_cost_unpaid_tests;
+#[cfg(test)]
 mod ordered_player_visits_tests;
 #[cfg(test)]
 mod subgame_tests;
@@ -54,6 +56,7 @@ enum ResultKind {
     CreatedObjects,
     StackSpellCopy,
     DamageReplacement,
+    ExternalAbilityDraft,
     LifeGain,
     GuildJoin,
     Fight,
@@ -1253,3 +1256,6 @@ mod loyalty_as_mana_tests;
 
 #[cfg(test)]
 mod commander_created_token_tests;
+
+#[cfg(test)]
+mod creature_type_matching_tests;
